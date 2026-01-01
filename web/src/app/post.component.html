@@ -1,0 +1,39 @@
+<div class="card" *ngIf="post">
+  <div class="row">
+    <div>
+      <div class="muted">{{ post.created_at | date:'fullDate' }}</div>
+      <h2 class="post-title">Post</h2>
+    </div>
+    <button class="secondary" (click)="back()">Back</button>
+  </div>
+
+  <div class="post-body" style="margin-top:10px;">{{ text(post.content) }}</div>
+
+  <hr/>
+
+  <h3 style="margin:0 0 8px 0;">Edit (delete + redraft)</h3>
+  <textarea [(ngModel)]="editText"></textarea>
+  <div class="row" style="margin-top:10px;">
+    <small class="muted">Edits create a new status ID.</small>
+    <button (click)="saveEdit()">Save</button>
+  </div>
+</div>
+
+<div style="height:12px"></div>
+
+<div class="card" *ngIf="comments">
+  <h2 class="post-title">Comments</h2>
+  <div class="muted">Thread descendants</div>
+  <div *ngIf="comments.descendants?.length===0" class="muted" style="margin-top:8px;">
+    No comments.
+  </div>
+
+  <div *ngFor="let c of comments.descendants; let i = index">
+    <hr *ngIf="i>0"/>
+    <div class="row">
+      <strong>@{{ c.account?.acct }}</strong>
+      <small>{{ c.created_at | date:'short' }}</small>
+    </div>
+    <div class="post-body">{{ text(c.content) }}</div>
+  </div>
+</div>

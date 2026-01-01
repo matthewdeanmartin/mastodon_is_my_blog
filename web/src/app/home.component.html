@@ -1,0 +1,41 @@
+<div class="card">
+  <div class="row">
+    <div>
+      <div class="muted" *ngIf="me">@{{ me?.acct }}</div>
+      <h2 class="post-title">New post</h2>
+    </div>
+    <div>
+      <a [href]="api.loginUrl()">
+        <button class="secondary">Connect Mastodon</button>
+      </a>
+    </div>
+  </div>
+
+  <textarea [(ngModel)]="draft" placeholder="Write. Publish. Leave."></textarea>
+  <div class="row" style="margin-top:10px;">
+    <small>{{ draft.length }} chars</small>
+    <button (click)="publish()" [disabled]="draft.trim().length===0">Publish</button>
+  </div>
+</div>
+
+<div style="height:12px"></div>
+
+<div class="card">
+  <h2 class="post-title">Posts</h2>
+  <div *ngIf="!posts?.length" class="muted">No posts loaded.</div>
+  <div *ngFor="let p of posts; let i = index">
+    <hr *ngIf="i>0"/>
+    <div class="row">
+      <a [routerLink]="['/post', p.id]"><strong>{{ p.created_at | date:'medium' }}</strong></a>
+      <small>{{ p.visibility }}</small>
+    </div>
+    <div class="post-body">{{ stripHtml(p.content) }}</div>
+  </div>
+</div>
+
+<div style="height:12px"></div>
+
+<div class="card">
+  <h2 class="post-title">Recent tweets</h2>
+  <div id="tweet-embed"></div>
+</div>

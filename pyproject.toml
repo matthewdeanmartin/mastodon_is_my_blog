@@ -1,0 +1,12 @@
+[project]
+name = "blog-console-server"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.34",
+  "mastodon-py>=2.1.4",
+  "sqlalchemy>=2.0",
+  "aiosqlite>=0.20",
+  "python-dotenv>=1.0",
+]
