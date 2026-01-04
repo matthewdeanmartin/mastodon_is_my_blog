@@ -1,6 +1,8 @@
+import json
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from urllib.parse import urlparse
 
 import dotenv
 from bs4 import BeautifulSoup
@@ -8,10 +10,11 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy import and_, desc, or_, select
+from sqlalchemy import and_, desc, func, or_, select
 
 from mastodon_is_my_blog.masto_client import client
 from mastodon_is_my_blog.store import (
+    CachedAccount,
     CachedPost,
     async_session,
     get_last_sync,
@@ -22,6 +25,24 @@ from mastodon_is_my_blog.store import (
 )
 
 dotenv.load_dotenv()
+
+# --- Configuration: Domain Filters ---
+# Reasonably configurable lists of domains for filters
+DOMAIN_CONFIG = {
+    "video": {
+        "youtube.com", "youtu.be", "vimeo.com", "twitch.tv", "dailymotion.com", "tiktok.com"
+    },
+    "picture": {
+        "flickr.com", "imgur.com", "instagram.com", "500px.com", "deviantart.com"
+    },
+    "tech": {
+        "github.com", "gitlab.com", "pypi.org", "npmjs.com", "stackoverflow.com", "huggingface.co"
+    },
+    "news": {
+        "nytimes.com", "theguardian.com", "bbc.com", "bbc.co.uk", "cnn.com",
+        "washingtonpost.com", "reuters.com", "aljazeera.com", "npr.org", "arstechnica.com"
+    }
+}
 
 
 @asynccontextmanager
@@ -62,48 +83,177 @@ class EditIn(BaseModel):
     status: str
     spoiler_text: str | None = None
 
-
-# --- Helper: Sync Engine ---
-def analyze_content(html: str, media_attachments: list) -> tuple[bool, bool]:
+def to_naive_utc(dt: datetime | None) -> datetime | None:
+    """
+    Safely converts any datetime (Aware or Naive) to Naive UTC.
+    This ensures we can always compare dates with SQLite data without crashing.
+    """
+    if dt is None:
+        return None
+    # If it has timezone info, convert to UTC and strip it
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    # If it's already naive, assume it's what we want
+    return dt
+# --- Helper: Content Analysis ---
+def analyze_content_domains(html: str, media_attachments: list) -> dict:
+    """
+    Analyzes HTML content and attachments to determine content flags.
+    Returns dict of boolean flags.
+    """
     soup = BeautifulSoup(html, "html.parser")
-    has_video = False
-    has_media = len(media_attachments) > 0
 
-    # Check for youtube/vimeo links if no native video
-    if not has_media:
-        if soup.find("iframe"):
-            has_video = True
+    flags = {
+        "has_media": len(media_attachments) > 0,
+        "has_video": False,
+        "has_news": False,
+        "has_tech": False
+    }
 
-    # Check media types
+    # 1. Check Attachments
     for m in media_attachments:
-        if m["type"] in ["video", "gifv"]:
-            has_video = True
+        if m["type"] in ["video", "gifv", "audio"]:
+            flags["has_video"] = True
         if m["type"] == "image":
-            has_media = True
+            flags["has_media"] = True
 
-    return has_media, has_video
+    # 2. Check Links (<a> tags and <iframe>)
+    if soup.find("iframe"):
+        flags["has_video"] = True
+
+    for link in soup.find_all("a", href=True):
+        try:
+            domain = urlparse(link["href"]).netloc.lower()
+            # Remove 'www.' prefix if present for matching
+            clean_domain = domain.replace("www.", "")
+
+            # Check Video
+            if any(d in clean_domain for d in DOMAIN_CONFIG["video"]):
+                flags["has_video"] = True
+
+            # Check Pictures (External)
+            if any(d in clean_domain for d in DOMAIN_CONFIG["picture"]):
+                flags["has_media"] = True  # Treat external image links as "has_media"
+
+            # Check Tech
+            if any(d in clean_domain for d in DOMAIN_CONFIG["tech"]):
+                flags["has_tech"] = True
+
+            # Check News
+            if any(d in clean_domain for d in DOMAIN_CONFIG["news"]):
+                flags["has_news"] = True
+
+        except Exception:
+            continue
+
+    return flags
 
 
-async def sync_timeline(force: bool = False) -> dict:
-    """Syncs posts from Mastodon to SQLite if stale or forced"""
-    last_run = await get_last_sync()
+# --- Sync Engines ---
 
-    # 24 Hour check
-    if not force and last_run and (datetime.utcnow() - last_run) < timedelta(hours=24):
+async def sync_accounts_friends_followers() -> None:
+    """Syncs lists of following and followers."""
+    token = await get_token()
+    if not token: return
+    m = client(token)
+    me = m.account_verify_credentials()
+
+    # Fetch lists (pagination logic simplified for brevity, assumes < 80 for demo)
+    # BUG: will need to revisit this hard coded value
+    following = m.account_following(me["id"], limit=80)
+    followers = m.account_followers(me["id"], limit=80)
+
+    async with async_session() as session:
+        # Process Following
+        for acc in following:
+            stmt = select(CachedAccount).where(CachedAccount.id == str(acc["id"]))
+            existing = (await session.execute(stmt)).scalar_one_or_none()
+
+            if not existing:
+                new_acc = CachedAccount(
+                    id=str(acc["id"]), acct=acc["acct"], display_name=acc["display_name"],
+                    avatar=acc["avatar"], url=acc["url"], is_following=True
+                )
+                session.add(new_acc)
+            else:
+                existing.is_following = True
+
+        # Process Followers
+        for acc in followers:
+            stmt = select(CachedAccount).where(CachedAccount.id == str(acc["id"]))
+            existing = (await session.execute(stmt)).scalar_one_or_none()
+
+            if not existing:
+                new_acc = CachedAccount(
+                    id=str(acc["id"]), acct=acc["acct"], display_name=acc["display_name"],
+                    avatar=acc["avatar"], url=acc["url"], is_followed_by=True
+                )
+                session.add(new_acc)
+            else:
+                existing.is_followed_by = True
+
+        await session.commit()
+    await update_last_sync("accounts")
+
+
+async def sync_blog_roll_activity() -> None:
+    """
+    Fetches the Home Timeline to find who is active.
+    Updates CachedAccount.last_status_at for the Blog Roll.
+    """
+    token = await get_token()
+    if not token: return
+    m = client(token)
+
+    # Fetch Home Timeline (Active people I follow)
+    home_statuses = m.timeline_home(limit=40)
+
+    async with async_session() as session:
+        for s in home_statuses:
+            account_data = s["account"]
+            # Find account in DB (should be there if we ran sync_accounts, but create if new)
+            stmt = select(CachedAccount).where(CachedAccount.id == str(account_data["id"]))
+            existing = (await session.execute(stmt)).scalar_one_or_none()
+
+            # --- Convert to Naive UTC before comparing ---
+            last_status_time = to_naive_utc(s["created_at"])
+
+            if existing:
+                # Update last active time if this post is newer
+                # existing.last_status_at is Naive (from SQLite), last_status_time is now Naive.
+                if not existing.last_status_at or last_status_time > existing.last_status_at:
+                    existing.last_status_at = last_status_time
+            else:
+                # Discovered a new active person (maybe from a boost)
+                new_acc = CachedAccount(
+                    id=str(account_data["id"]),
+                    acct=account_data["acct"],
+                    display_name=account_data["display_name"],
+                    avatar=account_data["avatar"],
+                    url=account_data["url"],
+                    last_status_at=last_status_time
+                )
+                session.add(new_acc)
+
+        await session.commit()
+
+
+async def sync_user_timeline(acct_id: str | None = None, force: bool = False) -> dict:
+    """Syncs posts for a specific user. Defaults to Me."""
+    last_run = await get_last_sync("user_timeline")
+    if not force and last_run and (datetime.utcnow() - last_run) < timedelta(minutes=15):
         return {"status": "skipped", "reason": "synced_recently"}
 
     token = await get_token()
-    if not token:
-        raise HTTPException(401, "Not connected to Mastodon")
-
+    if not token: raise HTTPException(401, "Not connected")
     m = client(token)
-    me = m.account_verify_credentials()
-    my_acct = me["acct"]
 
-    # Fetch posts (limit 100 for sync)
-    statuses = m.account_statuses(
-        me["id"], limit=40, exclude_reblogs=False, exclude_replies=False
-    )
+    target_id = acct_id
+    if not target_id:
+        me = m.account_verify_credentials()
+        target_id = me["id"]
+
+    statuses = m.account_statuses(target_id, limit=40)
 
     async with async_session() as session:
         for s in statuses:
@@ -111,73 +261,90 @@ async def sync_timeline(force: bool = False) -> dict:
             is_reblog = s["reblog"] is not None
             actual_status = s["reblog"] if is_reblog else s
 
-            # Check if this is a reply to someone else
-            is_reply = (
-                s.get("in_reply_to_id") is not None
-                and s.get("in_reply_to_account_id") != me["id"]
-            )
-
-            has_media, has_video = analyze_content(
+            # Analyze flags
+            flags = analyze_content_domains(
                 actual_status["content"], actual_status["media_attachments"]
             )
 
-            # Serialize media attachments
-            import json
+            # Determine Reply Status
+            # A post is a reply if it has in_reply_to_id AND it's not a self-thread (initially)
+            # We store the raw IDs to reconstruct storms later
+            in_reply_to_id = actual_status.get("in_reply_to_id")
+            in_reply_to_account = actual_status.get("in_reply_to_account_id")
 
-            media_json = (
-                json.dumps(actual_status["media_attachments"])
-                if actual_status["media_attachments"]
-                else None
+            is_reply_to_other = (
+                    in_reply_to_id is not None and
+                    str(in_reply_to_account) != str(actual_status["account"]["id"])
             )
 
-            # Create or Update
+            media_json = json.dumps(actual_status["media_attachments"]) if actual_status["media_attachments"] else None
+
+            # FIX: Ensure creation date is naive UTC
+            created_at_naive = to_naive_utc(s["created_at"])
+
             stmt = select(CachedPost).where(CachedPost.id == str(s["id"]))
             existing = (await session.execute(stmt)).scalar_one_or_none()
 
+            post_data = {
+                "content": actual_status["content"],
+                "created_at": created_at_naive,
+                "visibility": s["visibility"],
+                "author_acct": actual_status["account"]["acct"],
+                "author_id": str(actual_status["account"]["id"]),
+                "is_reblog": is_reblog,
+                "is_reply": is_reply_to_other,
+                "in_reply_to_id": str(in_reply_to_id) if in_reply_to_id else None,
+                "in_reply_to_account_id": str(in_reply_to_account) if in_reply_to_account else None,
+                "has_media": flags["has_media"],
+                "has_video": flags["has_video"],
+                "has_news": flags["has_news"],
+                "has_tech": flags["has_tech"],
+                "replies_count": s["replies_count"],
+                "reblogs_count": s["reblogs_count"],
+                "favourites_count": s["favourites_count"],
+                "media_attachments": media_json
+            }
+
             if not existing:
-                new_post = CachedPost(
-                    id=str(s["id"]),
-                    content=actual_status["content"],
-                    created_at=s["created_at"],
-                    visibility=s["visibility"],
-                    author_acct=actual_status["account"]["acct"],
-                    is_reblog=is_reblog,
-                    is_reply=is_reply,
-                    has_media=has_media,
-                    has_video=has_video,
-                    replies_count=s["replies_count"],
-                    media_attachments=media_json,
-                )
+                new_post = CachedPost(id=str(s["id"]), **post_data)
                 session.add(new_post)
             else:
-                # Update existing
-                existing.content = actual_status["content"]
-                existing.replies_count = s["replies_count"]
-                existing.is_reply = is_reply
-                existing.media_attachments = media_json
+                for k, v in post_data.items():
+                    setattr(existing, k, v)
 
         await session.commit()
 
-    await update_last_sync()
+    await update_last_sync("user_timeline")
     return {"status": "success", "count": len(statuses)}
 
 
-# --- Public Endpoints (Read Only / Cached) ---
-
+# --- Public Endpoints ---
 
 @app.get("/api/public/posts")
 async def get_public_posts(
-    filter_type: str = Query("all", enum=["all", "discussions", "pictures", "videos"])
+        user: str | None = None,
+        filter_type: str = Query("all", enum=["all", "discussions", "pictures", "videos", "news", "software"])
 ) -> list[dict]:
-    """Get posts from Cache"""
+    """
+    Get posts with filters.
+    User arg: filter by username (acct). If None, gets all synced posts (usually owner).
+    """
     async with async_session() as session:
         query = select(CachedPost).order_by(desc(CachedPost.created_at))
 
+        # Filter by User
+        if user:
+            query = query.where(CachedPost.author_acct == user)
+        else:
+            # Default to owner/verified credentials logic if we had multiple users synced
+            # For this app, we return everything in DB if user not specified,
+            # or we could default to the owner. Let's return all.
+            pass
+
+        # Apply Type Filters
         if filter_type == "all":
-            # Only root posts (not reblogs, not replies)
-            query = query.where(
-                and_(CachedPost.is_reblog == False, CachedPost.is_reply == False)
-            )
+            # Show roots only (hide replies to others, keep self-threads)
+            query = query.where(and_(CachedPost.is_reblog == False, CachedPost.is_reply == False))
         elif filter_type == "discussions":
             # Only replies to others
             query = query.where(CachedPost.is_reply == True)
@@ -185,65 +352,171 @@ async def get_public_posts(
             query = query.where(CachedPost.has_media == True)
         elif filter_type == "videos":
             query = query.where(CachedPost.has_video == True)
+        elif filter_type == "news":
+            query = query.where(CachedPost.has_news == True)
+        elif filter_type == "software":
+            query = query.where(CachedPost.has_tech == True)
 
         result = await session.execute(query)
         posts = result.scalars().all()
 
-        # Convert to dicts and parse media_attachments
-        import json
-
-        output = []
-        for p in posts:
-            post_dict = {
+        return [
+            {
                 "id": p.id,
                 "content": p.content,
-                "created_at": p.created_at.isoformat(),
-                "visibility": p.visibility,
                 "author_acct": p.author_acct,
+                "created_at": p.created_at.isoformat(),
+                "media_attachments": json.loads(p.media_attachments) if p.media_attachments else [],
+                "counts": {
+                    "replies": p.replies_count,
+                    "reblogs": p.reblogs_count,
+                    "likes": p.favourites_count
+                },
                 "is_reblog": p.is_reblog,
-                "is_reply": p.is_reply,
-                "has_media": p.has_media,
-                "has_video": p.has_video,
-                "replies_count": p.replies_count,
-                "media_attachments": (
-                    json.loads(p.media_attachments) if p.media_attachments else []
-                ),
+                "is_reply": p.is_reply
             }
-            output.append(post_dict)
+            for p in posts
+        ]
 
-        return output
 
-
-@app.get("/api/public/posts/{id}")
-async def get_public_post_detail(id: str) -> dict:
-    # Try cache first
+@app.get("/api/public/storms")
+async def get_storms(user: str | None = None):
+    """
+    Returns 'Tweet Storms'.
+    Groups a root post and its subsequent self-replies into a single tree.
+    """
     async with async_session() as session:
-        res = await session.execute(select(CachedPost).where(CachedPost.id == id))
-        post = res.scalar_one_or_none()
+        # 1. Fetch all posts for the user (or all if user is None)
+        query = select(CachedPost).order_by(desc(CachedPost.created_at))
+        if user:
+            query = query.where(CachedPost.author_acct == user)
+        else:
+            # By default, storms usually imply the blog owner
+            query = query.where(CachedPost.is_reblog == False)
 
-    # If not in cache or we want live comments, we might fetch live
-    # But for speed, return cached post, let frontend fetch comments live
-    if not post:
-        raise HTTPException(404, "Post not found in cache")
+        result = await session.execute(query)
+        all_posts = result.scalars().all()
 
-    import json
+    # 2. In-Memory Grouping Algorithm
+    # Map ID -> Post
+    post_map = {p.id: p for p in all_posts}
+
+    # Identify Roots: Posts that do NOT have a parent in the fetched set
+    # OR their parent is not by the same author (but here we filtered by author roughly)
+    storms = []
+    processed_ids = set()
+
+    # Sort by date desc to find newest roots first
+    sorted_posts = sorted(all_posts, key=lambda x: x.created_at, reverse=True)
+
+    for p in sorted_posts:
+        if p.id in processed_ids:
+            continue
+
+        # Check if this is a Root of a storm
+        # It is a root if:
+        # 1. It has no in_reply_to_id
+        # 2. OR it replies to someone else (new conversation start)
+        # 3. OR it replies to a post that we don't have in our DB (broken chain)
+
+        is_root = False
+        if not p.in_reply_to_id:
+            is_root = True
+        elif p.in_reply_to_account_id != p.author_id:
+            is_root = True
+        elif p.in_reply_to_id not in post_map:
+            is_root = True
+
+        if is_root:
+            # Start a storm
+            storm = {
+                "root": {
+                    "id": p.id,
+                    "content": p.content,
+                    "created_at": p.created_at.isoformat(),
+                    "media": json.loads(p.media_attachments) if p.media_attachments else [],
+                    "counts": {"replies": p.replies_count, "likes": p.favourites_count},
+                    "author_acct": p.author_acct
+                },
+                "branches": []
+            }
+            processed_ids.add(p.id)
+
+            # Find descendants recursively
+            # This is O(N^2) worst case, but N is usually small (20-40 posts page)
+            # A more efficient way is to build an adjacency list first.
+
+            # Let's build a simple adjacency list for the dataset
+            children_map = {}  # parent_id -> [children]
+            for child in all_posts:
+                if child.in_reply_to_id:
+                    children_map.setdefault(child.in_reply_to_id, []).append(child)
+
+            # Recursive collector
+            def collect_children(parent_id):
+                results = []
+                direct_kids = children_map.get(parent_id, [])
+                # Sort kids by time ASC (chronological reading)
+                direct_kids.sort(key=lambda x: x.created_at)
+
+                for kid in direct_kids:
+                    if kid.author_id == post_map[parent_id].author_id:
+                        processed_ids.add(kid.id)
+                        kid_data = {
+                            "id": kid.id,
+                            "content": kid.content,
+                            "media": json.loads(kid.media_attachments) if kid.media_attachments else [],
+                            "counts": {"replies": kid.replies_count, "likes": kid.favourites_count},
+                            "children": collect_children(kid.id)
+                        }
+                        results.append(kid_data)
+                return results
+
+            storm["branches"] = collect_children(p.id)
+            storms.append(storm)
+
+    return storms
+
+
+@app.get("/api/public/accounts/blogroll")
+async def get_blog_roll():
+    """Returns active accounts discovered from the timeline."""
+    async with async_session() as session:
+        # Get accounts that have posted recently, ordered by recency
+        query = (
+            select(CachedAccount)
+            .where(CachedAccount.last_status_at != None)
+            .order_by(desc(CachedAccount.last_status_at))
+            .limit(20)
+        )
+        res = await session.execute(query)
+        accounts = res.scalars().all()
+        return accounts
+
+
+@app.get("/api/public/analytics")
+async def get_analytics(user: str | None = None):
+    """Aggregate performance metrics."""
+    async with async_session() as session:
+        # Query sums
+        stmt = select(
+            func.count(CachedPost.id),
+            func.sum(CachedPost.replies_count),
+            func.sum(CachedPost.reblogs_count),
+            func.sum(CachedPost.favourites_count)
+        )
+        if user:
+            stmt = stmt.where(CachedPost.author_acct == user)
+
+        row = (await session.execute(stmt)).first()
 
     return {
-        "id": post.id,
-        "content": post.content,
-        "created_at": post.created_at.isoformat(),
-        "visibility": post.visibility,
-        "author_acct": post.author_acct,
-        "is_reblog": post.is_reblog,
-        "is_reply": post.is_reply,
-        "has_media": post.has_media,
-        "has_video": post.has_video,
-        "replies_count": post.replies_count,
-        "media_attachments": (
-            json.loads(post.media_attachments) if post.media_attachments else []
-        ),
+        "user": user or "all",
+        "total_posts": row[0] or 0,
+        "total_replies_received": row[1] or 0,
+        "total_boosts": row[2] or 0,
+        "total_favorites": row[3] or 0
     }
-
 
 @app.get("/api/public/posts/{id}/comments")
 async def get_live_comments(id: str) -> dict:
@@ -260,12 +533,20 @@ async def get_live_comments(id: str) -> dict:
         return {"descendants": []}
 
 
+
 # --- Admin/Auth Endpoints ---
 
 
 @app.post("/api/admin/sync")
 async def trigger_sync(force: bool = True) -> dict:
-    return await sync_timeline(force=force)
+    """Master sync trigger"""
+    await sync_accounts_friends_followers()  # Sync friends
+    await sync_blog_roll_activity()  # Sync 'who is active'
+    res = await sync_user_timeline(force=force)  # Sync my posts
+    return {
+        "timeline": res,
+        "message": "Sync complete"
+    }
 
 
 @app.get("/api/admin/status")
@@ -292,7 +573,7 @@ async def create_post(payload: PostIn):
         spoiler_text=payload.spoiler_text,
     )
     # Trigger immediate sync
-    await sync_timeline(force=True)
+    await sync_user_timeline(force=True)
     return resp
 
 
@@ -319,8 +600,8 @@ async def callback(code: str):
     )
     await set_token(access_token)
     frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:4200")
-    # Trigger initial sync on login
-    await sync_timeline(force=True)
+    await sync_accounts_friends_followers()
+    await sync_user_timeline(force=True)
     return RedirectResponse(url=f"{frontend_url}/#/admin")
 
 
@@ -345,6 +626,7 @@ async def posts(limit: int = 20):
 
 @app.get("/api/posts/{status_id}")
 async def get_post(status_id: str):
+    # This is a direct proxy for edit/view in admin, not public feed
     token = await get_token()
     if not token:
         raise HTTPException(401, "Not connected")

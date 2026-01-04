@@ -1,21 +1,30 @@
-import { Component } from '@angular/core';
-import {Router, RouterLink, RouterOutlet} from '@angular/router';
+// app.component.ts
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink, RouterOutlet, Router } from '@angular/router';
+import { ApiService } from './api.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  templateUrl: './app.component.html',
-  imports: [RouterOutlet, RouterLink, CommonModule]
+  imports: [CommonModule, RouterOutlet, RouterLink],
+  templateUrl: './app.component.html'
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   currentFilter = 'all';
+  blogRoll: any[] = [];
 
-  constructor(private router: Router) {}
+  constructor(private api: ApiService, private router: Router) {}
+
+  ngOnInit() {
+    // 1. Fetch Blog Roll
+    this.api.getBlogRoll().subscribe(accounts => {
+      this.blogRoll = accounts;
+    });
+  }
 
   setFilter(filter: string) {
     this.currentFilter = filter;
-    // We pass the filter via query params or state to the feed component
     this.router.navigate(['/'], { queryParams: { filter: filter } });
   }
 }

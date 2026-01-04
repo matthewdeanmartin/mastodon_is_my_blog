@@ -51,11 +51,11 @@ Open http://localhost:4200 and click "Connect Mastodon"!
 ## More Roadmap
 
 - [ ] Static site generation for public viewing
-- [ ] Markdown support
 - [ ] Draft saving
-- [ ] Tag/category organization
+- [ ] Tags filtering, tags view using hashtags
 - [ ] Analytics dashboard
 - [ ] RSS feed links
+- [ ] Support multiple accounts
 
 ## Why not a single user instance?
 

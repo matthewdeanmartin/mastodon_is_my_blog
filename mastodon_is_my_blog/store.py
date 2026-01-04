@@ -1,9 +1,9 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 import dotenv
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, delete, select
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -29,6 +29,24 @@ class Token(Base):
     value: Mapped[str] = mapped_column(String(500))
 
 
+class CachedAccount(Base):
+    """Stores friends, followers, and active posters for the Blog Roll"""
+    __tablename__ = "cached_accounts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)  # Mastodon ID
+    acct: Mapped[str] = mapped_column(String, index=True)  # user@instance
+    display_name: Mapped[str] = mapped_column(String)
+    avatar: Mapped[str] = mapped_column(String)
+    url: Mapped[str] = mapped_column(String)
+
+    # Relationship flags
+    is_following: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_followed_by: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Activity tracking for Blog Roll
+    last_status_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class CachedPost(Base):
     __tablename__ = "cached_posts"
 
@@ -38,21 +56,29 @@ class CachedPost(Base):
     visibility: Mapped[str] = mapped_column(String(20))
 
     # Metadata for filtering
-    author_acct: Mapped[str] = mapped_column(String)
+    author_acct: Mapped[str] = mapped_column(String, index=True)
+    author_id: Mapped[str] = mapped_column(String, index=True)
+
     is_reblog: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_reply: Mapped[bool] = mapped_column(
-        Boolean, default=False
-    )  # Track replies to others
+
+    # Threading logic
+    is_reply: Mapped[bool] = mapped_column(Boolean, default=False)  # Track replies to others
+    in_reply_to_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    in_reply_to_account_id: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # Content Flags
     has_media: Mapped[bool] = mapped_column(Boolean, default=False)  # Images
-    has_video: Mapped[bool] = mapped_column(
-        Boolean, default=False
-    )  # Youtube or video attachment
+    has_video: Mapped[bool] = mapped_column(Boolean, default=False)  # Youtube or video attachment
+    has_news: Mapped[bool] = mapped_column(Boolean, default=False)  # News domains
+    has_tech: Mapped[bool] = mapped_column(Boolean, default=False)  # Github/Pypi etc
 
     # Store media attachments as JSON string
     media_attachments: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Comments/Context
+    # Analytics / Context
     replies_count: Mapped[int] = mapped_column(Integer, default=0)
+    reblogs_count: Mapped[int] = mapped_column(Integer, default=0)
+    favourites_count: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class AppState(Base):
@@ -66,7 +92,7 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
 
-# --- Token Helpers (Existing) ---
+# --- Token Helpers ---
 async def get_token(key: str = "mastodon_access_token") -> Optional[str]:
     async with async_session() as session:
         result = await session.execute(select(Token).where(Token.key == key))
@@ -87,24 +113,24 @@ async def set_token(value: str) -> None:
         await session.commit()
 
 
-# --- Sync Logic ---
-async def get_last_sync() -> Optional[datetime]:
+# --- Sync State Logic ---
+async def get_last_sync(key: str = "main_timeline") -> Optional[datetime]:
     async with async_session() as session:
         res = await session.execute(
-            select(AppState).where(AppState.key == "main_timeline")
+            select(AppState).where(AppState.key == key)
         )
         state = res.scalar_one_or_none()
         return state.last_sync if state else None
 
 
-async def update_last_sync() -> None:
+async def update_last_sync(key: str = "main_timeline") -> None:
     async with async_session() as session:
         res = await session.execute(
-            select(AppState).where(AppState.key == "main_timeline")
+            select(AppState).where(AppState.key == key)
         )
         state = res.scalar_one_or_none()
         if state:
             state.last_sync = datetime.utcnow()
         else:
-            session.add(AppState(key="main_timeline", last_sync=datetime.utcnow()))
+            session.add(AppState(key=key, last_sync=datetime.utcnow()))
         await session.commit()

@@ -1,6 +1,7 @@
 import {Injectable} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
+import {HttpClient, HttpParams} from '@angular/common/http';
 import {MastodonStatus} from './mastodon';
+import { Observable } from 'rxjs';
 
 @Injectable({providedIn: 'root'})
 export class ApiService {
@@ -9,8 +10,14 @@ export class ApiService {
   constructor(private http: HttpClient) {
   }
   // Public Read
-  getPublicPosts(filter: string = 'all') {
-    return this.http.get<any[]>(`${this.base}/api/public/posts?filter_type=${filter}`);
+  // getPublicPosts(filter: string = 'all') {
+  //   return this.http.get<any[]>(`${this.base}/api/public/posts?filter_type=${filter}`);
+  // }
+
+  getPublicPosts(filter: string = 'all'): Observable<any[]> {
+    return this.http.get<any[]>(`${this.base}/api/public/posts`, {
+      params: new HttpParams().set('filter_type', filter)
+    });
   }
 
   getPublicPost(id: string) {
@@ -56,5 +63,19 @@ export class ApiService {
 
   editPost(id: string, status: string) {
     return this.http.post(`${this.base}/api/posts/${id}/edit`, {status});
+  }
+
+
+
+  getStorms(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.base}/api/public/storms`);
+  }
+
+  getBlogRoll(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.base}/api/public/accounts/blogroll`);
+  }
+
+  getAnalytics(): Observable<any> {
+    return this.http.get<any>(`${this.base}/api/public/analytics`);
   }
 }
