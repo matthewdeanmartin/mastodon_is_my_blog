@@ -1,14 +1,29 @@
 # 🐘 Mastodon is My Blog
 
-A local-first blogging interface for Mastodon. Write, edit, and manage your Mastodon posts in a clean, blog-style interface.
+My attempt to create an alternative Mastodon client based on a blogging interface instead of the infinite feed.
+
+Write, edit, and manage your Mastodon posts in a clean, blog-style interface.
 
 ## Why?
 
-- 📝 Treat Mastodon as your personal blog engine
-- 🏠 Keep full control with local hosting
-- 🎨 Beautiful, distraction-free writing interface
-- 💬 Engage with comments/replies easily
-- 🔒 Your data stays on your Mastodon instance
+Because I want to re-orient my mastodon usage from low value infinite doom scrolling to high value finite activities like
+
+## Roadmap
+
+- Writing blog posts
+- Discussion - shows all posts with past replies
+- Looking at pretty pictures
+- Finding Youtube suggestions - filters to all posts
+- Find cool software - filters to all posts mentioning github
+- Analytics page - show performance in one place, not on every post
+
+## Other good features
+
+- Treat Mastodon as your personal blog engine
+- Keep full control with local hosting
+- Beautiful, distraction-free writing interface
+- Engage with comments/replies easily
+- Your data stays on your Mastodon instance
 
 ## Quick Start
 
@@ -31,16 +46,22 @@ Open http://localhost:4200 and click "Connect Mastodon"!
 
 - **Backend**: FastAPI + mastodon.py + SQLAlchemy
 - **Frontend**: Angular (standalone components)
-- **Storage**: SQLite for tokens, Mastodon for content
+- **Storage**: SQLite for tokens and caching, Mastodon for content
 
-## Roadmap
+## More Roadmap
 
 - [ ] Static site generation for public viewing
 - [ ] Markdown support
 - [ ] Draft saving
 - [ ] Tag/category organization
 - [ ] Analytics dashboard
-- [ ] RSS feed generation
+- [ ] RSS feed links
+
+## Why not a single user instance?
+
+It costs a minimum of $10 a month and requires a server to be running all the time. Administering a server is a burden.
+
+I want this to be as burdensome as using a mastodon client and have a way to use it for free.
 
 ## License
 

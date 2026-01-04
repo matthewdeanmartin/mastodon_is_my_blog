@@ -1,11 +1,11 @@
 import os
-from typing import Optional
 from datetime import datetime, timedelta
+from typing import Optional
 
 import dotenv
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, delete, select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, Integer, Text, Boolean, DateTime, select, delete
 
 dotenv.load_dotenv()
 
@@ -40,9 +40,13 @@ class CachedPost(Base):
     # Metadata for filtering
     author_acct: Mapped[str] = mapped_column(String)
     is_reblog: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_reply: Mapped[bool] = mapped_column(Boolean, default=False)  # Track replies to others
+    is_reply: Mapped[bool] = mapped_column(
+        Boolean, default=False
+    )  # Track replies to others
     has_media: Mapped[bool] = mapped_column(Boolean, default=False)  # Images
-    has_video: Mapped[bool] = mapped_column(Boolean, default=False)  # Youtube or video attachment
+    has_video: Mapped[bool] = mapped_column(
+        Boolean, default=False
+    )  # Youtube or video attachment
 
     # Store media attachments as JSON string
     media_attachments: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -72,7 +76,9 @@ async def get_token(key: str = "mastodon_access_token") -> Optional[str]:
 
 async def set_token(value: str) -> None:
     async with async_session() as session:
-        result = await session.execute(select(Token).where(Token.key == "mastodon_access_token"))
+        result = await session.execute(
+            select(Token).where(Token.key == "mastodon_access_token")
+        )
         token = result.scalar_one_or_none()
         if token:
             token.value = value
@@ -84,14 +90,18 @@ async def set_token(value: str) -> None:
 # --- Sync Logic ---
 async def get_last_sync() -> Optional[datetime]:
     async with async_session() as session:
-        res = await session.execute(select(AppState).where(AppState.key == "main_timeline"))
+        res = await session.execute(
+            select(AppState).where(AppState.key == "main_timeline")
+        )
         state = res.scalar_one_or_none()
         return state.last_sync if state else None
 
 
 async def update_last_sync() -> None:
     async with async_session() as session:
-        res = await session.execute(select(AppState).where(AppState.key == "main_timeline"))
+        res = await session.execute(
+            select(AppState).where(AppState.key == "main_timeline")
+        )
         state = res.scalar_one_or_none()
         if state:
             state.last_sync = datetime.utcnow()
