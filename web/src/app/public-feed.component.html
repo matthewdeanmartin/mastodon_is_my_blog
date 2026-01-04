@@ -1,0 +1,31 @@
+<div class="card">
+  <h2 class="post-title">Latest Updates</h2>
+  <div *ngIf="loading" class="muted">Loading from cache...</div>
+
+  <div *ngFor="let p of posts; let i = index">
+    <hr *ngIf="i > 0"/>
+    <div class="row">
+      <a [routerLink]="['/p', p.id]"><strong>{{ p.created_at | date:'mediumDate' }}</strong></a>
+      <div *ngIf="p.is_reblog" class="muted">REBLOG</div>
+    </div>
+    <!-- Use [innerHTML] to render HTML content, limit to 200 chars of plain text for preview -->
+    <div class="post-body">
+      <span [innerHTML]="stripHtml(p.content).slice(0, 200) + '...'"></span>
+    </div>
+
+    <div *ngIf="getImages(p).length > 0" style="margin-top: 10px; display: flex; gap: 8px; overflow-x: auto;">
+        <img
+          *ngFor="let img of getImages(p)"
+          [src]="img.preview_url || img.url"
+          style="height: 150px; width: auto; border-radius: 4px; border: 1px solid #eee;"
+        >
+    </div>
+    <div style="margin-top:8px;">
+      <a [routerLink]="['/p', p.id]"><small>Read more & Comments</small></a>
+    </div>
+  </div>
+
+  <div *ngIf="!loading && posts.length === 0" class="muted">
+    No posts found for this filter.
+  </div>
+</div>

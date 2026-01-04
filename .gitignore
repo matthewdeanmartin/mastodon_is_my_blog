@@ -208,3 +208,5 @@ __marimo__/
 
 .idea
 SOURCE_UI.md
+/app.db
+/SOURCE_ALL.md

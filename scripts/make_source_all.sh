@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-git2md web \
+git2md . \
   --ignore .angular \
   node_modules \
   public \
@@ -20,7 +20,11 @@ git2md web \
     tsconfig.json \
     tsconfig.spec.json \
     dead_code \
-    README.md \
+    README.md SETUP.md \
+    .venv uv.lock \
+    Makefile Makefile1 LICENSE \
+    SOURCE_ALL.md SOURCE_UI.md SOURCE.md \
+    scripts \
     app.db \
     favicon.ico \
-  --output SOURCE_UI.md
+  --output SOURCE_ALL.md

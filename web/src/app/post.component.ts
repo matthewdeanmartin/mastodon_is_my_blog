@@ -35,11 +35,12 @@ export class PostComponent implements OnInit {
   }
 
   saveEdit() {
-    this.api.editPost(this.id, this.editText).subscribe({
-      next: (r: any) => this.router.navigate(['/post', r.new.id]),
-      error: e => alert('Edit failed: ' + (e?.error?.detail ?? e.message))
-    });
-  }
+  this.api.editPost(this.id, this.editText).subscribe({
+    // Just reuse the current ID, or use r.id (which is the same)
+    next: (r: any) => this.router.navigate(['/post', r.id]),
+    error: e => alert('Edit failed: ' + (e?.error?.detail ?? e.message))
+  });
+}
 
   text(html: string) {
     return (html || '').replace(/<[^>]+>/g, '').trim();

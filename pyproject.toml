@@ -9,4 +9,5 @@ dependencies = [
   "sqlalchemy>=2.0",
   "aiosqlite>=0.20",
   "python-dotenv>=1.0",
+  "beautifulsoup4>=4.12"
 ]

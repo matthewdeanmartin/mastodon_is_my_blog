@@ -1,10 +1,30 @@
-<div class="container">
-  <div class="row">
-    <div>
-      <div class="muted">BLOG CONSOLE</div>
-      <div class="muted">Mastodon is my blog engine.</div>
-    </div>
+<div class="app-layout">
+  <div class="header">
+    <h1 style="font-size: 1.5rem; margin:0;">Mastodon Blog</h1>
+    <nav>
+      <a routerLink="/" style="margin-right: 15px;">Read</a>
+      <a routerLink="/admin">Write (Admin)</a>
+    </nav>
   </div>
-  <hr />
-  <router-outlet></router-outlet>
+
+  <div class="sidebar">
+    <div class="muted" style="margin-bottom:10px;">FILTERS</div>
+    <button class="nav-btn" [class.active]="currentFilter==='all'" (click)="setFilter('all')">All Posts</button>
+    <button class="nav-btn" [class.active]="currentFilter==='reposts'" (click)="setFilter('reposts')">Reposts</button>
+    <button class="nav-btn" [class.active]="currentFilter==='pictures'" (click)="setFilter('pictures')">Pictures</button>
+    <button class="nav-btn" [class.active]="currentFilter==='videos'" (click)="setFilter('videos')">Videos</button>
+
+    <hr>
+
+    <div class="muted" style="margin-bottom:10px;">LINKS</div>
+    <a href="https://mastodon.social" target="_blank" class="nav-btn">My Profile</a>
+  </div>
+
+  <div class="content">
+    <router-outlet></router-outlet>
+  </div>
+
+  <div class="footer">
+    Powered by Mastodon & FastAPI. &copy; 2026.
+  </div>
 </div>

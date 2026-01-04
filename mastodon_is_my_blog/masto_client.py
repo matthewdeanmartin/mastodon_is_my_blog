@@ -1,5 +1,10 @@
 import os
+
+import dotenv
 from mastodon import Mastodon
+
+dotenv.load_dotenv()
+
 
 def client(access_token: str | None = None) -> Mastodon:
     return Mastodon(
