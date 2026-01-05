@@ -2,7 +2,7 @@
   <h2 class="post-title">Blog Post</h2>
   <div class="muted">{{ post.created_at | date:'fullDate' }}</div>
 
-  <div class="post-body" [innerHTML]="sanitizeHtml(post.content)"></div>
+  <div class="post-body" [innerHTML]="processContent(post.content)"></div>
 
   <!-- Display images if this post has media -->
   <div *ngIf="getMediaImages(post).length > 0" style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
@@ -29,6 +29,6 @@
       <strong>{{ c.account.display_name || c.account.acct }}</strong>
       <small>{{ c.created_at | date:'short' }}</small>
     </div>
-    <div class="post-body" [innerHTML]="sanitizeHtml(c.content)"></div>
+    <div class="post-body" [innerHTML]="processContent(c.content)"></div>
   </div>
 </div>

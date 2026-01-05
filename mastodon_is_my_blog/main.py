@@ -416,16 +416,18 @@ async def get_storms(user: str | None = None):
         # Check if this is a Root of a storm
         # It is a root if:
         # 1. It has no in_reply_to_id
+
+        # These are discussions
         # 2. OR it replies to someone else (new conversation start)
         # 3. OR it replies to a post that we don't have in our DB (broken chain)
 
         is_root = False
         if not p.in_reply_to_id:
             is_root = True
-        elif p.in_reply_to_account_id != p.author_id:
-            is_root = True
-        elif p.in_reply_to_id not in post_map:
-            is_root = True
+        # elif p.in_reply_to_account_id != p.author_id:
+        #     is_root = True
+        # elif p.in_reply_to_id not in post_map:
+        #     is_root = True
 
         if is_root:
             # Start a storm

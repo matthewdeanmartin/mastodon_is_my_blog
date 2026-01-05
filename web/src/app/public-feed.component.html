@@ -42,7 +42,7 @@
     </div>
 
     <div class="post-body">
-      <span [innerHTML]="stripHtml(p.content).slice(0, 500) + (p.content.length > 500 ? '...' : '')"></span>
+      <span [innerHTML]="stripHtml(p.content).slice(0, 2000) + (p.content.length > 2000 ? '...' : '')"></span>
     </div>
 
     <div *ngIf="getImages(p).length > 0" style="margin-top: 10px; display: flex; gap: 8px; overflow-x: auto;">

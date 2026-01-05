@@ -73,12 +73,32 @@ export class PublicPostComponent implements OnInit {
     });
   }
 
-  sanitizeHtml(html: string): SafeHtml {
-    return this.sanitizer.sanitize(1, html) || '';
+  // Process HTML to trust links and embed videos
+  processContent(html: string): SafeHtml {
+    if (!html) return '';
+
+    // 1. Replace YouTube links with Embeds
+    // Looks for <a href="..."> that contains youtube.com/watch?v=XXXX or youtu.be/XXXX
+    let processed = html.replace(
+      /<a[^>]+href="(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11}))"[^>]*>.*?<\/a>/g,
+      (match, url, videoId) => {
+        return `
+          <div class="video-embed-wrapper">
+            <iframe
+              src="https://www.youtube.com/embed/${videoId}"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen>
+            </iframe>
+          </div>`;
+      }
+    );
+
+    // 2. Bypass security to allow the iframes and style attributes to render
+    return this.sanitizer.bypassSecurityTrustHtml(processed);
   }
 
   getMediaImages(post: CachedPost): MediaAttachment[] {
-    console.log(post)
     return post.media_attachments?.filter(m => m.type === 'image') || [];
   }
 }

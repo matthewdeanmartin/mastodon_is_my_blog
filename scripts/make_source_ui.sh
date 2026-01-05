@@ -5,6 +5,7 @@ git2md web \
   --ignore .angular \
   node_modules \
   public \
+  .vscode \
   *.spec.ts \
   angular.json \
   .editorconfig \

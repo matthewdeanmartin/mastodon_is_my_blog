@@ -225,3 +225,38 @@ small {
     grid-template-columns: 1fr;
   }
 }
+
+/* Responsive Video Embed Container (16:9 Aspect Ratio) */
+.video-embed-wrapper {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+  height: 0;
+  margin: 20px 0;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+
+  iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+}
+
+/* Ensure links inside post bodies stand out */
+.post-body a {
+  color: #6366f1;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 500;
+
+  &:hover {
+    color: #4f46e5;
+    background-color: rgba(99, 102, 241, 0.1);
+    border-radius: 2px;
+  }
+}

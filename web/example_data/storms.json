@@ -1,0 +1,27 @@
+[
+  {
+    "root": {
+      "id": "115837743426448824",
+      "content": "<p>What even is professional networking anymore? I&#39;ve had the fortune of having jobs come to me instead of vice versa. Maybe 5-10% of my jobs or jobs of people I know came from social networking. 90% came from putting my resume in some database and getting calls from recruiters.</p><p>The UU? Bookclubs? Running clubs? Job hunting just doesn&#39;t come up &amp; if it does, those people are in the wrong field, retired, or see a job opening on their team 1x every few years.</p>",
+      "created_at": "2026-01-04T16:21:32.425000",
+      "media": [],
+      "counts": {
+        "replies": 1,
+        "likes": 2
+      },
+      "author_acct": "mistersql"
+    },
+    "branches": [
+      {
+        "id": "115837749216786759",
+        "content": "<p>Ho! It works, published from my new mastodon client. Just 1000 more features to go</p>",
+        "media": [],
+        "counts": {
+          "replies": 0,
+          "likes": 6
+        },
+        "children": []
+      }
+    ]
+  }
+]
