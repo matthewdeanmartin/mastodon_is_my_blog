@@ -18,7 +18,7 @@ interface SidebarCounts {
   selector: 'app-root',
   standalone: true,
   imports: [CommonModule, RouterOutlet, RouterLink],
-  templateUrl: './app.component.html'
+  templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit {
   currentFilter: string = 'all';
@@ -38,17 +38,17 @@ export class AppComponent implements OnInit {
   constructor(
     private api: ApiService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
   ) {}
 
   ngOnInit(): void {
     // 1. Fetch Blog Roll
-    this.api.getBlogRoll().subscribe(accounts => {
+    this.api.getBlogRoll().subscribe((accounts) => {
       this.blogRoll = accounts;
     });
 
     // 2. Get Main User Info
-    this.api.getAdminStatus().subscribe(status => {
+    this.api.getAdminStatus().subscribe((status) => {
       if (status.connected && status.current_user) {
         this.mainUser = status.current_user;
         // Set active user to main user by default
@@ -59,9 +59,8 @@ export class AppComponent implements OnInit {
       }
     });
 
-
     // 3. Listen to query param changes to update active user display
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.subscribe((params) => {
       this.currentUser = params['user'] || null;
       this.currentFilter = params['filter'] || 'all';
 
@@ -73,7 +72,7 @@ export class AppComponent implements OnInit {
           },
           error: () => {
             this.activeUserInfo = null;
-          }
+          },
         });
       } else {
         // No user param means we're viewing the main user
@@ -88,21 +87,20 @@ export class AppComponent implements OnInit {
     // Use 'merge' to preserve the 'user' param if it exists
     this.router.navigate(['/'], {
       queryParams: { filter: filter },
-      queryParamsHandling: 'merge'
+      queryParamsHandling: 'merge',
     });
   }
 
   viewMainUser(): void {
     // Clear the user param to return to main user's view
     this.router.navigate(['/'], {
-      queryParams: { filter: this.currentFilter }
+      queryParams: { filter: this.currentFilter },
     });
   }
 
   isViewingMainUser(): boolean {
     return !this.currentUser;
   }
-
 
   refreshCounts(): void {
     this.api.getCounts(this.currentUser || '').subscribe({
@@ -118,7 +116,7 @@ export class AppComponent implements OnInit {
       },
       error: () => {
         // If counts fail, keep UI stable.
-      }
+      },
     });
   }
 }

@@ -44,7 +44,7 @@ interface CommentsResponse {
   selector: 'app-public-post',
   standalone: true,
   imports: [CommonModule, RouterLink],
-  templateUrl: 'post.component.html'
+  templateUrl: 'post.component.html',
 })
 export class PublicPostComponent implements OnInit {
   post: CachedPost | null = null;
@@ -54,14 +54,14 @@ export class PublicPostComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private api: ApiService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
   ) {}
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id')!;
 
     // 1. Get Cached Post
-    this.api.getPublicPost(id).subscribe(p => {
+    this.api.getPublicPost(id).subscribe((p) => {
       this.post = p;
     });
 
@@ -71,7 +71,7 @@ export class PublicPostComponent implements OnInit {
         this.comments = c.descendants || [];
         this.loadingComments = false;
       },
-      error: () => this.loadingComments = false
+      error: () => (this.loadingComments = false),
     });
   }
 
@@ -96,7 +96,7 @@ export class PublicPostComponent implements OnInit {
             </iframe>
           </div>
           <p><a href="${url}" target="_blank" rel="noopener noreferrer">${linkText || url}</a></p>`;
-      }
+      },
     );
 
     // Pattern 2: Links with youtu.be/
@@ -113,20 +113,17 @@ export class PublicPostComponent implements OnInit {
             </iframe>
           </div>
           <p><a href="${url}" target="_blank" rel="noopener noreferrer">${linkText || url}</a></p>`;
-      }
+      },
     );
 
     // 2. Ensure all other links open in new tab and are styled properly
-    processed = processed.replace(
-      /<a /g,
-      '<a target="_blank" rel="noopener noreferrer" '
-    );
+    processed = processed.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
 
     // 3. Bypass security to allow the iframes and links to render
     return this.sanitizer.bypassSecurityTrustHtml(processed);
   }
 
   getMediaImages(post: CachedPost): MediaAttachment[] {
-    return post.media_attachments?.filter(m => m.type === 'image') || [];
+    return post.media_attachments?.filter((m) => m.type === 'image') || [];
   }
 }

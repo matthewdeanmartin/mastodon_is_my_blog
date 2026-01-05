@@ -7,7 +7,7 @@ import { FormsModule } from '@angular/forms';
   selector: 'app-admin',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: "admin.component.html"
+  templateUrl: 'admin.component.html',
 })
 export class AdminComponent implements OnInit {
   status: any;
@@ -16,10 +16,12 @@ export class AdminComponent implements OnInit {
 
   constructor(public api: ApiService) {}
 
-  ngOnInit() { this.refreshStatus(); }
+  ngOnInit() {
+    this.refreshStatus();
+  }
 
   refreshStatus() {
-    this.api.getAdminStatus().subscribe(s => this.status = s);
+    this.api.getAdminStatus().subscribe((s) => (this.status = s));
   }
 
   sync() {
@@ -30,7 +32,7 @@ export class AdminComponent implements OnInit {
         this.refreshStatus();
         alert('Sync complete!');
       },
-      error: () => this.syncing = false
+      error: () => (this.syncing = false),
     });
   }
 
@@ -41,7 +43,7 @@ export class AdminComponent implements OnInit {
         alert('Published! Cache is updating...');
         this.refreshStatus();
       },
-      error: (e) => alert('Error: ' + e.message)
+      error: (e) => alert('Error: ' + e.message),
     });
   }
 }

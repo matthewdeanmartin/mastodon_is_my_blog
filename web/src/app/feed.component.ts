@@ -9,7 +9,7 @@ import { CommonModule } from '@angular/common';
   selector: 'app-public-feed',
   standalone: true,
   imports: [CommonModule, RouterLink],
-  templateUrl: "feed.component.html"
+  templateUrl: 'feed.component.html',
 })
 export class PublicFeedComponent implements OnInit {
   items: any[] = []; // Can be Posts or Storms
@@ -19,10 +19,13 @@ export class PublicFeedComponent implements OnInit {
   currentUser: string | undefined;
   syncingUser = false; // Add this flag to prevent infinite loops
 
-  constructor(private route: ActivatedRoute, private api: ApiService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private api: ApiService,
+  ) {}
 
   ngOnInit() {
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.subscribe((params) => {
       this.currentFilter = params['filter'] || 'all';
       this.currentUser = params['user'];
       this.syncingUser = false; // Reset sync flag on nav change
@@ -46,7 +49,7 @@ export class PublicFeedComponent implements OnInit {
       }
     };
 
-    const handleError = () => this.loading = false;
+    const handleError = () => (this.loading = false);
 
     // If 'all', use the Storms endpoint for the threaded view
     if (filter === 'all') {
@@ -71,13 +74,15 @@ export class PublicFeedComponent implements OnInit {
         this.load(this.currentFilter, acct);
       },
       error: (err) => {
-        console.error("Failed to sync user", err);
+        console.error('Failed to sync user', err);
         this.loading = false;
-      }
+      },
     });
   }
 
-  stripHtml(html: string) { return (html || '').replace(/<[^>]+>/g, '').trim(); }
+  stripHtml(html: string) {
+    return (html || '').replace(/<[^>]+>/g, '').trim();
+  }
 
   getImages(post: any) {
     // Handle storm root vs regular post structure if needed,

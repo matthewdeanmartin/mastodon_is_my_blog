@@ -11,19 +11,19 @@
   <div *ngIf="status?.connected">
     <div class="row">
       <div>
-        <strong>Status:</strong> Connected<br>
-        <small class="muted">Last Cache Sync: {{ status.last_sync | date:'medium' }}</small>
+        <strong>Status:</strong> Connected<br />
+        <small class="muted">Last Cache Sync: {{ status.last_sync | date: 'medium' }}</small>
       </div>
       <button class="secondary" (click)="sync()" [disabled]="syncing">
         {{ syncing ? 'Syncing...' : 'Force Refresh Cache' }}
       </button>
     </div>
 
-    <hr>
+    <hr />
 
     <h3>Write New Post</h3>
     <textarea [(ngModel)]="draft" placeholder="What's on your mind?"></textarea>
-    <div class="row" style="margin-top:10px;">
+    <div class="row" style="margin-top: 10px">
       <small>{{ draft.length }} chars</small>
       <button (click)="publish()" [disabled]="!draft.trim()">Publish</button>
     </div>

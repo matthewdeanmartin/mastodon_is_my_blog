@@ -33,48 +33,42 @@
     </button>
 
     <div class="muted" style="margin-bottom:10px;">FILTERS</div>
-<!--    <button class="nav-btn" [class.active]="currentFilter==='all'" (click)="setFilter('all')">Latest Storms</button>-->
-<!--    <button class="nav-btn" [class.active]="currentFilter==='news'" (click)="setFilter('news')">News</button>-->
-<!--    <button class="nav-btn" [class.active]="currentFilter==='software'" (click)="setFilter('software')">Cool Software</button>-->
-<!--    <button class="nav-btn" [class.active]="currentFilter==='pictures'" (click)="setFilter('pictures')">Pictures</button>-->
-<!--    <button class="nav-btn" [class.active]="currentFilter==='videos'" (click)="setFilter('videos')">Videos</button>-->
-<!--    <button class="nav-btn" [class.active]="currentFilter==='discussions'" (click)="setFilter('discussions')">Discussions</button>-->
 
     <button class="nav-btn" [class.active]="currentFilter==='all'" (click)="setFilter('all')">
-  Latest Storms ({{ counts.storms }})
-</button>
+      Latest Storms ({{ counts.storms }})
+    </button>
 
-<button class="nav-btn" [class.active]="currentFilter==='news'" (click)="setFilter('news')">
-  News ({{ counts.news }})
-</button>
+    <button class="nav-btn" [class.active]="currentFilter==='news'" (click)="setFilter('news')">
+      News ({{ counts.news }})
+    </button>
 
-<button class="nav-btn" [class.active]="currentFilter==='software'" (click)="setFilter('software')">
-  Cool Software ({{ counts.software }})
-</button>
+    <button class="nav-btn" [class.active]="currentFilter==='software'" (click)="setFilter('software')">
+      Cool Software ({{ counts.software }})
+    </button>
 
-<button class="nav-btn" [class.active]="currentFilter==='pictures'" (click)="setFilter('pictures')">
-  Pictures ({{ counts.pictures }})
-</button>
+    <button class="nav-btn" [class.active]="currentFilter==='pictures'" (click)="setFilter('pictures')">
+      Pictures ({{ counts.pictures }})
+    </button>
 
-<button class="nav-btn" [class.active]="currentFilter==='videos'" (click)="setFilter('videos')">
-  Videos ({{ counts.videos }})
-</button>
+    <button class="nav-btn" [class.active]="currentFilter==='videos'" (click)="setFilter('videos')">
+      Videos ({{ counts.videos }})
+    </button>
 
-<button class="nav-btn" [class.active]="currentFilter==='discussions'" (click)="setFilter('discussions')">
-  Discussions ({{ counts.discussions }})
-</button>
+    <button class="nav-btn" [class.active]="currentFilter==='discussions'" (click)="setFilter('discussions')">
+      Discussions ({{ counts.discussions }})
+    </button>
 
     <hr>
 
     <div class="muted" style="margin-bottom:10px;">BLOG ROLL</div>
     <div *ngFor="let acc of blogRoll" style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-        <img [src]="acc.avatar" style="width: 24px; height: 24px; border-radius: 50%;">
-        <a [routerLink]="['/']"
-           [queryParams]="{user: acc.acct}"
-           queryParamsHandling="merge"
-           style="font-size: 0.9rem; text-decoration: none; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;">
-            {{ acc.display_name || acc.acct }}
-        </a>
+      <img [src]="acc.avatar" style="width: 24px; height: 24px; border-radius: 50%;">
+      <a [routerLink]="['/']"
+         [queryParams]="{user: acc.acct}"
+         queryParamsHandling="merge"
+         style="font-size: 0.9rem; text-decoration: none; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;">
+        {{ acc.display_name || acc.acct }}
+      </a>
     </div>
 
     <hr>
@@ -89,6 +83,7 @@
 
   <div class="footer">
     Powered by Mastodon & FastAPI. &copy; 2026.<br>
-    <a href="https://www.flaticon.com/free-icons/elephant" title="elephant icons">Elephant icons created by Freepik - Flaticon</a>
+    <a href="https://www.flaticon.com/free-icons/elephant" title="elephant icons">Elephant icons created by Freepik -
+      Flaticon</a>
   </div>
 </div>

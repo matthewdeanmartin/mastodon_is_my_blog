@@ -1,16 +1,19 @@
 <div class="card" *ngIf="post">
   <h2 class="post-title">Blog Post</h2>
-  <div class="muted">{{ post.created_at | date:'fullDate' }}</div>
+  <div class="muted">{{ post.created_at | date: 'fullDate' }}</div>
 
   <div class="post-body" [innerHTML]="processContent(post.content)"></div>
 
   <!-- Display images if this post has media -->
-  <div *ngIf="getMediaImages(post).length > 0" style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+  <div
+    *ngIf="getMediaImages(post).length > 0"
+    style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap"
+  >
     <img
       *ngFor="let media of getMediaImages(post)"
       [src]="media.url"
       [alt]="media.description || 'Image'"
-      style="max-width: 100%; height: auto; border-radius: 4px;"
+      style="max-width: 100%; height: auto; border-radius: 4px"
     />
   </div>
 </div>
@@ -24,10 +27,10 @@
   </div>
 
   <div *ngFor="let c of comments">
-    <hr>
+    <hr />
     <div class="row">
       <strong>{{ c.account.display_name || c.account.acct }}</strong>
-      <small>{{ c.created_at | date:'short' }}</small>
+      <small>{{ c.created_at | date: 'short' }}</small>
     </div>
     <div class="post-body" [innerHTML]="processContent(c.content)"></div>
   </div>
