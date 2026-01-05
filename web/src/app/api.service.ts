@@ -9,15 +9,14 @@ export class ApiService {
 
   constructor(private http: HttpClient) {
   }
-  // Public Read
-  // getPublicPosts(filter: string = 'all') {
-  //   return this.http.get<any[]>(`${this.base}/api/public/posts?filter_type=${filter}`);
-  // }
 
-  getPublicPosts(filter: string = 'all'): Observable<any[]> {
-    return this.http.get<any[]>(`${this.base}/api/public/posts`, {
-      params: new HttpParams().set('filter_type', filter)
-    });
+  // Public Read
+  getPublicPosts(filter: string = 'all', user?: string): Observable<any[]> {
+    let params = new HttpParams().set('filter_type', filter);
+    if (user) {
+      params = params.set('user', user);
+    }
+    return this.http.get<any[]>(`${this.base}/api/public/posts`, { params });
   }
 
   getPublicPost(id: string) {
@@ -28,6 +27,13 @@ export class ApiService {
     return this.http.get<any>(`${this.base}/api/public/posts/${id}/comments`);
   }
 
+  getAccountInfo(acct: string): Observable<any> {
+    return this.http.get<any>(`${this.base}/api/public/accounts/${acct}`);
+  }
+
+  syncAccount(acct: string): Observable<any> {
+    return this.http.post<any>(`${this.base}/api/public/accounts/${acct}/sync`, {});
+  }
 
   comments(id: string) {
     return this.http.get(`${this.base}/api/posts/${id}/comments`);
@@ -37,7 +43,7 @@ export class ApiService {
   loginUrl() { return `${this.base}/auth/login`; }
 
   getAdminStatus() {
-    return this.http.get<{connected: boolean, last_sync: string}>(`${this.base}/api/admin/status`);
+    return this.http.get<{connected: boolean, last_sync: string, current_user: any}>(`${this.base}/api/admin/status`);
   }
 
   triggerSync(force: boolean = false) {
@@ -65,10 +71,12 @@ export class ApiService {
     return this.http.post(`${this.base}/api/posts/${id}/edit`, {status});
   }
 
-
-
-  getStorms(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.base}/api/public/storms`);
+  getStorms(user?: string): Observable<any[]> {
+    let params = new HttpParams();
+    if (user) {
+      params = params.set('user', user);
+    }
+    return this.http.get<any[]>(`${this.base}/api/public/storms`, { params });
   }
 
   getBlogRoll(): Observable<any[]> {

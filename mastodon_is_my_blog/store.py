@@ -38,6 +38,7 @@ class CachedAccount(Base):
     display_name: Mapped[str] = mapped_column(String)
     avatar: Mapped[str] = mapped_column(String)
     url: Mapped[str] = mapped_column(String)
+    note: Mapped[str] = mapped_column(Text, default="")  # Bio/description
 
     # Relationship flags
     is_following: Mapped[bool] = mapped_column(Boolean, default=False)

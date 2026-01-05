@@ -83,6 +83,7 @@ class EditIn(BaseModel):
     status: str
     spoiler_text: str | None = None
 
+
 def to_naive_utc(dt: datetime | None) -> datetime | None:
     """
     Safely converts any datetime (Aware or Naive) to Naive UTC.
@@ -95,6 +96,8 @@ def to_naive_utc(dt: datetime | None) -> datetime | None:
         return dt.astimezone(timezone.utc).replace(tzinfo=None)
     # If it's already naive, assume it's what we want
     return dt
+
+
 # --- Helper: Content Analysis ---
 def analyze_content_domains(html: str, media_attachments: list) -> dict:
     """
@@ -172,11 +175,13 @@ async def sync_accounts_friends_followers() -> None:
             if not existing:
                 new_acc = CachedAccount(
                     id=str(acc["id"]), acct=acc["acct"], display_name=acc["display_name"],
-                    avatar=acc["avatar"], url=acc["url"], is_following=True
+                    avatar=acc["avatar"], url=acc["url"], is_following=True,
+                    note=acc.get("note", "")
                 )
                 session.add(new_acc)
             else:
                 existing.is_following = True
+                existing.note = acc.get("note", "")
 
         # Process Followers
         for acc in followers:
@@ -186,11 +191,13 @@ async def sync_accounts_friends_followers() -> None:
             if not existing:
                 new_acc = CachedAccount(
                     id=str(acc["id"]), acct=acc["acct"], display_name=acc["display_name"],
-                    avatar=acc["avatar"], url=acc["url"], is_followed_by=True
+                    avatar=acc["avatar"], url=acc["url"], is_followed_by=True,
+                    note=acc.get("note", "")
                 )
                 session.add(new_acc)
             else:
                 existing.is_followed_by = True
+                existing.note = acc.get("note", "")
 
         await session.commit()
     await update_last_sync("accounts")
@@ -206,7 +213,7 @@ async def sync_blog_roll_activity() -> None:
     m = client(token)
 
     # Fetch Home Timeline (Active people I follow)
-    home_statuses = m.timeline_home(limit=40)
+    home_statuses = m.timeline_home(limit=200)
 
     async with async_session() as session:
         for s in home_statuses:
@@ -231,29 +238,72 @@ async def sync_blog_roll_activity() -> None:
                     display_name=account_data["display_name"],
                     avatar=account_data["avatar"],
                     url=account_data["url"],
-                    last_status_at=last_status_time
+                    last_status_at=last_status_time,
+                    note=account_data.get("note", "")
                 )
                 session.add(new_acc)
 
         await session.commit()
 
 
-async def sync_user_timeline(acct_id: str | None = None, force: bool = False) -> dict:
+async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None, force: bool = False,
+    cooldown_minutes: int = 15
+    ) -> dict:
     """Syncs posts for a specific user. Defaults to Me."""
-    last_run = await get_last_sync("user_timeline")
-    if not force and last_run and (datetime.utcnow() - last_run) < timedelta(minutes=15):
+    sync_key = f"user_timeline_{acct or acct_id or 'me'}"
+    last_run = await get_last_sync(sync_key)
+
+    # Check custom cooldown
+    if not force and last_run and (datetime.utcnow() - last_run) < timedelta(minutes=cooldown_minutes):
         return {"status": "skipped", "reason": "synced_recently"}
 
     token = await get_token()
     if not token: raise HTTPException(401, "Not connected")
     m = client(token)
 
-    target_id = acct_id
-    if not target_id:
-        me = m.account_verify_credentials()
-        target_id = me["id"]
+    # Resolve the target account
+    if acct:
+        # Look up account by acct string (username@instance)
+        try:
+            search_result = m.account_search(acct, limit=1)
+            if not search_result:
+                raise HTTPException(404, f"Account {acct} not found")
+            target_account = search_result[0]
+            target_id = target_account["id"]
+        except Exception as e:
+            raise HTTPException(404, f"Could not find account {acct}: {str(e)}")
+    elif acct_id:
+        target_id = acct_id
+        target_account = m.account(target_id)
+    else:
+        # Default to authenticated user
+        target_account = m.account_verify_credentials()
+        target_id = target_account["id"]
 
-    statuses = m.account_statuses(target_id, limit=40)
+    # Cache the account info
+    async with async_session() as session:
+        stmt = select(CachedAccount).where(CachedAccount.id == str(target_id))
+        existing_acc = (await session.execute(stmt)).scalar_one_or_none()
+
+        if not existing_acc:
+            new_acc = CachedAccount(
+                id=str(target_id),
+                acct=target_account["acct"],
+                display_name=target_account["display_name"],
+                avatar=target_account["avatar"],
+                url=target_account["url"],
+                note=target_account.get("note", "")
+            )
+            session.add(new_acc)
+        else:
+            existing_acc.display_name = target_account["display_name"]
+            existing_acc.avatar = target_account["avatar"]
+            existing_acc.note = target_account.get("note", "")
+
+        await session.commit()
+
+    # Fetch statuses
+    statuses = m.account_statuses(target_id, limit=200)
 
     async with async_session() as session:
         for s in statuses:
@@ -314,11 +364,68 @@ async def sync_user_timeline(acct_id: str | None = None, force: bool = False) ->
 
         await session.commit()
 
-    await update_last_sync("user_timeline")
+    await update_last_sync(sync_key)
     return {"status": "success", "count": len(statuses)}
 
 
 # --- Public Endpoints ---
+
+@app.get("/api/public/accounts/blogroll")
+async def get_blog_roll():
+    """Returns active accounts discovered from the timeline."""
+    async with async_session() as session:
+        # Get accounts that have posted recently OR are friends
+        query = (
+            select(CachedAccount)
+            .where(or_(CachedAccount.last_status_at != None, CachedAccount.is_following == True))
+            .order_by(desc(CachedAccount.last_status_at))
+            .limit(40)
+        )
+        res = await session.execute(query)
+        accounts = res.scalars().all()
+
+        return [
+            {
+                "id": a.id,
+                "acct": a.acct,
+                "display_name": a.display_name,
+                "avatar": a.avatar,
+                "url": a.url,
+                "note": getattr(a, 'note', ''),
+                "last_status_at": a.last_status_at.isoformat() if a.last_status_at else None
+            }
+            for a in accounts
+        ]
+
+
+@app.get("/api/public/accounts/{acct}")
+async def get_account_info(acct: str):
+    """Get cached account information by acct string."""
+    async with async_session() as session:
+        stmt = select(CachedAccount).where(CachedAccount.acct == acct)
+        account = (await session.execute(stmt)).scalar_one_or_none()
+
+        if not account:
+            raise HTTPException(404, "Account not found in cache")
+
+        return {
+            "id": account.id,
+            "acct": account.acct,
+            "display_name": account.display_name,
+            "avatar": account.avatar,
+            "url": account.url,
+            "note": account.note,
+            "is_following": account.is_following,
+            "is_followed_by": account.is_followed_by
+        }
+
+
+@app.post("/api/public/accounts/{acct}/sync")
+async def sync_account(acct: str):
+    """Sync a specific user's timeline."""
+    result = await sync_user_timeline(acct=acct, force=True)
+    return result
+
 
 @app.get("/api/public/posts")
 async def get_public_posts(
@@ -480,22 +587,6 @@ async def get_storms(user: str | None = None):
     return storms
 
 
-@app.get("/api/public/accounts/blogroll")
-async def get_blog_roll():
-    """Returns active accounts discovered from the timeline."""
-    async with async_session() as session:
-        # Get accounts that have posted recently, ordered by recency
-        query = (
-            select(CachedAccount)
-            .where(CachedAccount.last_status_at != None)
-            .order_by(desc(CachedAccount.last_status_at))
-            .limit(20)
-        )
-        res = await session.execute(query)
-        accounts = res.scalars().all()
-        return accounts
-
-
 @app.get("/api/public/analytics")
 async def get_analytics(user: str | None = None):
     """Aggregate performance metrics."""
@@ -520,6 +611,33 @@ async def get_analytics(user: str | None = None):
         "total_favorites": row[3] or 0
     }
 
+
+@app.get("/api/public/posts/{id}")
+async def get_single_post(id: str):
+    """Get a single cached post by ID."""
+    async with async_session() as session:
+        stmt = select(CachedPost).where(CachedPost.id == id)
+        post = (await session.execute(stmt)).scalar_one_or_none()
+
+        if not post:
+            raise HTTPException(404, "Post not found")
+
+        return {
+            "id": post.id,
+            "content": post.content,
+            "author_acct": post.author_acct,
+            "created_at": post.created_at.isoformat(),
+            "media_attachments": json.loads(post.media_attachments) if post.media_attachments else [],
+            "counts": {
+                "replies": post.replies_count,
+                "reblogs": post.reblogs_count,
+                "likes": post.favourites_count
+            },
+            "is_reblog": post.is_reblog,
+            "is_reply": post.is_reply
+        }
+
+
 @app.get("/api/public/posts/{id}/comments")
 async def get_live_comments(id: str) -> dict:
     """Comments are fetched live to ensure freshness"""
@@ -533,7 +651,6 @@ async def get_live_comments(id: str) -> dict:
         return context
     except:
         return {"descendants": []}
-
 
 
 # --- Admin/Auth Endpoints ---
@@ -555,9 +672,26 @@ async def trigger_sync(force: bool = True) -> dict:
 async def admin_status() -> dict:
     token = await get_token()
     last_sync = await get_last_sync()
+
+    # Get current user info
+    current_user = None
+    if token:
+        try:
+            m = client(token)
+            me = m.account_verify_credentials()
+            current_user = {
+                "acct": me["acct"],
+                "display_name": me["display_name"],
+                "avatar": me["avatar"],
+                "note": me.get("note", "")
+            }
+        except:
+            pass
+
     return {
         "connected": token is not None,
         "last_sync": last_sync.isoformat() if last_sync else None,
+        "current_user": current_user
     }
 
 

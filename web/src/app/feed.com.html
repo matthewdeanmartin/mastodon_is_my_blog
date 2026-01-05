@@ -37,12 +37,15 @@
         <span *ngIf="p.created_at">{{ p.created_at | date:'mediumDate' }}</span>
         <span *ngIf="!p.created_at">Just now</span>
       </a>
-      <span *ngIf="p.is_reblog" class="badge">REBLOG</span>
-      <span *ngIf="p.is_reply" class="badge">REPLY</span>
+      <div>
+        <span *ngIf="p.is_reblog" style="background: #e3f2fd; color: #1976d2; padding: 2px 8px; border-radius: 3px; font-size: 0.75rem; font-weight: 600;">REBLOG</span>
+        <span *ngIf="p.is_reply" style="background: #f3e5f5; color: #7b1fa2; padding: 2px 8px; border-radius: 3px; font-size: 0.75rem; font-weight: 600; margin-left: 4px;">REPLY</span>
+      </div>
     </div>
 
     <div class="post-body">
-      <span [innerHTML]="stripHtml(p.content).slice(0, 2000) + (p.content.length > 2000 ? '...' : '')"></span>
+      <!-- First show a plain text preview, then link to full post -->
+      <span>{{ stripHtml(p.content).slice(0, 300) }}{{ p.content.length > 300 ? '...' : '' }}</span>
     </div>
 
     <div *ngIf="getImages(p).length > 0" style="margin-top: 10px; display: flex; gap: 8px; overflow-x: auto;">

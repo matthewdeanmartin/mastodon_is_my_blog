@@ -61,7 +61,9 @@ export class PublicPostComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id')!;
 
     // 1. Get Cached Post
-    this.api.getPublicPost(id).subscribe(p => this.post = p);
+    this.api.getPublicPost(id).subscribe(p => {
+      this.post = p;
+    });
 
     // 2. Get Live Comments
     this.api.getComments(id).subscribe({
@@ -77,11 +79,13 @@ export class PublicPostComponent implements OnInit {
   processContent(html: string): SafeHtml {
     if (!html) return '';
 
+    let processed = html;
+
     // 1. Replace YouTube links with Embeds
-    // Looks for <a href="..."> that contains youtube.com/watch?v=XXXX or youtu.be/XXXX
-    let processed = html.replace(
-      /<a[^>]+href="(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11}))"[^>]*>.*?<\/a>/g,
-      (match, url, videoId) => {
+    // Pattern 1: Links with youtube.com/watch?v=
+    processed = processed.replace(
+      /<a[^>]+href="(https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([\w-]{11})(?:[^"]*)?)"[^>]*>([^<]*)<\/a>/gi,
+      (match, url, videoId, linkText) => {
         return `
           <div class="video-embed-wrapper">
             <iframe
@@ -90,11 +94,35 @@ export class PublicPostComponent implements OnInit {
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowfullscreen>
             </iframe>
-          </div>`;
+          </div>
+          <p><a href="${url}" target="_blank" rel="noopener noreferrer">${linkText || url}</a></p>`;
       }
     );
 
-    // 2. Bypass security to allow the iframes and style attributes to render
+    // Pattern 2: Links with youtu.be/
+    processed = processed.replace(
+      /<a[^>]+href="(https?:\/\/(?:www\.)?youtu\.be\/([\w-]{11})(?:[^"]*)?)"[^>]*>([^<]*)<\/a>/gi,
+      (match, url, videoId, linkText) => {
+        return `
+          <div class="video-embed-wrapper">
+            <iframe
+              src="https://www.youtube.com/embed/${videoId}"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen>
+            </iframe>
+          </div>
+          <p><a href="${url}" target="_blank" rel="noopener noreferrer">${linkText || url}</a></p>`;
+      }
+    );
+
+    // 2. Ensure all other links open in new tab and are styled properly
+    processed = processed.replace(
+      /<a /g,
+      '<a target="_blank" rel="noopener noreferrer" '
+    );
+
+    // 3. Bypass security to allow the iframes and links to render
     return this.sanitizer.bypassSecurityTrustHtml(processed);
   }
 

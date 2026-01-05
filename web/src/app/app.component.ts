@@ -25,6 +25,10 @@ export class AppComponent implements OnInit {
 
   setFilter(filter: string) {
     this.currentFilter = filter;
-    this.router.navigate(['/'], { queryParams: { filter: filter } });
+    // Use 'merge' to preserve the 'user' param if it exists
+    this.router.navigate(['/'], {
+      queryParams: { filter: filter },
+      queryParamsHandling: 'merge'
+    });
   }
 }
