@@ -61,15 +61,35 @@
     <hr>
 
     <div class="muted" style="margin-bottom:10px;">BLOG ROLL</div>
-    <div *ngFor="let acc of blogRoll" style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-      <img [src]="acc.avatar" style="width: 24px; height: 24px; border-radius: 50%;">
+    <div *ngFor="let acc of blogRoll" style="margin-bottom: 8px;">
       <a [routerLink]="['/']"
          [queryParams]="{user: acc.acct}"
          queryParamsHandling="merge"
-         style="font-size: 0.9rem; text-decoration: none; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;">
-        {{ acc.display_name || acc.acct }}
+         [style.background]="isActiveUser(acc.acct) ? '#e0e7ff' : (isRecentlyViewed(acc.acct) ? '#A9A9A9' : 'transparent')"
+         [style.border-left]="isActiveUser(acc.acct) ? '3px solid #6366f1' : 'none'"
+         [style.padding]="'8px'"
+         [style.border-radius]="'4px'"
+         [style.display]="'flex'"
+         [style.align-items]="'center'"
+         [style.gap]="'8px'"
+         style="text-decoration: none; color: #333; cursor: pointer; transition: all 0.2s;">
+        <img [src]="acc.avatar" style="width: 24px; height: 24px; border-radius: 50%;">
+        <span style="font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          {{ acc.display_name || acc.acct }}
+        </span>
       </a>
     </div>
+
+<!--    <div class="muted" style="margin-bottom:10px;">BLOG ROLL</div>-->
+<!--    <div *ngFor="let acc of blogRoll" style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">-->
+<!--      <img [src]="acc.avatar" style="width: 24px; height: 24px; border-radius: 50%;">-->
+<!--      <a [routerLink]="['/']"-->
+<!--         [queryParams]="{user: acc.acct}"-->
+<!--         queryParamsHandling="merge"-->
+<!--         style="font-size: 0.9rem; text-decoration: none; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;">-->
+<!--        {{ acc.display_name || acc.acct }}-->
+<!--      </a>-->
+<!--    </div>-->
 
     <hr>
 

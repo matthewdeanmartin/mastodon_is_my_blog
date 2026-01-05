@@ -40,7 +40,8 @@ DOMAIN_CONFIG = {
     },
     "news": {
         "nytimes.com", "theguardian.com", "bbc.com", "bbc.co.uk", "cnn.com",
-        "washingtonpost.com", "reuters.com", "aljazeera.com", "npr.org", "arstechnica.com"
+        "washingtonpost.com", "reuters.com", "aljazeera.com", "npr.org", "arstechnica.com",
+        "economist.com"
     }
 }
 
@@ -369,6 +370,10 @@ async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None
 
 
 # --- Public Endpoints ---
+
+@app.get("/api/status")
+async def status() -> dict:
+    return {"status":"up"}
 
 @app.get("/api/public/accounts/blogroll")
 async def get_blog_roll():

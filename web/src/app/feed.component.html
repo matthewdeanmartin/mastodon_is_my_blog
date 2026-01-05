@@ -35,7 +35,7 @@
 
 <ng-template #postTemplate let-p>
   <div class="row" style="margin-bottom: 5px">
-    <a [routerLink]="['/p', p.id]" class="muted" style="font-size: 0.85rem">
+    <a [routerLink]="['/p', p.id]" [queryParams]="getQueryParams()" class="muted" style="font-size: 0.85rem">
       <span *ngIf="p.created_at">{{ p.created_at | date: 'mediumDate' }}</span>
       <span *ngIf="!p.created_at">Just now</span>
     </a>
@@ -70,7 +70,8 @@
 
   <div class="post-body">
     <!-- First show a plain text preview, then link to full post -->
-    <span>{{ stripHtml(p.content).slice(0, 2000) }}{{ p.content.length > 2000 ? '...' : '' }}</span>
+<!--    <span>{{ stripHtml(p.content).slice(0, 2000) }}{{ p.content.length > 2000 ? '...' : '' }}</span>-->
+    <span [innerHTML]="stripHtml(p.content)"></span>
   </div>
 
   <div

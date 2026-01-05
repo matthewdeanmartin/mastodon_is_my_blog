@@ -1,9 +1,9 @@
 // app.component.ts
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterLink, RouterOutlet, Router, ActivatedRoute } from '@angular/router';
-import { ApiService } from './api.service';
-import { filter } from 'rxjs/operators';
+import {Component, OnInit} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {RouterLink, RouterOutlet, Router, ActivatedRoute} from '@angular/router';
+import {ApiService} from './api.service';
+import {filter} from 'rxjs/operators';
 
 interface SidebarCounts {
   storms: number;
@@ -26,6 +26,8 @@ export class AppComponent implements OnInit {
   blogRoll: any[] = [];
   mainUser: any = null; // Store the authenticated user's info
   activeUserInfo: any = null; // Store the currently viewed user's info
+  serverDown: boolean = false;
+  recentlyViewed: Set<string> = new Set();
   counts: SidebarCounts = {
     storms: 0,
     news: 0,
@@ -39,9 +41,15 @@ export class AppComponent implements OnInit {
     private api: ApiService,
     private router: Router,
     private route: ActivatedRoute,
-  ) {}
+  ) {
+  }
 
   ngOnInit(): void {
+    // Subscribe to server status
+    this.api.serverDown$.subscribe((isDown) => {
+      this.serverDown = isDown;
+    });
+
     // 1. Fetch Blog Roll
     this.api.getBlogRoll().subscribe((accounts) => {
       this.blogRoll = accounts;
@@ -55,7 +63,7 @@ export class AppComponent implements OnInit {
         if (!this.currentUser) {
           this.activeUserInfo = this.mainUser;
         }
-        this.refreshCounts();
+        // this.refreshCounts();
       }
     });
 
@@ -64,19 +72,27 @@ export class AppComponent implements OnInit {
       this.currentUser = params['user'] || null;
       this.currentFilter = params['filter'] || 'all';
 
+      // Track recently viewed accounts
+      if (this.currentUser) {
+        this.recentlyViewed.add(this.currentUser);
+      }
+
       // Update active user info when user param changes
       if (this.currentUser) {
         this.api.getAccountInfo(this.currentUser).subscribe({
           next: (account) => {
             this.activeUserInfo = account;
+            this.refreshCounts(); // Refresh counts when user changes
           },
           error: () => {
             this.activeUserInfo = null;
+            this.refreshCounts();
           },
         });
       } else {
         // No user param means we're viewing the main user
         this.activeUserInfo = this.mainUser;
+        this.refreshCounts(); // Refresh counts when returning to main user
       }
     });
     this.refreshCounts();
@@ -86,7 +102,7 @@ export class AppComponent implements OnInit {
     this.currentFilter = filter;
     // Use 'merge' to preserve the 'user' param if it exists
     this.router.navigate(['/'], {
-      queryParams: { filter: filter },
+      queryParams: {filter: filter},
       queryParamsHandling: 'merge',
     });
   }
@@ -94,7 +110,7 @@ export class AppComponent implements OnInit {
   viewMainUser(): void {
     // Clear the user param to return to main user's view
     this.router.navigate(['/'], {
-      queryParams: { filter: this.currentFilter },
+      queryParams: {filter: this.currentFilter},
     });
   }
 
@@ -118,5 +134,13 @@ export class AppComponent implements OnInit {
         // If counts fail, keep UI stable.
       },
     });
+  }
+
+  isRecentlyViewed(acct: string): boolean {
+    return this.recentlyViewed.has(acct);
+  }
+
+  isActiveUser(acct: string): boolean {
+    return this.currentUser === acct;
   }
 }

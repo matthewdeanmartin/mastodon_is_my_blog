@@ -4,6 +4,7 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from './api.service';
 import { CommonModule } from '@angular/common';
+import {DomSanitizer} from '@angular/platform-browser';
 
 @Component({
   selector: 'app-public-feed',
@@ -22,6 +23,7 @@ export class PublicFeedComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private api: ApiService,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit() {
@@ -81,7 +83,8 @@ export class PublicFeedComponent implements OnInit {
   }
 
   stripHtml(html: string) {
-    return (html || '').replace(/<[^>]+>/g, '').trim();
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+    // return (html || '').replace(/<[^>]+>/g, '').trim();
   }
 
   getImages(post: any) {
@@ -89,5 +92,12 @@ export class PublicFeedComponent implements OnInit {
     // but the API ensures 'media' or 'media_attachments' exists.
     const media = post.media_attachments || post.media || [];
     return media.filter((m: any) => m.type === 'image');
+  }
+   getQueryParams() {
+    const params: any = { filter: this.currentFilter };
+    if (this.currentUser) {
+      params.user = this.currentUser;
+    }
+    return params;
   }
 }
