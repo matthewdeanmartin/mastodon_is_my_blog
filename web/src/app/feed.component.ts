@@ -9,7 +9,7 @@ import { CommonModule } from '@angular/common';
   selector: 'app-public-feed',
   standalone: true,
   imports: [CommonModule, RouterLink],
-  templateUrl: "public-feed.component.html"
+  templateUrl: "feed.component.html"
 })
 export class PublicFeedComponent implements OnInit {
   items: any[] = []; // Can be Posts or Storms

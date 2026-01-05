@@ -44,7 +44,7 @@ interface CommentsResponse {
   selector: 'app-public-post',
   standalone: true,
   imports: [CommonModule, RouterLink],
-  templateUrl: 'public-post.component.html'
+  templateUrl: 'post.component.html'
 })
 export class PublicPostComponent implements OnInit {
   post: CachedPost | null = null;

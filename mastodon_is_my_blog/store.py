@@ -7,6 +7,7 @@ from sqlalchemy import Boolean, DateTime, Integer, String, Text, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+
 dotenv.load_dotenv()
 
 
@@ -135,3 +136,7 @@ async def update_last_sync(key: str = "main_timeline") -> None:
         else:
             session.add(AppState(key=key, last_sync=datetime.utcnow()))
         await session.commit()
+
+
+
+

@@ -86,4 +86,10 @@ export class ApiService {
   getAnalytics(): Observable<any> {
     return this.http.get<any>(`${this.base}/api/public/analytics`);
   }
+
+  getCounts(user?: string): Observable<any> {
+    let params = new HttpParams();
+    if (user) params = params.set('user', user);
+    return this.http.get<any>(`${this.base}/api/public/counts`, { params });
+  }
 }

@@ -799,3 +799,59 @@ async def edit(status_id: str, payload: EditIn):
         status=payload.status,
         spoiler_text=payload.spoiler_text,
     )
+
+
+@app.get("/api/public/counts")
+async def get_counts(user: str | None = None) -> dict:
+    """
+    Returns counts used for sidebar badges.
+    Counts are designed to match existing feed endpoint semantics.
+    """
+    async with async_session() as session:
+        base = []
+
+        if user:
+            base.append(CachedPost.author_acct == user)
+
+        # Storms == "Latest Storms" view: matches /api/public/storms root detection
+        storms_stmt = select(func.count(CachedPost.id)).where(
+            and_(
+                *(base),
+                CachedPost.is_reblog == False,
+                CachedPost.in_reply_to_id == None,
+            )
+        )
+
+        # Flat feeds: match /api/public/posts filter behavior
+        news_stmt = select(func.count(CachedPost.id)).where(
+            and_(*(base), CachedPost.has_news == True)
+        )
+        software_stmt = select(func.count(CachedPost.id)).where(
+            and_(*(base), CachedPost.has_tech == True)
+        )
+        pictures_stmt = select(func.count(CachedPost.id)).where(
+            and_(*(base), CachedPost.has_media == True)
+        )
+        videos_stmt = select(func.count(CachedPost.id)).where(
+            and_(*(base), CachedPost.has_video == True)
+        )
+        discussions_stmt = select(func.count(CachedPost.id)).where(
+            and_(*(base), CachedPost.is_reply == True)
+        )
+
+        storms = (await session.execute(storms_stmt)).scalar() or 0
+        news = (await session.execute(news_stmt)).scalar() or 0
+        software = (await session.execute(software_stmt)).scalar() or 0
+        pictures = (await session.execute(pictures_stmt)).scalar() or 0
+        videos = (await session.execute(videos_stmt)).scalar() or 0
+        discussions = (await session.execute(discussions_stmt)).scalar() or 0
+
+    return {
+        "user": user or "all",
+        "storms": storms,
+        "news": news,
+        "software": software,
+        "pictures": pictures,
+        "videos": videos,
+        "discussions": discussions,
+    }
