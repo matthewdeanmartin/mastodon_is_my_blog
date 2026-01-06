@@ -58,6 +58,9 @@
       Discussions ({{ counts.discussions }})
     </button>
 
+    <button class="nav-btn" [class.active]="currentFilter==='links'" (click)="setFilter('links')">
+      Links ({{ counts.links }})
+    </button>
     <hr>
 
     <div class="muted" style="margin-bottom:10px;">BLOG ROLL</div>

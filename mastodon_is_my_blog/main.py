@@ -41,7 +41,8 @@ DOMAIN_CONFIG = {
     "news": {
         "nytimes.com", "theguardian.com", "bbc.com", "bbc.co.uk", "cnn.com",
         "washingtonpost.com", "reuters.com", "aljazeera.com", "npr.org", "arstechnica.com",
-        "economist.com"
+        "economist.com", "wsj.com", "cnbc.com", "france24.com",
+        "nbcnews.com", "politico.com", "statnews.com", "nbcnewyork.com", "news.sky.com",
     }
 }
 
@@ -257,8 +258,8 @@ async def sync_blog_roll_activity() -> None:
 
 
 async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None, force: bool = False,
-    cooldown_minutes: int = 15
-    ) -> dict:
+                             cooldown_minutes: int = 15
+                             ) -> dict:
     """Syncs posts for a specific user. Defaults to Me."""
     sync_key = f"user_timeline_{acct or acct_id or 'me'}"
     last_run = await get_last_sync(sync_key)
@@ -387,7 +388,8 @@ async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None
 
 @app.get("/api/status")
 async def status() -> dict:
-    return {"status":"up"}
+    return {"status": "up"}
+
 
 @app.get("/api/public/accounts/blogroll")
 async def get_blog_roll():
@@ -639,6 +641,7 @@ async def get_storms(user: str | None = None):
 
     return storms
 
+
 # --- NEW: Hashtag Aggregation ---
 @app.get("/api/public/hashtags")
 async def get_hashtags(user: str | None = None):
@@ -670,6 +673,7 @@ async def get_hashtags(user: str | None = None):
         reverse=True
     )
 
+
 @app.get("/api/public/analytics")
 async def get_analytics(user: str | None = None):
     """Aggregate performance metrics."""
@@ -693,6 +697,7 @@ async def get_analytics(user: str | None = None):
         "total_boosts": row[2] or 0,
         "total_favorites": row[3] or 0
     }
+
 
 # --- NEW: Context Crawler ---
 @app.get("/api/public/posts/{id}/context")
@@ -721,6 +726,7 @@ async def get_post_context(id: str):
         }
     except Exception as e:
         raise HTTPException(404, f"Could not fetch context: {str(e)}")
+
 
 @app.get("/api/public/posts/{id}")
 async def get_single_post(id: str):
@@ -949,7 +955,6 @@ async def get_counts(user: str | None = None) -> dict:
             and_(*(base), CachedPost.is_reply == True)
         )
 
-
         links_stmt = select(func.count(CachedPost.id)).where(and_(*(base), CachedPost.has_link == True))
 
         storms = (await session.execute(storms_stmt)).scalar() or 0
@@ -959,7 +964,6 @@ async def get_counts(user: str | None = None) -> dict:
         videos = (await session.execute(videos_stmt)).scalar() or 0
         discussions = (await session.execute(discussions_stmt)).scalar() or 0
         links = (await session.execute(links_stmt)).scalar() or 0
-
 
     return {
         "user": user or "all",

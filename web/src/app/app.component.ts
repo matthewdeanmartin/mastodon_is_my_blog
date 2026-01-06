@@ -12,6 +12,7 @@ interface SidebarCounts {
   pictures: number;
   videos: number;
   discussions: number;
+  links: number;
 }
 
 @Component({
@@ -35,6 +36,7 @@ export class AppComponent implements OnInit {
     pictures: 0,
     videos: 0,
     discussions: 0,
+    links:0
   };
 
   constructor(
@@ -127,6 +129,7 @@ export class AppComponent implements OnInit {
           pictures: Number(c.pictures || 0),
           videos: Number(c.videos || 0),
           discussions: Number(c.discussions || 0),
+          links: Number(c.links || 0),
         };
       },
       error: () => {
