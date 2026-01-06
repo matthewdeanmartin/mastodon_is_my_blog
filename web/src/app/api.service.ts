@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { MastodonStatus } from './mastodon';
-import { Observable, throwError, timer, BehaviorSubject } from 'rxjs';
+import { Observable, throwError, timer, BehaviorSubject, of } from 'rxjs';
 import { catchError, retry, switchMap, tap } from 'rxjs/operators';
 
 @Injectable({ providedIn: 'root' })
@@ -22,19 +22,24 @@ export class ApiService {
   private startHealthCheck(): void {
     timer(0, 10000) // Check immediately, then every 10 seconds
       .pipe(
-        switchMap(() => this.http.get(`${this.base}/api/status`).pipe(
-          catchError(() => {
-            this.serverDownSubject.next(true);
-            return throwError(() => new Error('Server down'));
-          })
-        ))
+        switchMap(() =>
+          this.http.get(`${this.base}/api/status`).pipe(
+            catchError(() => {
+              // 1. Mark server as down
+              this.serverDownSubject.next(true);
+              // 2. Return null to keep the timer alive (throwError kills the stream)
+              return of(null);
+            })
+          )
+        )
       )
-      .subscribe({
-        next: () => {
+      .subscribe((response) => {
+        // If response is truthy, the request succeeded
+        if (response) {
           if (this.serverDownSubject.value) {
-            // Server just came back up
+            // Server was down, but now it's back!
             this.serverDownSubject.next(false);
-            window.location.reload(); // Reload to refresh all data
+            window.location.reload();
           }
         }
       });
