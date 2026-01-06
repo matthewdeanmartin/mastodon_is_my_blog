@@ -74,8 +74,13 @@ class CachedPost(Base):
     has_news: Mapped[bool] = mapped_column(Boolean, default=False)  # News domains
     has_tech: Mapped[bool] = mapped_column(Boolean, default=False)  # Github/Pypi etc
 
+    has_link: Mapped[bool] = mapped_column(Boolean, default=False)  # Generic 3rd party links
+
     # Store media attachments as JSON string
     media_attachments: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+    tags: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON list of hashtags
 
     # Analytics / Context
     replies_count: Mapped[int] = mapped_column(Integer, default=0)

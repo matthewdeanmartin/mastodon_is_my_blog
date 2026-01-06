@@ -111,7 +111,8 @@ def analyze_content_domains(html: str, media_attachments: list) -> dict:
         "has_media": len(media_attachments) > 0,
         "has_video": False,
         "has_news": False,
-        "has_tech": False
+        "has_tech": False,
+        "has_link": False
     }
 
     # 1. Check Attachments
@@ -127,6 +128,14 @@ def analyze_content_domains(html: str, media_attachments: list) -> dict:
 
     for link in soup.find_all("a", href=True):
         try:
+            # Check classes to distinguish generic links from Mentions/Hashtags
+            # Mastodon mentions/tags usually have class="mention" or "hashtag"
+            classes = link.get("class", [])
+            is_mention_or_tag = "mention" in classes or "hashtag" in classes
+
+            if not is_mention_or_tag:
+                flags["has_link"] = True
+
             domain = urlparse(link["href"]).netloc.lower()
             # Remove 'www.' prefix if present for matching
             clean_domain = domain.replace("www.", "")
@@ -335,6 +344,9 @@ async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None
 
             stmt = select(CachedPost).where(CachedPost.id == str(s["id"]))
             existing = (await session.execute(stmt)).scalar_one_or_none()
+            # Extract tags
+            tags_list = [t["name"] for t in s.get("tags", [])]
+            tags_json = json.dumps(tags_list)
 
             post_data = {
                 "content": actual_status["content"],
@@ -350,6 +362,8 @@ async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None
                 "has_video": flags["has_video"],
                 "has_news": flags["has_news"],
                 "has_tech": flags["has_tech"],
+                "has_link": flags["has_link"],  # Save new flag
+                "tags": tags_json,  # Save tags
                 "replies_count": s["replies_count"],
                 "reblogs_count": s["reblogs_count"],
                 "favourites_count": s["favourites_count"],
@@ -435,7 +449,7 @@ async def sync_account(acct: str):
 @app.get("/api/public/posts")
 async def get_public_posts(
         user: str | None = None,
-        filter_type: str = Query("all", enum=["all", "discussions", "pictures", "videos", "news", "software"])
+        filter_type: str = Query("all", enum=["all", "discussions", "pictures", "videos", "news", "software", "links"])
 ) -> list[dict]:
     """
     Get posts with filters.
@@ -468,6 +482,9 @@ async def get_public_posts(
             query = query.where(CachedPost.has_news == True)
         elif filter_type == "software":
             query = query.where(CachedPost.has_tech == True)
+        elif filter_type == "links":
+            # New Filter: Posts with links
+            query = query.where(CachedPost.has_link == True)
 
         result = await session.execute(query)
         posts = result.scalars().all()
@@ -485,7 +502,34 @@ async def get_public_posts(
                     "likes": p.favourites_count
                 },
                 "is_reblog": p.is_reblog,
-                "is_reply": p.is_reply
+                "is_reply": p.is_reply,
+                "has_link": p.has_link,
+                "tags": json.loads(p.tags) if p.tags else []
+            }
+            for p in posts
+        ]
+
+
+# --- NEW: Unfiltered Endpoint ---
+@app.get("/api/public/posts/all")
+async def get_all_posts_unfiltered(user: str | None = None):
+    """Returns ALL posts, including replies, reblogs, links, etc."""
+    async with async_session() as session:
+        query = select(CachedPost).order_by(desc(CachedPost.created_at))
+        if user:
+            query = query.where(CachedPost.author_acct == user)
+
+        result = await session.execute(query)
+        posts = result.scalars().all()
+
+        return [
+            {
+                "id": p.id,
+                "content": p.content,
+                "created_at": p.created_at.isoformat(),
+                "is_reply": p.is_reply,
+                "is_reblog": p.is_reblog,
+                "has_link": p.has_link
             }
             for p in posts
         ]
@@ -496,6 +540,7 @@ async def get_storms(user: str | None = None):
     """
     Returns 'Tweet Storms'.
     Groups a root post and its subsequent self-replies into a single tree.
+    Excludes posts with external links from being roots.
     """
     async with async_session() as session:
         # 1. Fetch all posts for the user (or all if user is None)
@@ -534,7 +579,10 @@ async def get_storms(user: str | None = None):
         # 3. OR it replies to a post that we don't have in our DB (broken chain)
 
         is_root = False
-        if not p.in_reply_to_id:
+        # ROOT DEFINITION UPDATE:
+        # 1. Must not be a reply
+        # 2. Must NOT have a link (per user request)
+        if not p.in_reply_to_id and not p.has_link:
             is_root = True
         # elif p.in_reply_to_account_id != p.author_id:
         #     is_root = True
@@ -591,6 +639,36 @@ async def get_storms(user: str | None = None):
 
     return storms
 
+# --- NEW: Hashtag Aggregation ---
+@app.get("/api/public/hashtags")
+async def get_hashtags(user: str | None = None):
+    """Aggregates all hashtags used by the user."""
+    async with async_session() as session:
+        query = select(CachedPost.tags)
+        if user:
+            query = query.where(CachedPost.author_acct == user)
+
+        result = await session.execute(query)
+        # Result is a list of JSON strings (["['tag1', 'tag2']", "['tag3']"])
+        all_tags_raw = result.scalars().all()
+
+    tag_counts = {}
+    for raw in all_tags_raw:
+        if not raw: continue
+        try:
+            tags = json.loads(raw)
+            for t in tags:
+                lower_t = t.lower()
+                tag_counts[lower_t] = tag_counts.get(lower_t, 0) + 1
+        except:
+            continue
+
+    # Return sorted by count
+    return sorted(
+        [{"name": k, "count": v} for k, v in tag_counts.items()],
+        key=lambda x: x["count"],
+        reverse=True
+    )
 
 @app.get("/api/public/analytics")
 async def get_analytics(user: str | None = None):
@@ -616,6 +694,33 @@ async def get_analytics(user: str | None = None):
         "total_favorites": row[3] or 0
     }
 
+# --- NEW: Context Crawler ---
+@app.get("/api/public/posts/{id}/context")
+async def get_post_context(id: str):
+    """
+    Crawls the conversation graph for a specific post.
+    Returns ancestors (parents) and descendants (children).
+    """
+    token = await get_token()
+    if not token:
+        raise HTTPException(401, "Server not connected to Mastodon")
+
+    m = client(token)
+    try:
+        # Mastodon API 'status_context' does the crawling for us
+        # It returns 'ancestors' and 'descendants' list
+        context = m.status_context(id)
+
+        # We also need the target post itself
+        target = m.status(id)
+
+        return {
+            "ancestors": context["ancestors"],
+            "target": target,
+            "descendants": context["descendants"]
+        }
+    except Exception as e:
+        raise HTTPException(404, f"Could not fetch context: {str(e)}")
 
 @app.get("/api/public/posts/{id}")
 async def get_single_post(id: str):
@@ -844,12 +949,17 @@ async def get_counts(user: str | None = None) -> dict:
             and_(*(base), CachedPost.is_reply == True)
         )
 
+
+        links_stmt = select(func.count(CachedPost.id)).where(and_(*(base), CachedPost.has_link == True))
+
         storms = (await session.execute(storms_stmt)).scalar() or 0
         news = (await session.execute(news_stmt)).scalar() or 0
         software = (await session.execute(software_stmt)).scalar() or 0
         pictures = (await session.execute(pictures_stmt)).scalar() or 0
         videos = (await session.execute(videos_stmt)).scalar() or 0
         discussions = (await session.execute(discussions_stmt)).scalar() or 0
+        links = (await session.execute(links_stmt)).scalar() or 0
+
 
     return {
         "user": user or "all",
@@ -859,4 +969,5 @@ async def get_counts(user: str | None = None) -> dict:
         "pictures": pictures,
         "videos": videos,
         "discussions": discussions,
+        "links": links
     }

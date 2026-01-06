@@ -4,7 +4,7 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from './api.service';
 import { CommonModule } from '@angular/common';
-import {DomSanitizer} from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-public-feed',
@@ -23,7 +23,7 @@ export class PublicFeedComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private api: ApiService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
   ) {}
 
   ngOnInit() {
@@ -93,7 +93,7 @@ export class PublicFeedComponent implements OnInit {
     const media = post.media_attachments || post.media || [];
     return media.filter((m: any) => m.type === 'image');
   }
-   getQueryParams() {
+  getQueryParams() {
     const params: any = { filter: this.currentFilter };
     if (this.currentUser) {
       params.user = this.currentUser;

@@ -20,7 +20,7 @@ git2md . \
     tsconfig.json \
     tsconfig.spec.json \
     dead_code \
-    README.md SETUP.md \
+    README.md SETUP.md CHANGELOG.md TODO.md \
     .venv uv.lock \
     Makefile Makefile1 LICENSE \
     SOURCE_ALL.md SOURCE_UI.md SOURCE.md \

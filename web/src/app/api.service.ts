@@ -29,9 +29,9 @@ export class ApiService {
               this.serverDownSubject.next(true);
               // 2. Return null to keep the timer alive (throwError kills the stream)
               return of(null);
-            })
-          )
-        )
+            }),
+          ),
+        ),
       )
       .subscribe((response) => {
         // If response is truthy, the request succeeded
@@ -57,32 +57,38 @@ export class ApiService {
     if (user) {
       params = params.set('user', user);
     }
-    return this.http.get<any[]>(`${this.base}/api/public/posts`, { params })
+    return this.http
+      .get<any[]>(`${this.base}/api/public/posts`, { params })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getPublicPost(id: string) {
-    return this.http.get<any>(`${this.base}/api/public/posts/${id}`)
+    return this.http
+      .get<any>(`${this.base}/api/public/posts/${id}`)
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getComments(id: string) {
-    return this.http.get<any>(`${this.base}/api/public/posts/${id}/comments`)
+    return this.http
+      .get<any>(`${this.base}/api/public/posts/${id}/comments`)
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getAccountInfo(acct: string): Observable<any> {
-    return this.http.get<any>(`${this.base}/api/public/accounts/${acct}`)
+    return this.http
+      .get<any>(`${this.base}/api/public/accounts/${acct}`)
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   syncAccount(acct: string): Observable<any> {
-    return this.http.post<any>(`${this.base}/api/public/accounts/${acct}/sync`, {})
+    return this.http
+      .post<any>(`${this.base}/api/public/accounts/${acct}/sync`, {})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   comments(id: string) {
-    return this.http.get(`${this.base}/api/posts/${id}/comments`)
+    return this.http
+      .get(`${this.base}/api/posts/${id}/comments`)
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -92,38 +98,46 @@ export class ApiService {
   }
 
   getAdminStatus() {
-    return this.http.get<{ connected: boolean; last_sync: string; current_user: any }>(
-      `${this.base}/api/admin/status`,
-    ).pipe(catchError((err) => this.handleError(err)));
+    return this.http
+      .get<{
+        connected: boolean;
+        last_sync: string;
+        current_user: any;
+      }>(`${this.base}/api/admin/status`)
+      .pipe(catchError((err) => this.handleError(err)));
   }
 
   triggerSync(force: boolean = false) {
-    return this.http.post(`${this.base}/api/admin/sync?force=${force}`, {})
+    return this.http
+      .post(`${this.base}/api/admin/sync?force=${force}`, {})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   me() {
-    return this.http.get(`${this.base}/api/me`)
-      .pipe(catchError((err) => this.handleError(err)));
+    return this.http.get(`${this.base}/api/me`).pipe(catchError((err) => this.handleError(err)));
   }
 
   posts() {
-    return this.http.get<any[]>(`${this.base}/api/posts`)
+    return this.http
+      .get<any[]>(`${this.base}/api/posts`)
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   createPost(status: string) {
-    return this.http.post(`${this.base}/api/posts`, { status, visibility: 'public' })
+    return this.http
+      .post(`${this.base}/api/posts`, { status, visibility: 'public' })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getPost(id: string) {
-    return this.http.get<MastodonStatus>(`${this.base}/api/posts/${id}`)
+    return this.http
+      .get<MastodonStatus>(`${this.base}/api/posts/${id}`)
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   editPost(id: string, status: string) {
-    return this.http.post(`${this.base}/api/posts/${id}/edit`, { status })
+    return this.http
+      .post(`${this.base}/api/posts/${id}/edit`, { status })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -132,24 +146,28 @@ export class ApiService {
     if (user) {
       params = params.set('user', user);
     }
-    return this.http.get<any[]>(`${this.base}/api/public/storms`, { params })
+    return this.http
+      .get<any[]>(`${this.base}/api/public/storms`, { params })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getBlogRoll(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.base}/api/public/accounts/blogroll`)
+    return this.http
+      .get<any[]>(`${this.base}/api/public/accounts/blogroll`)
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getAnalytics(): Observable<any> {
-    return this.http.get<any>(`${this.base}/api/public/analytics`)
+    return this.http
+      .get<any>(`${this.base}/api/public/analytics`)
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getCounts(user?: string): Observable<any> {
     let params = new HttpParams();
     if (user) params = params.set('user', user);
-    return this.http.get<any>(`${this.base}/api/public/counts`, { params })
+    return this.http
+      .get<any>(`${this.base}/api/public/counts`, { params })
       .pipe(catchError((err) => this.handleError(err)));
   }
 }

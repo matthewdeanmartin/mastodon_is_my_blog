@@ -1,9 +1,9 @@
 // app.component.ts
-import {Component, OnInit} from '@angular/core';
-import {CommonModule} from '@angular/common';
-import {RouterLink, RouterOutlet, Router, ActivatedRoute} from '@angular/router';
-import {ApiService} from './api.service';
-import {filter} from 'rxjs/operators';
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterLink, RouterOutlet, Router, ActivatedRoute } from '@angular/router';
+import { ApiService } from './api.service';
+import { filter } from 'rxjs/operators';
 
 interface SidebarCounts {
   storms: number;
@@ -41,8 +41,7 @@ export class AppComponent implements OnInit {
     private api: ApiService,
     private router: Router,
     private route: ActivatedRoute,
-  ) {
-  }
+  ) {}
 
   ngOnInit(): void {
     // Subscribe to server status
@@ -102,7 +101,7 @@ export class AppComponent implements OnInit {
     this.currentFilter = filter;
     // Use 'merge' to preserve the 'user' param if it exists
     this.router.navigate(['/'], {
-      queryParams: {filter: filter},
+      queryParams: { filter: filter },
       queryParamsHandling: 'merge',
     });
   }
@@ -110,7 +109,7 @@ export class AppComponent implements OnInit {
   viewMainUser(): void {
     // Clear the user param to return to main user's view
     this.router.navigate(['/'], {
-      queryParams: {filter: this.currentFilter},
+      queryParams: { filter: this.currentFilter },
     });
   }
 
