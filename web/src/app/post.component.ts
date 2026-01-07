@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from './api.service';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -89,15 +89,22 @@ interface CommentsResponse {
 })
 export class PublicPostComponent implements OnInit {
   loading = true;
+  loadingNext = false;
   ancestors: Status[] = [];
   target: Status | null = null;
   descendantTree: TreeNode[] = [];
 
   // The account of the blog we are currently viewing (for highlighting)
   blogUserAcct: string | null = null;
+  currentFilter: string = 'all';
+
+  // For next post functionality
+  private allPosts: any[] = [];
+  private currentPostIndex: number = -1;
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private api: ApiService,
     private sanitizer: DomSanitizer,
   ) {}
@@ -106,11 +113,15 @@ export class PublicPostComponent implements OnInit {
     // Check if we are viewing a specific user's blog context
     this.route.queryParams.subscribe(params => {
       this.blogUserAcct = params['user'] || null;
+      this.currentFilter = params['filter'] || 'all';
     });
 
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
-      if (id) this.loadPost(id);
+      if (id) {
+        this.loadPost(id);
+        this.loadFeedForNavigation();
+      }
     });
   }
 
@@ -122,11 +133,69 @@ export class PublicPostComponent implements OnInit {
         this.target = data.target;
         this.descendantTree = this.buildTree(data.descendants || [], this.target!.id);
         this.loading = false;
+
+        // Find current post index in the feed
+        this.currentPostIndex = this.allPosts.findIndex(p => p.id === id);
       },
       error: (err) => {
         console.error(err);
         this.loading = false;
       }
+    });
+  }
+
+  loadFeedForNavigation() {
+    // Load the current feed based on filter and user to enable Next Post
+    if (this.currentFilter === 'all') {
+      // For storms view, we need to flatten the structure
+      this.api.getStorms(this.blogUserAcct || undefined).subscribe({
+        next: (storms) => {
+          // Extract all post IDs from storms
+          this.allPosts = storms.map(storm => ({
+            id: storm.root.id,
+            created_at: storm.root.created_at
+          }));
+        },
+        error: (err) => console.error('Failed to load feed for navigation', err)
+      });
+    } else {
+      // For other filters, use regular posts endpoint
+      this.api.getPublicPosts(this.currentFilter, this.blogUserAcct || undefined).subscribe({
+        next: (posts) => {
+          this.allPosts = posts.map(p => ({
+            id: p.id,
+            created_at: p.created_at
+          }));
+        },
+        error: (err) => console.error('Failed to load feed for navigation', err)
+      });
+    }
+  }
+
+  nextPost() {
+    if (this.allPosts.length === 0 || this.loadingNext) return;
+
+    // Find next index (wrap around to 0 if at end)
+    const nextIndex = (this.currentPostIndex + 1) % this.allPosts.length;
+    const nextPost = this.allPosts[nextIndex];
+
+    if (!nextPost) return;
+
+    this.loadingNext = true;
+
+    // Navigate to next post with same query params
+    this.router.navigate(['/p', nextPost.id], {
+      queryParamsHandling: 'preserve'
+    }).then(() => {
+      this.loadingNext = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  goBack() {
+    // Navigate back to feed with preserved query params
+    this.router.navigate(['/'], {
+      queryParamsHandling: 'preserve'
     });
   }
 

@@ -45,6 +45,10 @@
       Latest Storms ({{ counts.storms }})
     </button>
 
+    <button class="nav-btn" [class.active]="currentFilter==='questions'" (click)="setFilter('questions')">
+      Questions ({{ counts.questions }})
+    </button>
+
     <button class="nav-btn" [class.active]="currentFilter==='news'" (click)="setFilter('news')">
       News ({{ counts.news }})
     </button>
@@ -68,6 +72,11 @@
     <button class="nav-btn" [class.active]="currentFilter==='links'" (click)="setFilter('links')">
       Links ({{ counts.links }})
     </button>
+
+    <button class="nav-btn" [class.active]="currentFilter==='everyone'" (click)="setFilter('everyone')">
+      Everyone ({{ counts.everyone }})
+    </button>
+
     <hr>
 
     <div class="muted" style="margin-bottom:10px;">BLOG ROLL</div>

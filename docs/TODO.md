@@ -42,6 +42,14 @@
 - Clicking a hashtag filters feed down to just those posts with those hashtags
 
 ## Post Component
-- Should call get_post_context
-- Display the entire graph
+- Should call get_post_context - DONE
+- Display the entire graph - DONE
 - Show names and icons for who is talking
+
+## Posts - Next 
+- Need Next Post button
+
+## Feed filters
+- Need Questions tab that just finds the posts with words ending with ?
+- Everyone button where it shows everyones posts. This happens anyhow when you click the admin page.
+- Storm counts are wrong and they still update only after changing blog role AND changing category.

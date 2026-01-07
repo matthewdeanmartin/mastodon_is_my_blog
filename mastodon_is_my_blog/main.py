@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
@@ -113,7 +114,8 @@ def analyze_content_domains(html: str, media_attachments: list) -> dict:
         "has_video": False,
         "has_news": False,
         "has_tech": False,
-        "has_link": False
+        "has_link": False,
+        "has_question": False
     }
 
     # 1. Check Attachments
@@ -159,6 +161,13 @@ def analyze_content_domains(html: str, media_attachments: list) -> dict:
 
         except Exception:
             continue
+
+    # 3. Check for Questions (words ending with ?)
+    # Extract text content and check for question marks
+    text_content = soup.get_text()
+    # Look for word boundaries followed by question marks
+    if re.search(r'\w+\?', text_content):
+        flags["has_question"] = True
 
     return flags
 
@@ -363,8 +372,9 @@ async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None
                 "has_video": flags["has_video"],
                 "has_news": flags["has_news"],
                 "has_tech": flags["has_tech"],
-                "has_link": flags["has_link"],  # Save new flag
-                "tags": tags_json,  # Save tags
+                "has_link": flags["has_link"],
+                "has_question": flags["has_question"],
+                "tags": tags_json,
                 "replies_count": s["replies_count"],
                 "reblogs_count": s["reblogs_count"],
                 "favourites_count": s["favourites_count"],
@@ -452,7 +462,9 @@ async def sync_account(acct: str):
 @app.get("/api/public/posts")
 async def get_public_posts(
         user: str | None = None,
-        filter_type: str = Query("all", enum=["all", "storm", "discussions", "pictures", "videos", "news", "software", "links"])
+        filter_type: str = Query("all",
+                                 enum=["all", "storm", "discussions", "pictures", "videos", "news", "software", "links",
+                                       "questions", "everyone"])
 ) -> list[dict]:
     """
     Get posts with filters.
@@ -461,14 +473,14 @@ async def get_public_posts(
     async with async_session() as session:
         query = select(CachedPost).order_by(desc(CachedPost.created_at))
 
-        # Filter by User
-        if user:
-            query = query.where(CachedPost.author_acct == user)
-        else:
-            # Default to owner/verified credentials logic if we had multiple users synced
-            # For this app, we return everything in DB if user not specified,
-            # or we could default to the owner. Let's return all.
+        # Special handling for "everyone" filter
+        if filter_type == "everyone":
+            # Show all posts from all users, no user filtering
+            # Keep default order by created_at desc
             pass
+        elif user:
+            # Filter by specific user
+            query = query.where(CachedPost.author_acct == user)
 
         # Apply Type Filters
         if filter_type == "all":
@@ -493,6 +505,12 @@ async def get_public_posts(
         elif filter_type == "links":
             # New Filter: Posts with links
             query = query.where(CachedPost.has_link == True)
+        elif filter_type == "questions":
+            # NEW: Filter for posts with questions
+            query = query.where(CachedPost.has_question == True)
+        elif filter_type == "everyone":
+            # No additional filters, show all posts
+            pass
 
         result = await session.execute(query)
         posts = result.scalars().all()
@@ -623,7 +641,7 @@ async def get_storms(user: str | None = None):
                     children_map.setdefault(child.in_reply_to_id, []).append(child)
 
             # Recursive collector
-            def collect_children(parent_id):
+            def collect_children(parent_id: str):
                 results = []
                 direct_kids = children_map.get(parent_id, [])
                 # Sort kids by time ASC (chronological reading)
@@ -939,6 +957,7 @@ async def get_counts(user: str | None = None) -> dict:
                 *(base),
                 CachedPost.is_reblog == False,
                 CachedPost.in_reply_to_id == None,
+                CachedPost.has_link == False  # Exclude posts with links
             )
         )
 
@@ -958,8 +977,15 @@ async def get_counts(user: str | None = None) -> dict:
         discussions_stmt = select(func.count(CachedPost.id)).where(
             and_(*(base), CachedPost.is_reply == True)
         )
+        links_stmt = select(func.count(CachedPost.id)).where(
+            and_(*(base), CachedPost.has_link == True)
+        )
+        questions_stmt = select(func.count(CachedPost.id)).where(
+            and_(*(base), CachedPost.has_question == True)
+        )
 
-        links_stmt = select(func.count(CachedPost.id)).where(and_(*(base), CachedPost.has_link == True))
+        # For "everyone" count, don't filter by user
+        everyone_stmt = select(func.count(CachedPost.id))
 
         storms = (await session.execute(storms_stmt)).scalar() or 0
         news = (await session.execute(news_stmt)).scalar() or 0
@@ -968,6 +994,8 @@ async def get_counts(user: str | None = None) -> dict:
         videos = (await session.execute(videos_stmt)).scalar() or 0
         discussions = (await session.execute(discussions_stmt)).scalar() or 0
         links = (await session.execute(links_stmt)).scalar() or 0
+        questions = (await session.execute(questions_stmt)).scalar() or 0
+        everyone = (await session.execute(everyone_stmt)).scalar() or 0
 
     return {
         "user": user or "all",
@@ -977,5 +1005,7 @@ async def get_counts(user: str | None = None) -> dict:
         "pictures": pictures,
         "videos": videos,
         "discussions": discussions,
-        "links": links
+        "links": links,
+        "questions": questions,
+        "everyone": everyone
     }

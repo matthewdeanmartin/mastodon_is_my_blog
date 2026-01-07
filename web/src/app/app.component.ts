@@ -13,6 +13,8 @@ interface SidebarCounts {
   videos: number;
   discussions: number;
   links: number;
+  questions: number;
+  everyone: number;
 }
 
 @Component({
@@ -36,7 +38,9 @@ export class AppComponent implements OnInit {
     pictures: 0,
     videos: 0,
     discussions: 0,
-    links: 0
+    links: 0,
+    questions: 0,
+    everyone: 0
   };
 
   constructor(
@@ -94,11 +98,9 @@ export class AppComponent implements OnInit {
       } else {
         // No user param means we're viewing the main user
         this.activeUserInfo = this.mainUser;
-        this.refreshCounts(); // Refresh counts when returning to main user
+        this.refreshCounts();
       }
-      this.refreshCounts();
     });
-    this.refreshCounts();
   }
 
   setFilter(filter: string): void {
@@ -155,6 +157,8 @@ export class AppComponent implements OnInit {
           videos: Number(c.videos || 0),
           discussions: Number(c.discussions || 0),
           links: Number(c.links || 0),
+          questions: Number(c.questions || 0),
+          everyone: Number(c.everyone || 0),
         };
       },
       error: () => {

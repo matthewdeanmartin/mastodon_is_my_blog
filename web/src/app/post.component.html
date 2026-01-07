@@ -4,6 +4,16 @@
 
 <div *ngIf="!loading && target" style="max-width: 800px; margin: 0 auto;">
 
+  <!-- Navigation Buttons at Top -->
+  <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: space-between;">
+    <button (click)="goBack()" class="secondary" style="flex: 1;">
+      ← Back to Feed
+    </button>
+    <button (click)="nextPost()" class="secondary" style="flex: 1;" [disabled]="loadingNext">
+      {{ loadingNext ? 'Loading...' : 'Next Post →' }}
+    </button>
+  </div>
+
   <div *ngFor="let ancestor of ancestors; let i = index" style="margin-bottom: 20px; position: relative;">
     <div class="card"
          [style.border-left]="isActiveUser(ancestor) ? '4px solid #6366f1' : '1px solid #e1e8ed'"
@@ -82,6 +92,16 @@
 
   <div *ngIf="descendantTree.length === 0 && target.replies_count > 0" class="muted" style="text-align: center;">
     <em>Replies may be missing from this server's cache.</em>
+  </div>
+
+  <!-- Navigation Buttons at Bottom -->
+  <div style="display: flex; gap: 10px; margin-top: 30px; justify-content: space-between;">
+    <button (click)="goBack()" class="secondary" style="flex: 1;">
+      ← Back to Feed
+    </button>
+    <button (click)="nextPost()" class="secondary" style="flex: 1;" [disabled]="loadingNext">
+      {{ loadingNext ? 'Loading...' : 'Next Post →' }}
+    </button>
   </div>
 
 </div>
