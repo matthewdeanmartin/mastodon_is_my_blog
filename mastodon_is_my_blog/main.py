@@ -429,6 +429,7 @@ async def get_account_info(acct: str):
         if not account:
             raise HTTPException(404, "Account not found in cache")
 
+        # TODO: needs user's URLs and stuff.
         return {
             "id": account.id,
             "acct": account.acct,
@@ -451,7 +452,7 @@ async def sync_account(acct: str):
 @app.get("/api/public/posts")
 async def get_public_posts(
         user: str | None = None,
-        filter_type: str = Query("all", enum=["all", "discussions", "pictures", "videos", "news", "software", "links"])
+        filter_type: str = Query("all", enum=["all", "storm", "discussions", "pictures", "videos", "news", "software", "links"])
 ) -> list[dict]:
     """
     Get posts with filters.
@@ -473,6 +474,11 @@ async def get_public_posts(
         if filter_type == "all":
             # Show roots only (hide replies to others, keep self-threads)
             query = query.where(and_(CachedPost.is_reblog == False, CachedPost.is_reply == False))
+        elif filter_type == "storms":
+            # not implemented yet!
+            # should match get_storms method
+            pass
+            # query = query.where(CachedPost.is_storm)
         elif filter_type == "discussions":
             # Only replies to others
             query = query.where(CachedPost.is_reply == True)
@@ -512,7 +518,7 @@ async def get_public_posts(
         ]
 
 
-# --- NEW: Unfiltered Endpoint ---
+# --- Unfiltered Endpoint ---
 @app.get("/api/public/posts/all")
 async def get_all_posts_unfiltered(user: str | None = None):
     """Returns ALL posts, including replies, reblogs, links, etc."""
@@ -699,7 +705,7 @@ async def get_analytics(user: str | None = None):
     }
 
 
-# --- NEW: Context Crawler ---
+# --- Context Crawler ---
 @app.get("/api/public/posts/{id}/context")
 async def get_post_context(id: str):
     """
@@ -829,8 +835,6 @@ async def create_post(payload: PostIn):
     return resp
 
 
-# (Keep /auth/login, /auth/callback, /api/me from previous code)
-# ... Insert previous auth code here ...
 @app.get("/auth/login")
 async def login():
     """Initiate OAuth login flow"""

@@ -19,6 +19,7 @@
 - If you click blog roll user and wait, then before it returns you click another category, the 2nd request finishes and blows up on PK violations
 - When you click on a blog roll user, counts are displayed as 0 until you click another category
 - When you click Admin, the sidebar shows counts for everything and if you click a filter button you get a mix of everyones content.
+- Storms count is links count. Wrong!
 
 ## Content creation
 - Need edit button on all own
@@ -33,3 +34,14 @@
 - Each tenant can have multiple accounts
 - Tenants must not be able to query other tenants' data
 - Would require some auth layer
+
+
+## Hash tags as filters
+- Fetch hashtags for a user (get_hashtags)
+- Display those hash tags at top of feed
+- Clicking a hashtag filters feed down to just those posts with those hashtags
+
+## Post Component
+- Should call get_post_context
+- Display the entire graph
+- Show names and icons for who is talking

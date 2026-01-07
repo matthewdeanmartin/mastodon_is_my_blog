@@ -1,37 +1,124 @@
-<div class="card" *ngIf="post">
-  <h2 class="post-title">Blog Post</h2>
-  <div class="muted">{{ post.created_at | date: 'fullDate' }}</div>
-
-  <div class="post-body" [innerHTML]="processContent(post.content)"></div>
-
-  <!-- Display images if this post has media -->
-  <div
-    *ngIf="getMediaImages(post).length > 0"
-    style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap"
-  >
-    <img
-      *ngFor="let media of getMediaImages(post)"
-      [src]="media.url"
-      [alt]="media.description || 'Image'"
-      style="max-width: 100%; height: auto; border-radius: 4px"
-    />
-  </div>
+<div *ngIf="loading" class="muted" style="text-align: center; padding: 40px;">
+  Loading conversation...
 </div>
 
-<div class="card">
-  <h3>Comments</h3>
-  <div *ngIf="loadingComments" class="muted">Loading comments from Mastodon...</div>
+<div *ngIf="!loading && target" style="max-width: 800px; margin: 0 auto;">
 
-  <div *ngIf="!loadingComments && comments.length === 0" class="muted">
-    No comments yet. Reply on Mastodon to see them here.
-  </div>
+  <div *ngFor="let ancestor of ancestors; let i = index" style="margin-bottom: 20px; position: relative;">
+    <div class="card"
+         [style.border-left]="isActiveUser(ancestor) ? '4px solid #6366f1' : '1px solid #e1e8ed'"
+         style="opacity: 0.85; margin-bottom: 0;">
 
-  <div *ngFor="let c of comments">
-    <hr />
-    <div class="row">
-      <strong>{{ c.account.display_name || c.account.acct }}</strong>
-      <small>{{ c.created_at | date: 'short' }}</small>
+      <div class="row" style="margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <img [src]="ancestor.account.avatar" style="width: 32px; height: 32px; border-radius: 50%;">
+          <div>
+            <strong style="font-size: 0.95rem;">{{ ancestor.account.display_name || ancestor.account.acct }}</strong>
+            <span class="muted" style="margin-left: 6px; font-size: 0.8rem;">@{{ ancestor.account.acct }}</span>
+            <span *ngIf="i === 0"
+                  style="background: #e0e7ff; color: #4338ca; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-weight: 600;">
+              ROOT
+            </span>
+          </div>
+        </div>
+        <small class="muted">{{ ancestor.created_at | date:'short' }}</small>
+      </div>
+
+      <div class="post-body" [innerHTML]="processContent(ancestor.content)"></div>
+
+      <div *ngIf="getMediaImages(ancestor).length > 0" style="margin-top: 10px; display: flex; gap: 8px;">
+        <img *ngFor="let m of getMediaImages(ancestor)" [src]="m.url" style="height: 100px; border-radius: 4px;">
+      </div>
+
+      <div style="margin-top: 10px; text-align: center;">
+        <span style="font-size: 1.2rem; color: #cbd5e1;">⬇</span>
+      </div>
     </div>
-    <div class="post-body" [innerHTML]="processContent(c.content)"></div>
   </div>
+
+  <div class="card"
+       [style.border-left]="isActiveUser(target) ? '4px solid #6366f1' : '4px solid #10b981'"
+       [style.box-shadow]="'0 4px 12px rgba(0,0,0,0.1)'"
+       style="margin-bottom: 30px; position: relative; z-index: 1;">
+
+    <div class="row">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <img [src]="target.account.avatar" style="width: 48px; height: 48px; border-radius: 50%;">
+        <div>
+          <h2 style="font-size: 1.1rem; margin: 0;">{{ target.account.display_name || target.account.acct }}</h2>
+          <div class="muted">@{{ target.account.acct }}</div>
+          <span *ngIf="ancestors.length === 0"
+                style="background: #e0e7ff; color: #4338ca; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin-top: 4px;">
+              ROOT
+          </span>
+        </div>
+      </div>
+      <div class="muted">{{ target.created_at | date:'medium' }}</div>
+    </div>
+
+    <div class="post-body"
+         style="font-size: 1.15rem; margin: 20px 0;"
+         [innerHTML]="processContent(target.content)"></div>
+
+    <div *ngIf="getMediaImages(target).length > 0" style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+      <img *ngFor="let m of getMediaImages(target)" [src]="m.url" style="max-width: 100%; border-radius: 8px;">
+    </div>
+
+    <div class="row" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+      <div style="display: flex; gap: 20px;">
+        <span>💬 <strong>{{ target.replies_count }}</strong> Replies</span>
+        <span>🔁 <strong>{{ target.reblogs_count }}</strong> Boosts</span>
+        <span>⭐ <strong>{{ target.favourites_count }}</strong> Likes</span>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="descendantTree.length > 0">
+    <h3 class="muted" style="margin-bottom: 20px; font-size: 1rem; text-transform: uppercase;">Discussion</h3>
+    <div *ngFor="let node of descendantTree">
+      <ng-container *ngTemplateOutlet="treeNode; context: { node: node }"></ng-container>
+    </div>
+  </div>
+
+  <div *ngIf="descendantTree.length === 0 && target.replies_count > 0" class="muted" style="text-align: center;">
+    <em>Replies may be missing from this server's cache.</em>
+  </div>
+
 </div>
+
+<ng-template #treeNode let-node="node">
+  <div class="post-wrapper" style="margin-bottom: 16px;">
+    <div class="card"
+         [style.border-left]="isActiveUser(node.post) ? '3px solid #6366f1' : '1px solid #e1e8ed'"
+         style="padding: 16px; margin-bottom: 8px; background: #fdfdfd;">
+
+      <div class="row" style="margin-bottom: 8px; justify-content: flex-start; gap: 10px;">
+        <img [src]="node.post.account.avatar" style="width: 24px; height: 24px; border-radius: 50%;">
+        <span style="font-weight: 600; font-size: 0.9rem;">{{ node.post.account.display_name || node.post.account.acct }}</span>
+
+        <span *ngIf="isActiveUser(node.post)"
+              style="background: #6366f1; color: white; border-radius: 4px; padding: 1px 4px; font-size: 0.7rem; font-weight: bold;">
+          AUTHOR
+        </span>
+
+        <span class="muted" style="font-size: 0.8rem;">{{ node.post.created_at | date:'short' }}</span>
+      </div>
+
+      <div class="post-body" style="font-size: 0.95rem;" [innerHTML]="processContent(node.post.content)"></div>
+
+      <div *ngIf="getMediaImages(node.post).length > 0" style="margin-top: 8px;">
+        <img *ngFor="let m of getMediaImages(node.post)" [src]="m.url" style="height: 80px; border-radius: 4px; margin-right: 5px;">
+      </div>
+
+      <div style="margin-top: 8px; font-size: 0.8rem; color: #9ca3af;">
+        <span *ngIf="node.post.favourites_count > 0">⭐ {{ node.post.favourites_count }}</span>
+      </div>
+    </div>
+
+    <div *ngIf="node.children.length > 0" style="margin-left: 24px; border-left: 2px solid #e5e7eb; padding-left: 12px;">
+      <div *ngFor="let child of node.children">
+        <ng-container *ngTemplateOutlet="treeNode; context: { node: child }"></ng-container>
+      </div>
+    </div>
+  </div>
+</ng-template>

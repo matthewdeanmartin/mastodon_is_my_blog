@@ -74,6 +74,13 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
+  // NEW: Fetch full context (ancestors + descendants)
+  getPostContext(id: string): Observable<any> {
+    return this.http
+      .get<any>(`${this.base}/api/public/posts/${id}/context`)
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
   getAccountInfo(acct: string): Observable<any> {
     return this.http
       .get<any>(`${this.base}/api/public/accounts/${acct}`)

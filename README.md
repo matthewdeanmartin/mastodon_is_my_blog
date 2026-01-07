@@ -6,7 +6,12 @@ Write, edit, and manage your Mastodon posts in a clean, blog-style interface.
 
 ## Why?
 
-Because I want to re-orient my mastodon usage from low value infinite doom scrolling to high value finite activities like
+Because I want to re-orient my mastodon usage from low value infinite doom scrolling to high value finite activities.
+
+I want the UI to be human centric and encourage seeing people first.
+
+I want the UI to encourage medium length writing as much as reading, including thought out drafts, as well as short
+content and replies.
 
 ## Roadmap
 
