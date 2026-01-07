@@ -1,9 +1,9 @@
 // app.component.ts
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterLink, RouterOutlet, Router, ActivatedRoute } from '@angular/router';
-import { ApiService } from './api.service';
-import { filter } from 'rxjs/operators';
+import {Component, OnInit} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {RouterLink, RouterOutlet, Router, ActivatedRoute} from '@angular/router';
+import {ApiService} from './api.service';
+import {filter} from 'rxjs/operators';
 
 interface SidebarCounts {
   storms: number;
@@ -36,14 +36,15 @@ export class AppComponent implements OnInit {
     pictures: 0,
     videos: 0,
     discussions: 0,
-    links:0
+    links: 0
   };
 
   constructor(
     private api: ApiService,
     private router: Router,
     private route: ActivatedRoute,
-  ) {}
+  ) {
+  }
 
   ngOnInit(): void {
     // Subscribe to server status
@@ -95,6 +96,7 @@ export class AppComponent implements OnInit {
         this.activeUserInfo = this.mainUser;
         this.refreshCounts(); // Refresh counts when returning to main user
       }
+      this.refreshCounts();
     });
     this.refreshCounts();
   }
@@ -103,7 +105,7 @@ export class AppComponent implements OnInit {
     this.currentFilter = filter;
     // Use 'merge' to preserve the 'user' param if it exists
     this.router.navigate(['/'], {
-      queryParams: { filter: filter },
+      queryParams: {filter: filter},
       queryParamsHandling: 'merge',
     });
   }
@@ -111,8 +113,31 @@ export class AppComponent implements OnInit {
   viewMainUser(): void {
     // Clear the user param to return to main user's view
     this.router.navigate(['/'], {
-      queryParams: { filter: this.currentFilter },
+      queryParams: {filter: this.currentFilter},
     });
+    // Scroll to top
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  viewNextBlogrollUser(): void {
+    if (this.blogRoll.length === 0) return;
+
+    // Find current index
+    const currentIndex = this.currentUser
+      ? this.blogRoll.findIndex(acc => acc.acct === this.currentUser)
+      : -1;
+
+    // Get next index (wrap around to 0 if at end)
+    const nextIndex = (currentIndex + 1) % this.blogRoll.length;
+    const nextUser = this.blogRoll[nextIndex];
+
+    // Navigate to next user
+    this.router.navigate(['/'], {
+      queryParams: {user: nextUser.acct, filter: this.currentFilter},
+    });
+
+    // Scroll to top
+    window.scrollTo({top: 0, behavior: 'smooth'});
   }
 
   isViewingMainUser(): boolean {
