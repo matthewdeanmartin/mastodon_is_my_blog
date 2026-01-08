@@ -147,7 +147,15 @@ export class AppComponent implements OnInit {
   }
 
   refreshCounts(): void {
-    this.api.getCounts(this.currentUser || '').subscribe({
+    // Determine which user to get counts for
+    let userForCounts = this.currentUser;
+
+    // If no current user (viewing main blog), use main user's acct
+    if (!userForCounts && this.mainUser) {
+      userForCounts = this.mainUser.acct;
+    }
+
+    this.api.getCounts(userForCounts || '').subscribe({
       next: (c) => {
         this.counts = {
           storms: Number(c.storms || 0),
@@ -161,8 +169,8 @@ export class AppComponent implements OnInit {
           everyone: Number(c.everyone || 0),
         };
       },
-      error: () => {
-        // If counts fail, keep UI stable.
+      error: (e) => {
+        console.log(e)
       },
     });
   }

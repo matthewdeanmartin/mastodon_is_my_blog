@@ -468,7 +468,7 @@ async def get_public_posts(
 ) -> list[dict]:
     """
     Get posts with filters.
-    User arg: filter by username (acct). If None, gets all synced posts (usually owner).
+    User arg: filter by username (acct). If None and not 'everyone' filter, gets main user's posts.
     """
     async with async_session() as session:
         query = select(CachedPost).order_by(desc(CachedPost.created_at))
@@ -481,6 +481,18 @@ async def get_public_posts(
         elif user:
             # Filter by specific user
             query = query.where(CachedPost.author_acct == user)
+        else:
+            # No user specified and not "everyone" filter - default to main user
+            # Get the main user from token
+            token = await get_token()
+            if token:
+                try:
+                    m = client(token)
+                    me = m.account_verify_credentials()
+                    query = query.where(CachedPost.author_acct == me["acct"])
+                except:
+                    # If we can't get main user, show nothing rather than everyone
+                    query = query.where(CachedPost.id == "impossible_id")
 
         # Apply Type Filters
         if filter_type == "all":
@@ -567,15 +579,27 @@ async def get_storms(user: str | None = None):
     Returns 'Tweet Storms'.
     Groups a root post and its subsequent self-replies into a single tree.
     Excludes posts with external links from being roots.
+    If user is None, defaults to main authenticated user.
     """
     async with async_session() as session:
-        # 1. Fetch all posts for the user (or all if user is None)
+        # Determine which user to show
+        target_user = user
+        if not target_user:
+            # Default to main user
+            token = await get_token()
+            if token:
+                try:
+                    m = client(token)
+                    me = m.account_verify_credentials()
+                    target_user = me["acct"]
+                except:
+                    # Can't determine main user, return empty
+                    return []
+
+        # 1. Fetch all posts for the user
         query = select(CachedPost).order_by(desc(CachedPost.created_at))
-        if user:
-            query = query.where(CachedPost.author_acct == user)
-        else:
-            # By default, storms usually imply the blog owner
-            query = query.where(CachedPost.is_reblog == False)
+        query = query.where(CachedPost.author_acct == target_user)
+        query = query.where(CachedPost.is_reblog == False)
 
         result = await session.execute(query)
         all_posts = result.scalars().all()

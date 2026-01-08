@@ -1,4 +1,4 @@
-// web/src/app/public-feed.component.ts
+// web/src/app/feed.component.ts
 
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -28,10 +28,21 @@ export class PublicFeedComponent implements OnInit {
 
   ngOnInit() {
     this.route.queryParams.subscribe((params) => {
-      this.currentFilter = params['filter'] || 'all';
-      this.currentUser = params['user'];
-      this.syncingUser = false; // Reset sync flag on nav change
-      this.load(this.currentFilter, this.currentUser);
+      const newFilter = params['filter'] || 'all';
+      const newUser = params['user'] || undefined; // Convert empty string to undefined
+
+      // Check if anything actually changed
+      const filterChanged = newFilter !== this.currentFilter;
+      const userChanged = newUser !== this.currentUser;
+
+      this.currentFilter = newFilter;
+      this.currentUser = newUser;
+
+      // Reset sync flag when navigation happens
+      if (filterChanged || userChanged) {
+        this.syncingUser = false;
+        this.load(this.currentFilter, this.currentUser);
+      }
     });
   }
 
@@ -44,7 +55,8 @@ export class PublicFeedComponent implements OnInit {
       this.loading = false;
 
       // If we got no data, we are viewing a specific user, and we haven't tried syncing yet...
-      if (data.length === 0 && user && !this.syncingUser) {
+      // BUT don't sync for "everyone" filter
+      if (data.length === 0 && user && filter !== 'everyone' && !this.syncingUser) {
         this.attemptUserSync(user);
       } else {
         this.items = data;
