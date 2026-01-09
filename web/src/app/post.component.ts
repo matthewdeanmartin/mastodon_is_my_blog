@@ -290,4 +290,15 @@ export class PublicPostComponent implements OnInit {
   getMediaImages(post: Status): any[] {
     return post.media_attachments?.filter((m) => m.type === 'image') || [];
   }
+
+  getOriginalPostUrl(post: Status): string {
+    const acct = post.account.acct;
+    if (!acct) return '#';
+
+    const parts = acct.split('@');
+    const username = parts[0];
+    const instance = parts[1] || 'mastodon.social';
+
+    return `https://${instance}/@${username}/${post.id}`;
+  }
 }

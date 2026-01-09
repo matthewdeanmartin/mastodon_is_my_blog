@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 from contextlib import asynccontextmanager
@@ -27,6 +28,9 @@ from mastodon_is_my_blog.store import (
 )
 import re
 from html import unescape
+
+logger = logging.getLogger(__name__)
+
 dotenv.load_dotenv()
 
 # Schema for DOMAIN_CONFIG
@@ -194,6 +198,7 @@ async def sync_accounts_friends_followers() -> None:
     """Syncs lists of following and followers."""
     token = await get_token()
     if not token:
+        logger.warning("No token")
         return
     m = client(token)
     me = m.account_verify_credentials()
@@ -230,6 +235,7 @@ async def sync_accounts_friends_followers() -> None:
             existing = (await session.execute(stmt)).scalar_one_or_none()
 
             if not existing:
+                logger.warning(f"New account {acc['acct']}")
                 new_acc = CachedAccount(
                     id=str(acc["id"]),
                     acct=acc["acct"],
@@ -242,7 +248,6 @@ async def sync_accounts_friends_followers() -> None:
                 session.add(new_acc)
             else:
                 existing.is_followed_by = True
-                existing.note = acc.get("note", "")
 
         await session.commit()
     await update_last_sync("accounts")
@@ -274,6 +279,7 @@ async def sync_blog_roll_activity() -> None:
             last_status_time = to_naive_utc(s["created_at"])
 
             if existing:
+                logger.warning(f"Cache hit {account_data['acct']}")
                 # Update last active time if this post is newer
                 # existing.last_status_at is Naive (from SQLite), last_status_time is now Naive.
                 if (
@@ -282,6 +288,7 @@ async def sync_blog_roll_activity() -> None:
                 ):
                     existing.last_status_at = last_status_time
             else:
+                logger.warning(f"New account {account_data['acct']}")
                 # Discovered a new active person (maybe from a boost)
                 new_acc = CachedAccount(
                     id=str(account_data["id"]),

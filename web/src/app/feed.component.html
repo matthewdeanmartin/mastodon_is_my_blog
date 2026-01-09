@@ -81,12 +81,12 @@
 
   <div
     *ngIf="getImages(p).length > 0"
-    style="margin-top: 10px; display: flex; gap: 8px; overflow-x: auto"
+    style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;"
   >
     <img
       *ngFor="let img of getImages(p)"
       [src]="img.preview_url || img.url"
-      style="height: 120px; width: auto; border-radius: 4px; border: 1px solid #eee"
+      style="width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee"
     />
   </div>
 
@@ -94,6 +94,12 @@
     <a [routerLink]="['/p', p.id]"><small>Read more</small></a>
     <span *ngIf="p.counts" class="muted" style="margin-left: 10px; font-size: 0.8rem">
       {{ p.counts.replies }} replies &bull; {{ p.counts.likes }} likes
+    </span>
+    <span style="margin-left: 10px;">
+      <a [href]="getOriginalPostUrl(p)" target="_blank" rel="noopener noreferrer"
+         style="font-size: 0.8rem; color: #6366f1; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+        <span style="font-size: 1rem;">🔗</span> View on Mastodon
+      </a>
     </span>
   </div>
 </ng-template>

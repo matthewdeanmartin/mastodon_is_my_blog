@@ -26,6 +26,7 @@ interface SidebarCounts {
 export class AppComponent implements OnInit {
   currentFilter: string = 'all';
   currentUser: string | null = null;
+  viewingEveryone: boolean = false;
   blogRoll: any[] = [];
   mainUser: any = null; // Store the authenticated user's info
   activeUserInfo: any = null; // Store the currently viewed user's info
@@ -77,6 +78,7 @@ export class AppComponent implements OnInit {
     this.route.queryParams.subscribe((params) => {
       this.currentUser = params['user'] || null;
       this.currentFilter = params['filter'] || 'all';
+      this.viewingEveryone = params['everyone'] === 'true';
 
       // Track recently viewed accounts
       if (this.currentUser) {
@@ -105,6 +107,7 @@ export class AppComponent implements OnInit {
 
   setFilter(filter: string): void {
     this.currentFilter = filter;
+    this.viewingEveryone = false;
     // Use 'merge' to preserve the 'user' param if it exists
     this.router.navigate(['/'], {
       queryParams: {filter: filter},
@@ -112,7 +115,17 @@ export class AppComponent implements OnInit {
     });
   }
 
+  viewEveryone(): void {
+    this.viewingEveryone = true;
+    this.currentFilter = 'everyone';
+    this.router.navigate(['/'], {
+      queryParams: {filter: 'everyone', everyone: 'true'},
+      queryParamsHandling: 'merge',
+    });
+  }
+
   viewMainUser(): void {
+    this.viewingEveryone = false;
     // Clear the user param to return to main user's view
     this.router.navigate(['/'], {
       queryParams: {filter: this.currentFilter},
@@ -133,6 +146,24 @@ export class AppComponent implements OnInit {
     const nextIndex = (currentIndex + 1) % this.blogRoll.length;
     const nextUser = this.blogRoll[nextIndex];
 
+    // // Calculate the index after next for prefetching
+    const prefetchIndex = (nextIndex + 1) % this.blogRoll.length;
+    const prefetchUser = this.blogRoll[prefetchIndex];
+
+    // Prefetch the user after next (won't update UI, just primes server cache)
+    if (prefetchUser) {
+      this.api.getAccountInfo(prefetchUser.acct).subscribe(() => {
+        console.log(`prefetch  ${prefetchUser.acct}`)
+        // Silent prefetch - we don't care about the result
+      });
+
+      // Also prefetch their posts
+      this.api.getPublicPosts(this.currentFilter, prefetchUser.acct).subscribe(() => {
+        console.log(`prefetch  ${prefetchUser.acct}`)
+        // Silent prefetch
+      });
+    }
+
     // Navigate to next user
     this.router.navigate(['/'], {
       queryParams: {user: nextUser.acct, filter: this.currentFilter},
@@ -143,7 +174,7 @@ export class AppComponent implements OnInit {
   }
 
   isViewingMainUser(): boolean {
-    return !this.currentUser;
+    return !this.currentUser && !this.viewingEveryone;
   }
 
   refreshCounts(): void {
@@ -151,11 +182,14 @@ export class AppComponent implements OnInit {
     let userForCounts = this.currentUser;
 
     // If no current user (viewing main blog), use main user's acct
-    if (!userForCounts && this.mainUser) {
+    if (!userForCounts && this.mainUser && !this.viewingEveryone) {
       userForCounts = this.mainUser.acct;
     }
 
-    this.api.getCounts(userForCounts || '').subscribe({
+    // If viewing everyone, don't pass a user filter
+    const effectiveUser = this.viewingEveryone ? undefined : (userForCounts || '');
+
+    this.api.getCounts(effectiveUser).subscribe({
       next: (c) => {
         this.counts = {
           storms: Number(c.storms || 0),
@@ -182,4 +216,18 @@ export class AppComponent implements OnInit {
   isActiveUser(acct: string): boolean {
     return this.currentUser === acct;
   }
+
+  getUserProfileUrl(acct: string): string {
+    const parts = acct.split('@');
+    const username = parts[0];
+    const instance = parts[1] || 'mastodon.social';
+    return `https://${instance}/@${username}`;
+  }
+
+  getUserInstanceUrl(acct: string): string {
+    const parts = acct.split('@');
+    const instance = parts[1] || 'mastodon.social';
+    return `https://${instance}`;
+  }
+
 }

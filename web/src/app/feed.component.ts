@@ -69,7 +69,8 @@ export class PublicFeedComponent implements OnInit {
     if (filter === 'all') {
       this.isStormView = true;
       this.api.getStorms(user).subscribe({ next: handleSuccess, error: handleError });
-    } else {
+    } else
+    {
       // Otherwise use the standard flat list with the specific filter
       this.isStormView = false;
       this.api.getPublicPosts(filter, user).subscribe({ next: handleSuccess, error: handleError });
@@ -111,5 +112,16 @@ export class PublicFeedComponent implements OnInit {
       params.user = this.currentUser;
     }
     return params;
+  }
+
+   getOriginalPostUrl(post: any): string {
+    const acct = post.author_acct;
+    if (!acct) return '#';
+
+    const parts = acct.split('@');
+    const username = parts[0];
+    const instance = parts[1] || 'mastodon.social';
+
+    return `https://${instance}/@${username}/${post.id}`;
   }
 }
