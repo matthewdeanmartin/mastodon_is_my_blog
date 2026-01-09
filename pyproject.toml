@@ -1,7 +1,7 @@
 [project]
-name = "blog-console-server"
+name = "mastodon_is_my_blog"
 version = "0.1.0"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.34",
@@ -9,5 +9,23 @@ dependencies = [
   "sqlalchemy>=2.0",
   "aiosqlite>=0.20",
   "python-dotenv>=1.0",
-  "beautifulsoup4>=4.12"
+  "beautifulsoup4>=4.12",
+    "alembic>=1.13.0"
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "black",
+    "isort"
+]
+
+#[project.scripts]
+#mimb = "mastodon_is_my_blog.cli:main"
+
+[tool.isort]
+profile = "black"

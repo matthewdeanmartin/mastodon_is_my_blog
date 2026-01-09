@@ -13,6 +13,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, desc, func, or_, select
 
+from mastodon_is_my_blog.domain_categories import DOMAIN_CONFIG
 from mastodon_is_my_blog.masto_client import client
 from mastodon_is_my_blog.store import (
     CachedAccount,
@@ -24,28 +25,25 @@ from mastodon_is_my_blog.store import (
     set_token,
     update_last_sync,
 )
-
+import re
+from html import unescape
 dotenv.load_dotenv()
 
-# --- Configuration: Domain Filters ---
-# Reasonably configurable lists of domains for filters
-DOMAIN_CONFIG = {
-    "video": {
-        "youtube.com", "youtu.be", "vimeo.com", "twitch.tv", "dailymotion.com", "tiktok.com"
-    },
-    "picture": {
-        "flickr.com", "imgur.com", "instagram.com", "500px.com", "deviantart.com"
-    },
-    "tech": {
-        "github.com", "gitlab.com", "pypi.org", "npmjs.com", "stackoverflow.com", "huggingface.co"
-    },
-    "news": {
-        "nytimes.com", "theguardian.com", "bbc.com", "bbc.co.uk", "cnn.com",
-        "washingtonpost.com", "reuters.com", "aljazeera.com", "npr.org", "arstechnica.com",
-        "economist.com", "wsj.com", "cnbc.com", "france24.com",
-        "nbcnews.com", "politico.com", "statnews.com", "nbcnewyork.com", "news.sky.com",
-    }
-}
+# Schema for DOMAIN_CONFIG
+# DOMAIN_CONFIG = {
+#     "video": {
+#         "youtube.com",
+#     },
+#     "picture": {
+#         "flickr.com",
+#     },
+#     "tech": {
+#         "github.com",
+#     },
+#     "news": {
+#         "nytimes.com",
+#     },
+# }
 
 
 @asynccontextmanager
@@ -115,7 +113,7 @@ def analyze_content_domains(html: str, media_attachments: list) -> dict:
         "has_news": False,
         "has_tech": False,
         "has_link": False,
-        "has_question": False
+        "has_question": False,
     }
 
     # 1. Check Attachments
@@ -166,18 +164,37 @@ def analyze_content_domains(html: str, media_attachments: list) -> dict:
     # Extract text content and check for question marks
     text_content = soup.get_text()
     # Look for word boundaries followed by question marks
-    if re.search(r'\w+\?', text_content):
-        flags["has_question"] = True
+
+    # fails with URLS eg example.com?foo
+    # if re.search(r"\w+\?", text_content):
+    #     flags["has_question"] = True
+
+    if re.search(r"\w+\?", text_content):
+        flags["has_question"] = has_human_question(text_content)
 
     return flags
 
 
+
+def has_human_question(html:str)->bool:
+    # drop tags
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = unescape(text)
+
+    # drop URLs (now visible after tag strip)
+    text = re.sub(r"https?://\S+", " ", text)
+
+    # question heuristic: word char before ?, not part of token junk
+    return bool(re.search(r"\b[\w’']+\?\s*$|\b[\w’']+\?\s+", text))
+
 # --- Sync Engines ---
+
 
 async def sync_accounts_friends_followers() -> None:
     """Syncs lists of following and followers."""
     token = await get_token()
-    if not token: return
+    if not token:
+        return
     m = client(token)
     me = m.account_verify_credentials()
 
@@ -194,9 +211,13 @@ async def sync_accounts_friends_followers() -> None:
 
             if not existing:
                 new_acc = CachedAccount(
-                    id=str(acc["id"]), acct=acc["acct"], display_name=acc["display_name"],
-                    avatar=acc["avatar"], url=acc["url"], is_following=True,
-                    note=acc.get("note", "")
+                    id=str(acc["id"]),
+                    acct=acc["acct"],
+                    display_name=acc["display_name"],
+                    avatar=acc["avatar"],
+                    url=acc["url"],
+                    is_following=True,
+                    note=acc.get("note", ""),
                 )
                 session.add(new_acc)
             else:
@@ -210,9 +231,13 @@ async def sync_accounts_friends_followers() -> None:
 
             if not existing:
                 new_acc = CachedAccount(
-                    id=str(acc["id"]), acct=acc["acct"], display_name=acc["display_name"],
-                    avatar=acc["avatar"], url=acc["url"], is_followed_by=True,
-                    note=acc.get("note", "")
+                    id=str(acc["id"]),
+                    acct=acc["acct"],
+                    display_name=acc["display_name"],
+                    avatar=acc["avatar"],
+                    url=acc["url"],
+                    is_followed_by=True,
+                    note=acc.get("note", ""),
                 )
                 session.add(new_acc)
             else:
@@ -229,7 +254,8 @@ async def sync_blog_roll_activity() -> None:
     Updates CachedAccount.last_status_at for the Blog Roll.
     """
     token = await get_token()
-    if not token: return
+    if not token:
+        return
     m = client(token)
 
     # Fetch Home Timeline (Active people I follow)
@@ -239,7 +265,9 @@ async def sync_blog_roll_activity() -> None:
         for s in home_statuses:
             account_data = s["account"]
             # Find account in DB (should be there if we ran sync_accounts, but create if new)
-            stmt = select(CachedAccount).where(CachedAccount.id == str(account_data["id"]))
+            stmt = select(CachedAccount).where(
+                CachedAccount.id == str(account_data["id"])
+            )
             existing = (await session.execute(stmt)).scalar_one_or_none()
 
             # --- Convert to Naive UTC before comparing ---
@@ -248,7 +276,10 @@ async def sync_blog_roll_activity() -> None:
             if existing:
                 # Update last active time if this post is newer
                 # existing.last_status_at is Naive (from SQLite), last_status_time is now Naive.
-                if not existing.last_status_at or last_status_time > existing.last_status_at:
+                if (
+                    not existing.last_status_at
+                    or last_status_time > existing.last_status_at
+                ):
                     existing.last_status_at = last_status_time
             else:
                 # Discovered a new active person (maybe from a boost)
@@ -259,26 +290,34 @@ async def sync_blog_roll_activity() -> None:
                     avatar=account_data["avatar"],
                     url=account_data["url"],
                     last_status_at=last_status_time,
-                    note=account_data.get("note", "")
+                    note=account_data.get("note", ""),
                 )
                 session.add(new_acc)
 
         await session.commit()
 
 
-async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None, force: bool = False,
-                             cooldown_minutes: int = 15
-                             ) -> dict:
+async def sync_user_timeline(
+    acct: str | None = None,
+    acct_id: str | None = None,
+    force: bool = False,
+    cooldown_minutes: int = 15,
+) -> dict:
     """Syncs posts for a specific user. Defaults to Me."""
     sync_key = f"user_timeline_{acct or acct_id or 'me'}"
     last_run = await get_last_sync(sync_key)
 
     # Check custom cooldown
-    if not force and last_run and (datetime.utcnow() - last_run) < timedelta(minutes=cooldown_minutes):
+    if (
+        not force
+        and last_run
+        and (datetime.utcnow() - last_run) < timedelta(minutes=cooldown_minutes)
+    ):
         return {"status": "skipped", "reason": "synced_recently"}
 
     token = await get_token()
-    if not token: raise HTTPException(401, "Not connected")
+    if not token:
+        raise HTTPException(401, "Not connected")
     m = client(token)
 
     # Resolve the target account
@@ -312,7 +351,7 @@ async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None
                 display_name=target_account["display_name"],
                 avatar=target_account["avatar"],
                 url=target_account["url"],
-                note=target_account.get("note", "")
+                note=target_account.get("note", ""),
             )
             session.add(new_acc)
         else:
@@ -342,12 +381,15 @@ async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None
             in_reply_to_id = actual_status.get("in_reply_to_id")
             in_reply_to_account = actual_status.get("in_reply_to_account_id")
 
-            is_reply_to_other = (
-                    in_reply_to_id is not None and
-                    str(in_reply_to_account) != str(actual_status["account"]["id"])
-            )
+            is_reply_to_other = in_reply_to_id is not None and str(
+                in_reply_to_account
+            ) != str(actual_status["account"]["id"])
 
-            media_json = json.dumps(actual_status["media_attachments"]) if actual_status["media_attachments"] else None
+            media_json = (
+                json.dumps(actual_status["media_attachments"])
+                if actual_status["media_attachments"]
+                else None
+            )
 
             # FIX: Ensure creation date is naive UTC
             created_at_naive = to_naive_utc(s["created_at"])
@@ -367,7 +409,9 @@ async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None
                 "is_reblog": is_reblog,
                 "is_reply": is_reply_to_other,
                 "in_reply_to_id": str(in_reply_to_id) if in_reply_to_id else None,
-                "in_reply_to_account_id": str(in_reply_to_account) if in_reply_to_account else None,
+                "in_reply_to_account_id": (
+                    str(in_reply_to_account) if in_reply_to_account else None
+                ),
                 "has_media": flags["has_media"],
                 "has_video": flags["has_video"],
                 "has_news": flags["has_news"],
@@ -378,7 +422,7 @@ async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None
                 "replies_count": s["replies_count"],
                 "reblogs_count": s["reblogs_count"],
                 "favourites_count": s["favourites_count"],
-                "media_attachments": media_json
+                "media_attachments": media_json,
             }
 
             if not existing:
@@ -396,6 +440,7 @@ async def sync_user_timeline(acct: str | None = None, acct_id: str | None = None
 
 # --- Public Endpoints ---
 
+
 @app.get("/api/status")
 async def status() -> dict:
     return {"status": "up"}
@@ -408,7 +453,12 @@ async def get_blog_roll():
         # Get accounts that have posted recently OR are friends
         query = (
             select(CachedAccount)
-            .where(or_(CachedAccount.last_status_at != None, CachedAccount.is_following == True))
+            .where(
+                or_(
+                    CachedAccount.last_status_at != None,
+                    CachedAccount.is_following == True,
+                )
+            )
             .order_by(desc(CachedAccount.last_status_at))
             .limit(40)
         )
@@ -422,8 +472,10 @@ async def get_blog_roll():
                 "display_name": a.display_name,
                 "avatar": a.avatar,
                 "url": a.url,
-                "note": getattr(a, 'note', ''),
-                "last_status_at": a.last_status_at.isoformat() if a.last_status_at else None
+                "note": getattr(a, "note", ""),
+                "last_status_at": (
+                    a.last_status_at.isoformat() if a.last_status_at else None
+                ),
             }
             for a in accounts
         ]
@@ -448,7 +500,7 @@ async def get_account_info(acct: str):
             "url": account.url,
             "note": account.note,
             "is_following": account.is_following,
-            "is_followed_by": account.is_followed_by
+            "is_followed_by": account.is_followed_by,
         }
 
 
@@ -461,10 +513,22 @@ async def sync_account(acct: str):
 
 @app.get("/api/public/posts")
 async def get_public_posts(
-        user: str | None = None,
-        filter_type: str = Query("all",
-                                 enum=["all", "storm", "discussions", "pictures", "videos", "news", "software", "links",
-                                       "questions", "everyone"])
+    user: str | None = None,
+    filter_type: str = Query(
+        "all",
+        enum=[
+            "all",
+            "storm",
+            "discussions",
+            "pictures",
+            "videos",
+            "news",
+            "software",
+            "links",
+            "questions",
+            "everyone",
+        ],
+    ),
 ) -> list[dict]:
     """
     Get posts with filters.
@@ -497,7 +561,9 @@ async def get_public_posts(
         # Apply Type Filters
         if filter_type == "all":
             # Show roots only (hide replies to others, keep self-threads)
-            query = query.where(and_(CachedPost.is_reblog == False, CachedPost.is_reply == False))
+            query = query.where(
+                and_(CachedPost.is_reblog == False, CachedPost.is_reply == False)
+            )
         elif filter_type == "storms":
             # not implemented yet!
             # should match get_storms method
@@ -533,16 +599,18 @@ async def get_public_posts(
                 "content": p.content,
                 "author_acct": p.author_acct,
                 "created_at": p.created_at.isoformat(),
-                "media_attachments": json.loads(p.media_attachments) if p.media_attachments else [],
+                "media_attachments": (
+                    json.loads(p.media_attachments) if p.media_attachments else []
+                ),
                 "counts": {
                     "replies": p.replies_count,
                     "reblogs": p.reblogs_count,
-                    "likes": p.favourites_count
+                    "likes": p.favourites_count,
                 },
                 "is_reblog": p.is_reblog,
                 "is_reply": p.is_reply,
                 "has_link": p.has_link,
-                "tags": json.loads(p.tags) if p.tags else []
+                "tags": json.loads(p.tags) if p.tags else [],
             }
             for p in posts
         ]
@@ -567,7 +635,7 @@ async def get_all_posts_unfiltered(user: str | None = None):
                 "created_at": p.created_at.isoformat(),
                 "is_reply": p.is_reply,
                 "is_reblog": p.is_reblog,
-                "has_link": p.has_link
+                "has_link": p.has_link,
             }
             for p in posts
         ]
@@ -646,11 +714,13 @@ async def get_storms(user: str | None = None):
                     "id": p.id,
                     "content": p.content,
                     "created_at": p.created_at.isoformat(),
-                    "media": json.loads(p.media_attachments) if p.media_attachments else [],
+                    "media": (
+                        json.loads(p.media_attachments) if p.media_attachments else []
+                    ),
                     "counts": {"replies": p.replies_count, "likes": p.favourites_count},
-                    "author_acct": p.author_acct
+                    "author_acct": p.author_acct,
                 },
-                "branches": []
+                "branches": [],
             }
             processed_ids.add(p.id)
 
@@ -677,9 +747,16 @@ async def get_storms(user: str | None = None):
                         kid_data = {
                             "id": kid.id,
                             "content": kid.content,
-                            "media": json.loads(kid.media_attachments) if kid.media_attachments else [],
-                            "counts": {"replies": kid.replies_count, "likes": kid.favourites_count},
-                            "children": collect_children(kid.id)
+                            "media": (
+                                json.loads(kid.media_attachments)
+                                if kid.media_attachments
+                                else []
+                            ),
+                            "counts": {
+                                "replies": kid.replies_count,
+                                "likes": kid.favourites_count,
+                            },
+                            "children": collect_children(kid.id),
                         }
                         results.append(kid_data)
                 return results
@@ -705,7 +782,8 @@ async def get_hashtags(user: str | None = None):
 
     tag_counts = {}
     for raw in all_tags_raw:
-        if not raw: continue
+        if not raw:
+            continue
         try:
             tags = json.loads(raw)
             for t in tags:
@@ -718,7 +796,7 @@ async def get_hashtags(user: str | None = None):
     return sorted(
         [{"name": k, "count": v} for k, v in tag_counts.items()],
         key=lambda x: x["count"],
-        reverse=True
+        reverse=True,
     )
 
 
@@ -731,7 +809,7 @@ async def get_analytics(user: str | None = None):
             func.count(CachedPost.id),
             func.sum(CachedPost.replies_count),
             func.sum(CachedPost.reblogs_count),
-            func.sum(CachedPost.favourites_count)
+            func.sum(CachedPost.favourites_count),
         )
         if user:
             stmt = stmt.where(CachedPost.author_acct == user)
@@ -743,7 +821,7 @@ async def get_analytics(user: str | None = None):
         "total_posts": row[0] or 0,
         "total_replies_received": row[1] or 0,
         "total_boosts": row[2] or 0,
-        "total_favorites": row[3] or 0
+        "total_favorites": row[3] or 0,
     }
 
 
@@ -770,7 +848,7 @@ async def get_post_context(id: str):
         return {
             "ancestors": context["ancestors"],
             "target": target,
-            "descendants": context["descendants"]
+            "descendants": context["descendants"],
         }
     except Exception as e:
         raise HTTPException(404, f"Could not fetch context: {str(e)}")
@@ -791,14 +869,16 @@ async def get_single_post(id: str):
             "content": post.content,
             "author_acct": post.author_acct,
             "created_at": post.created_at.isoformat(),
-            "media_attachments": json.loads(post.media_attachments) if post.media_attachments else [],
+            "media_attachments": (
+                json.loads(post.media_attachments) if post.media_attachments else []
+            ),
             "counts": {
                 "replies": post.replies_count,
                 "reblogs": post.reblogs_count,
-                "likes": post.favourites_count
+                "likes": post.favourites_count,
             },
             "is_reblog": post.is_reblog,
-            "is_reply": post.is_reply
+            "is_reply": post.is_reply,
         }
 
 
@@ -826,10 +906,7 @@ async def trigger_sync(force: bool = True) -> dict:
     await sync_accounts_friends_followers()  # Sync friends
     await sync_blog_roll_activity()  # Sync 'who is active'
     res = await sync_user_timeline(force=force)  # Sync my posts
-    return {
-        "timeline": res,
-        "message": "Sync complete"
-    }
+    return {"timeline": res, "message": "Sync complete"}
 
 
 @app.get("/api/admin/status")
@@ -847,7 +924,7 @@ async def admin_status() -> dict:
                 "acct": me["acct"],
                 "display_name": me["display_name"],
                 "avatar": me["avatar"],
-                "note": me.get("note", "")
+                "note": me.get("note", ""),
             }
         except:
             pass
@@ -855,7 +932,7 @@ async def admin_status() -> dict:
     return {
         "connected": token is not None,
         "last_sync": last_sync.isoformat() if last_sync else None,
-        "current_user": current_user
+        "current_user": current_user,
     }
 
 
@@ -981,7 +1058,7 @@ async def get_counts(user: str | None = None) -> dict:
                 *(base),
                 CachedPost.is_reblog == False,
                 CachedPost.in_reply_to_id == None,
-                CachedPost.has_link == False  # Exclude posts with links
+                CachedPost.has_link == False,  # Exclude posts with links
             )
         )
 
@@ -1031,5 +1108,5 @@ async def get_counts(user: str | None = None) -> dict:
         "discussions": discussions,
         "links": links,
         "questions": questions,
-        "everyone": everyone
+        "everyone": everyone,
     }

@@ -1,5 +1,18 @@
 # TODO
 
+## Top prio
+- Pictures in feed are WAY TO SMALL should be width of column of feed.
+- Webstorms only retrieve the 1st post in a webstorm, not the whole thread. They should work like the discussion.
+- Filter blog roll by:
+  - all
+  - mutuals - default
+  - chatty - has at least 1 discussion
+- Multiple accounts
+- Fix perf. (Missing indexes?)
+- Need pervasive links to original content
+- Fill in more bio/profile info and make it more compact or click to expand
+
+
 ## Post View
 - Storms should be a nice tidy block.
 - Counts don't update when changing users
@@ -20,6 +33,8 @@
 - When you click on a blog roll user, counts are displayed as 0 until you click another category
 - When you click Admin, the sidebar shows counts for everything and if you click a filter button you get a mix of everyones content.
 - Storms count is links count. Wrong!
+- Posts with media show in videos but feed/post doesn't show video
+- API call logging never happens, no feel for if API calls have happened.
 
 ## Content creation
 - Need edit button on all own
@@ -47,9 +62,9 @@
 - Show names and icons for who is talking
 
 ## Posts - Next 
-- Need Next Post button
+- Need Next Post button - DONE
 
 ## Feed filters
-- Need Questions tab that just finds the posts with words ending with ?
-- Everyone button where it shows everyones posts. This happens anyhow when you click the admin page.
-- Storm counts are wrong and they still update only after changing blog role AND changing category.
+- Need Questions tab that just finds the posts with words ending with ? - DONE
+- Everyone button where it shows everyones posts. This happens anyhow when you click the admin page.- MESSED UP
+- Counts often fail to update or only after changing blog role AND changing category.
