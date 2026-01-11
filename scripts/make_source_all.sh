@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+uv run black mastodon_is_my_blog
+uv run isort mastodon_is_my_blog
+uv run ruff check mastodon_is_my_blog --fix
 
 git2md . \
   --ignore .angular \
@@ -27,4 +30,5 @@ git2md . \
     scripts \
     app.db \
     favicon.ico \
+    alembic alembic_sync \
   --output SOURCE_ALL.md

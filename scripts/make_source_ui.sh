@@ -3,6 +3,7 @@ set -euo pipefail
 
 git2md web \
   --ignore .angular \
+  .vscode\extensions.json \
   node_modules \
   public \
   .vscode \

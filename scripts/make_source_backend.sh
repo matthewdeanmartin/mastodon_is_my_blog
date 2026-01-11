@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+uv run black mastodon_is_my_blog
+uv run isort mastodon_is_my_blog
+uv run ruff check mastodon_is_my_blog --fix || true
+
 git2md . \
   --ignore .angular \
+  alembic alembic.ini alembic_sync \
   node_modules \
   public \
   *.spec.ts \

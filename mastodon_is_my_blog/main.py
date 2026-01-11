@@ -1,21 +1,20 @@
 import json
 import logging
 import os
-import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlparse
 
 import dotenv
-from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy import Integer, and_, desc, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from mastodon_is_my_blog.domain_categories import DOMAIN_CONFIG
+from mastodon_is_my_blog.inspect_post import analyze_content_domains
 from mastodon_is_my_blog.masto_client import client
+from mastodon_is_my_blog.perf import time_async_function
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedPost,
@@ -26,28 +25,12 @@ from mastodon_is_my_blog.store import (
     set_token,
     update_last_sync,
 )
-import re
-from html import unescape
 
 logger = logging.getLogger(__name__)
+logging.basicConfig()
+logging.getLogger("mastodon_is_my_blog").setLevel(logging.INFO)
 
 dotenv.load_dotenv()
-
-# Schema for DOMAIN_CONFIG
-# DOMAIN_CONFIG = {
-#     "video": {
-#         "youtube.com",
-#     },
-#     "picture": {
-#         "flickr.com",
-#     },
-#     "tech": {
-#         "github.com",
-#     },
-#     "news": {
-#         "nytimes.com",
-#     },
-# }
 
 
 @asynccontextmanager
@@ -102,94 +85,6 @@ def to_naive_utc(dt: datetime | None) -> datetime | None:
     # If it's already naive, assume it's what we want
     return dt
 
-
-# --- Helper: Content Analysis ---
-def analyze_content_domains(html: str, media_attachments: list) -> dict:
-    """
-    Analyzes HTML content and attachments to determine content flags.
-    Returns dict of boolean flags.
-    """
-    soup = BeautifulSoup(html, "html.parser")
-
-    flags = {
-        "has_media": len(media_attachments) > 0,
-        "has_video": False,
-        "has_news": False,
-        "has_tech": False,
-        "has_link": False,
-        "has_question": False,
-    }
-
-    # 1. Check Attachments
-    for m in media_attachments:
-        if m["type"] in ["video", "gifv", "audio"]:
-            flags["has_video"] = True
-        if m["type"] == "image":
-            flags["has_media"] = True
-
-    # 2. Check Links (<a> tags and <iframe>)
-    if soup.find("iframe"):
-        flags["has_video"] = True
-
-    for link in soup.find_all("a", href=True):
-        try:
-            # Check classes to distinguish generic links from Mentions/Hashtags
-            # Mastodon mentions/tags usually have class="mention" or "hashtag"
-            classes = link.get("class", [])
-            is_mention_or_tag = "mention" in classes or "hashtag" in classes
-
-            if not is_mention_or_tag:
-                flags["has_link"] = True
-
-            domain = urlparse(link["href"]).netloc.lower()
-            # Remove 'www.' prefix if present for matching
-            clean_domain = domain.replace("www.", "")
-
-            # Check Video
-            if any(d in clean_domain for d in DOMAIN_CONFIG["video"]):
-                flags["has_video"] = True
-
-            # Check Pictures (External)
-            if any(d in clean_domain for d in DOMAIN_CONFIG["picture"]):
-                flags["has_media"] = True  # Treat external image links as "has_media"
-
-            # Check Tech
-            if any(d in clean_domain for d in DOMAIN_CONFIG["tech"]):
-                flags["has_tech"] = True
-
-            # Check News
-            if any(d in clean_domain for d in DOMAIN_CONFIG["news"]):
-                flags["has_news"] = True
-
-        except Exception:
-            continue
-
-    # 3. Check for Questions (words ending with ?)
-    # Extract text content and check for question marks
-    text_content = soup.get_text()
-    # Look for word boundaries followed by question marks
-
-    # fails with URLS eg example.com?foo
-    # if re.search(r"\w+\?", text_content):
-    #     flags["has_question"] = True
-
-    if re.search(r"\w+\?", text_content):
-        flags["has_question"] = has_human_question(text_content)
-
-    return flags
-
-
-
-def has_human_question(html:str)->bool:
-    # drop tags
-    text = re.sub(r"<[^>]+>", " ", html)
-    text = unescape(text)
-
-    # drop URLs (now visible after tag strip)
-    text = re.sub(r"https?://\S+", " ", text)
-
-    # question heuristic: word char before ?, not part of token junk
-    return bool(re.search(r"\b[\w’']+\?\s*$|\b[\w’']+\?\s+", text))
 
 # --- Sync Engines ---
 
@@ -283,8 +178,8 @@ async def sync_blog_roll_activity() -> None:
                 # Update last active time if this post is newer
                 # existing.last_status_at is Naive (from SQLite), last_status_time is now Naive.
                 if (
-                    not existing.last_status_at
-                    or last_status_time > existing.last_status_at
+                        not existing.last_status_at
+                        or last_status_time > existing.last_status_at
                 ):
                     existing.last_status_at = last_status_time
             else:
@@ -305,20 +200,23 @@ async def sync_blog_roll_activity() -> None:
 
 
 async def sync_user_timeline(
-    acct: str | None = None,
-    acct_id: str | None = None,
-    force: bool = False,
-    cooldown_minutes: int = 15,
+        acct: str | None = None,
+        acct_id: str | None = None,
+        force: bool = False,
+        cooldown_minutes: int = 15,
 ) -> dict:
     """Syncs posts for a specific user. Defaults to Me."""
+    if acct == "everyone":
+        return {"status": "skipped", "reason": "virtual_user"}
+
     sync_key = f"user_timeline_{acct or acct_id or 'me'}"
     last_run = await get_last_sync(sync_key)
 
     # Check custom cooldown
     if (
-        not force
-        and last_run
-        and (datetime.utcnow() - last_run) < timedelta(minutes=cooldown_minutes)
+            not force
+            and last_run
+            and (datetime.utcnow() - last_run) < timedelta(minutes=cooldown_minutes)
     ):
         return {"status": "skipped", "reason": "synced_recently"}
 
@@ -491,6 +389,21 @@ async def get_blog_roll():
 @app.get("/api/public/accounts/{acct}")
 async def get_account_info(acct: str):
     """Get cached account information by acct string."""
+
+    # FIX: Handle 'everyone' virtual user to prevent 404s
+    if acct == "everyone":
+        return {
+            "id": "everyone",
+            "acct": "everyone",
+            "display_name": "Everyone",
+            # Simple placeholder avatar
+            "avatar": "https://ui-avatars.com/api/?name=Everyone&background=f59e0b&color=fff&size=128",
+            "url": "",
+            "note": "Aggregated feed from all active blog roll accounts.",
+            "is_following": False,
+            "is_followed_by": False,
+        }
+
     async with async_session() as session:
         stmt = select(CachedAccount).where(CachedAccount.acct == acct)
         account = (await session.execute(stmt)).scalar_one_or_none()
@@ -514,28 +427,32 @@ async def get_account_info(acct: str):
 @app.post("/api/public/accounts/{acct}/sync")
 async def sync_account(acct: str):
     """Sync a specific user's timeline."""
+    # FIX: Don't attempt to sync the virtual 'everyone' user
+    if acct == "everyone":
+        return {"status": "skipped", "message": "Cannot sync virtual user"}
+
     result = await sync_user_timeline(acct=acct, force=True)
     return result
 
 
 @app.get("/api/public/posts")
 async def get_public_posts(
-    user: str | None = None,
-    filter_type: str = Query(
-        "all",
-        enum=[
+        user: str | None = None,
+        filter_type: str = Query(
             "all",
-            "storm",
-            "discussions",
-            "pictures",
-            "videos",
-            "news",
-            "software",
-            "links",
-            "questions",
-            "everyone",
-        ],
-    ),
+            enum=[
+                "all",
+                "storm",
+                "discussions",
+                "pictures",
+                "videos",
+                "news",
+                "software",
+                "links",
+                "questions",
+                "everyone",
+            ],
+        ),
 ) -> list[dict]:
     """
     Get posts with filters.
@@ -544,10 +461,12 @@ async def get_public_posts(
     async with async_session() as session:
         query = select(CachedPost).order_by(desc(CachedPost.created_at))
 
-        # Special handling for "everyone" filter
-        if filter_type == "everyone":
-            # Show all posts from all users, no user filtering
-            # Keep default order by created_at desc
+        # FIX: Handle user="everyone" explicitly to bypass filtering
+        if user == "everyone":
+            # Show all posts from all users (no user filtering)
+            pass
+        elif filter_type == "everyone":
+            # Legacy handle: Show all posts from all users
             pass
         elif user:
             # Filter by specific user
@@ -591,7 +510,7 @@ async def get_public_posts(
             # New Filter: Posts with links
             query = query.where(CachedPost.has_link == True)
         elif filter_type == "questions":
-            # NEW: Filter for posts with questions
+            # Filter for posts with questions
             query = query.where(CachedPost.has_question == True)
         elif filter_type == "everyone":
             # No additional filters, show all posts
@@ -629,7 +548,9 @@ async def get_all_posts_unfiltered(user: str | None = None):
     """Returns ALL posts, including replies, reblogs, links, etc."""
     async with async_session() as session:
         query = select(CachedPost).order_by(desc(CachedPost.created_at))
-        if user:
+
+        # FIX: Handle "everyone" here too
+        if user and user != "everyone":
             query = query.where(CachedPost.author_acct == user)
 
         result = await session.execute(query)
@@ -649,6 +570,7 @@ async def get_all_posts_unfiltered(user: str | None = None):
 
 
 @app.get("/api/public/storms")
+@time_async_function
 async def get_storms(user: str | None = None):
     """
     Returns 'Tweet Storms'.
@@ -659,7 +581,9 @@ async def get_storms(user: str | None = None):
     async with async_session() as session:
         # Determine which user to show
         target_user = user
-        if not target_user:
+
+        # FIX: Default to main user ONLY if not requesting everyone
+        if target_user != "everyone" and not target_user:
             # Default to main user
             token = await get_token()
             if token:
@@ -673,7 +597,11 @@ async def get_storms(user: str | None = None):
 
         # 1. Fetch all posts for the user
         query = select(CachedPost).order_by(desc(CachedPost.created_at))
-        query = query.where(CachedPost.author_acct == target_user)
+
+        # FIX: Apply user filter only if not "everyone"
+        if target_user != "everyone":
+            query = query.where(CachedPost.author_acct == target_user)
+
         query = query.where(CachedPost.is_reblog == False)
 
         result = await session.execute(query)
@@ -774,13 +702,13 @@ async def get_storms(user: str | None = None):
     return storms
 
 
-# --- NEW: Hashtag Aggregation ---
+# --- Hashtag Aggregation ---
 @app.get("/api/public/hashtags")
 async def get_hashtags(user: str | None = None):
     """Aggregates all hashtags used by the user."""
     async with async_session() as session:
         query = select(CachedPost.tags)
-        if user:
+        if user and user != "everyone":
             query = query.where(CachedPost.author_acct == user)
 
         result = await session.execute(query)
@@ -818,7 +746,7 @@ async def get_analytics(user: str | None = None):
             func.sum(CachedPost.reblogs_count),
             func.sum(CachedPost.favourites_count),
         )
-        if user:
+        if user and user != "everyone":
             stmt = stmt.where(CachedPost.author_acct == user)
 
         row = (await session.execute(stmt)).first()
@@ -834,6 +762,7 @@ async def get_analytics(user: str | None = None):
 
 # --- Context Crawler ---
 @app.get("/api/public/posts/{id}/context")
+@time_async_function
 async def get_post_context(id: str):
     """
     Crawls the conversation graph for a specific post.
@@ -908,6 +837,7 @@ async def get_live_comments(id: str) -> dict:
 
 
 @app.post("/api/admin/sync")
+@time_async_function
 async def trigger_sync(force: bool = True) -> dict:
     """Master sync trigger"""
     await sync_accounts_friends_followers()  # Sync friends
@@ -1048,72 +978,95 @@ async def edit(status_id: str, payload: EditIn):
 
 
 @app.get("/api/public/counts")
+@time_async_function
 async def get_counts(user: str | None = None) -> dict:
     """
     Returns counts used for sidebar badges.
     Counts are designed to match existing feed endpoint semantics.
     """
+    # If user is "everyone", treat it as None (all users)
+    if user == "everyone":
+        user = None
+
     async with async_session() as session:
-        base = []
+        return await get_counts_optimized(session, user)
 
-        if user:
-            base.append(CachedPost.author_acct == user)
 
-        # Storms == "Latest Storms" view: matches /api/public/storms root detection
-        storms_stmt = select(func.count(CachedPost.id)).where(
-            and_(
-                *(base),
-                CachedPost.is_reblog == False,
-                CachedPost.in_reply_to_id == None,
-                CachedPost.has_link == False,  # Exclude posts with links
+async def get_counts_optimized(
+        session: AsyncSession, user: str | None = None
+) -> dict[str, int]:
+    """
+    Optimized count query using a single query with conditional aggregation.
+    This is MUCH faster than 9 separate COUNT queries.
+    """
+
+    # Build base conditions
+    base_conditions = []
+    if user:
+        base_conditions.append(CachedPost.author_acct == user)
+
+    # Use CASE expressions for conditional counting (SQLite supports this)
+    query = select(
+        # Storms: not reblog, not reply, no link
+        func.sum(
+            func.cast(
+                and_(
+                    CachedPost.is_reblog == False,
+                    CachedPost.in_reply_to_id == None,
+                    CachedPost.has_link == False,
+                    *base_conditions,
+                ),
+                Integer,
             )
-        )
+        ).label("storms"),
+        # News
+        func.sum(
+            func.cast(and_(CachedPost.has_news == True, *base_conditions), Integer)
+        ).label("news"),
+        # Software
+        func.sum(
+            func.cast(and_(CachedPost.has_tech == True, *base_conditions), Integer)
+        ).label("software"),
+        # Pictures
+        func.sum(
+            func.cast(and_(CachedPost.has_media == True, *base_conditions), Integer)
+        ).label("pictures"),
+        # Videos
+        func.sum(
+            func.cast(and_(CachedPost.has_video == True, *base_conditions), Integer)
+        ).label("videos"),
+        # Discussions
+        func.sum(
+            func.cast(and_(CachedPost.is_reply == True, *base_conditions), Integer)
+        ).label("discussions"),
+        # Links
+        func.sum(
+            func.cast(and_(CachedPost.has_link == True, *base_conditions), Integer)
+        ).label("links"),
+        # Questions
+        func.sum(
+            func.cast(and_(CachedPost.has_question == True, *base_conditions), Integer)
+        ).label("questions"),
+        # Everyone (total count)
+        func.count().label("everyone"),
+    ).select_from(CachedPost)
 
-        # Flat feeds: match /api/public/posts filter behavior
-        news_stmt = select(func.count(CachedPost.id)).where(
-            and_(*(base), CachedPost.has_news == True)
-        )
-        software_stmt = select(func.count(CachedPost.id)).where(
-            and_(*(base), CachedPost.has_tech == True)
-        )
-        pictures_stmt = select(func.count(CachedPost.id)).where(
-            and_(*(base), CachedPost.has_media == True)
-        )
-        videos_stmt = select(func.count(CachedPost.id)).where(
-            and_(*(base), CachedPost.has_video == True)
-        )
-        discussions_stmt = select(func.count(CachedPost.id)).where(
-            and_(*(base), CachedPost.is_reply == True)
-        )
-        links_stmt = select(func.count(CachedPost.id)).where(
-            and_(*(base), CachedPost.has_link == True)
-        )
-        questions_stmt = select(func.count(CachedPost.id)).where(
-            and_(*(base), CachedPost.has_question == True)
-        )
+    # Add user filter if specified
+    if user:
+        query = query.where(CachedPost.author_acct == user)
 
-        # For "everyone" count, don't filter by user
-        everyone_stmt = select(func.count(CachedPost.id))
-
-        storms = (await session.execute(storms_stmt)).scalar() or 0
-        news = (await session.execute(news_stmt)).scalar() or 0
-        software = (await session.execute(software_stmt)).scalar() or 0
-        pictures = (await session.execute(pictures_stmt)).scalar() or 0
-        videos = (await session.execute(videos_stmt)).scalar() or 0
-        discussions = (await session.execute(discussions_stmt)).scalar() or 0
-        links = (await session.execute(links_stmt)).scalar() or 0
-        questions = (await session.execute(questions_stmt)).scalar() or 0
-        everyone = (await session.execute(everyone_stmt)).scalar() or 0
+    result = await session.execute(query)
+    row = result.first()
 
     return {
         "user": user or "all",
-        "storms": storms,
-        "news": news,
-        "software": software,
-        "pictures": pictures,
-        "videos": videos,
-        "discussions": discussions,
-        "links": links,
-        "questions": questions,
-        "everyone": everyone,
+        "storms": row.storms or 0,
+        "news": row.news or 0,
+        "software": row.software or 0,
+        "pictures": row.pictures or 0,
+        "videos": row.videos or 0,
+        "discussions": row.discussions or 0,
+        "links": row.links or 0,
+        "questions": row.questions or 0,
+        "everyone": row.everyone or 0,
     }

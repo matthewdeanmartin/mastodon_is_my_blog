@@ -26,10 +26,15 @@ export class PublicFeedComponent implements OnInit {
     private sanitizer: DomSanitizer,
   ) {}
 
-  ngOnInit() {
+
+   ngOnInit() {
     this.route.queryParams.subscribe((params) => {
       const newFilter = params['filter'] || 'all';
-      const newUser = params['user'] || undefined; // Convert empty string to undefined
+      const userParam = params['user'] || undefined;
+
+      // FIX: Do NOT convert 'everyone' to undefined.
+      // We must pass 'everyone' to the API so it knows to disable the default "My Blog" filter.
+      const newUser = userParam;
 
       // Check if anything actually changed
       const filterChanged = newFilter !== this.currentFilter;
@@ -55,8 +60,8 @@ export class PublicFeedComponent implements OnInit {
       this.loading = false;
 
       // If we got no data, we are viewing a specific user, and we haven't tried syncing yet...
-      // BUT don't sync for "everyone" filter
-      if (data.length === 0 && user && filter !== 'everyone' && !this.syncingUser) {
+      // FIX: Ensure we don't try to sync the virtual 'everyone' user
+      if (data.length === 0 && user && user !== 'everyone' && filter !== 'everyone' && !this.syncingUser) {
         this.attemptUserSync(user);
       } else {
         this.items = data;

@@ -1,17 +1,32 @@
 # TODO
 
 ## Top prio
-- Pictures in feed are WAY TO SMALL should be width of column of feed.
+- Whole nice profile page with EVERYTHING.
+- New filter
+  - Shorts
+- Button to methodically cache all users in blog roll (with polite sleep, run in backgroup worker)
+- Shorts filter (single part storms less than 200 characters)
+- BUG: storms are only root + 1 "reply"
 - Webstorms only retrieve the 1st post in a webstorm, not the whole thread. They should work like the discussion.
-- Filter blog roll by:
+- Pictures in feed are WAY TO SMALL should be width of column of feed. Now they are too big!
+- Questions should exclude replies
+- Blog Roll filter, filter blog roll by:
   - all
   - mutuals - default
-  - chatty - has at least 1 discussion
+  - chatters - has at least 1 discussion, i.e. not "broadcast-only" account
+
+Layout
+BLOG ROLL
+all | mutuals | chatters
+
+
 - Multiple accounts
-- Fix perf. (Missing indexes?)
-- Need pervasive links to original content
+- Need pervasive links to original content- Links to posts are all bad! Links to profile missing!
 - Fill in more bio/profile info and make it more compact or click to expand
 
+## Roadmap
+- Discovery mode
+  - Show content from federated feed with some filters
 
 ## Post View
 - Storms should be a nice tidy block.

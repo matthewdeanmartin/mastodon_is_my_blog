@@ -7,10 +7,8 @@ from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-import logging
-
-logging.basicConfig()
-logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
+# logging.basicConfig()
+# logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
 dotenv.load_dotenv()
 
@@ -63,24 +61,33 @@ class CachedPost(Base):
     __table_args__ = (
         # 1. Main Feed: "Show me posts sorted by date"
         Index("ix_posts_created_at", "created_at"),
-
         # 2. User Profile: "Show me THIS user's posts, sorted by date"
         Index("ix_posts_author_created", "author_acct", "created_at"),
-
-        # 3. Clean Feed: "Show me posts that are NOT replies/reblogs, sorted by date"
+        # Covering indexes for COUNT queries (add columns used in WHERE)
+        # These help avoid table lookups during counts
         Index(
-            "ix_posts_clean_feed", "is_reblog", "is_reply", "created_at"
+            "ix_posts_storms_count",
+            "is_reblog",
+            "in_reply_to_id",
+            "has_link",
+            "author_acct",  # Added for user filtering
         ),
-
-        # 4. Filters: Optimizes "Show me news/tech/media sorted by date"
-        # Since SQLite uses one index per table per query, separate indexes for flags
-        # combined with created_at are most effective.
-        Index("ix_posts_news", "has_news", "created_at"),
-        Index("ix_posts_tech", "has_tech", "created_at"),
-        Index("ix_posts_media", "has_media", "created_at"),
-        Index("ix_posts_video", "has_video", "created_at"),
-        Index("ix_posts_links", "has_link", "created_at"),
-        Index("ix_posts_questions", "has_question", "created_at"),
+        # Optimized filter indexes with author for user-specific queries
+        Index("ix_posts_news_author", "has_news", "author_acct", "created_at"),
+        Index("ix_posts_tech_author", "has_tech", "author_acct", "created_at"),
+        Index("ix_posts_media_author", "has_media", "author_acct", "created_at"),
+        Index("ix_posts_video_author", "has_video", "author_acct", "created_at"),
+        Index("ix_posts_links_author", "has_link", "author_acct", "created_at"),
+        Index("ix_posts_questions_author", "has_question", "author_acct", "created_at"),
+        Index("ix_posts_reply_author", "is_reply", "author_acct", "created_at"),
+        # Compound index for "clean feed" queries (most common)
+        Index(
+            "ix_posts_clean_feed_optimized",
+            "author_acct",
+            "is_reblog",
+            "is_reply",
+            "created_at",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)  # Mastodon ID

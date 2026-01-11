@@ -1,4 +1,4 @@
-// app.component.ts
+// src/app/app.component.ts
 import {Component, OnInit} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {RouterLink, RouterOutlet, Router, ActivatedRoute} from '@angular/router';
@@ -117,10 +117,10 @@ export class AppComponent implements OnInit {
 
   viewEveryone(): void {
     this.viewingEveryone = true;
-    this.currentFilter = 'everyone';
+    this.currentFilter = 'all';
+    // Navigate with special 'everyone' user to signal server to show all users
     this.router.navigate(['/'], {
-      queryParams: {filter: 'everyone', everyone: 'true'},
-      queryParamsHandling: 'merge',
+      queryParams: {user: 'everyone', filter: this.currentFilter},
     });
   }
 
@@ -146,23 +146,8 @@ export class AppComponent implements OnInit {
     const nextIndex = (currentIndex + 1) % this.blogRoll.length;
     const nextUser = this.blogRoll[nextIndex];
 
-    // // Calculate the index after next for prefetching
-    const prefetchIndex = (nextIndex + 1) % this.blogRoll.length;
-    const prefetchUser = this.blogRoll[prefetchIndex];
-
-    // Prefetch the user after next (won't update UI, just primes server cache)
-    if (prefetchUser) {
-      this.api.getAccountInfo(prefetchUser.acct).subscribe(() => {
-        console.log(`prefetch  ${prefetchUser.acct}`)
-        // Silent prefetch - we don't care about the result
-      });
-
-      // Also prefetch their posts
-      this.api.getPublicPosts(this.currentFilter, prefetchUser.acct).subscribe(() => {
-        console.log(`prefetch  ${prefetchUser.acct}`)
-        // Silent prefetch
-      });
-    }
+    // Trigger prefetch for the user AFTER the one we are about to navigate to
+    this.prefetchNextBlogrollUser(nextUser.acct);
 
     // Navigate to next user
     this.router.navigate(['/'], {
@@ -171,6 +156,30 @@ export class AppComponent implements OnInit {
 
     // Scroll to top
     window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  /**
+   * Finds the user immediately following the 'currentAcct' in the blogroll
+   * and triggers a background sync to populate their posts.
+   */
+  prefetchNextBlogrollUser(currentAcct: string): void {
+    if (this.blogRoll.length === 0) return;
+
+    const currentIndex = this.blogRoll.findIndex(acc => acc.acct === currentAcct);
+    if (currentIndex === -1) return;
+
+    const nextIndex = (currentIndex + 1) % this.blogRoll.length;
+    const userToPrefetch = this.blogRoll[nextIndex];
+
+    if (userToPrefetch) {
+      console.log(`Prefetching data for next user: ${userToPrefetch.acct}`);
+      // Use syncAccount to ensure the backend actually fetches data from Mastodon
+      // if it's missing. getPublicPosts only reads what is already cached.
+      this.api.syncAccount(userToPrefetch.acct).subscribe({
+        next: () => console.log(`Prefetch complete for ${userToPrefetch.acct}`),
+        error: (err) => console.error(`Prefetch failed for ${userToPrefetch.acct}`, err)
+      });
+    }
   }
 
   isViewingMainUser(): boolean {

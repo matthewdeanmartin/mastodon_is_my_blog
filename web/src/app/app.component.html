@@ -28,8 +28,16 @@
     <button class="nav-btn"
             [class.active]="isViewingMainUser()"
             (click)="viewMainUser()"
-            style="background: #6366f1; color: white; font-weight: 600; margin-bottom: 10px;">
+            style="background: #6366f1; color: white; font-weight: 600; margin-bottom: 5px;">
       🏠 My Blog
+    </button>
+
+    <!-- Everyone Button -->
+    <button class="nav-btn"
+            [class.active]="viewingEveryone"
+            (click)="viewEveryone()"
+            style="background: #f59e0b; color: white; font-weight: 600; margin-bottom: 5px;">
+      🌍 Everyone's Blog
     </button>
 
     <!-- Next Blog Button -->
@@ -73,16 +81,13 @@
       Links ({{ counts.links }})
     </button>
 
-    <button class="nav-btn" [class.active]="currentFilter==='everyone'" (click)="setFilter('everyone')">
-      Everyone ({{ counts.everyone }})
-    </button>
-
     <hr>
 
     <div class="muted" style="margin-bottom:10px;">BLOG ROLL</div>
     <div *ngFor="let acc of blogRoll" style="margin-bottom: 8px;">
       <a [routerLink]="['/']"
          [queryParams]="{user: acc.acct}"
+         (click)="prefetchNextBlogrollUser(acc.acct)"
          queryParamsHandling="merge"
          [style.background]="isActiveUser(acc.acct) ? '#e0e7ff' : (isRecentlyViewed(acc.acct) ? '#A9A9A9' : 'transparent')"
          [style.border-left]="isActiveUser(acc.acct) ? '3px solid #6366f1' : 'none'"
