@@ -16,11 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Blog-like post feeds and filters
-- Images show
-- Caching works
-- 
-
-### TODO
-
-- Tweet storms
+- Read: Blog-like "Storms" Feed
+- Read: Forum-like "Discussion" Feed (for single discussions)
+- Read: Special Links: My Blog, Everyone's Blog, Next Blog
+- Read: Filters: Storms, Shorts, Questions, News, Cool Software, Pictures, Discussions, Links
+- Read: Prefetch caching of Blog Roll user
+- Read: Button to initialize blog with own posts
+- Write: Page to post a single post

@@ -7,6 +7,7 @@ import {filter} from 'rxjs/operators';
 
 interface SidebarCounts {
   storms: number;
+  shorts: number;
   news: number;
   software: number;
   pictures: number;
@@ -24,7 +25,7 @@ interface SidebarCounts {
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit {
-  currentFilter: string = 'all';
+  currentFilter: string = 'storms';
   currentUser: string | null = null;
   viewingEveryone: boolean = false;
   blogRoll: any[] = [];
@@ -34,6 +35,7 @@ export class AppComponent implements OnInit {
   recentlyViewed: Set<string> = new Set();
   counts: SidebarCounts = {
     storms: 0,
+    shorts: 0,
     news: 0,
     software: 0,
     pictures: 0,
@@ -77,7 +79,7 @@ export class AppComponent implements OnInit {
     // 3. Listen to query param changes to update active user display
     this.route.queryParams.subscribe((params) => {
       this.currentUser = params['user'] || null;
-      this.currentFilter = params['filter'] || 'all';
+      this.currentFilter = params['filter'] || 'storms';
       this.viewingEveryone = params['everyone'] === 'true';
 
       // Track recently viewed accounts
@@ -117,7 +119,7 @@ export class AppComponent implements OnInit {
 
   viewEveryone(): void {
     this.viewingEveryone = true;
-    this.currentFilter = 'all';
+    this.currentFilter = 'storms';
     // Navigate with special 'everyone' user to signal server to show all users
     this.router.navigate(['/'], {
       queryParams: {user: 'everyone', filter: this.currentFilter},
@@ -202,6 +204,7 @@ export class AppComponent implements OnInit {
       next: (c) => {
         this.counts = {
           storms: Number(c.storms || 0),
+          shorts: Number(c.shorts || 0),
           news: Number(c.news || 0),
           software: Number(c.software || 0),
           pictures: Number(c.pictures || 0),

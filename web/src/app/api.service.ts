@@ -158,6 +158,16 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
+  getShorts(user?: string): Observable<any[]> {
+    let params = new HttpParams();
+    if (user) {
+      params = params.set('user', user);
+    }
+    return this.http
+      .get<any[]>(`${this.base}/api/public/shorts`, { params })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
   getBlogRoll(): Observable<any[]> {
     return this.http
       .get<any[]>(`${this.base}/api/public/accounts/blogroll`)

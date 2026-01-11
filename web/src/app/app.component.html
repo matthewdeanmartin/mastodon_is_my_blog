@@ -49,8 +49,12 @@
     </button>
     <div class="muted" style="margin-bottom:10px;">FILTERS</div>
 
-    <button class="nav-btn" [class.active]="currentFilter==='all'" (click)="setFilter('all')">
-      Latest Storms ({{ counts.storms }})
+    <button class="nav-btn" [class.active]="currentFilter==='storms' || currentFilter==='all'" (click)="setFilter('storms')">
+      Storms ({{ counts.storms }})
+    </button>
+
+    <button class="nav-btn" [class.active]="currentFilter==='shorts'" (click)="setFilter('shorts')">
+      Shorts ({{ counts.shorts }})
     </button>
 
     <button class="nav-btn" [class.active]="currentFilter==='questions'" (click)="setFilter('questions')">

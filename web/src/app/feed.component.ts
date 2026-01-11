@@ -16,7 +16,7 @@ export class PublicFeedComponent implements OnInit {
   items: any[] = []; // Can be Posts or Storms
   loading = true;
   isStormView = false;
-  currentFilter = 'all';
+  currentFilter = 'storms';
   currentUser: string | undefined;
   syncingUser = false; // Add this flag to prevent infinite loops
 
@@ -29,7 +29,8 @@ export class PublicFeedComponent implements OnInit {
 
    ngOnInit() {
     this.route.queryParams.subscribe((params) => {
-      const newFilter = params['filter'] || 'all';
+      // Default to 'storms' if no filter is provided
+      const newFilter = params['filter'] || 'storms';
       const userParam = params['user'] || undefined;
 
       // FIX: Do NOT convert 'everyone' to undefined.
@@ -70,12 +71,17 @@ export class PublicFeedComponent implements OnInit {
 
     const handleError = () => (this.loading = false);
 
-    // If 'all', use the Storms endpoint for the threaded view
-    if (filter === 'all') {
+    // If 'storms' (or legacy 'all'), use the Storms endpoint for the threaded view
+    if (filter === 'storms' || filter === 'all') {
       this.isStormView = true;
       this.api.getStorms(user).subscribe({ next: handleSuccess, error: handleError });
-    } else
-    {
+    }
+    // If 'shorts', use the new Shorts endpoint for flat view
+    else if (filter === 'shorts') {
+      this.isStormView = false;
+      this.api.getShorts(user).subscribe({ next: handleSuccess, error: handleError });
+    }
+    else {
       // Otherwise use the standard flat list with the specific filter
       this.isStormView = false;
       this.api.getPublicPosts(filter, user).subscribe({ next: handleSuccess, error: handleError });

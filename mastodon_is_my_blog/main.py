@@ -178,8 +178,8 @@ async def sync_blog_roll_activity() -> None:
                 # Update last active time if this post is newer
                 # existing.last_status_at is Naive (from SQLite), last_status_time is now Naive.
                 if (
-                        not existing.last_status_at
-                        or last_status_time > existing.last_status_at
+                    not existing.last_status_at
+                    or last_status_time > existing.last_status_at
                 ):
                     existing.last_status_at = last_status_time
             else:
@@ -200,10 +200,10 @@ async def sync_blog_roll_activity() -> None:
 
 
 async def sync_user_timeline(
-        acct: str | None = None,
-        acct_id: str | None = None,
-        force: bool = False,
-        cooldown_minutes: int = 15,
+    acct: str | None = None,
+    acct_id: str | None = None,
+    force: bool = False,
+    cooldown_minutes: int = 15,
 ) -> dict:
     """Syncs posts for a specific user. Defaults to Me."""
     if acct == "everyone":
@@ -214,9 +214,9 @@ async def sync_user_timeline(
 
     # Check custom cooldown
     if (
-            not force
-            and last_run
-            and (datetime.utcnow() - last_run) < timedelta(minutes=cooldown_minutes)
+        not force
+        and last_run
+        and (datetime.utcnow() - last_run) < timedelta(minutes=cooldown_minutes)
     ):
         return {"status": "skipped", "reason": "synced_recently"}
 
@@ -437,22 +437,23 @@ async def sync_account(acct: str):
 
 @app.get("/api/public/posts")
 async def get_public_posts(
-        user: str | None = None,
-        filter_type: str = Query(
+    user: str | None = None,
+    filter_type: str = Query(
+        "all",
+        enum=[
             "all",
-            enum=[
-                "all",
-                "storm",
-                "discussions",
-                "pictures",
-                "videos",
-                "news",
-                "software",
-                "links",
-                "questions",
-                "everyone",
-            ],
-        ),
+            "storm",
+            "shorts",
+            "discussions",
+            "pictures",
+            "videos",
+            "news",
+            "software",
+            "links",
+            "questions",
+            "everyone",
+        ],
+    ),
 ) -> list[dict]:
     """
     Get posts with filters.
@@ -494,7 +495,18 @@ async def get_public_posts(
             # not implemented yet!
             # should match get_storms method
             pass
-            # query = query.where(CachedPost.is_storm)
+        elif filter_type == "shorts":
+            # NEW: Short text posts, no media, no links, not a reply
+            query = query.where(
+                and_(
+                    CachedPost.is_reply == False,
+                    CachedPost.is_reblog == False,
+                    CachedPost.has_media == False,
+                    CachedPost.has_video == False,
+                    CachedPost.has_link == False,
+                    func.length(CachedPost.content) < 500,
+                )
+            )
         elif filter_type == "discussions":
             # Only replies to others
             query = query.where(CachedPost.is_reply == True)
@@ -568,6 +580,13 @@ async def get_all_posts_unfiltered(user: str | None = None):
             for p in posts
         ]
 
+@app.get("/api/public/shorts")
+async def get_shorts(user: str | None = None):
+    """
+    Convenience endpoint for Shorts (short text posts).
+    Delegates to get_public_posts.
+    """
+    return await get_public_posts(user=user, filter_type="shorts")
 
 @app.get("/api/public/storms")
 @time_async_function
@@ -611,73 +630,49 @@ async def get_storms(user: str | None = None):
     # Map ID -> Post
     post_map = {p.id: p for p in all_posts}
 
-    # Identify Roots: Posts that do NOT have a parent in the fetched set
-    # OR their parent is not by the same author (but here we filtered by author roughly)
+    # Build Adjacency List (Parent -> Children)
+    # This must handle "missing parents" gracefully
+    children_map = {}  # parent_id -> [children_posts]
+    for p in all_posts:
+        if p.in_reply_to_id:
+            children_map.setdefault(p.in_reply_to_id, []).append(p)
+
+    # 3. Identify Roots
     storms = []
     processed_ids = set()
 
-    # Sort by date desc to find newest roots first
+    # We iterate chronologically DESC (newest first) to show latest storms at top
     sorted_posts = sorted(all_posts, key=lambda x: x.created_at, reverse=True)
 
     for p in sorted_posts:
         if p.id in processed_ids:
             continue
 
-        # Check if this is a Root of a storm
-        # It is a root if:
-        # 1. It has no in_reply_to_id
-
-        # These are discussions
-        # 2. OR it replies to someone else (new conversation start)
-        # 3. OR it replies to a post that we don't have in our DB (broken chain)
-
+        # Root Definition:
+        # 1. No parent (in_reply_to_id is None)
+        # 2. Not a link post (optional preference)
+        # 3. If it HAS a parent, but that parent isn't in our DB (broken chain), treat as root?
+        #    For now, strict roots only.
         is_root = False
         # ROOT DEFINITION UPDATE:
         # 1. Must not be a reply
         # 2. Must NOT have a link (per user request)
         if not p.in_reply_to_id and not p.has_link:
             is_root = True
-        # elif p.in_reply_to_account_id != p.author_id:
-        #     is_root = True
-        # elif p.in_reply_to_id not in post_map:
-        #     is_root = True
 
         if is_root:
-            # Start a storm
-            storm = {
-                "root": {
-                    "id": p.id,
-                    "content": p.content,
-                    "created_at": p.created_at.isoformat(),
-                    "media": (
-                        json.loads(p.media_attachments) if p.media_attachments else []
-                    ),
-                    "counts": {"replies": p.replies_count, "likes": p.favourites_count},
-                    "author_acct": p.author_acct,
-                },
-                "branches": [],
-            }
             processed_ids.add(p.id)
 
-            # Find descendants recursively
-            # This is O(N^2) worst case, but N is usually small (20-40 posts page)
-            # A more efficient way is to build an adjacency list first.
-
-            # Let's build a simple adjacency list for the dataset
-            children_map = {}  # parent_id -> [children]
-            for child in all_posts:
-                if child.in_reply_to_id:
-                    children_map.setdefault(child.in_reply_to_id, []).append(child)
-
-            # Recursive collector
-            def collect_children(parent_id: str):
+            # Recursive collector that strictly follows SELF-REPLIES
+            def collect_children(parent_id: str, root_author_id: str):
                 results = []
                 direct_kids = children_map.get(parent_id, [])
                 # Sort kids by time ASC (chronological reading)
                 direct_kids.sort(key=lambda x: x.created_at)
 
                 for kid in direct_kids:
-                    if kid.author_id == post_map[parent_id].author_id:
+                    # STRICT RULE: Must be same author as Root to be part of the storm
+                    if kid.author_id == root_author_id:
                         processed_ids.add(kid.id)
                         kid_data = {
                             "id": kid.id,
@@ -691,12 +686,25 @@ async def get_storms(user: str | None = None):
                                 "replies": kid.replies_count,
                                 "likes": kid.favourites_count,
                             },
-                            "children": collect_children(kid.id),
+                            "children": collect_children(kid.id, root_author_id),
                         }
                         results.append(kid_data)
                 return results
 
-            storm["branches"] = collect_children(p.id)
+            # Build the storm object
+            storm = {
+                "root": {
+                    "id": p.id,
+                    "content": p.content,
+                    "created_at": p.created_at.isoformat(),
+                    "media": (
+                        json.loads(p.media_attachments) if p.media_attachments else []
+                    ),
+                    "counts": {"replies": p.replies_count, "likes": p.favourites_count},
+                    "author_acct": p.author_acct,
+                },
+                "branches": collect_children(p.id, p.author_id),
+            }
             storms.append(storm)
 
     return storms
@@ -993,7 +1001,7 @@ async def get_counts(user: str | None = None) -> dict:
 
 
 async def get_counts_optimized(
-        session: AsyncSession, user: str | None = None
+    session: AsyncSession, user: str | None = None
 ) -> dict[str, int]:
     """
     Optimized count query using a single query with conditional aggregation.
@@ -1019,6 +1027,21 @@ async def get_counts_optimized(
                 Integer,
             )
         ).label("storms"),
+        # Shorts (NEW)
+        func.sum(
+            func.cast(
+                and_(
+                    CachedPost.is_reply == False,
+                    CachedPost.is_reblog == False,
+                    CachedPost.has_media == False,
+                    CachedPost.has_video == False,
+                    CachedPost.has_link == False,
+                    func.length(CachedPost.content) < 500,
+                    *base_conditions,
+                ),
+                Integer,
+            )
+        ).label("shorts"),
         # News
         func.sum(
             func.cast(and_(CachedPost.has_news == True, *base_conditions), Integer)
@@ -1061,6 +1084,7 @@ async def get_counts_optimized(
     return {
         "user": user or "all",
         "storms": row.storms or 0,
+        "shorts": row.shorts or 0,
         "news": row.news or 0,
         "software": row.software or 0,
         "pictures": row.pictures or 0,

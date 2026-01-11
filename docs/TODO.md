@@ -1,6 +1,7 @@
 # TODO
 
 ## Top prio
+- Surveys should all be moved to Questions
 - Whole nice profile page with EVERYTHING.
 - New filter
   - Shorts
