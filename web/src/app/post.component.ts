@@ -3,6 +3,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from './api.service';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { LinkPreviewComponent } from './link.component';
+import { LinkPreviewService } from './link.service';
 
 // Interfaces for Mastodon API shape (returned by Context)
 interface Account {
@@ -70,7 +72,7 @@ interface CommentsResponse {
 @Component({
   selector: 'app-public-post',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, LinkPreviewComponent],
   templateUrl: 'post.component.html',
   styles: [`
     .tree-line {
@@ -107,6 +109,7 @@ export class PublicPostComponent implements OnInit {
     private router: Router,
     private api: ApiService,
     private sanitizer: DomSanitizer,
+    private linkPreviewService: LinkPreviewService,
   ) {}
 
   ngOnInit(): void {
@@ -125,7 +128,7 @@ export class PublicPostComponent implements OnInit {
     });
   }
 
-  loadPost(id: string) {
+  loadPost(id: string): void {
     this.loading = true;
     this.api.getPostContext(id).subscribe({
       next: (data) => {
@@ -144,7 +147,7 @@ export class PublicPostComponent implements OnInit {
     });
   }
 
-  loadFeedForNavigation() {
+  loadFeedForNavigation(): void {
     // Load the current feed based on filter and user to enable Next Post
     if (this.currentFilter === 'all') {
       // For storms view, we need to flatten the structure
@@ -172,7 +175,7 @@ export class PublicPostComponent implements OnInit {
     }
   }
 
-  nextPost() {
+  nextPost(): void {
     if (this.allPosts.length === 0 || this.loadingNext) return;
 
     // Find next index (wrap around to 0 if at end)
@@ -192,7 +195,7 @@ export class PublicPostComponent implements OnInit {
     });
   }
 
-  goBack() {
+  goBack(): void {
     // Navigate back to feed with preserved query params
     this.router.navigate(['/'], {
       queryParamsHandling: 'preserve'
@@ -300,5 +303,13 @@ export class PublicPostComponent implements OnInit {
     const instance = parts[1] || 'mastodon.social';
 
     return `https://${instance}/@${username}/${post.id}`;
+  }
+
+  /**
+   * Extract URLs from post content for link previews
+   */
+  getPostUrls(post: Status): string[] {
+    const content = post.content || '';
+    return this.linkPreviewService.extractUrls(content);
   }
 }

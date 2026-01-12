@@ -79,6 +79,11 @@
     <span [innerHTML]="stripHtml(p.content)"></span>
   </div>
 
+  <!-- Link Previews -->
+  <div *ngFor="let url of getPostUrls(p)">
+    <app-link-preview [url]="url"></app-link-preview>
+  </div>
+
   <div
     *ngIf="getImages(p).length > 0"
     style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;"

@@ -13,6 +13,7 @@ from sqlalchemy import Integer, and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mastodon_is_my_blog.inspect_post import analyze_content_domains
+from mastodon_is_my_blog.link_previews import CardResponse, fetch_card
 from mastodon_is_my_blog.masto_client import client
 from mastodon_is_my_blog.perf import time_async_function
 from mastodon_is_my_blog.store import (
@@ -580,6 +581,7 @@ async def get_all_posts_unfiltered(user: str | None = None):
             for p in posts
         ]
 
+
 @app.get("/api/public/shorts")
 async def get_shorts(user: str | None = None):
     """
@@ -587,6 +589,7 @@ async def get_shorts(user: str | None = None):
     Delegates to get_public_posts.
     """
     return await get_public_posts(user=user, filter_type="shorts")
+
 
 @app.get("/api/public/storms")
 @time_async_function
@@ -1094,3 +1097,11 @@ async def get_counts_optimized(
         "questions": row.questions or 0,
         "everyone": row.everyone or 0,
     }
+
+
+# ---- Endpoint ----
+
+
+@app.get("/card", response_model=CardResponse)
+async def fetch_card_endpoint(url: str = Query(..., min_length=8, max_length=2048)):
+    return await fetch_card(url)

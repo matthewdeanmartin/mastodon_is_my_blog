@@ -5,11 +5,13 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService } from './api.service';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer } from '@angular/platform-browser';
+import { LinkPreviewComponent } from './link.component';
+import { LinkPreviewService } from './link.service';
 
 @Component({
   selector: 'app-public-feed',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, LinkPreviewComponent],
   templateUrl: 'feed.component.html',
 })
 export class PublicFeedComponent implements OnInit {
@@ -24,10 +26,10 @@ export class PublicFeedComponent implements OnInit {
     private route: ActivatedRoute,
     private api: ApiService,
     private sanitizer: DomSanitizer,
+    private linkPreviewService: LinkPreviewService,
   ) {}
 
-
-   ngOnInit() {
+  ngOnInit(): void {
     this.route.queryParams.subscribe((params) => {
       // Default to 'storms' if no filter is provided
       const newFilter = params['filter'] || 'storms';
@@ -52,7 +54,7 @@ export class PublicFeedComponent implements OnInit {
     });
   }
 
-  load(filter: string, user?: string) {
+  load(filter: string, user?: string): void {
     this.loading = true;
     this.items = [];
 
@@ -88,7 +90,7 @@ export class PublicFeedComponent implements OnInit {
     }
   }
 
-  attemptUserSync(acct: string) {
+  attemptUserSync(acct: string): void {
     this.syncingUser = true;
     this.loading = true; // Keep loading spinner up
 
@@ -134,5 +136,13 @@ export class PublicFeedComponent implements OnInit {
     const instance = parts[1] || 'mastodon.social';
 
     return `https://${instance}/@${username}/${post.id}`;
+  }
+
+  /**
+   * Extract URLs from post content for link previews
+   */
+  getPostUrls(post: any): string[] {
+    const content = post.content || '';
+    return this.linkPreviewService.extractUrls(content);
   }
 }

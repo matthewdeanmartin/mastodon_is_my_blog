@@ -14,6 +14,7 @@
     </button>
   </div>
 
+  <!-- Ancestors -->
   <div *ngFor="let ancestor of ancestors; let i = index" style="margin-bottom: 20px; position: relative;">
     <div class="card"
          [style.border-left]="isActiveUser(ancestor) ? '4px solid #6366f1' : '1px solid #e1e8ed'"
@@ -44,6 +45,11 @@
 
       <div class="post-body" [innerHTML]="processContent(ancestor.content)"></div>
 
+      <!-- Link Previews for Ancestors -->
+      <div *ngFor="let url of getPostUrls(ancestor)">
+        <app-link-preview [url]="url"></app-link-preview>
+      </div>
+
       <div *ngIf="getMediaImages(ancestor).length > 0" style="margin-top: 10px; display: flex; gap: 8px;">
         <img *ngFor="let m of getMediaImages(ancestor)" [src]="m.url" style="height: 100px; border-radius: 4px;">
       </div>
@@ -54,6 +60,7 @@
     </div>
   </div>
 
+  <!-- Target Post -->
   <div class="card"
        [style.border-left]="isActiveUser(target) ? '4px solid #6366f1' : '4px solid #10b981'"
        [style.box-shadow]="'0 4px 12px rgba(0,0,0,0.1)'"
@@ -86,6 +93,11 @@
          style="font-size: 1.15rem; margin: 20px 0;"
          [innerHTML]="processContent(target.content)"></div>
 
+    <!-- Link Previews for Target Post -->
+    <div *ngFor="let url of getPostUrls(target)">
+      <app-link-preview [url]="url"></app-link-preview>
+    </div>
+
     <div *ngIf="getMediaImages(target).length > 0" style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
       <img *ngFor="let m of getMediaImages(target)" [src]="m.url" style="max-width: 100%; border-radius: 8px;">
     </div>
@@ -99,6 +111,7 @@
     </div>
   </div>
 
+  <!-- Descendants -->
   <div *ngIf="descendantTree.length > 0">
     <h3 class="muted" style="margin-bottom: 20px; font-size: 1rem; text-transform: uppercase;">Discussion</h3>
     <div *ngFor="let node of descendantTree">
@@ -148,6 +161,11 @@
       </div>
 
       <div class="post-body" style="font-size: 0.95rem;" [innerHTML]="processContent(node.post.content)"></div>
+
+      <!-- Link Previews for Descendant Posts -->
+      <div *ngFor="let url of getPostUrls(node.post)">
+        <app-link-preview [url]="url"></app-link-preview>
+      </div>
 
       <div *ngIf="getMediaImages(node.post).length > 0" style="margin-top: 8px;">
         <img *ngFor="let m of getMediaImages(node.post)" [src]="m.url" style="height: 80px; border-radius: 4px; margin-right: 5px;">

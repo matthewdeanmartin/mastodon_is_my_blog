@@ -10,7 +10,8 @@ dependencies = [
   "aiosqlite>=0.20",
   "python-dotenv>=1.0",
   "beautifulsoup4>=4.12",
-    "alembic>=1.13.0"
+  "alembic>=1.18.0",
+  "httpx>=0.28.1",
 ]
 
 [build-system]
