@@ -24,7 +24,7 @@ from mastodon_is_my_blog.domain_categories import DOMAIN_CONFIG
 
 
 # --- Helper: Content Analysis ---
-def analyze_content_domains(html: str, media_attachments: list) -> dict:
+def analyze_content_domains(html: str, media_attachments: list, is_reply_to_other:bool) -> dict:
     """
     Analyzes HTML content and attachments to determine content flags.
     Returns dict of boolean flags.
@@ -93,7 +93,9 @@ def analyze_content_domains(html: str, media_attachments: list) -> dict:
     # if re.search(r"\w+\?", text_content):
     #     flags["has_question"] = True
 
-    if re.search(r"\w+\?", text_content):
+    # Question to self are fine, that's a long question
+    # Questions to others is a discussion, not a request for help from the general public
+    if not is_reply_to_other and re.search(r"\w+\?", text_content):
         flags["has_question"] = has_human_question(text_content)
 
     return flags

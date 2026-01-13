@@ -276,20 +276,21 @@ async def sync_user_timeline(
             is_reblog = s["reblog"] is not None
             actual_status = s["reblog"] if is_reblog else s
 
-            # Analyze flags
-            flags = analyze_content_domains(
-                actual_status["content"], actual_status["media_attachments"]
-            )
-
             # Determine Reply Status
             # A post is a reply if it has in_reply_to_id AND it's not a self-thread (initially)
             # We store the raw IDs to reconstruct storms later
             in_reply_to_id = actual_status.get("in_reply_to_id")
             in_reply_to_account = actual_status.get("in_reply_to_account_id")
-
             is_reply_to_other = in_reply_to_id is not None and str(
                 in_reply_to_account
             ) != str(actual_status["account"]["id"])
+
+            # Analyze flags
+            flags = analyze_content_domains(
+                actual_status["content"], actual_status["media_attachments"], is_reply_to_other
+            )
+
+
 
             media_json = (
                 json.dumps(actual_status["media_attachments"])
