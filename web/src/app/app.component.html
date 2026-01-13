@@ -23,7 +23,7 @@
     </div>
   </div>
 
-  <div class="sidebar">
+  <div class="sidebar-left">
     <!-- Home Button (Return to Main User) -->
     <button class="nav-btn"
             [class.active]="isViewingMainUser()"
@@ -47,7 +47,47 @@
             style="background: #10b981; color: white; font-weight: 600; margin-bottom: 15px;">
       ⏭️ Next Blog
     </button>
-    <div class="muted" style="margin-bottom:10px;">FILTERS</div>
+
+    <hr>
+
+    <div class="muted" style="margin-bottom:10px;">BLOG ROLL FILTERS</div>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='top_friends'" (click)="setBlogFilter('top_friends')">Top Friends</button>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='mutuals'" (click)="setBlogFilter('mutuals')">Mutuals</button>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='chatty'" (click)="setBlogFilter('chatty')">Chatty</button>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='broadcasters'" (click)="setBlogFilter('broadcasters')">Broadcasters</button>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='bots'" (click)="setBlogFilter('bots')">Bots</button>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='all'" (click)="setBlogFilter('all')">All</button>
+
+    <hr>
+
+    <div class="muted" style="margin-bottom:10px;">BLOG ROLL</div>
+    <div *ngFor="let acc of blogRoll" style="margin-bottom: 8px;">
+      <a [routerLink]="['/']"
+         [queryParams]="{user: acc.acct}"
+         (click)="prefetchNextBlogrollUser(acc.acct)"
+         queryParamsHandling="merge"
+         [style.background]="isActiveUser(acc.acct) ? '#e0e7ff' : (isRecentlyViewed(acc.acct) ? '#A9A9A9' : 'transparent')"
+         [style.border-left]="isActiveUser(acc.acct) ? '3px solid #6366f1' : 'none'"
+         [style.padding]="'8px'"
+         [style.border-radius]="'4px'"
+         [style.display]="'flex'"
+         [style.align-items]="'center'"
+         [style.gap]="'8px'"
+         style="text-decoration: none; color: #333; cursor: pointer; transition: all 0.2s;">
+        <img [src]="acc.avatar" style="width: 24px; height: 24px; border-radius: 50%;">
+        <span style="font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          {{ acc.display_name || acc.acct }}
+        </span>
+      </a>
+    </div>
+
+    <hr>
+    <div class="muted" style="margin-bottom:10px;">LINKS</div>
+    <a href="https://mastodon.social" target="_blank" class="nav-btn">My Profile</a>
+  </div>
+
+  <div class="sidebar-right">
+    <div class="muted" style="margin-bottom:10px;">POST FILTERS</div>
 
     <button class="nav-btn" [class.active]="currentFilter==='storms' || currentFilter==='all'" (click)="setFilter('storms')">
       Storms ({{ counts.storms }})
@@ -85,33 +125,9 @@
       Links ({{ counts.links }})
     </button>
 
-    <hr>
-
-    <div class="muted" style="margin-bottom:10px;">BLOG ROLL</div>
-    <div *ngFor="let acc of blogRoll" style="margin-bottom: 8px;">
-      <a [routerLink]="['/']"
-         [queryParams]="{user: acc.acct}"
-         (click)="prefetchNextBlogrollUser(acc.acct)"
-         queryParamsHandling="merge"
-         [style.background]="isActiveUser(acc.acct) ? '#e0e7ff' : (isRecentlyViewed(acc.acct) ? '#A9A9A9' : 'transparent')"
-         [style.border-left]="isActiveUser(acc.acct) ? '3px solid #6366f1' : 'none'"
-         [style.padding]="'8px'"
-         [style.border-radius]="'4px'"
-         [style.display]="'flex'"
-         [style.align-items]="'center'"
-         [style.gap]="'8px'"
-         style="text-decoration: none; color: #333; cursor: pointer; transition: all 0.2s;">
-        <img [src]="acc.avatar" style="width: 24px; height: 24px; border-radius: 50%;">
-        <span style="font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          {{ acc.display_name || acc.acct }}
-        </span>
-      </a>
-    </div>
-
-    <hr>
-
-    <div class="muted" style="margin-bottom:10px;">LINKS</div>
-    <a href="https://mastodon.social" target="_blank" class="nav-btn">My Profile</a>
+    <button class="nav-btn" [class.active]="currentFilter==='reposts'" (click)="setFilter('reposts')">
+      Reposts ({{ counts.reposts }})
+    </button>
   </div>
 
   <div class="content">

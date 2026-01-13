@@ -180,16 +180,17 @@ small {
   }
 }
 
-/* Layout Grid */
+/* Layout Grid - 3 Columns */
 .app-layout {
   display: grid;
   grid-template-areas:
-    'header header'
-    'active active'
-    'sidebar content'
-    'footer footer';
-  grid-template-columns: 200px 1fr;
-  max-width: 1100px;
+    'header header header'
+    'active active active'
+    'col1 col2 content'
+    'footer footer footer';
+  /* Column 1 (Blogroll): 220px, Column 2 (Filters): 180px, Column 3 (Content): remaining */
+  grid-template-columns: 220px 180px 1fr;
+  max-width: 1200px;
   margin: 0 auto;
   gap: 20px;
 }
@@ -211,9 +212,15 @@ small {
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
-.sidebar {
-  grid-area: sidebar;
+
+.sidebar-left {
+  grid-area: col1;
 }
+
+.sidebar-right {
+  grid-area: col2;
+}
+
 .content {
   grid-area: content;
   min-height: 80vh;
@@ -253,9 +260,15 @@ small {
 }
 
 /* Mobile responsive */
-@media (max-width: 768px) {
+@media (max-width: 950px) {
   .app-layout {
-    grid-template-areas: 'header' 'sidebar' 'content' 'footer';
+    grid-template-areas:
+      'header'
+      'active'
+      'col1'
+      'col2'
+      'content'
+      'footer';
     grid-template-columns: 1fr;
   }
 }

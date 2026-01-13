@@ -168,9 +168,13 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  getBlogRoll(): Observable<any[]> {
+  getBlogRoll(filter: string = 'all'): Observable<any[]> {
+    let params = new HttpParams();
+    if (filter && filter !== 'all') {
+      params = params.set('filter_type', filter);
+    }
     return this.http
-      .get<any[]>(`${this.base}/api/public/accounts/blogroll`)
+      .get<any[]>(`${this.base}/api/public/accounts/blogroll`, { params })
       .pipe(catchError((err) => this.handleError(err)));
   }
 

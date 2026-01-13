@@ -16,6 +16,7 @@ interface SidebarCounts {
   links: number;
   questions: number;
   everyone: number;
+  reposts: number;
 }
 
 @Component({
@@ -26,6 +27,7 @@ interface SidebarCounts {
 })
 export class AppComponent implements OnInit {
   currentFilter: string = 'storms';
+  currentBlogFilter: string = 'all'; // Default blog roll filter
   currentUser: string | null = null;
   viewingEveryone: boolean = false;
   blogRoll: any[] = [];
@@ -43,7 +45,8 @@ export class AppComponent implements OnInit {
     discussions: 0,
     links: 0,
     questions: 0,
-    everyone: 0
+    everyone: 0,
+    reposts: 0
   };
 
   constructor(
@@ -59,10 +62,8 @@ export class AppComponent implements OnInit {
       this.serverDown = isDown;
     });
 
-    // 1. Fetch Blog Roll
-    this.api.getBlogRoll().subscribe((accounts) => {
-      this.blogRoll = accounts;
-    });
+    // 1. Fetch Initial Blog Roll
+    this.loadBlogRoll();
 
     // 2. Get Main User Info
     this.api.getAdminStatus().subscribe((status) => {
@@ -81,6 +82,14 @@ export class AppComponent implements OnInit {
       this.currentUser = params['user'] || null;
       this.currentFilter = params['filter'] || 'storms';
       this.viewingEveryone = params['everyone'] === 'true';
+
+      // Check for blog filter in URL (optional, but good for linking)
+      // If we want to persist blog filter in URL, we'd read it here.
+      // For now, let's keep it simple or read it if present.
+      if (params['blog_filter'] && params['blog_filter'] !== this.currentBlogFilter) {
+          this.currentBlogFilter = params['blog_filter'];
+          this.loadBlogRoll();
+      }
 
       // Track recently viewed accounts
       if (this.currentUser) {
@@ -107,12 +116,29 @@ export class AppComponent implements OnInit {
     });
   }
 
+  loadBlogRoll(): void {
+    this.api.getBlogRoll(this.currentBlogFilter).subscribe((accounts) => {
+      this.blogRoll = accounts;
+    });
+  }
+
   setFilter(filter: string): void {
     this.currentFilter = filter;
     this.viewingEveryone = false;
     // Use 'merge' to preserve the 'user' param if it exists
     this.router.navigate(['/'], {
       queryParams: {filter: filter},
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  setBlogFilter(filter: string): void {
+    this.currentBlogFilter = filter;
+    this.loadBlogRoll();
+    // Optional: Add to URL so refresh works
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { blog_filter: filter },
       queryParamsHandling: 'merge',
     });
   }
@@ -213,6 +239,7 @@ export class AppComponent implements OnInit {
           links: Number(c.links || 0),
           questions: Number(c.questions || 0),
           everyone: Number(c.everyone || 0),
+          reposts: Number(c.reposts || 0),
         };
       },
       error: (e) => {
