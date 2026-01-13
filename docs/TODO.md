@@ -9,7 +9,7 @@
 - Shorts filter (single part storms less than 200 characters)
 - BUG: storms are only root + 1 "reply"
 - Webstorms only retrieve the 1st post in a webstorm, not the whole thread. They should work like the discussion.
-- Pictures in feed are WAY TO SMALL should be width of column of feed. Now they are too big!
+- Pictures in feed are WAY TOO SMALL should be width of column of feed. Now they are too big!
 - Questions should exclude replies
 - Blog Roll filter, filter blog roll by:
   - all
