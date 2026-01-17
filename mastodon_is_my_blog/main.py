@@ -287,10 +287,10 @@ async def sync_user_timeline(
 
             # Analyze flags
             flags = analyze_content_domains(
-                actual_status["content"], actual_status["media_attachments"], is_reply_to_other
+                actual_status["content"],
+                actual_status["media_attachments"],
+                is_reply_to_other,
             )
-
-
 
             media_json = (
                 json.dumps(actual_status["media_attachments"])
@@ -354,23 +354,127 @@ async def status() -> dict:
 
 
 @app.get("/api/public/accounts/blogroll")
-async def get_blog_roll():
-    """Returns active accounts discovered from the timeline."""
+async def get_blog_roll(filter_type: str = Query("all")) -> list[dict]:
+    """
+    Returns active accounts discovered from the timeline.
+
+    Filters:
+    - all: All accounts in the blog roll
+    - top_friends: Accounts you follow (sorted by activity)
+    - mutuals: Accounts that follow you back (mutual follows)
+    - chatty: Accounts with high reply activity
+    - broadcasters: Accounts with low reply activity (mostly posts)
+    - bots: Accounts identified as bots (placeholder logic)
+    """
     async with async_session() as session:
-        # Get accounts that have posted recently OR are friends
-        query = (
-            select(CachedAccount)
-            .where(
-                or_(
-                    CachedAccount.last_status_at != None,
+        # Base query: Get accounts that have posted recently OR are friends
+        query = select(CachedAccount).where(
+            or_(
+                CachedAccount.last_status_at != None,
+                CachedAccount.is_following == True,
+            )
+        )
+
+        # Apply filter logic
+        if filter_type == "top_friends":
+            # Accounts you follow, sorted by most recent activity
+            query = query.where(CachedAccount.is_following == True)
+            query = query.order_by(desc(CachedAccount.last_status_at))
+
+        elif filter_type == "mutuals":
+            # Accounts where both is_following and is_followed_by are True
+            query = query.where(
+                and_(
                     CachedAccount.is_following == True,
+                    CachedAccount.is_followed_by == True,
                 )
             )
-            .order_by(desc(CachedAccount.last_status_at))
-            .limit(40)
-        )
+            query = query.order_by(desc(CachedAccount.last_status_at))
+
+        elif filter_type == "chatty":
+            # Accounts with high reply activity
+            # We'll need to count their replies in CachedPost
+            # For now, return accounts and calculate in Python
+            query = query.order_by(desc(CachedAccount.last_status_at))
+
+        elif filter_type == "broadcasters":
+            # Accounts with low reply activity
+            # Similar to chatty, we'll calculate this
+            query = query.order_by(desc(CachedAccount.last_status_at))
+
+        elif filter_type == "bots":
+            # Bot detection heuristics:
+            # - "bot" in display_name or acct (case insensitive)
+            # - Specific patterns in note/bio
+            query = query.where(
+                or_(
+                    CachedAccount.display_name.ilike("%bot%"),
+                    CachedAccount.acct.ilike("%bot%"),
+                    CachedAccount.note.ilike("%automated%"),
+                    CachedAccount.note.ilike("%bot%"),
+                )
+            )
+            query = query.order_by(desc(CachedAccount.last_status_at))
+
+        else:  # "all" or default
+            query = query.order_by(desc(CachedAccount.last_status_at))
+
+        query = query.limit(40)
         res = await session.execute(query)
         accounts = res.scalars().all()
+
+        # For chatty/broadcasters, we need to calculate reply ratios
+        if filter_type in ("chatty", "broadcasters"):
+            accounts_with_stats = []
+
+            for acc in accounts:
+                # Count total posts and replies for this account
+                total_stmt = select(func.count(CachedPost.id)).where(
+                    CachedPost.author_id == acc.id
+                )
+                reply_stmt = select(func.count(CachedPost.id)).where(
+                    and_(
+                        CachedPost.author_id == acc.id,
+                        CachedPost.is_reply == True,
+                    )
+                )
+
+                total_result = await session.execute(total_stmt)
+                reply_result = await session.execute(reply_stmt)
+
+                total_posts = total_result.scalar() or 0
+                reply_posts = reply_result.scalar() or 0
+
+                reply_ratio = reply_posts / total_posts if total_posts > 0 else 0
+
+                accounts_with_stats.append(
+                    {
+                        "account": acc,
+                        "reply_ratio": reply_ratio,
+                        "total_posts": total_posts,
+                    }
+                )
+
+            # Sort by reply ratio
+            if filter_type == "chatty":
+                # High reply ratio = chatty (> 50% replies)
+                accounts_with_stats = [
+                    a
+                    for a in accounts_with_stats
+                    if a["reply_ratio"] > 0.5 and a["total_posts"] >= 5
+                ]
+                accounts_with_stats.sort(key=lambda x: x["reply_ratio"], reverse=True)
+            else:  # broadcasters
+                # Low reply ratio = broadcaster (< 20% replies)
+                accounts_with_stats = [
+                    a
+                    for a in accounts_with_stats
+                    if a["reply_ratio"] < 0.2 and a["total_posts"] >= 5
+                ]
+                accounts_with_stats.sort(key=lambda x: x["reply_ratio"])
+
+            # Extract accounts from the stats
+            accounts = [a["account"] for a in accounts_with_stats[:40]]
 
         return [
             {
@@ -386,6 +490,7 @@ async def get_blog_roll():
             }
             for a in accounts
         ]
+
 
 
 @app.get("/api/public/accounts/{acct}")
@@ -1098,9 +1203,6 @@ async def get_counts_optimized(
         "questions": row.questions or 0,
         "everyone": row.everyone or 0,
     }
-
-
-# ---- Endpoint ----
 
 
 @app.get("/card", response_model=CardResponse)

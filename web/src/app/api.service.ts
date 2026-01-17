@@ -169,14 +169,22 @@ export class ApiService {
   }
 
   getBlogRoll(filter: string = 'all'): Observable<any[]> {
-    let params = new HttpParams();
-    if (filter && filter !== 'all') {
-      params = params.set('filter_type', filter);
-    }
-    return this.http
-      .get<any[]>(`${this.base}/api/public/accounts/blogroll`, { params })
-      .pipe(catchError((err) => this.handleError(err)));
+  // Always send the filter_type parameter
+  let params = new HttpParams().set('filter_type', filter);
+
+  return this.http
+    .get<any[]>(`${this.base}/api/public/accounts/blogroll`, { params })
+    .pipe(catchError((err) => this.handleError(err)));
   }
+  // getBlogRoll(filter: string = 'all'): Observable<any[]> {
+  //   let params = new HttpParams();
+  //   if (filter && filter !== 'all') {
+  //     params = params.set('filter_type', filter);
+  //   }
+  //   return this.http
+  //     .get<any[]>(`${this.base}/api/public/accounts/blogroll`, { params })
+  //     .pipe(catchError((err) => this.handleError(err)));
+  // }
 
   getAnalytics(): Observable<any> {
     return this.http

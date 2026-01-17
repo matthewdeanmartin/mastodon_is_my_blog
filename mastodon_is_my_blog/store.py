@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 from typing import Optional
@@ -7,8 +8,8 @@ from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-# logging.basicConfig()
-# logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
+logging.basicConfig()
+logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
 dotenv.load_dotenv()
 

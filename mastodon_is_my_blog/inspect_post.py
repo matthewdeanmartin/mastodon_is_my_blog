@@ -24,7 +24,9 @@ from mastodon_is_my_blog.domain_categories import DOMAIN_CONFIG
 
 
 # --- Helper: Content Analysis ---
-def analyze_content_domains(html: str, media_attachments: list, is_reply_to_other:bool) -> dict:
+def analyze_content_domains(
+    html: str, media_attachments: list, is_reply_to_other: bool
+) -> dict:
     """
     Analyzes HTML content and attachments to determine content flags.
     Returns dict of boolean flags.
