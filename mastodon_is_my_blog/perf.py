@@ -1,3 +1,4 @@
+# mastodon_is_my_blog/perf.py
 import functools
 import logging
 import time

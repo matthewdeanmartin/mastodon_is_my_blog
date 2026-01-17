@@ -1,3 +1,4 @@
+# mastodon_is_my_blog/store.py
 import logging
 import os
 from datetime import datetime
@@ -44,6 +45,16 @@ class CachedAccount(Base):
     avatar: Mapped[str] = mapped_column(String)
     url: Mapped[str] = mapped_column(String)
     note: Mapped[str] = mapped_column(Text, default="")  # Bio/description
+
+    # Extended Profile Info
+    bot: Mapped[bool] = mapped_column(Boolean, default=False)
+    locked: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    header: Mapped[str] = mapped_column(String, default="")
+    fields: Mapped[str] = mapped_column(Text, default="[]")  # JSON list of field objs
+    followers_count: Mapped[int] = mapped_column(Integer, default=0)
+    following_count: Mapped[int] = mapped_column(Integer, default=0)
+    statuses_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relationship flags
     is_following: Mapped[bool] = mapped_column(Boolean, default=False)

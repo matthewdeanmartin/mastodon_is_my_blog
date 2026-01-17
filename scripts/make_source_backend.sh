@@ -25,7 +25,7 @@ git2md . \
     tsconfig.json \
     tsconfig.spec.json \
     dead_code \
-    README.md SETUP.md CHANGELOG.md TODO.md \
+    README.md SETUP.md CHANGELOG.md TODO.md account_types.md \
     .venv uv.lock \
     Makefile Makefile1 LICENSE \
     SOURCE_ALL.md SOURCE_UI.md SOURCE.md \
@@ -33,4 +33,6 @@ git2md . \
     app.db \
     favicon.ico \
     web \
+    test \
+    domain_categories.py \
   --output SOURCE_BACKEND.md

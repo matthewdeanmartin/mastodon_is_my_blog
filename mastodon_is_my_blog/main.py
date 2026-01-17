@@ -1,3 +1,4 @@
+# mastodon_is_my_blog/main.py
 import json
 import logging
 import os
@@ -90,6 +91,47 @@ def to_naive_utc(dt: datetime | None) -> datetime | None:
 # --- Sync Engines ---
 
 
+async def _upsert_account(session: AsyncSession, account_data: dict, **overrides):
+    """
+    Helper to create or update a CachedAccount from Mastodon API data.
+    """
+    acc_id = str(account_data["id"])
+    stmt = select(CachedAccount).where(CachedAccount.id == acc_id)
+    existing = (await session.execute(stmt)).scalar_one_or_none()
+
+    # Prepare common fields
+    fields_json = json.dumps(account_data.get("fields", []))
+    created_at = to_naive_utc(account_data.get("created_at"))
+
+    data = {
+        "acct": account_data["acct"],
+        "display_name": account_data["display_name"],
+        "avatar": account_data["avatar"],
+        "url": account_data["url"],
+        "note": account_data.get("note", ""),
+        "bot": account_data.get("bot", False),
+        "locked": account_data.get("locked", False),
+        "header": account_data.get("header", ""),
+        "created_at": created_at,
+        "fields": fields_json,
+        "followers_count": account_data.get("followers_count", 0),
+        "following_count": account_data.get("following_count", 0),
+        "statuses_count": account_data.get("statuses_count", 0),
+    }
+
+    # Apply overrides (e.g. is_following=True)
+    data.update(overrides)
+
+    if not existing:
+        new_acc = CachedAccount(id=acc_id, **data)
+        session.add(new_acc)
+        return new_acc
+    else:
+        for k, v in data.items():
+            setattr(existing, k, v)
+        return existing
+
+
 async def sync_accounts_friends_followers() -> None:
     """Syncs lists of following and followers."""
     token = await get_token()
@@ -107,43 +149,11 @@ async def sync_accounts_friends_followers() -> None:
     async with async_session() as session:
         # Process Following
         for acc in following:
-            stmt = select(CachedAccount).where(CachedAccount.id == str(acc["id"]))
-            existing = (await session.execute(stmt)).scalar_one_or_none()
-
-            if not existing:
-                new_acc = CachedAccount(
-                    id=str(acc["id"]),
-                    acct=acc["acct"],
-                    display_name=acc["display_name"],
-                    avatar=acc["avatar"],
-                    url=acc["url"],
-                    is_following=True,
-                    note=acc.get("note", ""),
-                )
-                session.add(new_acc)
-            else:
-                existing.is_following = True
-                existing.note = acc.get("note", "")
+            await _upsert_account(session, acc, is_following=True)
 
         # Process Followers
         for acc in followers:
-            stmt = select(CachedAccount).where(CachedAccount.id == str(acc["id"]))
-            existing = (await session.execute(stmt)).scalar_one_or_none()
-
-            if not existing:
-                logger.warning(f"New account {acc['acct']}")
-                new_acc = CachedAccount(
-                    id=str(acc["id"]),
-                    acct=acc["acct"],
-                    display_name=acc["display_name"],
-                    avatar=acc["avatar"],
-                    url=acc["url"],
-                    is_followed_by=True,
-                    note=acc.get("note", ""),
-                )
-                session.add(new_acc)
-            else:
-                existing.is_followed_by = True
+            await _upsert_account(session, acc, is_followed_by=True)
 
         await session.commit()
     await update_last_sync("accounts")
@@ -174,28 +184,15 @@ async def sync_blog_roll_activity() -> None:
             # --- Convert to Naive UTC before comparing ---
             last_status_time = to_naive_utc(s["created_at"])
 
-            if existing:
-                logger.warning(f"Cache hit {account_data['acct']}")
-                # Update last active time if this post is newer
-                # existing.last_status_at is Naive (from SQLite), last_status_time is now Naive.
-                if (
-                    not existing.last_status_at
-                    or last_status_time > existing.last_status_at
-                ):
-                    existing.last_status_at = last_status_time
-            else:
-                logger.warning(f"New account {account_data['acct']}")
-                # Discovered a new active person (maybe from a boost)
-                new_acc = CachedAccount(
-                    id=str(account_data["id"]),
-                    acct=account_data["acct"],
-                    display_name=account_data["display_name"],
-                    avatar=account_data["avatar"],
-                    url=account_data["url"],
-                    last_status_at=last_status_time,
-                    note=account_data.get("note", ""),
-                )
-                session.add(new_acc)
+            # Use upsert to ensure account exists and details are fresh
+            existing = await _upsert_account(session, account_data)
+
+            # Logic specifically for blogroll timing
+            if (
+                not existing.last_status_at
+                or last_status_time > existing.last_status_at
+            ):
+                existing.last_status_at = last_status_time
 
         await session.commit()
 
@@ -247,24 +244,7 @@ async def sync_user_timeline(
 
     # Cache the account info
     async with async_session() as session:
-        stmt = select(CachedAccount).where(CachedAccount.id == str(target_id))
-        existing_acc = (await session.execute(stmt)).scalar_one_or_none()
-
-        if not existing_acc:
-            new_acc = CachedAccount(
-                id=str(target_id),
-                acct=target_account["acct"],
-                display_name=target_account["display_name"],
-                avatar=target_account["avatar"],
-                url=target_account["url"],
-                note=target_account.get("note", ""),
-            )
-            session.add(new_acc)
-        else:
-            existing_acc.display_name = target_account["display_name"]
-            existing_acc.avatar = target_account["avatar"]
-            existing_acc.note = target_account.get("note", "")
-
+        await _upsert_account(session, target_account)
         await session.commit()
 
     # Fetch statuses
@@ -408,10 +388,9 @@ async def get_blog_roll(filter_type: str = Query("all")) -> list[dict]:
             # - Specific patterns in note/bio
             query = query.where(
                 or_(
+                    CachedAccount.bot == True,
                     CachedAccount.display_name.ilike("%bot%"),
                     CachedAccount.acct.ilike("%bot%"),
-                    CachedAccount.note.ilike("%automated%"),
-                    CachedAccount.note.ilike("%bot%"),
                 )
             )
             query = query.order_by(desc(CachedAccount.last_status_at))
@@ -484,13 +463,13 @@ async def get_blog_roll(filter_type: str = Query("all")) -> list[dict]:
                 "avatar": a.avatar,
                 "url": a.url,
                 "note": getattr(a, "note", ""),
+                "bot": getattr(a, "bot", False),
                 "last_status_at": (
                     a.last_status_at.isoformat() if a.last_status_at else None
                 ),
             }
             for a in accounts
         ]
-
 
 
 @app.get("/api/public/accounts/{acct}")
@@ -505,8 +484,14 @@ async def get_account_info(acct: str):
             "display_name": "Everyone",
             # Simple placeholder avatar
             "avatar": "https://ui-avatars.com/api/?name=Everyone&background=f59e0b&color=fff&size=128",
+            "header": "",
             "url": "",
             "note": "Aggregated feed from all active blog roll accounts.",
+            "fields": [],
+            "bot": False,
+            "locked": False,
+            "created_at": None,
+            "counts": {"followers": 0, "following": 0, "statuses": 0},
             "is_following": False,
             "is_followed_by": False,
         }
@@ -518,14 +503,33 @@ async def get_account_info(acct: str):
         if not account:
             raise HTTPException(404, "Account not found in cache")
 
-        # TODO: needs user's URLs and stuff.
+        # Parse fields from JSON
+        fields_data = []
+        if account.fields:
+            try:
+                fields_data = json.loads(account.fields)
+            except:
+                fields_data = []
+
         return {
             "id": account.id,
             "acct": account.acct,
             "display_name": account.display_name,
             "avatar": account.avatar,
+            "header": account.header,
             "url": account.url,
             "note": account.note,
+            "fields": fields_data,
+            "bot": account.bot,
+            "locked": account.locked,
+            "created_at": (
+                account.created_at.isoformat() if account.created_at else None
+            ),
+            "counts": {
+                "followers": account.followers_count,
+                "following": account.following_count,
+                "statuses": account.statuses_count,
+            },
             "is_following": account.is_following,
             "is_followed_by": account.is_followed_by,
         }
@@ -1129,7 +1133,7 @@ async def get_counts_optimized(
             func.cast(
                 and_(
                     CachedPost.is_reblog == False,
-                    CachedPost.in_reply_to_id == None,
+                    CachedPost.in_reply_to_id is None,
                     CachedPost.has_link == False,
                     *base_conditions,
                 ),

@@ -69,7 +69,7 @@ async def _resolve_host(host: str) -> list[str]:
     loop = asyncio.get_running_loop()
     infos = await loop.getaddrinfo(host, None, type=socket.SOCK_STREAM)
     ips = []
-    for family, _, _, _, sockaddr in infos:
+    for _, _, _, _, sockaddr in infos:
         ip = sockaddr[0]
         ips.append(ip)
     return list(set(ips))
