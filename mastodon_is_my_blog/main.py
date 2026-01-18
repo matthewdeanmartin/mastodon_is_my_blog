@@ -6,26 +6,35 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 import dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import Integer, and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mastodon_is_my_blog.identity_verifier import verify_all_identities
 from mastodon_is_my_blog.inspect_post import analyze_content_domains
 from mastodon_is_my_blog.link_previews import CardResponse, fetch_card
-from mastodon_is_my_blog.masto_client import client
+from mastodon_is_my_blog.masto_client import (
+    client,
+    client_from_identity,
+    get_default_client,
+)
 from mastodon_is_my_blog.perf import time_async_function
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedPost,
+    MastodonIdentity,
+    MetaAccount,
     async_session,
+    bootstrap_identities_from_env,
     get_last_sync,
+    get_or_create_default_meta_account,
     get_token,
     init_db,
-    set_token,
     update_last_sync,
+    set_token,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,6 +48,13 @@ dotenv.load_dotenv()
 async def lifespan(app: FastAPI):
     # Startup: Initialize database
     await init_db()
+    # Ensure default user exists for local dev
+    await get_or_create_default_meta_account()
+    # Bootstrap identities from .env
+    await bootstrap_identities_from_env()
+
+    # Verify all identities (updates acct/account_id from API)
+    await verify_all_identities()
     yield
     # Shutdown: cleanup if needed
 
@@ -74,6 +90,26 @@ class EditIn(BaseModel):
     spoiler_text: str | None = None
 
 
+async def get_current_meta_account(request: Request) -> MetaAccount:
+    """
+    Identifies the Meta Account.
+    In a real app, this would verify a JWT or Session Cookie.
+    Here, we default to the 'default' user or read a header X-Meta-Account-ID.
+    """
+    async with async_session() as session:
+        # Simple header check for multi-user test capability
+        header_id = request.headers.get("X-Meta-Account-ID")
+        if header_id:
+            stmt = select(MetaAccount).where(MetaAccount.id == int(header_id))
+            meta = (await session.execute(stmt)).scalar_one_or_none()
+            if meta:
+                return meta
+
+        # Fallback to default
+        stmt = select(MetaAccount).where(MetaAccount.username == "default")
+        return (await session.execute(stmt)).scalar_one()
+
+
 def to_naive_utc(dt: datetime | None) -> datetime | None:
     """
     Safely converts any datetime (Aware or Naive) to Naive UTC.
@@ -91,12 +127,18 @@ def to_naive_utc(dt: datetime | None) -> datetime | None:
 # --- Sync Engines ---
 
 
-async def _upsert_account(session: AsyncSession, account_data: dict, **overrides):
+async def _upsert_account(
+    session: AsyncSession, meta_id: int, account_data: dict, **overrides
+):
     """
     Helper to create or update a CachedAccount from Mastodon API data.
     """
     acc_id = str(account_data["id"])
-    stmt = select(CachedAccount).where(CachedAccount.id == acc_id)
+
+    # Check for existing account within THIS meta_account's view
+    stmt = select(CachedAccount).where(
+        and_(CachedAccount.id == acc_id, CachedAccount.meta_account_id == meta_id)
+    )
     existing = (await session.execute(stmt)).scalar_one_or_none()
 
     # Prepare common fields
@@ -123,7 +165,7 @@ async def _upsert_account(session: AsyncSession, account_data: dict, **overrides
     data.update(overrides)
 
     if not existing:
-        new_acc = CachedAccount(id=acc_id, **data)
+        new_acc = CachedAccount(id=acc_id, meta_account_id=meta_id, **data)
         session.add(new_acc)
         return new_acc
     else:
@@ -132,8 +174,183 @@ async def _upsert_account(session: AsyncSession, account_data: dict, **overrides
         return existing
 
 
+async def sync_all_identities(meta: MetaAccount, force: bool = False):
+    """Iterates through all identities for the meta account and syncs them."""
+    async with async_session() as session:
+        # Re-fetch identities to be safe
+        result = await session.execute(
+            select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id)
+        )
+        identities = result.scalars().all()
+
+    results = []
+    for identity in identities:
+        # Sync Friends
+        await sync_friends_for_identity(meta.id, identity)
+        # Sync Blog Roll (Activity)
+        await sync_blog_roll_for_identity(meta.id, identity)
+        # Sync Timeline
+        res = await sync_user_timeline_for_identity(meta.id, identity, force=force)
+        results.append({identity.acct: res})
+    return results
+
+
+async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity):
+    m = client_from_identity(identity)
+
+    try:
+        me = m.account_verify_credentials()
+        following = m.account_following(me["id"], limit=80)
+        followers = m.account_followers(me["id"], limit=80)
+
+        async with async_session() as session:
+            for acc in following:
+                await _upsert_account(session, meta_id, acc, is_following=True)
+            for acc in followers:
+                await _upsert_account(session, meta_id, acc, is_followed_by=True)
+            await session.commit()
+    except Exception as e:
+        logger.error(f"Failed to sync friends for {identity.acct}: {e}")
+
+
+async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity):
+    m = client_from_identity(identity)
+
+    try:
+        home_statuses = m.timeline_home(limit=100)
+        async with async_session() as session:
+            for s in home_statuses:
+                account_data = s["account"]
+                last_status_time = to_naive_utc(s["created_at"])
+
+                # Use helper to ensure correct meta_scope
+                existing = await _upsert_account(session, meta_id, account_data)
+
+                if (
+                    not existing.last_status_at
+                    or last_status_time > existing.last_status_at
+                ):
+                    existing.last_status_at = last_status_time
+            await session.commit()
+    except Exception as e:
+        logger.error(f"Failed to sync blog roll for {identity.acct}: {e}")
+
+
+async def sync_user_timeline_for_identity(
+    meta_id: int,
+    identity: MastodonIdentity,
+    acct: str | None = None,  # If None, syncs the identity itself
+    force: bool = False,
+):
+    target_acct_desc = acct if acct else "self"
+    sync_key = f"timeline:{meta_id}:{identity.id}:{target_acct_desc}"
+
+    last_run = await get_last_sync(sync_key)
+    if (
+        not force
+        and last_run
+        and (datetime.utcnow() - last_run) < timedelta(minutes=15)
+    ):
+        return {"status": "skipped"}
+
+    m = client_from_identity(identity)
+
+    try:
+        if acct:
+            s_res = m.account_search(acct, limit=1)
+            if not s_res:
+                return {"status": "not_found"}
+            target_account = s_res[0]
+            target_id = target_account["id"]
+        else:
+            target_account = m.account_verify_credentials()
+            target_id = target_account["id"]
+
+        statuses = m.account_statuses(target_id, limit=200)
+
+        async with async_session() as session:
+            # Upsert Author
+            await _upsert_account(session, meta_id, target_account)
+
+            for s in statuses:
+                is_reblog = s["reblog"] is not None
+                actual = s["reblog"] if is_reblog else s
+
+                # Check Reply Status
+                in_reply_to_id = actual.get("in_reply_to_id")
+                in_reply_to_account = actual.get("in_reply_to_account_id")
+                is_reply_to_other = in_reply_to_id is not None and str(
+                    in_reply_to_account
+                ) != str(actual["account"]["id"])
+
+                flags = analyze_content_domains(
+                    actual["content"], actual["media_attachments"], is_reply_to_other
+                )
+                media_json = (
+                    json.dumps(actual["media_attachments"])
+                    if actual["media_attachments"]
+                    else None
+                )
+                created_at = to_naive_utc(s["created_at"])
+                tags_json = json.dumps([t["name"] for t in s.get("tags", [])])
+
+                # Check if post exists FOR THIS META ACCOUNT
+                stmt = select(CachedPost).where(
+                    and_(
+                        CachedPost.id == str(s["id"]),
+                        CachedPost.meta_account_id == meta_id,
+                    )
+                )
+                existing = (await session.execute(stmt)).scalar_one_or_none()
+
+                post_data = {
+                    "content": actual["content"],
+                    "created_at": created_at,
+                    "visibility": s["visibility"],
+                    "author_acct": actual["account"]["acct"],
+                    "author_id": str(actual["account"]["id"]),
+                    "is_reblog": is_reblog,
+                    "is_reply": is_reply_to_other,
+                    "in_reply_to_id": str(in_reply_to_id) if in_reply_to_id else None,
+                    "in_reply_to_account_id": (
+                        str(in_reply_to_account) if in_reply_to_account else None
+                    ),
+                    "has_media": flags["has_media"],
+                    "has_video": flags["has_video"],
+                    "has_news": flags["has_news"],
+                    "has_tech": flags["has_tech"],
+                    "has_link": flags["has_link"],
+                    "has_question": flags["has_question"],
+                    "tags": tags_json,
+                    "replies_count": s["replies_count"],
+                    "reblogs_count": s["reblogs_count"],
+                    "favourites_count": s["favourites_count"],
+                    "media_attachments": media_json,
+                    "fetched_by_identity_id": identity.id,
+                }
+
+                if not existing:
+                    new_post = CachedPost(
+                        id=str(s["id"]), meta_account_id=meta_id, **post_data
+                    )
+                    session.add(new_post)
+                else:
+                    for k, v in post_data.items():
+                        setattr(existing, k, v)
+
+            await session.commit()
+            await update_last_sync(sync_key)
+            return {"status": "success", "count": len(statuses)}
+
+    except Exception as e:
+        logger.error(f"Sync error {sync_key}: {e}")
+        return {"status": "error", "msg": str(e)}
+
+
 async def sync_accounts_friends_followers() -> None:
-    """Syncs lists of following and followers."""
+    """Syncs lists of following and followers. Legacy wrapper."""
+    # NOTE: This uses the old token mechanism. Ideally should be deprecated
+    # but kept for backward compatibility with simple setups.
     token = await get_token()
     if not token:
         logger.warning("No token")
@@ -141,20 +358,20 @@ async def sync_accounts_friends_followers() -> None:
     m = client(token)
     me = m.account_verify_credentials()
 
-    # Fetch lists (pagination logic simplified for brevity, assumes < 80 for demo)
-    # BUG: will need to revisit this hard coded value
-    following = m.account_following(me["id"], limit=80)
-    followers = m.account_followers(me["id"], limit=80)
-
+    # We assume 'default' meta account for legacy calls
     async with async_session() as session:
-        # Process Following
+        stmt = select(MetaAccount).where(MetaAccount.username == "default")
+        meta = (await session.execute(stmt)).scalar_one_or_none()
+        if not meta:
+            return
+
+        following = m.account_following(me["id"], limit=80)
+        followers = m.account_followers(me["id"], limit=80)
+
         for acc in following:
-            await _upsert_account(session, acc, is_following=True)
-
-        # Process Followers
+            await _upsert_account(session, meta.id, acc, is_following=True)
         for acc in followers:
-            await _upsert_account(session, acc, is_followed_by=True)
-
+            await _upsert_account(session, meta.id, acc, is_followed_by=True)
         await session.commit()
     await update_last_sync("accounts")
 
@@ -203,129 +420,30 @@ async def sync_user_timeline(
     force: bool = False,
     cooldown_minutes: int = 15,
 ) -> dict:
-    """Syncs posts for a specific user. Defaults to Me."""
+    """Legacy wrapper: Syncs posts for a specific user to Default Meta Account."""
     if acct == "everyone":
         return {"status": "skipped", "reason": "virtual_user"}
 
-    sync_key = f"user_timeline_{acct or acct_id or 'me'}"
-    last_run = await get_last_sync(sync_key)
-
-    # Check custom cooldown
-    if (
-        not force
-        and last_run
-        and (datetime.utcnow() - last_run) < timedelta(minutes=cooldown_minutes)
-    ):
-        return {"status": "skipped", "reason": "synced_recently"}
-
-    token = await get_token()
-    if not token:
-        raise HTTPException(401, "Not connected")
-    m = client(token)
-
-    # Resolve the target account
-    if acct:
-        # Look up account by acct string (username@instance)
-        try:
-            search_result = m.account_search(acct, limit=1)
-            if not search_result:
-                raise HTTPException(404, f"Account {acct} not found")
-            target_account = search_result[0]
-            target_id = target_account["id"]
-        except Exception as e:
-            raise HTTPException(404, f"Could not find account {acct}: {str(e)}")
-    elif acct_id:
-        target_id = acct_id
-        target_account = m.account(target_id)
-    else:
-        # Default to authenticated user
-        target_account = m.account_verify_credentials()
-        target_id = target_account["id"]
-
-    # Cache the account info
     async with async_session() as session:
-        await _upsert_account(session, target_account)
-        await session.commit()
+        # Get default meta
+        stmt = select(MetaAccount).where(MetaAccount.username == "default")
+        meta = (await session.execute(stmt)).scalar_one_or_none()
+        if not meta:
+            raise HTTPException(500, "Default meta account missing")
 
-    # Fetch statuses
-    statuses = m.account_statuses(target_id, limit=200)
+        # Get first identity
+        stmt = (
+            select(MastodonIdentity)
+            .where(MastodonIdentity.meta_account_id == meta.id)
+            .limit(1)
+        )
+        identity = (await session.execute(stmt)).scalar_one_or_none()
+        if not identity:
+            raise HTTPException(500, "No identity found")
 
-    async with async_session() as session:
-        for s in statuses:
-            # Determine flags
-            is_reblog = s["reblog"] is not None
-            actual_status = s["reblog"] if is_reblog else s
-
-            # Determine Reply Status
-            # A post is a reply if it has in_reply_to_id AND it's not a self-thread (initially)
-            # We store the raw IDs to reconstruct storms later
-            in_reply_to_id = actual_status.get("in_reply_to_id")
-            in_reply_to_account = actual_status.get("in_reply_to_account_id")
-            is_reply_to_other = in_reply_to_id is not None and str(
-                in_reply_to_account
-            ) != str(actual_status["account"]["id"])
-
-            # Analyze flags
-            flags = analyze_content_domains(
-                actual_status["content"],
-                actual_status["media_attachments"],
-                is_reply_to_other,
-            )
-
-            media_json = (
-                json.dumps(actual_status["media_attachments"])
-                if actual_status["media_attachments"]
-                else None
-            )
-
-            # FIX: Ensure creation date is naive UTC
-            created_at_naive = to_naive_utc(s["created_at"])
-
-            stmt = select(CachedPost).where(CachedPost.id == str(s["id"]))
-            existing = (await session.execute(stmt)).scalar_one_or_none()
-            # Extract tags
-            tags_list = [t["name"] for t in s.get("tags", [])]
-            tags_json = json.dumps(tags_list)
-
-            post_data = {
-                "content": actual_status["content"],
-                "created_at": created_at_naive,
-                "visibility": s["visibility"],
-                "author_acct": actual_status["account"]["acct"],
-                "author_id": str(actual_status["account"]["id"]),
-                "is_reblog": is_reblog,
-                "is_reply": is_reply_to_other,
-                "in_reply_to_id": str(in_reply_to_id) if in_reply_to_id else None,
-                "in_reply_to_account_id": (
-                    str(in_reply_to_account) if in_reply_to_account else None
-                ),
-                "has_media": flags["has_media"],
-                "has_video": flags["has_video"],
-                "has_news": flags["has_news"],
-                "has_tech": flags["has_tech"],
-                "has_link": flags["has_link"],
-                "has_question": flags["has_question"],
-                "tags": tags_json,
-                "replies_count": s["replies_count"],
-                "reblogs_count": s["reblogs_count"],
-                "favourites_count": s["favourites_count"],
-                "media_attachments": media_json,
-            }
-
-            if not existing:
-                new_post = CachedPost(id=str(s["id"]), **post_data)
-                session.add(new_post)
-            else:
-                for k, v in post_data.items():
-                    setattr(existing, k, v)
-
-        await session.commit()
-
-    await update_last_sync(sync_key)
-    return {"status": "success", "count": len(statuses)}
-
-
-# --- Public Endpoints ---
+    return await sync_user_timeline_for_identity(
+        meta_id=meta.id, identity=identity, acct=acct, force=force
+    )
 
 
 @app.get("/api/status")
@@ -334,9 +452,13 @@ async def status() -> dict:
 
 
 @app.get("/api/public/accounts/blogroll")
-async def get_blog_roll(filter_type: str = Query("all")) -> list[dict]:
+async def get_blog_roll(
+    filter_type: str = Query("all"),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> list[dict]:
     """
     Returns active accounts discovered from the timeline.
+    Scoped to the current Meta Account.
 
     Filters:
     - all: All accounts in the blog roll
@@ -348,10 +470,14 @@ async def get_blog_roll(filter_type: str = Query("all")) -> list[dict]:
     """
     async with async_session() as session:
         # Base query: Get accounts that have posted recently OR are friends
+        # SCALAR: Scoped to meta_account_id
         query = select(CachedAccount).where(
-            or_(
-                CachedAccount.last_status_at != None,
-                CachedAccount.is_following == True,
+            and_(
+                CachedAccount.meta_account_id == meta.id,
+                or_(
+                    CachedAccount.last_status_at != None,
+                    CachedAccount.is_following == True,
+                ),
             )
         )
 
@@ -408,13 +534,18 @@ async def get_blog_roll(filter_type: str = Query("all")) -> list[dict]:
 
             for acc in accounts:
                 # Count total posts and replies for this account
+                # SCOPED: meta_account_id
                 total_stmt = select(func.count(CachedPost.id)).where(
-                    CachedPost.author_id == acc.id
+                    and_(
+                        CachedPost.author_id == acc.id,
+                        CachedPost.meta_account_id == meta.id,
+                    )
                 )
                 reply_stmt = select(func.count(CachedPost.id)).where(
                     and_(
                         CachedPost.author_id == acc.id,
                         CachedPost.is_reply == True,
+                        CachedPost.meta_account_id == meta.id,
                     )
                 )
 
@@ -473,7 +604,9 @@ async def get_blog_roll(filter_type: str = Query("all")) -> list[dict]:
 
 
 @app.get("/api/public/accounts/{acct}")
-async def get_account_info(acct: str):
+async def get_account_info(
+    acct: str, meta: MetaAccount = Depends(get_current_meta_account)
+):
     """Get cached account information by acct string."""
 
     # FIX: Handle 'everyone' virtual user to prevent 404s
@@ -497,7 +630,13 @@ async def get_account_info(acct: str):
         }
 
     async with async_session() as session:
-        stmt = select(CachedAccount).where(CachedAccount.acct == acct)
+        # SCOPED: meta_account_id
+        stmt = select(CachedAccount).where(
+            and_(
+                CachedAccount.acct == acct,
+                CachedAccount.meta_account_id == meta.id,
+            )
+        )
         account = (await session.execute(stmt)).scalar_one_or_none()
 
         if not account:
@@ -536,13 +675,32 @@ async def get_account_info(acct: str):
 
 
 @app.post("/api/public/accounts/{acct}/sync")
-async def sync_account(acct: str):
+async def sync_account(
+    acct: str, meta: MetaAccount = Depends(get_current_meta_account)
+):
     """Sync a specific user's timeline."""
     # FIX: Don't attempt to sync the virtual 'everyone' user
     if acct == "everyone":
         return {"status": "skipped", "message": "Cannot sync virtual user"}
 
-    result = await sync_user_timeline(acct=acct, force=True)
+    async with async_session() as session:
+        # Get first identity for THIS meta account
+        stmt = (
+            select(MastodonIdentity)
+            .where(MastodonIdentity.meta_account_id == meta.id)
+            .limit(1)
+        )
+        identity = (await session.execute(stmt)).scalar_one_or_none()
+
+        if not identity:
+            raise HTTPException(
+                500, "No identity found. Please configure MASTODON_ID_* in .env"
+            )
+
+    # Call the identity-aware sync function
+    result = await sync_user_timeline_for_identity(
+        meta_id=meta.id, identity=identity, acct=acct, force=True
+    )
     return result
 
 
@@ -565,17 +723,20 @@ async def get_public_posts(
             "everyone",
         ],
     ),
+    meta: MetaAccount = Depends(get_current_meta_account),
 ) -> list[dict]:
     """
     Get posts with filters.
     User arg: filter by username (acct). If None and not 'everyone' filter, gets main user's posts.
     """
     async with async_session() as session:
-        query = select(CachedPost).order_by(desc(CachedPost.created_at))
+        # SCOPED: meta_account_id
+        query = select(CachedPost).where(CachedPost.meta_account_id == meta.id)
+        query = query.order_by(desc(CachedPost.created_at))
 
         # FIX: Handle user="everyone" explicitly to bypass filtering
         if user == "everyone":
-            # Show all posts from all users (no user filtering)
+            # Show all posts from all users (still scoped to meta)
             pass
         elif filter_type == "everyone":
             # Legacy handle: Show all posts from all users
@@ -585,16 +746,18 @@ async def get_public_posts(
             query = query.where(CachedPost.author_acct == user)
         else:
             # No user specified and not "everyone" filter - default to main user
-            # Get the main user from token
-            token = await get_token()
-            if token:
-                try:
-                    m = client(token)
-                    me = m.account_verify_credentials()
-                    query = query.where(CachedPost.author_acct == me["acct"])
-                except:
-                    # If we can't get main user, show nothing rather than everyone
-                    query = query.where(CachedPost.id == "impossible_id")
+            # Find the primary identity's acct for this meta account
+            stmt = (
+                select(MastodonIdentity)
+                .where(MastodonIdentity.meta_account_id == meta.id)
+                .limit(1)
+            )
+            identity = (await session.execute(stmt)).scalar_one_or_none()
+            if identity:
+                query = query.where(CachedPost.author_acct == identity.acct)
+            else:
+                # Fallback if no identity found
+                query = query.where(CachedPost.id == "impossible_id")
 
         # Apply Type Filters
         if filter_type == "all":
@@ -667,10 +830,14 @@ async def get_public_posts(
 
 # --- Unfiltered Endpoint ---
 @app.get("/api/public/posts/all")
-async def get_all_posts_unfiltered(user: str | None = None):
+async def get_all_posts_unfiltered(
+    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
+):
     """Returns ALL posts, including replies, reblogs, links, etc."""
     async with async_session() as session:
-        query = select(CachedPost).order_by(desc(CachedPost.created_at))
+        # SCOPED: meta_account_id
+        query = select(CachedPost).where(CachedPost.meta_account_id == meta.id)
+        query = query.order_by(desc(CachedPost.created_at))
 
         # FIX: Handle "everyone" here too
         if user and user != "everyone":
@@ -693,17 +860,21 @@ async def get_all_posts_unfiltered(user: str | None = None):
 
 
 @app.get("/api/public/shorts")
-async def get_shorts(user: str | None = None):
+async def get_shorts(
+    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
+):
     """
     Convenience endpoint for Shorts (short text posts).
-    Delegates to get_public_posts.
+    Delegates to get_public_posts, passing the meta account.
     """
-    return await get_public_posts(user=user, filter_type="shorts")
+    return await get_public_posts(user=user, filter_type="shorts", meta=meta)
 
 
 @app.get("/api/public/storms")
 @time_async_function
-async def get_storms(user: str | None = None):
+async def get_storms(
+    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
+):
     """
     Returns 'Tweet Storms'.
     Groups a root post and its subsequent self-replies into a single tree.
@@ -716,19 +887,22 @@ async def get_storms(user: str | None = None):
 
         # FIX: Default to main user ONLY if not requesting everyone
         if target_user != "everyone" and not target_user:
-            # Default to main user
-            token = await get_token()
-            if token:
-                try:
-                    m = client(token)
-                    me = m.account_verify_credentials()
-                    target_user = me["acct"]
-                except:
-                    # Can't determine main user, return empty
-                    return []
+            # Default to main user of this meta account
+            stmt = (
+                select(MastodonIdentity)
+                .where(MastodonIdentity.meta_account_id == meta.id)
+                .limit(1)
+            )
+            identity = (await session.execute(stmt)).scalar_one_or_none()
+            if identity:
+                target_user = identity.acct
+            else:
+                return []
 
         # 1. Fetch all posts for the user
-        query = select(CachedPost).order_by(desc(CachedPost.created_at))
+        # SCOPED: meta_account_id
+        query = select(CachedPost).where(CachedPost.meta_account_id == meta.id)
+        query = query.order_by(desc(CachedPost.created_at))
 
         # FIX: Apply user filter only if not "everyone"
         if target_user != "everyone":
@@ -825,10 +999,14 @@ async def get_storms(user: str | None = None):
 
 # --- Hashtag Aggregation ---
 @app.get("/api/public/hashtags")
-async def get_hashtags(user: str | None = None):
+async def get_hashtags(
+    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
+):
     """Aggregates all hashtags used by the user."""
     async with async_session() as session:
-        query = select(CachedPost.tags)
+        # SCOPED: meta_account_id
+        query = select(CachedPost.tags).where(CachedPost.meta_account_id == meta.id)
+
         if user and user != "everyone":
             query = query.where(CachedPost.author_acct == user)
 
@@ -857,7 +1035,9 @@ async def get_hashtags(user: str | None = None):
 
 
 @app.get("/api/public/analytics")
-async def get_analytics(user: str | None = None):
+async def get_analytics(
+    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
+):
     """Aggregate performance metrics."""
     async with async_session() as session:
         # Query sums
@@ -866,7 +1046,8 @@ async def get_analytics(user: str | None = None):
             func.sum(CachedPost.replies_count),
             func.sum(CachedPost.reblogs_count),
             func.sum(CachedPost.favourites_count),
-        )
+        ).where(CachedPost.meta_account_id == meta.id)  # SCOPED
+
         if user and user != "everyone":
             stmt = stmt.where(CachedPost.author_acct == user)
 
@@ -887,7 +1068,8 @@ async def get_analytics(user: str | None = None):
 async def get_post_context(id: str):
     """
     Crawls the conversation graph for a specific post.
-    Returns ancestors (parents) and descendants (children).
+    Note: Context crawling is done live via API, so less scoped,
+    but we use the token from env or DB which defines the scope.
     """
     token = await get_token()
     if not token:
@@ -912,10 +1094,16 @@ async def get_post_context(id: str):
 
 
 @app.get("/api/public/posts/{id}")
-async def get_single_post(id: str):
+async def get_single_post(id: str, meta: MetaAccount = Depends(get_current_meta_account)):
     """Get a single cached post by ID."""
     async with async_session() as session:
-        stmt = select(CachedPost).where(CachedPost.id == id)
+        # SCOPED: meta_account_id
+        stmt = select(CachedPost).where(
+            and_(
+                CachedPost.id == id,
+                CachedPost.meta_account_id == meta.id,
+            )
+        )
         post = (await session.execute(stmt)).scalar_one_or_none()
 
         if not post:
@@ -942,7 +1130,7 @@ async def get_single_post(id: str):
 @app.get("/api/public/posts/{id}/comments")
 async def get_live_comments(id: str) -> dict:
     """Comments are fetched live to ensure freshness"""
-    token = await get_token()  # Uses env token if DB token missing
+    token = await get_token()
     if not token:
         return {"descendants": []}
 
@@ -959,36 +1147,96 @@ async def get_live_comments(id: str) -> dict:
 
 @app.post("/api/admin/sync")
 @time_async_function
-async def trigger_sync(force: bool = True) -> dict:
-    """Master sync trigger"""
-    await sync_accounts_friends_followers()  # Sync friends
-    await sync_blog_roll_activity()  # Sync 'who is active'
-    res = await sync_user_timeline(force=force)  # Sync my posts
-    return {"timeline": res, "message": "Sync complete"}
+async def trigger_sync(
+    force: bool = True, meta: MetaAccount = Depends(get_current_meta_account)
+) -> dict:
+    res = await sync_all_identities(meta, force=force)
+    return {"results": res}
+
+
+@app.get("/api/admin/identities")
+async def list_identities(meta: MetaAccount = Depends(get_current_meta_account)):
+    async with async_session() as session:
+        stmt = select(MastodonIdentity).where(
+            MastodonIdentity.meta_account_id == meta.id
+        )
+        res = (await session.execute(stmt)).scalars().all()
+        return [{"id": i.id, "acct": i.acct, "base_url": i.api_base_url} for i in res]
+
+
+@app.post("/api/admin/identities")
+async def add_identity(
+    base_url: str,
+    code: str,
+    client_id: str,
+    client_secret: str,
+    meta: MetaAccount = Depends(get_current_meta_account),
+):
+    """
+    Exchanges code for token and saves identity.
+    (Simplified OAuth flow - normally requires redirect)
+    """
+    # Create temp client to exchange code
+    m = client(base_url, client_id, client_secret)
+    access_token = m.log_in(code=code, scopes=["read", "write"])
+    me = m.account_verify_credentials()
+
+    async with async_session() as session:
+        new_id = MastodonIdentity(
+            meta_account_id=meta.id,
+            api_base_url=base_url,
+            client_id=client_id,
+            client_secret=client_secret,
+            access_token=access_token,
+            acct=me["acct"],
+            account_id=str(me["id"]),
+        )
+        session.add(new_id)
+        await session.commit()
+    return {"status": "created", "acct": me["acct"]}
 
 
 @app.get("/api/admin/status")
 async def admin_status() -> dict:
-    token = await get_token()
+    """Get connection status and current user info"""
+
+    # Try to get default identity
+    current_user = None
+    connected = False
+
+    async with async_session() as session:
+        stmt = select(MetaAccount).where(MetaAccount.username == "default")
+        meta = (await session.execute(stmt)).scalar_one_or_none()
+
+        if meta:
+            stmt = (
+                select(MastodonIdentity)
+                .where(MastodonIdentity.meta_account_id == meta.id)
+                .limit(1)
+            )
+            identity = (await session.execute(stmt)).scalar_one_or_none()
+
+            if identity and identity.access_token:
+                connected = True
+                try:
+                    from mastodon_is_my_blog.masto_client import client_from_identity
+
+                    m = client_from_identity(identity)
+                    me = m.account_verify_credentials()
+                    current_user = {
+                        "acct": me["acct"],
+                        "display_name": me["display_name"],
+                        "avatar": me["avatar"],
+                        "note": me.get("note", ""),
+                    }
+                except Exception as e:
+                    logger.error(f"Failed to verify credentials: {e}")
+                    connected = False
+
     last_sync = await get_last_sync()
 
-    # Get current user info
-    current_user = None
-    if token:
-        try:
-            m = client(token)
-            me = m.account_verify_credentials()
-            current_user = {
-                "acct": me["acct"],
-                "display_name": me["display_name"],
-                "avatar": me["avatar"],
-                "note": me.get("note", ""),
-            }
-        except:
-            pass
-
     return {
-        "connected": token is not None,
+        "connected": connected,
         "last_sync": last_sync.isoformat() if last_sync else None,
         "current_user": current_user,
     }
@@ -999,7 +1247,8 @@ async def create_post(payload: PostIn):
     token = await get_token()
     if not token:
         raise HTTPException(401, "Not connected")
-    m = client(token)
+    m = await get_default_client()
+
     if not payload.status.strip():
         raise HTTPException(400, "Empty post")
     resp = m.status_post(
@@ -1043,7 +1292,7 @@ async def me():
     token = await get_token()
     if not token:
         raise HTTPException(401, "Not connected")
-    m = client(token)
+    m = await get_default_client()
     return m.account_verify_credentials()
 
 
@@ -1100,21 +1349,23 @@ async def edit(status_id: str, payload: EditIn):
 
 @app.get("/api/public/counts")
 @time_async_function
-async def get_counts(user: str | None = None) -> dict:
+async def get_counts(
+    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
+) -> dict:
     """
     Returns counts used for sidebar badges.
     Counts are designed to match existing feed endpoint semantics.
     """
-    # If user is "everyone", treat it as None (all users)
+    # If user is "everyone", treat it as None (all users within meta scope)
     if user == "everyone":
         user = None
 
     async with async_session() as session:
-        return await get_counts_optimized(session, user)
+        return await get_counts_optimized(session, meta.id, user)
 
 
 async def get_counts_optimized(
-    session: AsyncSession, user: str | None = None
+    session: AsyncSession, meta_id: int, user: str | None = None
 ) -> dict[str, int]:
     """
     Optimized count query using a single query with conditional aggregation.
@@ -1140,7 +1391,7 @@ async def get_counts_optimized(
                 Integer,
             )
         ).label("storms"),
-        # Shorts (NEW)
+        # Shorts
         func.sum(
             func.cast(
                 and_(
@@ -1187,7 +1438,10 @@ async def get_counts_optimized(
         func.count().label("everyone"),
     ).select_from(CachedPost)
 
-    # Add user filter if specified
+    # SCOPED: Global filter for this meta account on the table before aggregation
+    query = query.where(CachedPost.meta_account_id == meta_id)
+
+    # Add user filter if specified (also in WHERE to optimize scan)
     if user:
         query = query.where(CachedPost.author_acct == user)
 

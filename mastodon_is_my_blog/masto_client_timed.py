@@ -1,5 +1,4 @@
 import logging
-import os
 import time
 from typing import Any
 
@@ -14,11 +13,17 @@ dotenv.load_dotenv()
 class TimedMastodonClient:
     """Wrapper around Mastodon client with automatic timing"""
 
-    def __init__(self, access_token: str | None = None):
+    def __init__(
+        self,
+        api_base_url: str,
+        client_id: str,
+        client_secret: str,
+        access_token: str | None = None,
+    ):
         self.client: Mastodon = Mastodon(
-            api_base_url=os.environ["MASTODON_BASE_URL"].rstrip("/"),
-            client_id=os.environ["MASTODON_CLIENT_ID"],
-            client_secret=os.environ["MASTODON_CLIENT_SECRET"],
+            api_base_url=api_base_url,
+            client_id=client_id,
+            client_secret=client_secret,
             access_token=access_token,
         )
         self.logger: logging.Logger = logging.getLogger(__name__)
@@ -85,6 +90,6 @@ class TimedMastodonClient:
         return self._timed_call("log_in", **kwargs)
 
 
-def client(access_token: str | None = None) -> TimedMastodonClient:
-    """Factory function for timed Mastodon client"""
-    return TimedMastodonClient(access_token)
+# def client(access_token: str | None = None) -> TimedMastodonClient:
+#     """Factory function for timed Mastodon client"""
+#     return TimedMastodonClient(access_token)

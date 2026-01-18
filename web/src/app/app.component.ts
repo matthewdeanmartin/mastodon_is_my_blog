@@ -27,14 +27,22 @@ interface SidebarCounts {
 })
 export class AppComponent implements OnInit {
   currentFilter: string = 'storms';
-  currentBlogFilter: string = 'all'; // Default blog roll filter
+  currentBlogFilter: string = 'all';
+
+  // Identities State
+  identities: any[] = [];
+  currentMetaId: string | null = null;
+
+  // Navigation State
   currentUser: string | null = null;
   viewingEveryone: boolean = false;
+
   blogRoll: any[] = [];
   mainUser: any = null; // Store the authenticated user's info
   activeUserInfo: any = null; // Store the currently viewed user's info
   serverDown: boolean = false;
   recentlyViewed: Set<string> = new Set();
+
   counts: SidebarCounts = {
     storms: 0,
     shorts: 0,
@@ -57,9 +65,19 @@ export class AppComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.currentMetaId = this.api.getMetaAccountId();
+
     // Subscribe to server status
     this.api.serverDown$.subscribe((isDown) => {
       this.serverDown = isDown;
+    });
+
+    // 1. Fetch Identities (Top Header) - Scoped to Meta Account
+    this.api.getIdentities().subscribe({
+      next: (ids) => {
+        this.identities = ids;
+      },
+      error: (e) => console.log('Could not fetch identities', e)
     });
 
     // 1. Fetch Initial Blog Roll
@@ -81,7 +99,7 @@ export class AppComponent implements OnInit {
     this.route.queryParams.subscribe((params) => {
       this.currentUser = params['user'] || null;
       this.currentFilter = params['filter'] || 'storms';
-      this.viewingEveryone = params['everyone'] === 'true';
+      this.viewingEveryone = params['user'] === 'everyone';
 
       // Check for blog filter in URL (optional, but good for linking)
       // If we want to persist blog filter in URL, we'd read it here.
@@ -92,29 +110,30 @@ export class AppComponent implements OnInit {
       }
 
       // Track recently viewed accounts
-      if (this.currentUser) {
+      if (this.currentUser && this.currentUser !== 'everyone') {
         this.recentlyViewed.add(this.currentUser);
-      }
-
-      // Update active user info when user param changes
-      if (this.currentUser) {
-        this.api.getAccountInfo(this.currentUser).subscribe({
-          next: (account) => {
-            this.activeUserInfo = account;
-            this.refreshCounts(); // Refresh counts when user changes
-          },
-          error: () => {
-            this.activeUserInfo = null;
-            this.refreshCounts();
-          },
-        });
+        this.fetchActiveUserInfo(this.currentUser);
       } else {
-        // No user param means we're viewing the main user
-        this.activeUserInfo = this.mainUser;
+        // Main user or Everyone view
+        this.activeUserInfo = this.currentUser === 'everyone' ? null : this.mainUser;
         this.refreshCounts();
       }
     });
   }
+
+  fetchActiveUserInfo(acct: string) {
+    this.api.getAccountInfo(acct).subscribe({
+      next: (account) => {
+        this.activeUserInfo = account;
+        this.refreshCounts();
+      },
+      error: () => {
+        this.activeUserInfo = null;
+        this.refreshCounts();
+      },
+    });
+  }
+
 
   loadBlogRoll(): void {
     this.api.getBlogRoll(this.currentBlogFilter).subscribe((accounts) => {
@@ -122,10 +141,41 @@ export class AppComponent implements OnInit {
     });
   }
 
+  // --- Identity Switching ---
+
+  selectIdentity(acct: string) {
+    // Navigate to root with this user selected
+    // Note: If acct is the same as mainUser, we might want to clear params?
+    // For now, explicit selection is safer.
+    this.router.navigate(['/'], {
+      queryParams: {user: acct, filter: 'storms'}
+    });
+  }
+
+  /**
+   * Updates the 'Meta Account' context.
+   * In a real app, this would be a login screen.
+   * For dev/testing, we prompt for the ID integer.
+   */
+  switchMetaAccount() {
+    const current = this.api.getMetaAccountId() || '';
+    const newId = prompt('Enter Meta Account ID (integer) to switch context:', current);
+
+    // Check if user clicked cancel (null) or didn't change anything
+    if (newId !== null && newId !== current) {
+      if (newId.trim() === '') {
+        this.api.logout(); // Clear to default
+      } else {
+        this.api.setMetaAccountId(newId); // Sets ID and reloads page
+      }
+    }
+  }
+
+  // --- Navigation Actions ---
+
   setFilter(filter: string): void {
     this.currentFilter = filter;
-    this.viewingEveryone = false;
-    // Use 'merge' to preserve the 'user' param if it exists
+    // Keep 'everyone' status if it's active, otherwise keep user
     this.router.navigate(['/'], {
       queryParams: {filter: filter},
       queryParamsHandling: 'merge',
@@ -210,6 +260,8 @@ export class AppComponent implements OnInit {
     }
   }
 
+  // --- Helpers ---
+
   isViewingMainUser(): boolean {
     return !this.currentUser && !this.viewingEveryone;
   }
@@ -223,10 +275,10 @@ export class AppComponent implements OnInit {
       userForCounts = this.mainUser.acct;
     }
 
-    // If viewing everyone, don't pass a user filter
-    const effectiveUser = this.viewingEveryone ? undefined : (userForCounts || '');
+    // Pass 'everyone' explicitly if viewing everyone, otherwise the specific user or undefined (for default)
+    const effectiveUser = this.viewingEveryone ? 'everyone' : userForCounts;
 
-    this.api.getCounts(effectiveUser).subscribe({
+    this.api.getCounts(effectiveUser || undefined).subscribe({
       next: (c) => {
         this.counts = {
           storms: Number(c.storms || 0),
@@ -242,9 +294,7 @@ export class AppComponent implements OnInit {
           reposts: Number(c.reposts || 0),
         };
       },
-      error: (e) => {
-        console.log(e)
-      },
+      error: (e) => console.log(e),
     });
   }
 
@@ -254,19 +304,6 @@ export class AppComponent implements OnInit {
 
   isActiveUser(acct: string): boolean {
     return this.currentUser === acct;
-  }
-
-  getUserProfileUrl(acct: string): string {
-    const parts = acct.split('@');
-    const username = parts[0];
-    const instance = parts[1] || 'mastodon.social';
-    return `https://${instance}/@${username}`;
-  }
-
-  getUserInstanceUrl(acct: string): string {
-    const parts = acct.split('@');
-    const instance = parts[1] || 'mastodon.social';
-    return `https://${instance}`;
   }
 
 }

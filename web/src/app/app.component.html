@@ -1,3 +1,29 @@
+<div class="identity-bar">
+  <div class="identity-label">
+    <span class="meta-id" title="Meta Account ID">ID: {{ currentMetaId || 'Default' }}</span>
+    <button class="switch-btn" (click)="switchMetaAccount()">Switch</button>
+  </div>
+
+  <div class="identity-list">
+    <button
+      class="identity-chip"
+      [class.active]="isViewingMainUser()"
+      (click)="viewMainUser()">
+      <span class="icon">🏠</span>
+      <span>Main</span>
+    </button>
+
+    <button
+      *ngFor="let id of identities"
+      class="identity-chip"
+      [class.active]="currentUser === id.acct"
+      (click)="selectIdentity(id.acct)">
+      <span class="icon">👤</span>
+      <span>{{ id.acct }}</span>
+    </button>
+  </div>
+</div>
+
 <div class="app-layout">
   <div class="header">
     <h1 style="font-size: 1.5rem; margin:0;">Mastodon Blog</h1>
