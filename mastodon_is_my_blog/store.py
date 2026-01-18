@@ -18,7 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from mastodon_is_my_blog.settings_loader import load_identities_from_env
+from mastodon_is_my_blog.utils.settings_loader import load_identities_from_env
 
 logging.basicConfig()
 logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
@@ -98,10 +98,13 @@ class CachedAccount(Base):
 
     __tablename__ = "cached_accounts"
 
-    # Composite Primary Key: The Mastodon ID + The Meta Account who sees them
-    id: Mapped[str] = mapped_column(String, primary_key=True)
+    # Identity ID to the Primary Key
+    id: Mapped[str] = mapped_column(String, primary_key=True) # The ID on the source instance
     meta_account_id: Mapped[int] = mapped_column(
         ForeignKey("meta_accounts.id"), primary_key=True
+    )
+    mastodon_identity_id: Mapped[int] = mapped_column(
+        ForeignKey("mastodon_identities.id"), primary_key=True
     )
 
     acct: Mapped[str] = mapped_column(String, index=True)
@@ -133,42 +136,12 @@ class CachedAccount(Base):
 class CachedPost(Base):
     __tablename__ = "cached_posts"
 
-    # Define Composite Indexes to speed up specific query patterns
-    # __table_args__ = (
-    #     # 1. Main Feed: "Show me posts sorted by date"
-    #     Index("ix_posts_created_at", "created_at"),
-    #     # 2. User Profile: "Show me THIS user's posts, sorted by date"
-    #     Index("ix_posts_author_created", "author_acct", "created_at"),
-    #     # Covering indexes for COUNT queries (add columns used in WHERE)
-    #     # These help avoid table lookups during counts
-    #     Index(
-    #         "ix_posts_storms_count",
-    #         "is_reblog",
-    #         "in_reply_to_id",
-    #         "has_link",
-    #         "author_acct",  # Added for user filtering
-    #     ),
-    #     # Optimized filter indexes with author for user-specific queries
-    #     Index("ix_posts_news_author", "has_news", "author_acct", "created_at"),
-    #     Index("ix_posts_tech_author", "has_tech", "author_acct", "created_at"),
-    #     Index("ix_posts_media_author", "has_media", "author_acct", "created_at"),
-    #     Index("ix_posts_video_author", "has_video", "author_acct", "created_at"),
-    #     Index("ix_posts_links_author", "has_link", "author_acct", "created_at"),
-    #     Index("ix_posts_questions_author", "has_question", "author_acct", "created_at"),
-    #     Index("ix_posts_reply_author", "is_reply", "author_acct", "created_at"),
-    #     # Compound index for "clean feed" queries (most common)
-    #     Index(
-    #         "ix_posts_clean_feed_optimized",
-    #         "author_acct",
-    #         "is_reblog",
-    #         "is_reply",
-    #         "created_at",
-    #     ),
-    # )
-
     id: Mapped[str] = mapped_column(String, primary_key=True)  # Mastodon ID
     meta_account_id: Mapped[int] = mapped_column(
         ForeignKey("meta_accounts.id"), primary_key=True
+    )
+    fetched_by_identity_id: Mapped[int] = mapped_column(
+        ForeignKey("mastodon_identities.id"), primary_key=True
     )
 
     # Which of the MetaAccount's identities fetched this?
@@ -223,6 +196,39 @@ class CachedPost(Base):
         Index("ix_posts_meta_author", "meta_account_id", "author_acct", "created_at"),
         Index("ix_posts_meta_clean", "meta_account_id", "is_reblog", "is_reply"),
     )
+
+    # Define Composite Indexes to speed up specific query patterns
+    # __table_args__ = (
+    #     # 1. Main Feed: "Show me posts sorted by date"
+    #     Index("ix_posts_created_at", "created_at"),
+    #     # 2. User Profile: "Show me THIS user's posts, sorted by date"
+    #     Index("ix_posts_author_created", "author_acct", "created_at"),
+    #     # Covering indexes for COUNT queries (add columns used in WHERE)
+    #     # These help avoid table lookups during counts
+    #     Index(
+    #         "ix_posts_storms_count",
+    #         "is_reblog",
+    #         "in_reply_to_id",
+    #         "has_link",
+    #         "author_acct",  # Added for user filtering
+    #     ),
+    #     # Optimized filter indexes with author for user-specific queries
+    #     Index("ix_posts_news_author", "has_news", "author_acct", "created_at"),
+    #     Index("ix_posts_tech_author", "has_tech", "author_acct", "created_at"),
+    #     Index("ix_posts_media_author", "has_media", "author_acct", "created_at"),
+    #     Index("ix_posts_video_author", "has_video", "author_acct", "created_at"),
+    #     Index("ix_posts_links_author", "has_link", "author_acct", "created_at"),
+    #     Index("ix_posts_questions_author", "has_question", "author_acct", "created_at"),
+    #     Index("ix_posts_reply_author", "is_reply", "author_acct", "created_at"),
+    #     # Compound index for "clean feed" queries (most common)
+    #     Index(
+    #         "ix_posts_clean_feed_optimized",
+    #         "author_acct",
+    #         "is_reblog",
+    #         "is_reply",
+    #         "created_at",
+    #     ),
+    # )
 
 
 class AppState(Base):

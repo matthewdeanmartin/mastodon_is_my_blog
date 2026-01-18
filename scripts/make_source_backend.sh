@@ -26,7 +26,7 @@ git2md . \
     tsconfig.spec.json \
     dead_code \
     README.md SETUP.md CHANGELOG.md TODO.md account_types.md \
-    .venv uv.lock \
+    .venv uv.lock py.typed \
     Makefile Makefile1 LICENSE \
     SOURCE_ALL.md SOURCE_UI.md SOURCE.md \
     scripts \
@@ -34,5 +34,7 @@ git2md . \
     favicon.ico \
     web \
     test \
-    domain_categories.py \
+    data domain_categories.py \
+    mastodon_apis mastodon_examples \
+    utils link_previews.py inspect_post.py identity_verifier.py .venv.example \
   --output SOURCE_BACKEND.md

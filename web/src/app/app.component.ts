@@ -69,7 +69,7 @@ export class AppComponent implements OnInit {
 
     // Subscribe to server status
     this.api.serverDown$.subscribe((isDown) => {
-      this.serverDown = isDown;
+      // this.serverDown = isDown;
     });
 
     // 1. Fetch Identities (Top Header) - Scoped to Meta Account
@@ -121,15 +121,33 @@ export class AppComponent implements OnInit {
     });
   }
 
-  fetchActiveUserInfo(acct: string) {
+  // Updated to handle 404s by attempting to sync
+  fetchActiveUserInfo(acct: string, retry: boolean = true) {
     this.api.getAccountInfo(acct).subscribe({
       next: (account) => {
         this.activeUserInfo = account;
         this.refreshCounts();
       },
       error: () => {
-        this.activeUserInfo = null;
-        this.refreshCounts();
+        if (retry) {
+          console.log(`User ${acct} not found in cache. Attempting sync...`);
+          // If we fail to get info, try syncing the account once
+          this.api.syncAccount(acct).subscribe({
+            next: () => {
+              // If sync succeeds, try fetching info again (without retry this time)
+              this.fetchActiveUserInfo(acct, false);
+            },
+            error: (err) => {
+              console.error(`Failed to sync user ${acct}`, err);
+              this.activeUserInfo = null;
+              this.refreshCounts();
+            }
+          });
+        } else {
+          // If we already retried and failed, give up
+          this.activeUserInfo = null;
+          this.refreshCounts();
+        }
       },
     });
   }
@@ -166,7 +184,30 @@ export class AppComponent implements OnInit {
       if (newId.trim() === '') {
         this.api.logout(); // Clear to default
       } else {
-        this.api.setMetaAccountId(newId); // Sets ID and reloads page
+        // 1. Manually set localStorage so the interceptor picks up the NEW id
+        localStorage.setItem('meta_account_id', newId);
+
+        // 2. Check status BEFORE forcing a sync
+        this.api.getAdminStatus().subscribe({
+          next: (status) => {
+            // If connected but MISSING user data, we must sync.
+            if (status.connected && !status.current_user) {
+              console.log('New identity connected but empty. Syncing...');
+              this.api.triggerSync(true).subscribe({
+                next: () => window.location.reload(),
+                error: () => window.location.reload()
+              });
+            } else {
+              // If not connected (needs auth) or already has data, just reload.
+              window.location.reload();
+            }
+          },
+          error: (err) => {
+            console.error('Sync failed during switch', err);
+            // Reload anyway so the user is at least in the new context
+            window.location.reload();
+          }
+        });
       }
     }
   }

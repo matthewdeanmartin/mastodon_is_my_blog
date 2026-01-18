@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
-from mastodon_is_my_blog.domain_categories import DOMAIN_CONFIG
+from mastodon_is_my_blog.data.domain_categories import DOMAIN_CONFIG
 
 # Schema for DOMAIN_CONFIG
 # DOMAIN_CONFIG = {

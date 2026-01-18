@@ -7,7 +7,7 @@ import logging
 
 from sqlalchemy import select
 
-from mastodon_is_my_blog.masto_client import client
+from mastodon_is_my_blog.mastodon_apis.masto_client import client
 from mastodon_is_my_blog.store import MastodonIdentity, async_session
 
 logger = logging.getLogger(__name__)

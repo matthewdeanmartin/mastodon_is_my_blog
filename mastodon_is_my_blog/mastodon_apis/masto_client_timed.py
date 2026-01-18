@@ -40,7 +40,7 @@ class TimedMastodonClient:
             self.logger.info(f"Mastodon API completed: {method_name} in {elapsed:.3f}s")
             return result
         except Exception as e:
-            elapsed: float = time.perf_counter() - start
+            elapsed = time.perf_counter() - start
             self.logger.error(
                 f"Mastodon API failed: {method_name} after {elapsed:.3f}s - {str(e)}"
             )

@@ -16,7 +16,7 @@ import dotenv
 from mastodon import Mastodon
 from sqlalchemy import select
 
-from mastodon_is_my_blog.masto_client_timed import TimedMastodonClient
+from mastodon_is_my_blog.mastodon_apis.masto_client_timed import TimedMastodonClient
 from mastodon_is_my_blog.store import (
     MastodonIdentity,
     async_session,

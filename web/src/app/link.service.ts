@@ -31,7 +31,7 @@ export class LinkPreviewService {
 
     // Make request and cache the observable
     const params = new HttpParams().set('url', url);
-    const request$ = this.http.get<LinkPreview>(`${this.base}/card`, { params }).pipe(
+    const request$ = this.http.get<LinkPreview>(`${this.base}/api/posts/card`, { params }).pipe(
       catchError((error) => {
         console.warn('Failed to fetch preview for:', url, error);
         return of(null);

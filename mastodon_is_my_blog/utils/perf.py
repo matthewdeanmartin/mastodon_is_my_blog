@@ -89,7 +89,7 @@ async def performance_middleware(request: Request, call_next):
         response.headers["X-Process-Time"] = f"{elapsed:.3f}"
         return response
     except Exception as e:
-        elapsed: float = time.perf_counter() - start_time
+        elapsed = time.perf_counter() - start_time
         logger.error(
             f"Request failed: {request.method} {request.url.path} "
             f"Error: {str(e)} Time: {elapsed:.3f}s"

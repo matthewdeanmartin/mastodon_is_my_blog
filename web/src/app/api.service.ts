@@ -85,38 +85,38 @@ export class ApiService {
       params = params.set('user', user);
     }
     return this.http
-      .get<any[]>(`${this.base}/api/public/posts`, {params, headers: this.headers})
+      .get<any[]>(`${this.base}/api/posts`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getPublicPost(id: string) {
     return this.http
-      .get<any>(`${this.base}/api/public/posts/${id}`, {headers: this.headers})
+      .get<any>(`${this.base}/api/posts/${id}`, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getComments(id: string) {
     return this.http
-      .get<any>(`${this.base}/api/public/posts/${id}/comments`, {headers: this.headers})
+      .get<any>(`${this.base}/api/posts/${id}/comments`, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   // NEW: Fetch full context (ancestors + descendants)
   getPostContext(id: string): Observable<any> {
     return this.http
-      .get<any>(`${this.base}/api/public/posts/${id}/context`, {headers: this.headers})
+      .get<any>(`${this.base}/api/posts/${id}/context`, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getAccountInfo(acct: string): Observable<any> {
     return this.http
-      .get<any>(`${this.base}/api/public/accounts/${acct}`, {headers: this.headers})
+      .get<any>(`${this.base}/api/accounts/${acct}`, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   syncAccount(acct: string): Observable<any> {
     return this.http
-      .post<any>(`${this.base}/api/public/accounts/${acct}/sync`, {}, {headers: this.headers})
+      .post<any>(`${this.base}/api/accounts/${acct}/sync`, {}, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -188,7 +188,7 @@ export class ApiService {
       params = params.set('user', user);
     }
     return this.http
-      .get<any[]>(`${this.base}/api/public/storms`, {params, headers: this.headers})
+      .get<any[]>(`${this.base}/api/posts/storms`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -198,7 +198,7 @@ export class ApiService {
       params = params.set('user', user);
     }
     return this.http
-      .get<any[]>(`${this.base}/api/public/shorts`, {params, headers: this.headers})
+      .get<any[]>(`${this.base}/api/posts/shorts`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -207,7 +207,7 @@ export class ApiService {
     let params = new HttpParams().set('filter_type', filter);
 
     return this.http
-      .get<any[]>(`${this.base}/api/public/accounts/blogroll`, {params, headers: this.headers})
+      .get<any[]>(`${this.base}/api/accounts/blogroll`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -217,13 +217,13 @@ export class ApiService {
   //     params = params.set('filter_type', filter);
   //   }
   //   return this.http
-  //     .get<any[]>(`${this.base}/api/public/accounts/blogroll`, { params })
+  //     .get<any[]>(`${this.base}/api/accounts/blogroll`, { params })
   //     .pipe(catchError((err) => this.handleError(err)));
   // }
 
   getAnalytics(): Observable<any> {
     return this.http
-      .get<any>(`${this.base}/api/public/analytics`, {headers: this.headers})
+      .get<any>(`${this.base}/api/posts/analytics`, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -231,7 +231,7 @@ export class ApiService {
     let params = new HttpParams();
     if (user) params = params.set('user', user);
     return this.http
-      .get<any>(`${this.base}/api/public/counts`, {params, headers: this.headers})
+      .get<any>(`${this.base}/api/posts/counts`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 }
