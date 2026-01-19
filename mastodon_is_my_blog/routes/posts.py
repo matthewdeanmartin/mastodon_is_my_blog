@@ -15,7 +15,6 @@ from mastodon_is_my_blog.queries import (
 )
 from mastodon_is_my_blog.store import (
     CachedPost,
-    MastodonIdentity,
     MetaAccount,
     async_session,
     get_token,
@@ -436,6 +435,8 @@ async def get_single_post(
             "is_reblog": post.is_reblog,
             "is_reply": post.is_reply,
         }
+
+
 #
 #
 # @router.get("/{id}/comments")

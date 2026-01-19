@@ -19,8 +19,6 @@ from mastodon_is_my_blog.store import (
 from mastodon_is_my_blog.utils.perf import time_async_function
 
 logger = logging.getLogger(__name__)
-logging.basicConfig()
-logging.getLogger("mastodon_is_my_blog").setLevel(logging.INFO)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 

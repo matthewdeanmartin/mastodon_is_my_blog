@@ -25,8 +25,6 @@ from mastodon_is_my_blog.store import (
 )
 
 logger = logging.getLogger(__name__)
-logging.basicConfig()
-logging.getLogger("mastodon_is_my_blog").setLevel(logging.INFO)
 
 dotenv.load_dotenv()
 
@@ -297,7 +295,7 @@ async def sync_user_timeline_for_identity(
                     new_post = CachedPost(
                         id=str(s["id"]),
                         meta_account_id=meta_id,
-                        fetched_by_identity_id=identity.id,
+                        # fetched_by_identity_id is already inside **post_data
                         **post_data,
                     )
                     session.add(new_post)
@@ -396,7 +394,7 @@ async def sync_user_timeline(
 
 
 async def get_counts_optimized(
-        session: AsyncSession, meta_id: int, identity_id: int, user: str | None = None
+    session: AsyncSession, meta_id: int, identity_id: int, user: str | None = None
 ) -> dict[str, int | str]:
     """
     Optimized count query using a single query with conditional aggregation.

@@ -77,11 +77,12 @@
     <hr>
 
     <div class="muted" style="margin-bottom:10px;">BLOG ROLL FILTERS</div>
-    <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px;">
-        <button class="nav-btn" style="width: auto; padding: 6px 10px; font-size: 0.8rem;" [class.active]="currentBlogFilter==='top_friends'" (click)="setBlogFilter('top_friends')">Top</button>
-        <button class="nav-btn" style="width: auto; padding: 6px 10px; font-size: 0.8rem;" [class.active]="currentBlogFilter==='mutuals'" (click)="setBlogFilter('mutuals')">Mutuals</button>
-        <button class="nav-btn" style="width: auto; padding: 6px 10px; font-size: 0.8rem;" [class.active]="currentBlogFilter==='all'" (click)="setBlogFilter('all')">All</button>
-    </div>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='top_friends'" (click)="setBlogFilter('top_friends')">Top Friends</button>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='mutuals'" (click)="setBlogFilter('mutuals')">Mutuals</button>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='chatty'" (click)="setBlogFilter('chatty')">Chatty</button>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='broadcasters'" (click)="setBlogFilter('broadcasters')">Broadcasters</button>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='bots'" (click)="setBlogFilter('bots')">Bots</button>
+    <button class="nav-btn" [class.active]="currentBlogFilter==='all'" (click)="setBlogFilter('all')">All</button>
 
     <hr>
 
