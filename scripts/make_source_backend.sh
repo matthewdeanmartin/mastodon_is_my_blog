@@ -35,6 +35,6 @@ git2md . \
     web \
     test \
     data domain_categories.py \
-    mastodon_apis mastodon_examples \
+    mastodon_examples \
     utils link_previews.py inspect_post.py identity_verifier.py .venv.example \
   --output SOURCE_BACKEND.md

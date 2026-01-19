@@ -3,7 +3,7 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy import and_, desc, func, or_, select, exists
 
 from mastodon_is_my_blog.queries import (
     get_current_meta_account,
@@ -24,66 +24,79 @@ router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
 @router.get("/blogroll")
 async def get_blog_roll(
-    identity_id: int = Query(..., description="The context Identity ID"),
-    filter_type: str = Query("all"),
-    meta: MetaAccount = Depends(get_current_meta_account),
+        identity_id: int = Query(..., description="The context Identity ID"),
+        filter_type: str = Query("all"),
+        meta: MetaAccount = Depends(get_current_meta_account),
 ) -> list[dict]:
     """
     Returns active accounts discovered from the timeline of a SPECIFIC identity.
 
     Filters:
-    - all: All accounts in the blog roll
-    - top_friends: Accounts you follow (sorted by activity)
-    - mutuals: Accounts that follow you back (mutual follows)
-    - chatty: Accounts with high reply activity
-    - broadcasters: Accounts with low reply activity (mostly posts)
-    - bots: Accounts identified as bots (placeholder logic)
+    - all: Everyone I follow (no strangers)
+    - top_friends: Mutuals who have replied to me
+    - mutuals: I follow them, they follow me
+    - chatty: High reply ratio (> 50%)
+    - broadcasters: Low reply ratio (< 20%)
+    - bots: Strictly identified as bots
     """
     async with async_session() as session:
-        # Simple, direct query on CachedAccount. No aggregation needed.
+        # 1. Get the current identity to know "My Account ID" for the "Replied to Me" check
+        stmt = select(MastodonIdentity).where(MastodonIdentity.id == identity_id)
+        identity = (await session.execute(stmt)).scalar_one_or_none()
+        if not identity:
+            raise HTTPException(404, "Identity not found")
+
+        my_account_id = identity.account_id
+
+        # 2. Base Query: STRICTLY people I follow
+        # This removes the "weirdos" (boost-only strangers) from all views.
         query = select(CachedAccount).where(
             and_(
                 CachedAccount.meta_account_id == meta.id,
                 CachedAccount.mastodon_identity_id == identity_id,
-                or_(
-                    CachedAccount.last_status_at != None,
-                    CachedAccount.is_following == True,
-                ),
+                CachedAccount.is_following == True,  # <--- The fix for "unknown people"
             )
         )
 
-        # Apply filter logic
+        # 3. Apply specific filters
         if filter_type == "top_friends":
-            query = query.where(CachedAccount.is_following == True)
+            # Mutuals + Have replied to ME
+            # We look for posts where author is the friend, and in_reply_to is ME.
+            query = query.where(CachedAccount.is_followed_by == True)
+
+            # Subquery to check for interaction
+            has_replied_to_me = exists(
+                select(1)
+                .where(
+                    and_(
+                        CachedPost.author_id == CachedAccount.id,
+                        CachedPost.in_reply_to_account_id == str(my_account_id),
+                        CachedPost.meta_account_id == meta.id,
+                        CachedPost.fetched_by_identity_id == identity_id
+                    )
+                )
+            )
+            query = query.where(has_replied_to_me)
             query = query.order_by(desc(CachedAccount.last_status_at))
 
         elif filter_type == "mutuals":
-            query = query.where(
-                and_(
-                    CachedAccount.is_following == True,
-                    CachedAccount.is_followed_by == True,
-                )
-            )
+            query = query.where(CachedAccount.is_followed_by == True)
             query = query.order_by(desc(CachedAccount.last_status_at))
 
         elif filter_type == "bots":
-            query = query.where(
-                or_(
-                    CachedAccount.bot == True,
-                    CachedAccount.display_name.ilike("%bot%"),
-                    CachedAccount.acct.ilike("%bot%"),
-                )
-            )
+            # Strict flag check only
+            query = query.where(CachedAccount.bot == True)
             query = query.order_by(desc(CachedAccount.last_status_at))
 
         else:  # "all", "chatty", "broadcasters"
             query = query.order_by(desc(CachedAccount.last_status_at))
 
+        # Execute Query
         query = query.limit(100)
         res = await session.execute(query)
         accounts = res.scalars().all()
 
-        # For chatty/broadcasters, calculate reply ratios
+        # 4. Post-processing for Chatty / Broadcasters (Reply Ratios)
         if filter_type in ("chatty", "broadcasters"):
             accounts_with_stats = []
 
@@ -155,6 +168,7 @@ async def get_blog_roll(
             }
             for a in accounts
         ]
+
 
 
 @router.get("/{acct}")
