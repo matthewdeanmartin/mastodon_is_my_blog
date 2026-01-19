@@ -1,10 +1,10 @@
-import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { ApiService } from './api.service';
-import { CommonModule } from '@angular/common';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { LinkPreviewComponent } from './link.component';
-import { LinkPreviewService } from './link.service';
+import {Component, OnInit} from '@angular/core';
+import {ActivatedRoute, Router, RouterLink} from '@angular/router';
+import {ApiService} from './api.service';
+import {CommonModule} from '@angular/common';
+import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
+import {LinkPreviewComponent} from './link.component';
+import {LinkPreviewService} from './link.service';
 
 // Interfaces for Mastodon API shape (returned by Context)
 interface Account {
@@ -84,12 +84,15 @@ interface CommentsResponse {
       background: #e1e8ed;
       z-index: 0;
     }
+
     .post-wrapper {
       position: relative;
     }
   `]
 })
 export class PublicPostComponent implements OnInit {
+  private feedReady = false;
+  private targetId: string | null = null;
   loading = true;
   loadingNext = false;
   ancestors: Status[] = [];
@@ -110,21 +113,26 @@ export class PublicPostComponent implements OnInit {
     private api: ApiService,
     private sanitizer: DomSanitizer,
     private linkPreviewService: LinkPreviewService,
-  ) {}
+  ) {
+  }
 
   ngOnInit(): void {
     // Check if we are viewing a specific user's blog context
     this.route.queryParams.subscribe(params => {
       this.blogUserAcct = params['user'] || null;
-      this.currentFilter = params['filter'] || 'all';
+      this.currentFilter = params['filter'] || 'storms';
     });
 
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
-      if (id) {
-        this.loadPost(id);
-        this.loadFeedForNavigation();
-      }
+      if (!id) return;
+      this.targetId = id;
+
+      // Load the post details
+      this.loadPost(id);
+
+      // Load the surrounding feed (for Next/Prev navigation)
+      this.loadFeedForNavigation();
     });
   }
 
@@ -135,10 +143,10 @@ export class PublicPostComponent implements OnInit {
         this.ancestors = data.ancestors || [];
         this.target = data.target;
         this.descendantTree = this.buildTree(data.descendants || [], this.target!.id);
-        this.loading = false;
 
-        // Find current post index in the feed
-        this.currentPostIndex = this.allPosts.findIndex(p => p.id === id);
+        // Find current post index in the feed if feed is already loaded
+        this.recomputeIndex();
+        this.loading = false;
       },
       error: (err) => {
         console.error(err);
@@ -148,31 +156,52 @@ export class PublicPostComponent implements OnInit {
   }
 
   loadFeedForNavigation(): void {
-    // Load the current feed based on filter and user to enable Next Post
-    if (this.currentFilter === 'all') {
-      // For storms view, we need to flatten the structure
-      this.api.getStorms(this.blogUserAcct || undefined).subscribe({
-        next: (storms) => {
-          // Extract all post IDs from storms
-          this.allPosts = storms.map(storm => ({
-            id: storm.root.id,
-            created_at: storm.root.created_at
-          }));
+    this.feedReady = false;
+    this.allPosts = [];
+
+    // NEW: We must have an identity context to know which feed to load.
+    const identityId = this.api.getCurrentIdentityId();
+
+    if (!identityId) {
+        console.warn('No identity context available for navigation');
+        return;
+    }
+
+    const isStorms = this.currentFilter === 'storms' || this.currentFilter === 'all';
+
+    const onDone = () => {
+      this.feedReady = true;
+      this.recomputeIndex();
+    };
+
+    if (isStorms) {
+      // UPDATED: Pass identityId as first argument
+      this.api.getStorms(identityId, this.blogUserAcct || undefined).subscribe({
+        next: storms => {
+          this.allPosts = storms.map(storm => ({id: storm.root.id, created_at: storm.root.created_at}));
+          onDone();
         },
-        error: (err) => console.error('Failed to load feed for navigation', err)
+        error: () => onDone(),
       });
     } else {
-      // For other filters, use regular posts endpoint
-      this.api.getPublicPosts(this.currentFilter, this.blogUserAcct || undefined).subscribe({
-        next: (posts) => {
-          this.allPosts = posts.map(p => ({
-            id: p.id,
-            created_at: p.created_at
-          }));
+      // UPDATED: Pass identityId as first argument
+      this.api.getPublicPosts(identityId, this.currentFilter, this.blogUserAcct || undefined).subscribe({
+        next: posts => {
+          this.allPosts = posts.map(p => ({id: p.id, created_at: p.created_at}));
+          onDone();
         },
-        error: (err) => console.error('Failed to load feed for navigation', err)
+        error: () => onDone(),
       });
     }
+  }
+
+
+  private recomputeIndex(): void {
+    if (!this.targetId || this.allPosts.length === 0) {
+      this.currentPostIndex = -1;
+      return;
+    }
+    this.currentPostIndex = this.allPosts.findIndex(p => p.id === this.targetId);
   }
 
   nextPost(): void {
@@ -191,7 +220,7 @@ export class PublicPostComponent implements OnInit {
       queryParamsHandling: 'preserve'
     }).then(() => {
       this.loadingNext = false;
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({top: 0, behavior: 'smooth'});
     });
   }
 
@@ -209,7 +238,7 @@ export class PublicPostComponent implements OnInit {
     const map = new Map<string, TreeNode>();
 
     // Initialize all nodes
-    flatPosts.forEach(p => map.set(p.id, { post: p, children: [] }));
+    flatPosts.forEach(p => map.set(p.id, {post: p, children: []}));
 
     const roots: TreeNode[] = [];
 

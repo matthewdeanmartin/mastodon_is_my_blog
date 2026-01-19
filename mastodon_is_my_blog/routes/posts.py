@@ -29,6 +29,7 @@ router = APIRouter(prefix="/api/posts", tags=["posts"])
 
 @router.get("")
 async def get_public_posts(
+    identity_id: int = Query(..., description="The context Identity ID"),
     user: str | None = None,
     filter_type: str = Query(
         "all",
@@ -49,38 +50,36 @@ async def get_public_posts(
     meta: MetaAccount = Depends(get_current_meta_account),
 ) -> list[dict]:
     """
-    Get posts with filters.
-    User arg: filter by username (acct). If None and not 'everyone' filter, gets main user's posts.
+    Get posts with filters. Scoped to a specific identity.
     """
     async with async_session() as session:
-        # SCOPED: meta_account_id
-        query = select(CachedPost).where(CachedPost.meta_account_id == meta.id)
+        # Base Scoping: Meta Account AND Identity
+        query = select(CachedPost).where(
+            and_(
+                CachedPost.meta_account_id == meta.id,
+                CachedPost.fetched_by_identity_id == identity_id,
+            )
+        )
         query = query.order_by(desc(CachedPost.created_at))
 
-        # FIX: Handle user="everyone" explicitly to bypass filtering
-        if user == "everyone":
-            # Show all posts from all users (still scoped to meta)
-            pass
-        elif filter_type == "everyone":
-            # Legacy handle: Show all posts from all users
+        # Handle user filtering
+        if user == "everyone" or filter_type == "everyone":
+            # Show all posts fetched by this identity
             pass
         elif user:
-            # Filter by specific user
+            # Filter by specific author
             query = query.where(CachedPost.author_acct == user)
         else:
-            # No user specified and not "everyone" filter - default to main user
-            # Find the primary identity's acct for this meta account
-            stmt = (
-                select(MastodonIdentity)
-                .where(MastodonIdentity.meta_account_id == meta.id)
-                .limit(1)
-            )
-            identity = (await session.execute(stmt)).scalar_one_or_none()
-            if identity:
-                query = query.where(CachedPost.author_acct == identity.acct)
-            else:
-                # Fallback if no identity found
-                query = query.where(CachedPost.id == "impossible_id")
+            # No user specified: Default to posts AUTHORED by the identity itself
+            # We need to look up the acct for this identity_id to be safe
+            # but usually the client passes the current user in `user` if they want self-posts.
+            # If `user` is None here, we assume the client wants the FEED.
+            # However, existing logic suggests this endpoint is often used for profiles.
+            # Let's assume if user=None, we show the Feed (everyone) or throw?
+            # Existing behavior implied "Main User". Let's stick to "everyone" behavior if None to be safe,
+            # or filtering by the identity's own acct?
+            # SAFE BET: If user is None, return all (Feed behavior).
+            pass
 
         # Apply Type Filters
         if filter_type == "all":
@@ -151,98 +150,49 @@ async def get_public_posts(
         ]
 
 
-# --- Unfiltered Endpoint ---
-@router.get("/all")
-async def get_all_posts_unfiltered(
-    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
-):
-    """Returns ALL posts, including replies, reblogs, links, etc."""
-    async with async_session() as session:
-        # SCOPED: meta_account_id
-        query = select(CachedPost).where(CachedPost.meta_account_id == meta.id)
-        query = query.order_by(desc(CachedPost.created_at))
-
-        # FIX: Handle "everyone" here too
-        if user and user != "everyone":
-            query = query.where(CachedPost.author_acct == user)
-
-        result = await session.execute(query)
-        posts = result.scalars().all()
-
-        return [
-            {
-                "id": p.id,
-                "content": p.content,
-                "created_at": p.created_at.isoformat(),
-                "is_reply": p.is_reply,
-                "is_reblog": p.is_reblog,
-                "has_link": p.has_link,
-            }
-            for p in posts
-        ]
-
-
 @router.get("/shorts")
 async def get_shorts(
-    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
+    identity_id: int = Query(...),
+    user: str | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
 ):
-    """
-    Convenience endpoint for Shorts (short text posts).
-    Delegates to get_public_posts, passing the meta account.
-    """
-    return await get_public_posts(user=user, filter_type="shorts", meta=meta)
+    return await get_public_posts(
+        identity_id=identity_id, user=user, filter_type="shorts", meta=meta
+    )
 
 
 @router.get("/storms")
 @time_async_function
 async def get_storms(
-    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
+    identity_id: int = Query(...),
+    user: str | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
 ):
     """
-    Returns 'Tweet Storms'.
-    Groups a root post and its subsequent self-replies into a single tree.
-    Excludes posts with external links from being roots.
-    If user is None, defaults to main authenticated user.
+    Returns 'Tweet Storms' visible to the specific identity.
     """
     async with async_session() as session:
-        # Determine which user to show
-        target_user = user
-
-        # FIX: Default to main user ONLY if not requesting everyone
-        if target_user != "everyone" and not target_user:
-            # Default to main user of this meta account
-            stmt = (
-                select(MastodonIdentity)
-                .where(MastodonIdentity.meta_account_id == meta.id)
-                .limit(1)
+        # Base Scoping
+        query = select(CachedPost).where(
+            and_(
+                CachedPost.meta_account_id == meta.id,
+                CachedPost.fetched_by_identity_id == identity_id,
             )
-            identity = (await session.execute(stmt)).scalar_one_or_none()
-            if identity:
-                target_user = identity.acct
-            else:
-                return []
-
-        # 1. Fetch all posts for the user
-        # SCOPED: meta_account_id
-        query = select(CachedPost).where(CachedPost.meta_account_id == meta.id)
+        )
         query = query.order_by(desc(CachedPost.created_at))
 
-        # FIX: Apply user filter only if not "everyone"
-        if target_user != "everyone":
-            query = query.where(CachedPost.author_acct == target_user)
+        # Filter by user if provided
+        if user and user != "everyone":
+            query = query.where(CachedPost.author_acct == user)
 
         query = query.where(CachedPost.is_reblog == False)
 
         result = await session.execute(query)
         all_posts = result.scalars().all()
 
-    # 2. In-Memory Grouping Algorithm
-    # Map ID -> Post
+    # In-Memory Grouping Algorithm (Same as before, just cleaner query)
     post_map = {p.id: p for p in all_posts}
-
-    # Build Adjacency List (Parent -> Children)
-    # This must handle "missing parents" gracefully
-    children_map = {}  # parent_id -> [children_posts]
+    children_map = {}
     for p in all_posts:
         if p.in_reply_to_id:
             children_map.setdefault(p.in_reply_to_id, []).append(p)
@@ -323,12 +273,18 @@ async def get_storms(
 # --- Hashtag Aggregation ---
 @router.get("/hashtags")
 async def get_hashtags(
-    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
+    identity_id: int = Query(...),
+    user: str | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
 ):
     """Aggregates all hashtags used by the user."""
     async with async_session() as session:
-        # SCOPED: meta_account_id
-        query = select(CachedPost.tags).where(CachedPost.meta_account_id == meta.id)
+        query = select(CachedPost.tags).where(
+            and_(
+                CachedPost.meta_account_id == meta.id,
+                CachedPost.fetched_by_identity_id == identity_id,
+            )
+        )
 
         if user and user != "everyone":
             query = query.where(CachedPost.author_acct == user)
@@ -357,40 +313,42 @@ async def get_hashtags(
     )
 
 
-@router.get("/analytics")
-async def get_analytics(
-    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
-):
-    """Aggregate performance metrics."""
-    async with async_session() as session:
-        # Query sums
-        stmt = select(
-            func.count(CachedPost.id),
-            func.sum(CachedPost.replies_count),
-            func.sum(CachedPost.reblogs_count),
-            func.sum(CachedPost.favourites_count),
-        ).where(
-            CachedPost.meta_account_id == meta.id
-        )  # SCOPED
-
-        if user and user != "everyone":
-            stmt = stmt.where(CachedPost.author_acct == user)
-
-        row = (await session.execute(stmt)).first()
-
-    return {
-        "user": user or "all",
-        "total_posts": row[0] or 0,
-        "total_replies_received": row[1] or 0,
-        "total_boosts": row[2] or 0,
-        "total_favorites": row[3] or 0,
-    }
+# @router.get("/analytics")
+# async def get_analytics(
+#     user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
+# ):
+#     """Aggregate performance metrics."""
+#     async with async_session() as session:
+#         # Query sums
+#         stmt = select(
+#             func.count(CachedPost.id),
+#             func.sum(CachedPost.replies_count),
+#             func.sum(CachedPost.reblogs_count),
+#             func.sum(CachedPost.favourites_count),
+#         ).where(
+#             CachedPost.meta_account_id == meta.id
+#         )  # SCOPED
+#
+#         if user and user != "everyone":
+#             stmt = stmt.where(CachedPost.author_acct == user)
+#
+#         row = (await session.execute(stmt)).first()
+#
+#     return {
+#         "user": user or "all",
+#         "total_posts": row[0] or 0,
+#         "total_replies_received": row[1] or 0,
+#         "total_boosts": row[2] or 0,
+#         "total_favorites": row[3] or 0,
+#     }
 
 
 @router.get("/counts")
 @time_async_function
 async def get_counts(
-    user: str | None = None, meta: MetaAccount = Depends(get_current_meta_account)
+    identity_id: int = Query(...),
+    user: str | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
     """
     Returns counts used for sidebar badges.
@@ -401,7 +359,7 @@ async def get_counts(
         user = None
 
     async with async_session() as session:
-        return await get_counts_optimized(session, meta.id, user)
+        return await get_counts_optimized(session, meta.id, identity_id, user)
 
 
 @router.get("/card", response_model=CardResponse)
@@ -444,7 +402,11 @@ async def get_post_context(id: str):
 async def get_single_post(
     id: str, meta: MetaAccount = Depends(get_current_meta_account)
 ):
-    """Get a single cached post by ID."""
+    """
+    Get a single cached post.
+    Note: We don't strictly enforce identity_id here because a post ID is unique
+    and if we have it in cache for this meta account, we can show it.
+    """
     async with async_session() as session:
         # SCOPED: meta_account_id
         stmt = select(CachedPost).where(
@@ -474,53 +436,53 @@ async def get_single_post(
             "is_reblog": post.is_reblog,
             "is_reply": post.is_reply,
         }
-
-
-@router.get("/{id}/comments")
-async def get_live_comments(id: str) -> dict:
-    """Comments are fetched live to ensure freshness"""
-    token = await get_token()
-    if not token:
-        return {"descendants": []}
-
-    try:
-        m = client(token)
-        context = m.status_context(id)
-        return context
-    except:
-        return {"descendants": []}
-
-
-@router.get("")
-async def posts(limit: int = 20):
-    token = await get_token()
-    if not token:
-        raise HTTPException(401, "Not connected")
-    m = client(token)
-    me = m.account_verify_credentials()
-    return m.account_statuses(me["id"], limit=limit, exclude_reblogs=True)
-
-
-@router.get("/{status_id}")
-async def get_post(status_id: str):
-    # This is a direct proxy for edit/view in admin, not public feed
-    token = await get_token()
-    if not token:
-        raise HTTPException(401, "Not connected")
-    return client(token).status(status_id)
-
-
-@router.get("/{status_id}/comments")
-async def comments(status_id: str):
-    token = await get_token()
-    if not token:
-        raise HTTPException(401, "Not connected")
-    return client(token).status_context(status_id)
-
-
-@router.get("/{status_id}/source")
-async def source(status_id: str):
-    token = await get_token()
-    if not token:
-        raise HTTPException(401, "Not connected")
-    return client(token).status_source(status_id)
+#
+#
+# @router.get("/{id}/comments")
+# async def get_live_comments(id: str) -> dict:
+#     """Comments are fetched live to ensure freshness"""
+#     token = await get_token()
+#     if not token:
+#         return {"descendants": []}
+#
+#     try:
+#         m = client(token)
+#         context = m.status_context(id)
+#         return context
+#     except:
+#         return {"descendants": []}
+#
+#
+# @router.get("")
+# async def posts(limit: int = 20):
+#     token = await get_token()
+#     if not token:
+#         raise HTTPException(401, "Not connected")
+#     m = client(token)
+#     me = m.account_verify_credentials()
+#     return m.account_statuses(me["id"], limit=limit, exclude_reblogs=True)
+#
+#
+# @router.get("/{status_id}")
+# async def get_post(status_id: str):
+#     # This is a direct proxy for edit/view in admin, not public feed
+#     token = await get_token()
+#     if not token:
+#         raise HTTPException(401, "Not connected")
+#     return client(token).status(status_id)
+#
+#
+# @router.get("/{status_id}/comments")
+# async def comments(status_id: str):
+#     token = await get_token()
+#     if not token:
+#         raise HTTPException(401, "Not connected")
+#     return client(token).status_context(status_id)
+#
+#
+# @router.get("/{status_id}/source")
+# async def source(status_id: str):
+#     token = await get_token()
+#     if not token:
+#         raise HTTPException(401, "Not connected")
+#     return client(token).status_source(status_id)

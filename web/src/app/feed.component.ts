@@ -7,6 +7,8 @@ import { CommonModule } from '@angular/common';
 import { DomSanitizer } from '@angular/platform-browser';
 import { LinkPreviewComponent } from './link.component';
 import { LinkPreviewService } from './link.service';
+import { combineLatest } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-public-feed',
@@ -15,12 +17,15 @@ import { LinkPreviewService } from './link.service';
   templateUrl: 'feed.component.html',
 })
 export class PublicFeedComponent implements OnInit {
-  items: any[] = []; // Can be Posts or Storms
+  items: any[] = [];
   loading = true;
   isStormView = false;
   currentFilter = 'storms';
   currentUser: string | undefined;
-  syncingUser = false; // Add this flag to prevent infinite loops
+  syncingUser = false;
+
+  // Track context
+  currentIdentityId: number | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -30,42 +35,39 @@ export class PublicFeedComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.route.queryParams.subscribe((params) => {
-      // Default to 'storms' if no filter is provided
-      const newFilter = params['filter'] || 'storms';
-      const userParam = params['user'] || undefined;
+    // Combine Route Params with Identity State
+    combineLatest([this.route.queryParams, this.api.identityId$])
+      .subscribe(([params, identityId]) => {
+          this.currentIdentityId = identityId;
 
-      // FIX: Do NOT convert 'everyone' to undefined.
-      // We must pass 'everyone' to the API so it knows to disable the default "My Blog" filter.
-      const newUser = userParam;
+          if (!identityId) {
+              this.loading = true; // Wait for identity
+              return;
+          }
 
-      // Check if anything actually changed
-      const filterChanged = newFilter !== this.currentFilter;
-      const userChanged = newUser !== this.currentUser;
+          const newFilter = params['filter'] || 'storms';
+          const newUser = params['user'] || undefined; // "everyone" passes through as string here
 
-      this.currentFilter = newFilter;
-      this.currentUser = newUser;
-
-      // Reset sync flag when navigation happens
-      if (filterChanged || userChanged) {
-        this.syncingUser = false;
-        this.load(this.currentFilter, this.currentUser);
-      }
-    });
+          // Reload if parameters changed or just initialized
+          if (newFilter !== this.currentFilter || newUser !== this.currentUser || identityId) {
+              this.currentFilter = newFilter;
+              this.currentUser = newUser;
+              this.syncingUser = false;
+              this.load(this.currentFilter, this.currentUser, identityId);
+          }
+      });
   }
 
-  load(filter: string, user?: string): void {
+  load(filter: string, user: string | undefined, identityId: number): void {
     this.loading = true;
     this.items = [];
 
     // Define the success handler to reuse
     const handleSuccess = (data: any[]) => {
       this.loading = false;
-
-      // If we got no data, we are viewing a specific user, and we haven't tried syncing yet...
-      // FIX: Ensure we don't try to sync the virtual 'everyone' user
+      // Auto-sync logic: If specific user view is empty, try syncing
       if (data.length === 0 && user && user !== 'everyone' && filter !== 'everyone' && !this.syncingUser) {
-        this.attemptUserSync(user);
+        this.attemptUserSync(user, identityId);
       } else {
         this.items = data;
       }
@@ -76,30 +78,29 @@ export class PublicFeedComponent implements OnInit {
     // If 'storms' (or legacy 'all'), use the Storms endpoint for the threaded view
     if (filter === 'storms' || filter === 'all') {
       this.isStormView = true;
-      this.api.getStorms(user).subscribe({ next: handleSuccess, error: handleError });
+      this.api.getStorms(identityId, user).subscribe({ next: handleSuccess, error: handleError });
     }
     // If 'shorts', use the new Shorts endpoint for flat view
     else if (filter === 'shorts') {
       this.isStormView = false;
-      this.api.getShorts(user).subscribe({ next: handleSuccess, error: handleError });
+      this.api.getShorts(identityId, user).subscribe({ next: handleSuccess, error: handleError });
     }
     else {
       // Otherwise use the standard flat list with the specific filter
       this.isStormView = false;
-      this.api.getPublicPosts(filter, user).subscribe({ next: handleSuccess, error: handleError });
+      this.api.getPublicPosts(identityId, filter, user).subscribe({ next: handleSuccess, error: handleError });
     }
   }
 
-  attemptUserSync(acct: string): void {
+  attemptUserSync(acct: string, identityId: number): void {
     this.syncingUser = true;
-    this.loading = true; // Keep loading spinner up
+    this.loading = true;
 
     // We only try this once per navigation to avoid loops
-    this.api.syncAccount(acct).subscribe({
+     this.api.syncAccount(acct, identityId).subscribe({
       next: (res) => {
-        // Sync finished, try loading the feed again
-        // We leave syncingUser=true so we don't try again if it's still empty
-        this.load(this.currentFilter, acct);
+        // Retry load
+        this.load(this.currentFilter, acct, identityId);
       },
       error: (err) => {
         console.error('Failed to sync user', err);
@@ -132,17 +133,13 @@ export class PublicFeedComponent implements OnInit {
     if (!acct) return '#';
 
     const parts = acct.split('@');
-    const username = parts[0];
-    const instance = parts[1] || 'mastodon.social';
-
-    return `https://${instance}/@${username}/${post.id}`;
+    return `https://${parts[1] || 'mastodon.social'}/@${parts[0]}/${post.id}`;
   }
 
   /**
    * Extract URLs from post content for link previews
    */
   getPostUrls(post: any): string[] {
-    const content = post.content || '';
-    return this.linkPreviewService.extractUrls(content);
+    return this.linkPreviewService.extractUrls(post.content || '');
   }
 }

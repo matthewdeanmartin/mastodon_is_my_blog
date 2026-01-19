@@ -4,6 +4,12 @@ When writing Angular, never inline the html template except when the html is 10 
 
 Always add type annotations.
 
+## Error 'Handling'
+
+- Don't hide exceptions with excessive error handling, let them raise.
+- If you are catching Exception, you don't have enough info to know if you are catching a known event or hiding a bug.
+- Never paper over a bug with misguided error handling that hides the error from the users and the developer.
+
 ## TypeScript Best Practices
 
 - Use strict type checking

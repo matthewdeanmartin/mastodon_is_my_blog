@@ -1,26 +1,26 @@
 <div class="identity-bar">
   <div class="identity-label">
-    <span class="meta-id" title="Meta Account ID">ID: {{ currentMetaId || 'Default' }}</span>
+    <span class="meta-id" title="Meta Account ID">Meta: {{ currentMetaId || 'Default' }}</span>
     <button class="switch-btn" (click)="switchMetaAccount()">Switch</button>
+  </div>
+
+  <div style="margin-left: 10px; font-size: 0.85rem; color: #94a3b8; margin-right: 10px;">
+      Context:
   </div>
 
   <div class="identity-list">
     <button
-      class="identity-chip"
-      [class.active]="isViewingMainUser()"
-      (click)="viewMainUser()">
-      <span class="icon">🏠</span>
-      <span>Main</span>
-    </button>
-
-    <button
       *ngFor="let id of identities"
       class="identity-chip"
-      [class.active]="currentUser === id.acct"
-      (click)="selectIdentity(id.acct)">
+      [class.active]="activeIdentityId === id.id"
+      (click)="setContextIdentity(id.id)">
       <span class="icon">👤</span>
       <span>{{ id.acct }}</span>
     </button>
+
+    <div *ngIf="identities.length === 0" style="color: #64748b; font-style: italic;">
+        No identities found. Add one in Admin.
+    </div>
   </div>
 </div>
 
@@ -77,22 +77,25 @@
     <hr>
 
     <div class="muted" style="margin-bottom:10px;">BLOG ROLL FILTERS</div>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='top_friends'" (click)="setBlogFilter('top_friends')">Top Friends</button>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='mutuals'" (click)="setBlogFilter('mutuals')">Mutuals</button>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='chatty'" (click)="setBlogFilter('chatty')">Chatty</button>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='broadcasters'" (click)="setBlogFilter('broadcasters')">Broadcasters</button>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='bots'" (click)="setBlogFilter('bots')">Bots</button>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='all'" (click)="setBlogFilter('all')">All</button>
+    <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px;">
+        <button class="nav-btn" style="width: auto; padding: 6px 10px; font-size: 0.8rem;" [class.active]="currentBlogFilter==='top_friends'" (click)="setBlogFilter('top_friends')">Top</button>
+        <button class="nav-btn" style="width: auto; padding: 6px 10px; font-size: 0.8rem;" [class.active]="currentBlogFilter==='mutuals'" (click)="setBlogFilter('mutuals')">Mutuals</button>
+        <button class="nav-btn" style="width: auto; padding: 6px 10px; font-size: 0.8rem;" [class.active]="currentBlogFilter==='all'" (click)="setBlogFilter('all')">All</button>
+    </div>
 
     <hr>
 
     <div class="muted" style="margin-bottom:10px;">BLOG ROLL</div>
+    <div *ngIf="blogRoll.length === 0" class="muted" style="font-style: italic; font-size: 0.85rem;">
+        No friends found for this identity.
+    </div>
+
     <div *ngFor="let acc of blogRoll" style="margin-bottom: 8px;">
       <a [routerLink]="['/']"
          [queryParams]="{user: acc.acct}"
          (click)="prefetchNextBlogrollUser(acc.acct)"
          queryParamsHandling="merge"
-         [style.background]="isActiveUser(acc.acct) ? '#e0e7ff' : (isRecentlyViewed(acc.acct) ? '#A9A9A9' : 'transparent')"
+         [style.background]="isActiveUser(acc.acct) ? '#e0e7ff' : (isRecentlyViewed(acc.acct) ? '#f3f4f6' : 'transparent')"
          [style.border-left]="isActiveUser(acc.acct) ? '3px solid #6366f1' : 'none'"
          [style.padding]="'8px'"
          [style.border-radius]="'4px'"

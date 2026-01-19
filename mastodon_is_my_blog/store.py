@@ -99,7 +99,9 @@ class CachedAccount(Base):
     __tablename__ = "cached_accounts"
 
     # Identity ID to the Primary Key
-    id: Mapped[str] = mapped_column(String, primary_key=True) # The ID on the source instance
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True
+    )  # The ID on the source instance
     meta_account_id: Mapped[int] = mapped_column(
         ForeignKey("meta_accounts.id"), primary_key=True
     )

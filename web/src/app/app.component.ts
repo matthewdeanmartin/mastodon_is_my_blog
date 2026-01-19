@@ -1,9 +1,10 @@
 // src/app/app.component.ts
-import {Component, OnInit} from '@angular/core';
+import {Component, OnDestroy, OnInit} from '@angular/core';
 import {CommonModule} from '@angular/common';
-import {RouterLink, RouterOutlet, Router, ActivatedRoute} from '@angular/router';
+import {ActivatedRoute, Router, RouterLink, RouterOutlet} from '@angular/router';
 import {ApiService} from './api.service';
-import {filter} from 'rxjs/operators';
+import {distinctUntilChanged, map, shareReplay, switchMap, takeUntil, tap, catchError} from 'rxjs/operators';
+import {of, Subject, combineLatest} from 'rxjs';
 
 interface SidebarCounts {
   storms: number;
@@ -25,36 +26,29 @@ interface SidebarCounts {
   imports: [CommonModule, RouterOutlet, RouterLink],
   templateUrl: './app.component.html',
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
+  private readonly destroy$ = new Subject<void>();
   currentFilter: string = 'storms';
   currentBlogFilter: string = 'all';
 
   // Identities State
   identities: any[] = [];
   currentMetaId: string | null = null;
+  activeIdentityId: number | null = null; // The ID of the identity currently providing context
 
   // Navigation State
-  currentUser: string | null = null;
+  currentUser: string | null = null; // The acct string of the user being VIEWED
   viewingEveryone: boolean = false;
 
   blogRoll: any[] = [];
-  mainUser: any = null; // Store the authenticated user's info
-  activeUserInfo: any = null; // Store the currently viewed user's info
+  mainUser: any = null; // The "Profile" of the currently connected user
+  activeUserInfo: any = null; // The "Profile" of the user we are viewing
   serverDown: boolean = false;
   recentlyViewed: Set<string> = new Set();
 
   counts: SidebarCounts = {
-    storms: 0,
-    shorts: 0,
-    news: 0,
-    software: 0,
-    pictures: 0,
-    videos: 0,
-    discussions: 0,
-    links: 0,
-    questions: 0,
-    everyone: 0,
-    reposts: 0
+    storms: 0, shorts: 0, news: 0, software: 0, pictures: 0, videos: 0,
+    discussions: 0, links: 0, questions: 0, everyone: 0, reposts: 0
   };
 
   constructor(
@@ -62,6 +56,12 @@ export class AppComponent implements OnInit {
     private router: Router,
     private route: ActivatedRoute,
   ) {
+  }
+
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   ngOnInit(): void {
@@ -72,18 +72,34 @@ export class AppComponent implements OnInit {
       // this.serverDown = isDown;
     });
 
-    // 1. Fetch Identities (Top Header) - Scoped to Meta Account
-    this.api.getIdentities().subscribe({
+    // 1. Fetch Identities & Initialize Context
+    this.api.getIdentities().pipe(takeUntil(this.destroy$)).subscribe({
       next: (ids) => {
         this.identities = ids;
+
+        // Auto-select identity if none selected or invalid
+        const storedId = this.api.getStoredIdentityId();
+        const validStored = storedId && ids.find(i => i.id === storedId);
+
+        if (validStored) {
+            this.setContextIdentity(storedId!);
+        } else if (ids.length > 0) {
+            this.setContextIdentity(ids[0].id);
+        }
       },
       error: (e) => console.log('Could not fetch identities', e)
     });
 
-    // 1. Fetch Initial Blog Roll
-    this.loadBlogRoll();
+    // 2. React to Identity Changes
+    this.api.identityId$.pipe(takeUntil(this.destroy$)).subscribe(id => {
+        this.activeIdentityId = id;
+        if (id) {
+            this.loadBlogRoll();
+            this.refreshCounts();
+        }
+    });
 
-    // 2. Get Main User Info
+    // 3. Get Main User Info (For "My Blog" default view)
     this.api.getAdminStatus().subscribe((status) => {
       if (status.connected && status.current_user) {
         this.mainUser = status.current_user;
@@ -95,79 +111,133 @@ export class AppComponent implements OnInit {
       }
     });
 
-    // 3. Listen to query param changes to update active user display
-    this.route.queryParams.subscribe((params) => {
-      this.currentUser = params['user'] || null;
-      this.currentFilter = params['filter'] || 'storms';
-      this.viewingEveryone = params['user'] === 'everyone';
+    const selection$ = this.route.queryParams.pipe(
+      map(params => {
+        const user = (params['user'] as string | undefined) ?? null;
+        const filter = (params['filter'] as string | undefined) ?? 'storms';
+        const blogFilter = (params['blog_filter'] as string | undefined) ?? this.currentBlogFilter;
 
-      // Check for blog filter in URL (optional, but good for linking)
-      // If we want to persist blog filter in URL, we'd read it here.
-      // For now, let's keep it simple or read it if present.
-      if (params['blog_filter'] && params['blog_filter'] !== this.currentBlogFilter) {
-          this.currentBlogFilter = params['blog_filter'];
-          this.loadBlogRoll();
+        const scope = user === 'everyone'
+          ? ({kind: 'everyone'} as const)
+          : user
+            ? ({kind: 'user', acct: user} as const)
+            : ({kind: 'main'} as const);
+
+        return {scope, filter, blogFilter};
+      }),
+      distinctUntilChanged((a, b) =>
+        JSON.stringify(a) === JSON.stringify(b)
+      ),
+      shareReplay(1)
+    );
+
+    selection$.pipe(takeUntil(this.destroy$)).subscribe(sel => {
+      this.currentFilter = sel.filter;
+      if (sel.blogFilter !== this.currentBlogFilter) {
+        this.currentBlogFilter = sel.blogFilter;
+        this.loadBlogRoll();
       }
 
-      // Track recently viewed accounts
-      if (this.currentUser && this.currentUser !== 'everyone') {
-        this.recentlyViewed.add(this.currentUser);
-        this.fetchActiveUserInfo(this.currentUser);
-      } else {
-        // Main user or Everyone view
-        this.activeUserInfo = this.currentUser === 'everyone' ? null : this.mainUser;
-        this.refreshCounts();
+      this.viewingEveryone = sel.scope.kind === 'everyone';
+      this.currentUser = sel.scope.kind === 'user' ? sel.scope.acct : (sel.scope.kind === 'everyone' ? 'everyone' : null);
+
+      if (sel.scope.kind === 'user') {
+        this.recentlyViewed.add(sel.scope.acct);
       }
     });
-  }
 
-  // Updated to handle 404s by attempting to sync
-  fetchActiveUserInfo(acct: string, retry: boolean = true) {
-    this.api.getAccountInfo(acct).subscribe({
-      next: (account) => {
-        this.activeUserInfo = account;
-        this.refreshCounts();
-      },
-      error: () => {
-        if (retry) {
-          console.log(`User ${acct} not found in cache. Attempting sync...`);
-          // If we fail to get info, try syncing the account once
-          this.api.syncAccount(acct).subscribe({
-            next: () => {
-              // If sync succeeds, try fetching info again (without retry this time)
-              this.fetchActiveUserInfo(acct, false);
-            },
-            error: (err) => {
-              console.error(`Failed to sync user ${acct}`, err);
-              this.activeUserInfo = null;
-              this.refreshCounts();
-            }
-          });
-        } else {
-          // If we already retried and failed, give up
-          this.activeUserInfo = null;
-          this.refreshCounts();
+    // 5. Active User Info Pipeline
+    combineLatest([selection$, this.api.identityId$]).pipe(
+      takeUntil(this.destroy$),
+      switchMap(([sel, identityId]) => {
+        if (!identityId) return of(null);
+
+        if (sel.scope.kind === 'everyone') {
+          return of(null);
         }
-      },
+        if (sel.scope.kind === 'main') {
+          return of(this.mainUser);
+        }
+
+        // kind === 'user'
+        const acct = sel.scope.acct;
+        return this.fetchActiveUserInfo$(acct, identityId);
+      })
+    ).subscribe(active => {
+      this.activeUserInfo = active;
+      this.refreshCounts();
     });
   }
 
+  // --- Context Identity Management ---
+
+  setContextIdentity(id: number) {
+      this.api.setIdentityId(id);
+      // Optional: Navigate to home when context switches to avoid confusion?
+      // this.router.navigate(['/']);
+  }
+
+  // --- Data Fetching ---
+
+  private fetchActiveUserInfo$(acct: string, identityId: number) {
+    return this.api.getAccountInfo(acct, identityId).pipe(
+      catchError(() =>
+        this.api.syncAccountDedup(acct, identityId).pipe(
+          switchMap(() => this.api.getAccountInfo(acct, identityId)),
+          catchError(() => of(null))
+        )
+      )
+    );
+  }
 
   loadBlogRoll(): void {
-    this.api.getBlogRoll(this.currentBlogFilter).subscribe((accounts) => {
+    if (!this.activeIdentityId) return;
+    this.api.getBlogRoll(this.activeIdentityId, this.currentBlogFilter).subscribe((accounts) => {
       this.blogRoll = accounts;
     });
   }
 
-  // --- Identity Switching ---
+  refreshCounts(): void {
+    if (!this.activeIdentityId) return;
+
+    let userForCounts = this.currentUser;
+
+    if (!userForCounts && this.mainUser && !this.viewingEveryone) {
+      userForCounts = this.mainUser.acct; // Default to filtering by self
+    }
+
+    // API expects "everyone" string if we want full feed
+    const effectiveUser = this.viewingEveryone ? 'everyone' : userForCounts;
+
+    this.api.getCounts(this.activeIdentityId, effectiveUser || undefined).subscribe({
+      next: (c) => {
+        this.counts = {
+          storms: Number(c.storms || 0),
+          shorts: Number(c.shorts || 0),
+          news: Number(c.news || 0),
+          software: Number(c.software || 0),
+          pictures: Number(c.pictures || 0),
+          videos: Number(c.videos || 0),
+          discussions: Number(c.discussions || 0),
+          links: Number(c.links || 0),
+          questions: Number(c.questions || 0),
+          everyone: Number(c.everyone || 0),
+          reposts: Number(c.reposts || 0),
+        };
+      },
+      error: (e) => console.log(e),
+    });
+  }
+
+  // --- Actions ---
 
   selectIdentity(acct: string) {
-    // Navigate to root with this user selected
-    // Note: If acct is the same as mainUser, we might want to clear params?
-    // For now, explicit selection is safer.
-    this.router.navigate(['/'], {
-      queryParams: {user: acct, filter: 'storms'}
-    });
+      // NOTE: This legacy method selected a user to VIEW.
+      // We now prefer clicking the chip to set CONTEXT.
+      // But if we want to "view this identity's blog" specifically:
+      this.router.navigate(['/'], {
+          queryParams: {user: acct, filter: 'storms'}
+      });
   }
 
   /**
@@ -179,46 +249,20 @@ export class AppComponent implements OnInit {
     const current = this.api.getMetaAccountId() || '';
     const newId = prompt('Enter Meta Account ID (integer) to switch context:', current);
 
-    // Check if user clicked cancel (null) or didn't change anything
     if (newId !== null && newId !== current) {
       if (newId.trim() === '') {
-        this.api.logout(); // Clear to default
+        this.api.logout();
       } else {
-        // 1. Manually set localStorage so the interceptor picks up the NEW id
-        localStorage.setItem('meta_account_id', newId);
-
-        // 2. Check status BEFORE forcing a sync
-        this.api.getAdminStatus().subscribe({
-          next: (status) => {
-            // If connected but MISSING user data, we must sync.
-            if (status.connected && !status.current_user) {
-              console.log('New identity connected but empty. Syncing...');
-              this.api.triggerSync(true).subscribe({
-                next: () => window.location.reload(),
-                error: () => window.location.reload()
-              });
-            } else {
-              // If not connected (needs auth) or already has data, just reload.
-              window.location.reload();
-            }
-          },
-          error: (err) => {
-            console.error('Sync failed during switch', err);
-            // Reload anyway so the user is at least in the new context
-            window.location.reload();
-          }
-        });
+        this.api.setMetaAccountId(newId);
+        window.location.reload();
       }
     }
   }
 
   // --- Navigation Actions ---
-
   setFilter(filter: string): void {
-    this.currentFilter = filter;
-    // Keep 'everyone' status if it's active, otherwise keep user
     this.router.navigate(['/'], {
-      queryParams: {filter: filter},
+      queryParams: {filter},
       queryParamsHandling: 'merge',
     });
   }
@@ -229,32 +273,29 @@ export class AppComponent implements OnInit {
     // Optional: Add to URL so refresh works
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { blog_filter: filter },
+      queryParams: {blog_filter: filter},
       queryParamsHandling: 'merge',
     });
   }
 
   viewEveryone(): void {
-    this.viewingEveryone = true;
-    this.currentFilter = 'storms';
-    // Navigate with special 'everyone' user to signal server to show all users
     this.router.navigate(['/'], {
-      queryParams: {user: 'everyone', filter: this.currentFilter},
+      queryParams: {user: 'everyone', filter: 'storms'},
     });
   }
 
+
   viewMainUser(): void {
-    this.viewingEveryone = false;
-    // Clear the user param to return to main user's view
     this.router.navigate(['/'], {
-      queryParams: {filter: this.currentFilter},
+      queryParams: {user: null},
+      queryParamsHandling: 'merge',
     });
-    // Scroll to top
     window.scrollTo({top: 0, behavior: 'smooth'});
   }
 
+  // Logic to jump to next blogroll user (requires context identity)
   viewNextBlogrollUser(): void {
-    if (this.blogRoll.length === 0) return;
+    if (this.blogRoll.length === 0 || !this.activeIdentityId) return;
 
     // Find current index
     const currentIndex = this.currentUser
@@ -282,7 +323,7 @@ export class AppComponent implements OnInit {
    * and triggers a background sync to populate their posts.
    */
   prefetchNextBlogrollUser(currentAcct: string): void {
-    if (this.blogRoll.length === 0) return;
+    if (this.blogRoll.length === 0 || !this.activeIdentityId) return;
 
     const currentIndex = this.blogRoll.findIndex(acc => acc.acct === currentAcct);
     if (currentIndex === -1) return;
@@ -291,52 +332,15 @@ export class AppComponent implements OnInit {
     const userToPrefetch = this.blogRoll[nextIndex];
 
     if (userToPrefetch) {
-      console.log(`Prefetching data for next user: ${userToPrefetch.acct}`);
-      // Use syncAccount to ensure the backend actually fetches data from Mastodon
-      // if it's missing. getPublicPosts only reads what is already cached.
-      this.api.syncAccount(userToPrefetch.acct).subscribe({
+      this.api.syncAccount(userToPrefetch.acct, this.activeIdentityId).subscribe({
         next: () => console.log(`Prefetch complete for ${userToPrefetch.acct}`),
         error: (err) => console.error(`Prefetch failed for ${userToPrefetch.acct}`, err)
       });
     }
   }
 
-  // --- Helpers ---
-
   isViewingMainUser(): boolean {
     return !this.currentUser && !this.viewingEveryone;
-  }
-
-  refreshCounts(): void {
-    // Determine which user to get counts for
-    let userForCounts = this.currentUser;
-
-    // If no current user (viewing main blog), use main user's acct
-    if (!userForCounts && this.mainUser && !this.viewingEveryone) {
-      userForCounts = this.mainUser.acct;
-    }
-
-    // Pass 'everyone' explicitly if viewing everyone, otherwise the specific user or undefined (for default)
-    const effectiveUser = this.viewingEveryone ? 'everyone' : userForCounts;
-
-    this.api.getCounts(effectiveUser || undefined).subscribe({
-      next: (c) => {
-        this.counts = {
-          storms: Number(c.storms || 0),
-          shorts: Number(c.shorts || 0),
-          news: Number(c.news || 0),
-          software: Number(c.software || 0),
-          pictures: Number(c.pictures || 0),
-          videos: Number(c.videos || 0),
-          discussions: Number(c.discussions || 0),
-          links: Number(c.links || 0),
-          questions: Number(c.questions || 0),
-          everyone: Number(c.everyone || 0),
-          reposts: Number(c.reposts || 0),
-        };
-      },
-      error: (e) => console.log(e),
-    });
   }
 
   isRecentlyViewed(acct: string): boolean {
@@ -346,5 +350,4 @@ export class AppComponent implements OnInit {
   isActiveUser(acct: string): boolean {
     return this.currentUser === acct;
   }
-
 }

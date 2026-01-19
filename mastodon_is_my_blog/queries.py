@@ -1,4 +1,4 @@
-# mastodon_is_my_blog/main.py
+# mastodon_is_my_blog/queries.py
 import json
 import logging
 from datetime import datetime, timedelta, timezone
@@ -69,20 +69,25 @@ def to_naive_utc(dt: datetime | None) -> datetime | None:
 
 
 async def _upsert_account(
-    session: AsyncSession, meta_id: int,
-        identity_id: int,  account_data: dict, **overrides
-):
+    session: AsyncSession,
+    meta_id: int,
+    identity_id: int,
+    account_data: dict,
+    **overrides,
+) -> CachedAccount:
     """
     Helper to create or update a CachedAccount from Mastodon API data.
+
+    IMPORTANT: Uses composite primary key (id, meta_account_id, mastodon_identity_id)
     """
     acc_id = str(account_data["id"])
 
-    # Check for existing account within THIS meta_account's view
+    # Check for existing account with THIS meta_account AND identity
     stmt = select(CachedAccount).where(
         and_(
             CachedAccount.id == acc_id,
             CachedAccount.meta_account_id == meta_id,
-            CachedAccount.mastodon_identity_id == identity_id
+            CachedAccount.mastodon_identity_id == identity_id,
         )
     )
     existing = (await session.execute(stmt)).scalar_one_or_none()
@@ -112,10 +117,7 @@ async def _upsert_account(
 
     if not existing:
         new_acc = CachedAccount(
-            id=acc_id,
-            meta_account_id=meta_id,
-            mastodon_identity_id=identity_id,
-            **data
+            id=acc_id, meta_account_id=meta_id, mastodon_identity_id=identity_id, **data
         )
         session.add(new_acc)
         return new_acc
@@ -125,7 +127,7 @@ async def _upsert_account(
         return existing
 
 
-async def sync_all_identities(meta: MetaAccount, force: bool = False):
+async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[dict]:
     """Iterates through all identities for the meta account and syncs them."""
     async with async_session() as session:
         # Re-fetch identities to be safe
@@ -145,7 +147,9 @@ async def sync_all_identities(meta: MetaAccount, force: bool = False):
         results.append({identity.acct: res})
     return results
 
-async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity):
+
+async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity) -> None:
+    """Syncs following/followers for a specific identity."""
     m = client_from_identity(identity)
     try:
         me = m.account_verify_credentials()
@@ -155,33 +159,21 @@ async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity):
         async with async_session() as session:
             for acc in following:
                 # Pass identity.id
-                await _upsert_account(session, meta_id, identity.id, acc, is_following=True)
+                await _upsert_account(
+                    session, meta_id, identity.id, acc, is_following=True
+                )
             for acc in followers:
                 # Pass identity.id
-                await _upsert_account(session, meta_id, identity.id, acc, is_followed_by=True)
-            await session.commit()
-    except Exception as e:
-        logger.error(f"Failed to sync friends for {identity.acct}: {e}")
-
-async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity):
-    m = client_from_identity(identity)
-
-    try:
-        me = m.account_verify_credentials()
-        following = m.account_following(me["id"], limit=80)
-        followers = m.account_followers(me["id"], limit=80)
-
-        async with async_session() as session:
-            for acc in following:
-                await _upsert_account(session, meta_id, acc, is_following=True)
-            for acc in followers:
-                await _upsert_account(session, meta_id, acc, is_followed_by=True)
+                await _upsert_account(
+                    session, meta_id, identity.id, acc, is_followed_by=True
+                )
             await session.commit()
     except Exception as e:
         logger.error(f"Failed to sync friends for {identity.acct}: {e}")
 
 
-async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity):
+async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) -> None:
+    """Syncs home timeline activity for blog roll."""
     m = client_from_identity(identity)
 
     try:
@@ -192,9 +184,14 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity):
                 last_status_time = to_naive_utc(s["created_at"])
 
                 # Pass identity.id
-                existing = await _upsert_account(session, meta_id, identity.id, account_data)
+                existing = await _upsert_account(
+                    session, meta_id, identity.id, account_data
+                )
 
-                if not existing.last_status_at or last_status_time > existing.last_status_at:
+                if (
+                    not existing.last_status_at
+                    or last_status_time > existing.last_status_at
+                ):
                     existing.last_status_at = last_status_time
             await session.commit()
     except Exception as e:
@@ -202,11 +199,12 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity):
 
 
 async def sync_user_timeline_for_identity(
-        meta_id: int,
-        identity: MastodonIdentity,
-        acct: str | None = None,
-        force: bool = False,
-):
+    meta_id: int,
+    identity: MastodonIdentity,
+    acct: str | None = None,
+    force: bool = False,
+) -> dict:
+    """Syncs posts for a specific identity and optional target account."""
     target_acct_desc = acct if acct else "self"
     sync_key = f"timeline:{meta_id}:{identity.id}:{target_acct_desc}"
 
@@ -235,7 +233,7 @@ async def sync_user_timeline_for_identity(
 
         async with async_session() as session:
             # Upsert Author
-            await _upsert_account(session, meta_id,                 identity.id,                                  target_account)
+            await _upsert_account(session, meta_id, identity.id, target_account)
 
             for s in statuses:
                 is_reblog = s["reblog"] is not None
@@ -264,7 +262,7 @@ async def sync_user_timeline_for_identity(
                     and_(
                         CachedPost.id == str(s["id"]),
                         CachedPost.meta_account_id == meta_id,
-                        CachedPost.fetched_by_identity_id == identity.id
+                        CachedPost.fetched_by_identity_id == identity.id,
                     )
                 )
                 existing = (await session.execute(stmt)).scalar_one_or_none()
@@ -295,14 +293,12 @@ async def sync_user_timeline_for_identity(
                     "fetched_by_identity_id": identity.id,
                 }
 
-                post_data["fetched_by_identity_id"] = identity.id  # Ensure this is in data
-
                 if not existing:
-                    # Explicitly pass identity ID if not in **post_data unpacking
                     new_post = CachedPost(
                         id=str(s["id"]),
                         meta_account_id=meta_id,
-                        **post_data
+                        fetched_by_identity_id=identity.id,
+                        **post_data,
                     )
                     session.add(new_post)
                 else:
@@ -319,9 +315,7 @@ async def sync_user_timeline_for_identity(
 
 
 async def sync_accounts_friends_followers() -> None:
-    """Syncs lists of following and followers. Legacy wrapper."""
-    # NOTE: This uses the old token mechanism. Ideally should be deprecated
-    # but kept for backward compatibility with simple setups.
+    """Legacy wrapper for backward compatibility."""
     token = await get_token()
     if not token:
         logger.warning("No token")
@@ -329,62 +323,44 @@ async def sync_accounts_friends_followers() -> None:
     m = client(token)
     me = m.account_verify_credentials()
 
-    # We assume 'default' meta account for legacy calls
+    # Get default meta and identity
     async with async_session() as session:
         stmt = select(MetaAccount).where(MetaAccount.username == "default")
         meta = (await session.execute(stmt)).scalar_one_or_none()
         if not meta:
             return
 
-        following = m.account_following(me["id"], limit=80)
-        followers = m.account_followers(me["id"], limit=80)
+        stmt = (
+            select(MastodonIdentity)
+            .where(MastodonIdentity.meta_account_id == meta.id)
+            .limit(1)
+        )
+        identity = (await session.execute(stmt)).scalar_one_or_none()
+        if not identity:
+            return
 
-        for acc in following:
-            await _upsert_account(session, meta.id, acc, is_following=True)
-        for acc in followers:
-            await _upsert_account(session, meta.id, acc, is_followed_by=True)
-        await session.commit()
+    await sync_friends_for_identity(meta.id, identity)
     await update_last_sync("accounts")
 
 
 async def sync_blog_roll_activity() -> None:
-    """
-    Fetches the Home Timeline to find who is active.
-    Updates CachedAccount.last_status_at for the Blog Roll.
-    """
-    token = await get_token()
-    if not token:
-        return
-    m = client(token)
-
-    # Fetch Home Timeline (Active people I follow)
-    home_statuses = m.timeline_home(limit=200)
-
+    """Legacy wrapper for backward compatibility."""
     async with async_session() as session:
-        for s in home_statuses:
-            account_data = s["account"]
-            # Find account in DB (should be there if we ran sync_accounts, but create if new)
-            stmt = select(CachedAccount).where(
-                CachedAccount.id == str(account_data["id"])
-            )
-            existing = (await session.execute(stmt)).scalar_one_or_none()
+        stmt = select(MetaAccount).where(MetaAccount.username == "default")
+        meta = (await session.execute(stmt)).scalar_one_or_none()
+        if not meta:
+            return
 
-            # --- Convert to Naive UTC before comparing ---
-            last_status_time = to_naive_utc(s["created_at"])
+        stmt = (
+            select(MastodonIdentity)
+            .where(MastodonIdentity.meta_account_id == meta.id)
+            .limit(1)
+        )
+        identity = (await session.execute(stmt)).scalar_one_or_none()
+        if not identity:
+            return
 
-            # Use upsert to ensure account exists and details are fresh
-            existing = await _upsert_account(
-                session, existing.meta_account_id, account_data
-            )
-
-            # Logic specifically for blogroll timing
-            if (
-                not existing.last_status_at
-                or last_status_time > existing.last_status_at
-            ):
-                existing.last_status_at = last_status_time
-
-        await session.commit()
+    await sync_blog_roll_for_identity(meta.id, identity)
 
 
 async def sync_user_timeline(
@@ -420,15 +396,19 @@ async def sync_user_timeline(
 
 
 async def get_counts_optimized(
-    session: AsyncSession, meta_id: int, user: str | None = None
+        session: AsyncSession, meta_id: int, identity_id: int, user: str | None = None
 ) -> dict[str, int | str]:
     """
     Optimized count query using a single query with conditional aggregation.
-    This is MUCH faster than 9 separate COUNT queries.
+    Scoped by Meta Account AND Identity.
     """
 
     # Build base conditions
-    base_conditions = []
+    base_conditions = [
+        CachedPost.meta_account_id == meta_id,
+        CachedPost.fetched_by_identity_id == identity_id,
+    ]
+
     if user:
         base_conditions.append(CachedPost.author_acct == user)
 
@@ -493,8 +473,13 @@ async def get_counts_optimized(
         func.count().label("everyone"),
     ).select_from(CachedPost)
 
-    # SCOPED: Global filter for this meta account on the table before aggregation
-    query = query.where(CachedPost.meta_account_id == meta_id)
+    # Apply Filters to the WHERE clause as well to speed up the scan
+    query = query.where(
+        and_(
+            CachedPost.meta_account_id == meta_id,
+            CachedPost.fetched_by_identity_id == identity_id,
+        )
+    )
 
     # Add user filter if specified (also in WHERE to optimize scan)
     if user:
