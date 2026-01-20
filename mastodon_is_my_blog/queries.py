@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from mastodon_is_my_blog.inspect_post import analyze_content_domains
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
-    client,
     client_from_identity,
 )
 from mastodon_is_my_blog.store import (
@@ -167,6 +166,7 @@ async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity) ->
                 )
             await session.commit()
     except Exception as e:
+        logger.error(e)
         logger.error(f"Failed to sync friends for {identity.acct}: {e}")
 
 
@@ -193,6 +193,7 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
                     existing.last_status_at = last_status_time
             await session.commit()
     except Exception as e:
+        logger.error(e)
         logger.error(f"Failed to sync blog roll for {identity.acct}: {e}")
 
 
@@ -308,6 +309,7 @@ async def sync_user_timeline_for_identity(
             return {"status": "success", "count": len(statuses)}
 
     except Exception as e:
+        logger.error(e)
         logger.error(f"Sync error {sync_key}: {e}")
         return {"status": "error", "msg": str(e)}
 
@@ -318,8 +320,6 @@ async def sync_accounts_friends_followers() -> None:
     if not token:
         logger.warning("No token")
         return
-    m = client(token)
-    me = m.account_verify_credentials()
 
     # Get default meta and identity
     async with async_session() as session:

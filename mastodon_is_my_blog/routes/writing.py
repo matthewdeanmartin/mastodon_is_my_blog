@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
-    client,
+    client_from_identity,
     get_default_client,
 )
 from mastodon_is_my_blog.models import EditIn, PostIn
@@ -20,7 +20,9 @@ async def edit(status_id: str, payload: EditIn):
     token = await get_token()
     if not token:
         raise HTTPException(401, "Not connected")
-    m = client(token)
+
+    # TODO: Load identity.
+    m = client_from_identity(identity)
     if not payload.status.strip():
         raise HTTPException(400, "Empty post")
 

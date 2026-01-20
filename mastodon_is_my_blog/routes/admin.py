@@ -106,6 +106,7 @@ async def admin_status() -> dict:
                         "note": me.get("note", ""),
                     }
                 except Exception as e:
+                    logger.error(e)
                     logger.error(f"Failed to verify credentials: {e}")
                     connected = False
 

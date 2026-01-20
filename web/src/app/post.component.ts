@@ -138,7 +138,10 @@ export class PublicPostComponent implements OnInit {
 
   loadPost(id: string): void {
     this.loading = true;
-    this.api.getPostContext(id).subscribe({
+    // UPDATED: Pass the current identity ID to context fetch
+    const identityId = this.api.getCurrentIdentityId();
+
+    this.api.getPostContext(id, identityId || undefined).subscribe({
       next: (data) => {
         this.ancestors = data.ancestors || [];
         this.target = data.target;

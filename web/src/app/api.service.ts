@@ -1,7 +1,7 @@
 import {Injectable} from '@angular/core';
 import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
 import {MastodonStatus} from './mastodon';
-import {Observable, throwError, timer, BehaviorSubject, of} from 'rxjs';
+import {Observable, throwError, timer, BehaviorSubject, of, Subject} from 'rxjs';
 import {catchError, shareReplay, switchMap, tap} from 'rxjs/operators';
 
 @Injectable({providedIn: 'root'})
@@ -13,6 +13,9 @@ export class ApiService {
   // Observable to track server status
   private serverDownSubject = new BehaviorSubject<boolean>(false);
   public serverDown$ = this.serverDownSubject.asObservable();
+
+  // Trigger for components to refresh data (e.g. counts) after write/sync
+  public refreshNeeded$ = new Subject<void>();
 
   private pollingSubscription: any = null;
 
@@ -170,7 +173,10 @@ export class ApiService {
     const params = new HttpParams().set('identity_id', identityId.toString());
     return this.http
       .post<any>(`${this.base}/api/accounts/${acct}/sync`, {}, {params, headers: this.headers})
-      .pipe(catchError((err) => this.handleError(err)));
+      .pipe(
+        tap(() => this.refreshNeeded$.next()), // Notify listeners to refresh data/counts
+        catchError((err) => this.handleError(err))
+      );
   }
 
   syncAccountDedup(acct: string, identityId: number): Observable<any> {
@@ -201,9 +207,14 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  getPostContext(id: string): Observable<any> {
+  // UPDATED: Now accepts identityId to correctly resolve post status/visibility
+  getPostContext(id: string, identityId?: number): Observable<any> {
+    let params = new HttpParams();
+    if (identityId) {
+      params = params.set('identity_id', identityId.toString());
+    }
     return this.http
-      .get<any>(`${this.base}/api/posts/${id}/context`, {headers: this.headers})
+      .get<any>(`${this.base}/api/posts/${id}/context`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -232,7 +243,10 @@ export class ApiService {
   triggerSync(force: boolean = false) {
     return this.http
       .post(`${this.base}/api/admin/sync?force=${force}`, {}, {headers: this.headers})
-      .pipe(catchError((err) => this.handleError(err)));
+      .pipe(
+          tap(() => this.refreshNeeded$.next()),
+          catchError((err) => this.handleError(err))
+      );
   }
 
   me() {
@@ -248,7 +262,10 @@ export class ApiService {
   createPost(status: string) {
     return this.http
       .post(`${this.base}/api/posts`, {status, visibility: 'public'}, {headers: this.headers})
-      .pipe(catchError((err) => this.handleError(err)));
+      .pipe(
+          tap(() => this.refreshNeeded$.next()),
+          catchError((err) => this.handleError(err))
+      );
   }
 
   getPost(id: string) {
@@ -260,7 +277,10 @@ export class ApiService {
   editPost(id: string, status: string) {
     return this.http
       .post(`${this.base}/api/posts/${id}/edit`, {status}, {headers: this.headers})
-      .pipe(catchError((err) => this.handleError(err)));
+      .pipe(
+          tap(() => this.refreshNeeded$.next()),
+          catchError((err) => this.handleError(err))
+      );
   }
 
   getAnalytics(): Observable<any> {

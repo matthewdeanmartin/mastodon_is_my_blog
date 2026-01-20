@@ -1,16 +1,9 @@
 # mastodon_is_my_blog/masto_client.py
 """
 Factory functions for creating Mastodon API clients.
-
-Supports multiple patterns:
-1. Direct credentials (api_base_url, client_id, client_secret, access_token)
-2. MastodonIdentity object
-3. Identity ID lookup
-4. Legacy token-based (for backwards compatibility)
 """
 import logging
-import os
-from typing import Optional
+import sys
 
 import dotenv
 from mastodon import Mastodon
@@ -30,44 +23,44 @@ PERF = True
 
 
 def client(
-    base_url: Optional[str] = None,
-    client_id: Optional[str] = None,
-    client_secret: Optional[str] = None,
-    access_token: Optional[str] = None,
+    *,
+    base_url: str,
+    client_id: str,
+    client_secret: str,
+    access_token: str,
 ) -> Mastodon | TimedMastodonClient:
     """
     Creates a Mastodon client with direct credentials.
-
-    If no arguments provided, falls back to environment variables:
-    - MASTODON_BASE_URL
-    - MASTODON_CLIENT_ID
-    - MASTODON_CLIENT_SECRET
-    - MASTODON_ACCESS_TOKEN
+    Strictly requires all arguments.
     """
-    # Fall back to environment if not provided
-    final_base_url = base_url or os.environ.get(
-        "MASTODON_BASE_URL", "https://mastodon.social"
-    )
-    final_client_id = client_id or os.environ.get("MASTODON_CLIENT_ID")
-    final_client_secret = client_secret or os.environ.get("MASTODON_CLIENT_SECRET")
-    final_access_token = access_token or os.environ.get("MASTODON_ACCESS_TOKEN")
+    if not base_url:
+        raise ValueError("Missing required config: base_url")
+    if not client_id:
+        raise ValueError("Missing required config: client_id")
+    if not client_secret:
+        raise ValueError("Missing required config: client_secret")
+    if not access_token:
+        raise ValueError("Missing required config: access_token")
 
-    if not final_client_id or not final_client_secret:
-        raise ValueError("Missing required Mastodon credentials")
+    if not base_url.startswith("http"):
+        logger.error(f"Invalid base_url format: {base_url}")
+        raise ValueError("base_url must start with http or https")
+
+    final_base_url = base_url.rstrip("/")
 
     if PERF:
         return TimedMastodonClient(
-            api_base_url=final_base_url.rstrip("/"),
-            client_id=final_client_id,
-            client_secret=final_client_secret,
-            access_token=final_access_token,
+            api_base_url=final_base_url,
+            client_id=client_id,
+            client_secret=client_secret,
+            access_token=access_token,
         )
 
     return Mastodon(
-        api_base_url=final_base_url.rstrip("/"),
-        client_id=final_client_id,
-        client_secret=final_client_secret,
-        access_token=final_access_token,
+        api_base_url=final_base_url,
+        client_id=client_id,
+        client_secret=client_secret,
+        access_token=access_token,
     )
 
 
@@ -76,13 +69,11 @@ def client_from_identity(
 ) -> Mastodon | TimedMastodonClient:
     """
     Creates a Mastodon client from a MastodonIdentity object.
-
-    Args:
-        identity: MastodonIdentity database object
-
-    Returns:
-        Configured Mastodon client
+    This is the preferred way to instantiate clients.
     """
+    if not identity:
+        raise ValueError("Cannot create client: Identity is None")
+
     return client(
         base_url=identity.api_base_url,
         client_id=identity.client_id,
@@ -110,7 +101,7 @@ async def client_from_identity_id(identity_id: int) -> Mastodon | TimedMastodonC
         identity = (await session.execute(stmt)).scalar_one_or_none()
 
         if not identity:
-            raise ValueError(f"Identity {identity_id} not found")
+            raise ValueError(f"Identity ID {identity_id} not found in database")
 
         return client_from_identity(identity)
 
@@ -153,16 +144,15 @@ async def client_from_meta_account(
 async def get_default_client() -> Mastodon | TimedMastodonClient:
     """
     Gets a client for the default meta account's first identity.
-    Falls back to environment variables if no default identity exists.
-
-    Returns:
-        Configured Mastodon client
+    Strictly relies on the database being bootstrapped.
     """
 
     identity = await get_default_identity()
-    if identity:
-        return client_from_identity(identity)
+    if not identity:
+        # We do not fallback to env vars or magic here.
+        # If the DB isn't bootstrapped, the app is broken.
+        raise ValueError(
+            "Default identity not found. Ensure .env is configured and app has bootstrapped."
+        )
 
-    # Fall back to environment-based client
-    logger.warning("No default identity found, using environment variables")
-    return client()
+    return client_from_identity(identity)

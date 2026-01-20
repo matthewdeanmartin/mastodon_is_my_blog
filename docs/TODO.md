@@ -1,5 +1,9 @@
 # TODO
 
+## Regressions
+- 
+
+
 ## Top prio
 - Surveys should all be moved to Questions
 - Whole nice profile page with EVERYTHING.
@@ -8,21 +12,22 @@
 - Button to methodically cache all users in blog roll (with polite sleep, run in backgroup worker)
 - Shorts filter (single part storms less than 200 characters)
 - BUG: storms are only root + 1 "reply"
-- Webstorms only retrieve the 1st post in a webstorm, not the whole thread. They should work like the discussion.
-- Pictures in feed are WAY TOO SMALL should be width of column of feed. Now they are too big!
-- Questions should exclude replies
-- Blog Roll filter, filter blog roll by:
-  - all
-  - mutuals - default
-  - chatters - has at least 1 discussion, i.e. not "broadcast-only" account
-
-Layout
-BLOG ROLL
-all | mutuals | chatters
+- Web Storm/Shorts messed up.
+  - Looking for blog like content. Find all posts from Identity
+    - Not replies to someone elses root
+    - Not starts with '@acct' (old school replies)
+    - Having identified blog like content, we will remove the shorts.
+  - Now if it meets all the criteria, but it is a single post (no self replies) of less than 50 words, it is a short.
+  - Counting workds (exclude link, hashtag, symbols) 
+- Pictures in feed are too big! Need some gallery type component that show smaller preview, click to see full size. 
+- BUG: Questions should exclude replies, which also means starts with `@so_and_so`
 
 
-- Multiple accounts
-- Need pervasive links to original content- Links to posts are all bad! Links to profile missing!
+## Links to original content
+- Missing link to profile!
+- Links to original post are all bad! (direct to other instance instead of Identity instance?)
+
+## Profile header
 - Fill in more bio/profile info and make it more compact or click to expand
 
 ## Roadmap

@@ -84,6 +84,7 @@ def analyze_content_domains(
                 flags["has_news"] = True
 
         except Exception:
+            logger.error(e)
             continue
 
     # 3. Check for Questions (words ending with ?)

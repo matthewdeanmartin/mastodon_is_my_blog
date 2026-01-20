@@ -8,7 +8,7 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { LinkPreviewComponent } from './link.component';
 import { LinkPreviewService } from './link.service';
 import { combineLatest } from 'rxjs';
-import { filter } from 'rxjs/operators';
+import { HttpErrorResponse } from '@angular/common/http'; // Import HttpErrorResponse
 
 @Component({
   selector: 'app-public-feed',
@@ -65,7 +65,7 @@ export class PublicFeedComponent implements OnInit {
     // Define the success handler to reuse
     const handleSuccess = (data: any[]) => {
       this.loading = false;
-      // Auto-sync logic: If specific user view is empty, try syncing
+      // If we got an empty list for a specific user, try syncing ONCE to see if they exist remotely
       if (data.length === 0 && user && user !== 'everyone' && filter !== 'everyone' && !this.syncingUser) {
         this.attemptUserSync(user, identityId);
       } else {
@@ -73,7 +73,15 @@ export class PublicFeedComponent implements OnInit {
       }
     };
 
-    const handleError = () => (this.loading = false);
+    const handleError = (error: HttpErrorResponse) => {
+      if (error.status === 404 && user && user !== 'everyone' && !this.syncingUser) {
+          console.log(`Posts not found (404) for ${user}, attempting JIT sync...`);
+          this.attemptUserSync(user, identityId);
+      } else {
+          console.error(`Error loading posts (Status: ${error.status}):`, error);
+          this.loading = false;
+      }
+    };
 
     // If 'storms' (or legacy 'all'), use the Storms endpoint for the threaded view
     if (filter === 'storms' || filter === 'all') {
@@ -97,9 +105,9 @@ export class PublicFeedComponent implements OnInit {
     this.loading = true;
 
     // We only try this once per navigation to avoid loops
-     this.api.syncAccount(acct, identityId).subscribe({
+    this.api.syncAccount(acct, identityId).subscribe({
       next: (res) => {
-        // Retry load
+        // Retry load exactly once
         this.load(this.currentFilter, acct, identityId);
       },
       error: (err) => {
@@ -136,10 +144,8 @@ export class PublicFeedComponent implements OnInit {
     return `https://${parts[1] || 'mastodon.social'}/@${parts[0]}/${post.id}`;
   }
 
-  /**
-   * Extract URLs from post content for link previews
-   */
   getPostUrls(post: any): string[] {
+    // Extract URLs from post content for link previews
     return this.linkPreviewService.extractUrls(post.content || '');
   }
 }

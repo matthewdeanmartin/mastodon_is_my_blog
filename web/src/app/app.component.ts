@@ -72,6 +72,11 @@ export class AppComponent implements OnInit, OnDestroy {
       // this.serverDown = isDown;
     });
 
+    // UPDATED: Listen for data refreshes (syncs/writes) to keep counts consistent
+    this.api.refreshNeeded$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+        this.refreshCounts();
+    });
+
     // 1. Fetch Identities & Initialize Context
     this.api.getIdentities().pipe(takeUntil(this.destroy$)).subscribe({
       next: (ids) => {
@@ -173,8 +178,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   setContextIdentity(id: number) {
       this.api.setIdentityId(id);
-      // Optional: Navigate to home when context switches to avoid confusion?
-      // this.router.navigate(['/']);
+      // UPDATED: Navigate to home (My Blog/Storms) when context switches to ensure clean state
+      this.router.navigate(['/'], {
+          queryParams: {user: null, filter: 'storms'}
+      });
   }
 
   // --- Data Fetching ---

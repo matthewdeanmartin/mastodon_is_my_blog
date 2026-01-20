@@ -32,10 +32,10 @@ async def verify_identity(identity_id: int) -> bool:
 
         try:
             m = client(
-                identity.api_base_url,
-                identity.client_id,
-                identity.client_secret,
-                identity.access_token,
+                base_url=identity.api_base_url,
+                client_id=identity.client_id,
+                client_secret=identity.client_secret,
+                access_token=identity.access_token,
             )
             me = m.account_verify_credentials()
 
@@ -48,6 +48,7 @@ async def verify_identity(identity_id: int) -> bool:
             return True
 
         except Exception as e:
+            logger.error(e)
             logger.error(f"Failed to verify identity {identity_id}: {e}")
             return False
 

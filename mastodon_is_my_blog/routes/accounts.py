@@ -3,7 +3,7 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, desc, func, or_, select, exists
+from sqlalchemy import and_, desc, exists, func, select
 
 from mastodon_is_my_blog.queries import (
     get_current_meta_account,
@@ -24,9 +24,9 @@ router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
 @router.get("/blogroll")
 async def get_blog_roll(
-        identity_id: int = Query(..., description="The context Identity ID"),
-        filter_type: str = Query("all"),
-        meta: MetaAccount = Depends(get_current_meta_account),
+    identity_id: int = Query(..., description="The context Identity ID"),
+    filter_type: str = Query("all"),
+    meta: MetaAccount = Depends(get_current_meta_account),
 ) -> list[dict]:
     """
     Returns active accounts discovered from the timeline of a SPECIFIC identity.
@@ -66,13 +66,12 @@ async def get_blog_roll(
 
             # Subquery to check for interaction
             has_replied_to_me = exists(
-                select(1)
-                .where(
+                select(1).where(
                     and_(
                         CachedPost.author_id == CachedAccount.id,
                         CachedPost.in_reply_to_account_id == str(my_account_id),
                         CachedPost.meta_account_id == meta.id,
-                        CachedPost.fetched_by_identity_id == identity_id
+                        CachedPost.fetched_by_identity_id == identity_id,
                     )
                 )
             )
@@ -168,7 +167,6 @@ async def get_blog_roll(
             }
             for a in accounts
         ]
-
 
 
 @router.get("/{acct}")

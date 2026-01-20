@@ -7,7 +7,7 @@ from sqlalchemy import and_, desc, func, select
 
 from mastodon_is_my_blog.link_previews import CardResponse, fetch_card
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
-    client,
+    client_from_identity_id,
 )
 from mastodon_is_my_blog.queries import (
     get_counts_optimized,
@@ -369,17 +369,17 @@ async def fetch_card_endpoint(url: str = Query(..., min_length=8, max_length=204
 # --- Context Crawler ---
 @router.get("/{id}/context")
 @time_async_function
-async def get_post_context(id: str):
+async def get_post_context(id: str, identity_id: int = Query(...)):
     """
     Crawls the conversation graph for a specific post.
-    Note: Context crawling is done live via API, so less scoped,
-    but we use the token from env or DB which defines the scope.
     """
-    token = await get_token()
-    if not token:
-        raise HTTPException(401, "Server not connected to Mastodon")
+    # FIX: Use identity-aware client logic
+    try:
+        # We await this because client_from_identity_id is async
+        m = await client_from_identity_id(identity_id)
+    except ValueError:
+        raise HTTPException(404, "Identity not found")
 
-    m = client(token)
     try:
         # Mastodon API 'status_context' does the crawling for us
         # It returns 'ancestors' and 'descendants' list
@@ -394,6 +394,7 @@ async def get_post_context(id: str):
             "descendants": context["descendants"],
         }
     except Exception as e:
+        logger.error(e)
         raise HTTPException(404, f"Could not fetch context: {str(e)}")
 
 
