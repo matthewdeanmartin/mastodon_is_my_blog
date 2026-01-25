@@ -42,14 +42,14 @@ def analyze_content_domains(
         "has_question": False,
     }
 
-    # 1. Check Attachments
+    # Check Attachments
     for m in media_attachments:
         if m["type"] in ["video", "gifv", "audio"]:
             flags["has_video"] = True
         if m["type"] == "image":
             flags["has_media"] = True
 
-    # 2. Check Links (<a> tags and <iframe>)
+    # Check Links (<a> tags and <iframe>)
     if soup.find("iframe"):
         flags["has_video"] = True
 
@@ -87,7 +87,7 @@ def analyze_content_domains(
             logger.error(e)
             continue
 
-    # 3. Check for Questions (words ending with ?)
+    # Check for Questions (words ending with ?)
     # Extract text content and check for question marks
     text_content = soup.get_text()
     # Look for word boundaries followed by question marks

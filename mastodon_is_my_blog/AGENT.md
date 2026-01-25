@@ -8,7 +8,7 @@
 
 ## Architecture
 
-- This is a FastAPI app with sqlalchemy as the ORM. You must on change that.
+- This is a FastAPI app with sqlalchemy as the ORM. You must not change that.
 
 ## Changes
 

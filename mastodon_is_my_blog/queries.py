@@ -127,7 +127,6 @@ async def _upsert_account(
 async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[dict]:
     """Iterates through all identities for the meta account and syncs them."""
     async with async_session() as session:
-        # Re-fetch identities to be safe
         result = await session.execute(
             select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id)
         )
@@ -135,13 +134,28 @@ async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[di
 
     results = []
     for identity in identities:
-        # Sync Friends
+        # Sync Friends (following/followers)
         await sync_friends_for_identity(meta.id, identity)
-        # Sync Blog Roll (Activity)
+
+        # Sync Blog Roll (home timeline activity)
         await sync_blog_roll_for_identity(meta.id, identity)
-        # Sync Timeline
-        res = await sync_user_timeline_for_identity(meta.id, identity, force=force)
-        results.append({identity.acct: res})
+
+        # Sync Notifications (interactions - critical for top friends)
+        from mastodon_is_my_blog.notification_sync import sync_notifications_for_identity
+        notif_stats = await sync_notifications_for_identity(meta.id, identity)
+
+        # Sync Timeline (own posts)
+        timeline_res = await sync_user_timeline_for_identity(
+            meta.id, identity, force=force
+        )
+
+        results.append({
+            identity.acct: {
+                "timeline": timeline_res,
+                "notifications": notif_stats,
+            }
+        })
+
     return results
 
 

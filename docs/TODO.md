@@ -1,10 +1,19 @@
 # TODO
 
+## Subapps
+- Blogs/Storms (Blogger/Google Reader)
+- Shorts (Twitter)
+- Links (Delicious)
+- Discussions (Forums)
+- Pictures (Flickr)
+
 ## Regressions
-- 
+- Perf is in the trash again
 
 
 ## Top prio
+- Top friends should include mentions and replies to my accoutn
+- Independently fetch all replies to me to find out who is a Top Friend (mutual and replies) 
 - Surveys should all be moved to Questions
 - Whole nice profile page with EVERYTHING.
 - New filter
@@ -37,8 +46,19 @@
 ## Post View
 - Storms should be a nice tidy block.
 - Counts don't update when changing users
-- Discussions only show the disconnected middle part, should show entire tree.
 - If bio is long, it should split across 2 columns
+
+## Recommended Discussions
+- If discussion is rooted in an authors own work, it is blog-like content. That discussion should appear in the storms/shorts/links/etc
+- 3 kinds of discussions
+  - Root mention - `@so_and_so did you see this`. Unless you are @so_and_so, this is not blog-like content. It is content discovery.
+  - Author reply in discussion rooted by author's post (Should show in relevant location, right?)
+  - Reply in discussion rooted by someone else's post (Content discovery)
+- UI should show the roots- Discussions only show the disconnected middle part, should show entire tree.
+- Quote posts are a type of recommended discussion
+
+## Recommented Posts
+- All reblogs
 
 ## Blogroll
 - Seems to always sort the same way. Should continually update sort order based on who posted last

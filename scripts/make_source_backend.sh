@@ -37,4 +37,5 @@ git2md . \
     data domain_categories.py \
     mastodon_examples \
     utils link_previews.py inspect_post.py identity_verifier.py .venv.example \
+    pyproject.toml \
   --output SOURCE_BACKEND.md

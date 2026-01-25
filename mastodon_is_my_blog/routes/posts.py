@@ -17,7 +17,6 @@ from mastodon_is_my_blog.store import (
     CachedPost,
     MetaAccount,
     async_session,
-    get_token,
 )
 from mastodon_is_my_blog.utils.perf import time_async_function
 
@@ -208,14 +207,14 @@ async def get_storms(
             continue
 
         # Root Definition:
-        # 1. No parent (in_reply_to_id is None)
-        # 2. Not a link post (optional preference)
-        # 3. If it HAS a parent, but that parent isn't in our DB (broken chain), treat as root?
+        # - No parent (in_reply_to_id is None)
+        # - Not a link post (optional preference)
+        # - If it HAS a parent, but that parent isn't in our DB (broken chain), treat as root?
         #    For now, strict roots only.
         is_root = False
         # ROOT DEFINITION UPDATE:
-        # 1. Must not be a reply
-        # 2. Must NOT have a link (per user request)
+        # - Must not be a reply
+        # - Must NOT have a link (per user request)
         if not p.in_reply_to_id and not p.has_link:
             is_root = True
 
@@ -373,7 +372,7 @@ async def get_post_context(id: str, identity_id: int = Query(...)):
     """
     Crawls the conversation graph for a specific post.
     """
-    # FIX: Use identity-aware client logic
+    # Use identity-aware client logic
     try:
         # We await this because client_from_identity_id is async
         m = await client_from_identity_id(identity_id)

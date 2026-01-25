@@ -3,7 +3,6 @@
 Factory functions for creating Mastodon API clients.
 """
 import logging
-import sys
 
 import dotenv
 from mastodon import Mastodon

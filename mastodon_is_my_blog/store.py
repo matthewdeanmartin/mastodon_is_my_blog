@@ -201,9 +201,9 @@ class CachedPost(Base):
 
     # Define Composite Indexes to speed up specific query patterns
     # __table_args__ = (
-    #     # 1. Main Feed: "Show me posts sorted by date"
+    #     # Main Feed: "Show me posts sorted by date"
     #     Index("ix_posts_created_at", "created_at"),
-    #     # 2. User Profile: "Show me THIS user's posts, sorted by date"
+    #     # User Profile: "Show me THIS user's posts, sorted by date"
     #     Index("ix_posts_author_created", "author_acct", "created_at"),
     #     # Covering indexes for COUNT queries (add columns used in WHERE)
     #     # These help avoid table lookups during counts
@@ -231,6 +231,37 @@ class CachedPost(Base):
     #         "created_at",
     #     ),
     # )
+
+class CachedNotification(Base):
+    """
+    Stores notifications from Mastodon API.
+    Enables flexible querying for top friends and interaction tracking.
+    """
+    __tablename__ = "cached_notifications"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)  # Notification ID
+    meta_account_id: Mapped[int] = mapped_column(
+        ForeignKey("meta_accounts.id"), primary_key=True
+    )
+    identity_id: Mapped[int] = mapped_column(
+        ForeignKey("mastodon_identities.id"), primary_key=True
+    )
+
+    # Notification metadata
+    type: Mapped[str] = mapped_column(String, index=True)  # mention, favourite, reblog, status, follow
+    created_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+
+    # Who interacted with me
+    account_id: Mapped[str] = mapped_column(String, index=True)  # The person who triggered notification
+    account_acct: Mapped[str] = mapped_column(String, index=True)  # Their @handle
+
+    # What they interacted with (nullable for follow notifications)
+    status_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+
+    __table_args__ = (
+        Index("ix_notif_meta_identity_type", "meta_account_id", "identity_id", "type"),
+        Index("ix_notif_account_created", "account_id", "created_at"),
+    )
 
 
 class AppState(Base):

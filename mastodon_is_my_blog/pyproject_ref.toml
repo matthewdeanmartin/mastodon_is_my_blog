@@ -1,0 +1,16 @@
+# You can safely assume all these libraries are installed.
+[project]
+name = "mastodon_is_my_blog"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+  "fastapi[standard-no-fastapi-cloud-cli]>=0.115",
+  "uvicorn[standard]>=0.34",
+  "mastodon-py>=2.1.4",
+  "sqlalchemy>=2.0",
+  "aiosqlite>=0.20",
+  "python-dotenv>=1.0",
+  "beautifulsoup4>=4.12",
+  "alembic>=1.18.0",
+  "httpx>=0.28.1",
+]

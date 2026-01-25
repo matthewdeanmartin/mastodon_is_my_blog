@@ -14,7 +14,7 @@ from mastodon_is_my_blog.store import (
     CachedPost,
     MastodonIdentity,
     MetaAccount,
-    async_session,
+    async_session, CachedNotification,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,9 +24,9 @@ router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
 @router.get("/blogroll")
 async def get_blog_roll(
-    identity_id: int = Query(..., description="The context Identity ID"),
-    filter_type: str = Query("all"),
-    meta: MetaAccount = Depends(get_current_meta_account),
+        identity_id: int = Query(..., description="The context Identity ID"),
+        filter_type: str = Query("all"),
+        meta: MetaAccount = Depends(get_current_meta_account),
 ) -> list[dict]:
     """
     Returns active accounts discovered from the timeline of a SPECIFIC identity.
@@ -40,7 +40,7 @@ async def get_blog_roll(
     - bots: Strictly identified as bots
     """
     async with async_session() as session:
-        # 1. Get the current identity to know "My Account ID" for the "Replied to Me" check
+        # Get the current identity to know "My Account ID" for the "Replied to Me" check
         stmt = select(MastodonIdentity).where(MastodonIdentity.id == identity_id)
         identity = (await session.execute(stmt)).scalar_one_or_none()
         if not identity:
@@ -48,7 +48,7 @@ async def get_blog_roll(
 
         my_account_id = identity.account_id
 
-        # 2. Base Query: STRICTLY people I follow
+        # Base Query: STRICTLY people I follow
         # This removes the "weirdos" (boost-only strangers) from all views.
         query = select(CachedAccount).where(
             and_(
@@ -58,25 +58,31 @@ async def get_blog_roll(
             )
         )
 
-        # 3. Apply specific filters
+        # Apply specific filters
         if filter_type == "top_friends":
-            # Mutuals + Have replied to ME
-            # We look for posts where author is the friend, and in_reply_to is ME.
-            query = query.where(CachedAccount.is_followed_by == True)
+            if filter_type == "top_friends":
+                # Mutuals who have interacted via notifications
+                # This includes: mentions, replies, favorites, reblogs
+                query = query.where(CachedAccount.is_followed_by == True)
 
-            # Subquery to check for interaction
-            has_replied_to_me = exists(
-                select(1).where(
-                    and_(
-                        CachedPost.author_id == CachedAccount.id,
-                        CachedPost.in_reply_to_account_id == str(my_account_id),
-                        CachedPost.meta_account_id == meta.id,
-                        CachedPost.fetched_by_identity_id == identity_id,
+                # Subquery: Check if there's ANY notification from this account
+                has_interaction = exists(
+                    select(1).where(
+                        and_(
+                            CachedNotification.account_id == CachedAccount.id,
+                            CachedNotification.meta_account_id == meta.id,
+                            CachedNotification.identity_id == identity_id,
+                            CachedNotification.type.in_([
+                                "mention", "favourite", "reblog", "status"
+                            ]),
+                        )
                     )
                 )
-            )
-            query = query.where(has_replied_to_me)
-            query = query.order_by(desc(CachedAccount.last_status_at))
+                query = query.where(has_interaction)
+
+                # Sort by most recent interaction
+                # We can add a subquery to get the latest notification time
+                query = query.order_by(desc(CachedAccount.last_status_at))
 
         elif filter_type == "mutuals":
             query = query.where(CachedAccount.is_followed_by == True)
@@ -95,7 +101,7 @@ async def get_blog_roll(
         res = await session.execute(query)
         accounts = res.scalars().all()
 
-        # 4. Post-processing for Chatty / Broadcasters (Reply Ratios)
+        # Post-processing for Chatty / Broadcasters (Reply Ratios)
         if filter_type in ("chatty", "broadcasters"):
             accounts_with_stats = []
 
@@ -171,9 +177,9 @@ async def get_blog_roll(
 
 @router.get("/{acct}")
 async def get_account_info(
-    acct: str,
-    identity_id: int = Query(..., description="The context Identity ID"),
-    meta: MetaAccount = Depends(get_current_meta_account),
+        acct: str,
+        identity_id: int = Query(..., description="The context Identity ID"),
+        meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
     """
     Get cached account information by acct string for a specific identity.
@@ -248,9 +254,9 @@ async def get_account_info(
 
 @router.post("/{acct}/sync")
 async def sync_account(
-    acct: str,
-    identity_id: int = Query(..., description="The context Identity ID"),
-    meta: MetaAccount = Depends(get_current_meta_account),
+        acct: str,
+        identity_id: int = Query(..., description="The context Identity ID"),
+        meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
     """Sync a specific user's timeline using a specific identity."""
     if acct == "everyone":
