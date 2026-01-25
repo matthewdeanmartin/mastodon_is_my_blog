@@ -1,9 +1,10 @@
 // src/app/app.component.ts
 import {Component, OnDestroy, OnInit} from '@angular/core';
 import {CommonModule} from '@angular/common';
-import {ActivatedRoute, Router, RouterLink, RouterOutlet} from '@angular/router';
+import {ActivatedRoute, NavigationEnd, Router, RouterLink,RouterLinkActive, RouterOutlet} from '@angular/router';
+
 import {ApiService} from './api.service';
-import {distinctUntilChanged, map, shareReplay, switchMap, takeUntil, tap, catchError} from 'rxjs/operators';
+import {distinctUntilChanged, map, shareReplay, switchMap, takeUntil, tap, catchError, filter} from 'rxjs/operators';
 import {of, Subject, combineLatest} from 'rxjs';
 
 interface SidebarCounts {
@@ -23,7 +24,7 @@ interface SidebarCounts {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit, OnDestroy {
@@ -39,6 +40,7 @@ export class AppComponent implements OnInit, OnDestroy {
   // Navigation State
   currentUser: string | null = null; // The acct string of the user being VIEWED
   viewingEveryone: boolean = false;
+  currentPage: 'people' | 'content' | 'forum' = 'people';
 
   blogRoll: any[] = [];
   mainUser: any = null; // The "Profile" of the currently connected user
@@ -67,17 +69,32 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentMetaId = this.api.getMetaAccountId();
 
+    // Track current page for conditional sidebar display
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd),
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
+      const url = this.router.url;
+      if (url.startsWith('/content')) {
+        this.currentPage = 'content';
+      } else if (url.startsWith('/forum')) {
+        this.currentPage = 'forum';
+      } else {
+        this.currentPage = 'people';
+      }
+    });
+
     // Subscribe to server status
     this.api.serverDown$.subscribe((isDown) => {
       // this.serverDown = isDown;
     });
 
-    // UPDATED: Listen for data refreshes (syncs/writes) to keep counts consistent
+    // Listen for data refreshes (syncs/writes) to keep counts consistent
     this.api.refreshNeeded$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-        this.refreshCounts();
+      this.refreshCounts();
     });
 
-    // 1. Fetch Identities & Initialize Context
+    // Fetch Identities & Initialize Context
     this.api.getIdentities().pipe(takeUntil(this.destroy$)).subscribe({
       next: (ids) => {
         this.identities = ids;
@@ -87,24 +104,24 @@ export class AppComponent implements OnInit, OnDestroy {
         const validStored = storedId && ids.find(i => i.id === storedId);
 
         if (validStored) {
-            this.setContextIdentity(storedId!);
+          this.setContextIdentity(storedId!);
         } else if (ids.length > 0) {
-            this.setContextIdentity(ids[0].id);
+          this.setContextIdentity(ids[0].id);
         }
       },
       error: (e) => console.log('Could not fetch identities', e)
     });
 
-    // 2. React to Identity Changes
+    // React to Identity Changes
     this.api.identityId$.pipe(takeUntil(this.destroy$)).subscribe(id => {
-        this.activeIdentityId = id;
-        if (id) {
-            this.loadBlogRoll();
-            this.refreshCounts();
-        }
+      this.activeIdentityId = id;
+      if (id) {
+        this.loadBlogRoll();
+        this.refreshCounts();
+      }
     });
 
-    // 3. Get Main User Info (For "My Blog" default view)
+    // Get Main User Info (For "My Blog" default view)
     this.api.getAdminStatus().subscribe((status) => {
       if (status.connected && status.current_user) {
         this.mainUser = status.current_user;
@@ -151,7 +168,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    // 5. Active User Info Pipeline
+    // Active User Info Pipeline
     combineLatest([selection$, this.api.identityId$]).pipe(
       takeUntil(this.destroy$),
       switchMap(([sel, identityId]) => {
@@ -174,14 +191,18 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
-  // --- Context Identity Management ---
+  // --- Helper Methods ---
+
+  isPeoplePage(): boolean {
+    return this.currentPage === 'people';
+  }
 
   setContextIdentity(id: number) {
-      this.api.setIdentityId(id);
-      // UPDATED: Navigate to home (My Blog/Storms) when context switches to ensure clean state
-      this.router.navigate(['/'], {
-          queryParams: {user: null, filter: 'storms'}
-      });
+    this.api.setIdentityId(id);
+    // UPDATED: Navigate to home (My Blog/Storms) when context switches to ensure clean state
+    this.router.navigate(['/'], {
+      queryParams: {user: null, filter: 'storms'}
+    });
   }
 
   // --- Data Fetching ---
@@ -239,12 +260,12 @@ export class AppComponent implements OnInit, OnDestroy {
   // --- Actions ---
 
   selectIdentity(acct: string) {
-      // NOTE: This legacy method selected a user to VIEW.
-      // We now prefer clicking the chip to set CONTEXT.
-      // But if we want to "view this identity's blog" specifically:
-      this.router.navigate(['/'], {
-          queryParams: {user: acct, filter: 'storms'}
-      });
+    // NOTE: This legacy method selected a user to VIEW.
+    // We now prefer clicking the chip to set CONTEXT.
+    // But if we want to "view this identity's blog" specifically:
+    this.router.navigate(['/'], {
+      queryParams: {user: acct, filter: 'storms'}
+    });
   }
 
   /**

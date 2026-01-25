@@ -27,14 +27,16 @@
 <div class="app-layout">
   <div class="header">
     <h1 style="font-size: 1.5rem; margin:0;">Mastodon Blog</h1>
-    <nav>
-      <a routerLink="/" style="margin-right: 15px;">Read</a>
-      <a routerLink="/admin">Write (Admin)</a>
+    <nav class="main-nav">
+      <a routerLink="/" routerLinkActive="active-nav" [routerLinkActiveOptions]="{exact: true}">👥 People</a>
+      <a routerLink="/content" routerLinkActive="active-nav">📦 Content</a>
+      <a routerLink="/forum" routerLinkActive="active-nav">💬 Forum</a>
+      <a routerLink="/admin" class="admin-link">✏️ Write</a>
     </nav>
   </div>
 
-  <!-- Active User Display -->
-  <div class="active-user-card" *ngIf="activeUserInfo">
+  <!-- Active User Display - Only show on People pages -->
+  <div class="active-user-card" *ngIf="activeUserInfo && isPeoplePage()">
     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
       <img [src]="activeUserInfo.avatar"
            style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid #6366f1;">
@@ -49,7 +51,8 @@
     </div>
   </div>
 
-  <div class="sidebar-left">
+  <!-- Left Sidebar - Only show on People pages -->
+  <div class="sidebar-left" *ngIf="isPeoplePage()">
     <!-- Home Button (Return to Main User) -->
     <button class="nav-btn"
             [class.active]="isViewingMainUser()"
@@ -117,7 +120,8 @@
     <a href="https://mastodon.social" target="_blank" class="nav-btn">My Profile</a>
   </div>
 
-  <div class="sidebar-right">
+  <!-- Right Sidebar - Only show on People pages -->
+  <div class="sidebar-right" *ngIf="isPeoplePage()">
     <div class="muted" style="margin-bottom:10px;">POST FILTERS</div>
 
     <button class="nav-btn" [class.active]="currentFilter==='storms' || currentFilter==='all'" (click)="setFilter('storms')">
