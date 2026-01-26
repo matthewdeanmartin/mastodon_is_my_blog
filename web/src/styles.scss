@@ -193,6 +193,24 @@ small {
   max-width: 1200px;
   margin: 0 auto;
   gap: 20px;
+
+  /* When we are NOT in People mode, use a single full-width column */
+  &.content-mode {
+    grid-template-areas:
+      'header'
+      'active'
+      'content'
+      'footer';
+    grid-template-columns: 1fr;
+
+    /* Optional: If you want the content strictly centered with a max-width */
+    /* .content {
+         max-width: 900px;
+         margin: 0 auto;
+         width: 100%;
+       }
+    */
+  }
 }
 
 .header {
