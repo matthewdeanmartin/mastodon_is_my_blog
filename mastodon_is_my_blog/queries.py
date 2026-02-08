@@ -141,7 +141,10 @@ async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[di
         await sync_blog_roll_for_identity(meta.id, identity)
 
         # Sync Notifications (interactions - critical for top friends)
-        from mastodon_is_my_blog.notification_sync import sync_notifications_for_identity
+        from mastodon_is_my_blog.notification_sync import (
+            sync_notifications_for_identity,
+        )
+
         notif_stats = await sync_notifications_for_identity(meta.id, identity)
 
         # Sync Timeline (own posts)
@@ -149,12 +152,14 @@ async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[di
             meta.id, identity, force=force
         )
 
-        results.append({
-            identity.acct: {
-                "timeline": timeline_res,
-                "notifications": notif_stats,
+        results.append(
+            {
+                identity.acct: {
+                    "timeline": timeline_res,
+                    "notifications": notif_stats,
+                }
             }
-        })
+        )
 
     return results
 

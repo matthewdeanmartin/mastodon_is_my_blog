@@ -1,3 +1,14 @@
+application_destroy:
+	echo
+application_deploy:
+	echo
+application_describe:
+	echo:
+application_derive_data:
+	echo
+application_detach:
+	echo
+
 .PHONY: help install install-backend install-frontend dev dev-backend dev-frontend build test clean setup db-reset
 
 # Default target

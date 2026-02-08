@@ -11,10 +11,11 @@ from mastodon_is_my_blog.queries import (
 )
 from mastodon_is_my_blog.store import (
     CachedAccount,
+    CachedNotification,
     CachedPost,
     MastodonIdentity,
     MetaAccount,
-    async_session, CachedNotification,
+    async_session,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,9 +25,9 @@ router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
 @router.get("/blogroll")
 async def get_blog_roll(
-        identity_id: int = Query(..., description="The context Identity ID"),
-        filter_type: str = Query("all"),
-        meta: MetaAccount = Depends(get_current_meta_account),
+    identity_id: int = Query(..., description="The context Identity ID"),
+    filter_type: str = Query("all"),
+    meta: MetaAccount = Depends(get_current_meta_account),
 ) -> list[dict]:
     """
     Returns active accounts discovered from the timeline of a SPECIFIC identity.
@@ -72,9 +73,9 @@ async def get_blog_roll(
                             CachedNotification.account_id == CachedAccount.id,
                             CachedNotification.meta_account_id == meta.id,
                             CachedNotification.identity_id == identity_id,
-                            CachedNotification.type.in_([
-                                "mention", "favourite", "reblog", "status"
-                            ]),
+                            CachedNotification.type.in_(
+                                ["mention", "favourite", "reblog", "status"]
+                            ),
                         )
                     )
                 )
@@ -177,9 +178,9 @@ async def get_blog_roll(
 
 @router.get("/{acct}")
 async def get_account_info(
-        acct: str,
-        identity_id: int = Query(..., description="The context Identity ID"),
-        meta: MetaAccount = Depends(get_current_meta_account),
+    acct: str,
+    identity_id: int = Query(..., description="The context Identity ID"),
+    meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
     """
     Get cached account information by acct string for a specific identity.
@@ -254,9 +255,9 @@ async def get_account_info(
 
 @router.post("/{acct}/sync")
 async def sync_account(
-        acct: str,
-        identity_id: int = Query(..., description="The context Identity ID"),
-        meta: MetaAccount = Depends(get_current_meta_account),
+    acct: str,
+    identity_id: int = Query(..., description="The context Identity ID"),
+    meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
     """Sync a specific user's timeline using a specific identity."""
     if acct == "everyone":

@@ -92,6 +92,7 @@ class TimedMastodonClient:
     def notifications(self, limit: int = 40, **kwargs):
         return self._timed_call("notifications", limit=limit, **kwargs)
 
+
 # def client(access_token: str | None = None) -> TimedMastodonClient:
 #     """Factory function for timed Mastodon client"""
 #     return TimedMastodonClient(access_token)

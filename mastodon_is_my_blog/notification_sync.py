@@ -1,6 +1,7 @@
 """
 Syncs notifications and stores them in the database for flexible querying.
 """
+
 import logging
 from datetime import datetime, timezone
 
@@ -28,7 +29,7 @@ def to_naive_utc(dt: datetime | None) -> datetime | None:
 
 
 async def sync_notifications_for_identity(
-        meta_id: int, identity: MastodonIdentity
+    meta_id: int, identity: MastodonIdentity
 ) -> dict[str, int]:
     """
     Fetches notifications and stores them in the database.
@@ -135,7 +136,9 @@ async def sync_notifications_for_identity(
                         )
                         stats["timelines_synced"] += 1
                     except Exception as e:
-                        logger.warning(f"Failed to sync timeline for {mutual.acct}: {e}")
+                        logger.warning(
+                            f"Failed to sync timeline for {mutual.acct}: {e}"
+                        )
 
         logger.info(
             f"Notification sync for {identity.acct}: {stats['total']} notifications, "

@@ -232,11 +232,13 @@ class CachedPost(Base):
     #     ),
     # )
 
+
 class CachedNotification(Base):
     """
     Stores notifications from Mastodon API.
     Enables flexible querying for top friends and interaction tracking.
     """
+
     __tablename__ = "cached_notifications"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)  # Notification ID
@@ -248,11 +250,15 @@ class CachedNotification(Base):
     )
 
     # Notification metadata
-    type: Mapped[str] = mapped_column(String, index=True)  # mention, favourite, reblog, status, follow
+    type: Mapped[str] = mapped_column(
+        String, index=True
+    )  # mention, favourite, reblog, status, follow
     created_at: Mapped[datetime] = mapped_column(DateTime, index=True)
 
     # Who interacted with me
-    account_id: Mapped[str] = mapped_column(String, index=True)  # The person who triggered notification
+    account_id: Mapped[str] = mapped_column(
+        String, index=True
+    )  # The person who triggered notification
     account_acct: Mapped[str] = mapped_column(String, index=True)  # Their @handle
 
     # What they interacted with (nullable for follow notifications)

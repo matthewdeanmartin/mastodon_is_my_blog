@@ -3,16 +3,15 @@
 ## Subapps
 - Blogs/Storms (Blogger/Google Reader)
 - Shorts (Twitter)
-- Links (Delicious)
-- Discussions (Forums)
-- Pictures (Flickr)
+- Links (Delicious) - Started!
+- Discussions (Forums) - Started!
+- Pictures (Flickr) - Started!
 
 ## Regressions
 - Perf is in the trash again
 
-
 ## Top prio
-- Top friends should include mentions and replies to my accoutn
+- Top friends should include mentions and replies to my account. And likes or the list is too short.
 - Independently fetch all replies to me to find out who is a Top Friend (mutual and replies) 
 - Surveys should all be moved to Questions
 - Whole nice profile page with EVERYTHING.
