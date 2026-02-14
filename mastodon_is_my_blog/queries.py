@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import dotenv
 from fastapi import HTTPException, Request
-from sqlalchemy import Integer, and_, func, select
+from sqlalchemy import Integer, and_, func, select, outerjoin
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mastodon_is_my_blog.inspect_post import analyze_content_domains
@@ -17,6 +17,7 @@ from mastodon_is_my_blog.store import (
     CachedPost,
     MastodonIdentity,
     MetaAccount,
+    SeenPost,  # ADDED
     async_session,
     get_last_sync,
     get_token,
@@ -416,8 +417,7 @@ async def get_counts_optimized(
     session: AsyncSession, meta_id: int, identity_id: int, user: str | None = None
 ) -> dict[str, int | str]:
     """
-    Optimized count query using a single query with conditional aggregation.
-    Scoped by Meta Account AND Identity.
+    Optimized count query returns { "filter": {"total": X, "unseen": Y} }
     """
 
     # Build base conditions
@@ -429,92 +429,67 @@ async def get_counts_optimized(
     if user:
         base_conditions.append(CachedPost.author_acct == user)
 
-    # Use CASE expressions for conditional counting (SQLite supports this)
-    query = select(
-        # Storms: not reblog, not reply, no link
-        func.sum(
-            func.cast(
-                and_(
-                    CachedPost.is_reblog == False,
-                    CachedPost.in_reply_to_id is None,
-                    CachedPost.has_link == False,
-                    *base_conditions,
-                ),
-                Integer,
-            )
-        ).label("storms"),
-        # Shorts
-        func.sum(
-            func.cast(
-                and_(
-                    CachedPost.is_reply == False,
-                    CachedPost.is_reblog == False,
-                    CachedPost.has_media == False,
-                    CachedPost.has_video == False,
-                    CachedPost.has_link == False,
-                    func.length(CachedPost.content) < 500,
-                    *base_conditions,
-                ),
-                Integer,
-            )
-        ).label("shorts"),
-        # News
-        func.sum(
-            func.cast(and_(CachedPost.has_news == True, *base_conditions), Integer)
-        ).label("news"),
-        # Software
-        func.sum(
-            func.cast(and_(CachedPost.has_tech == True, *base_conditions), Integer)
-        ).label("software"),
-        # Pictures
-        func.sum(
-            func.cast(and_(CachedPost.has_media == True, *base_conditions), Integer)
-        ).label("pictures"),
-        # Videos
-        func.sum(
-            func.cast(and_(CachedPost.has_video == True, *base_conditions), Integer)
-        ).label("videos"),
-        # Discussions
-        func.sum(
-            func.cast(and_(CachedPost.is_reply == True, *base_conditions), Integer)
-        ).label("discussions"),
-        # Links
-        func.sum(
-            func.cast(and_(CachedPost.has_link == True, *base_conditions), Integer)
-        ).label("links"),
-        # Questions
-        func.sum(
-            func.cast(and_(CachedPost.has_question == True, *base_conditions), Integer)
-        ).label("questions"),
-        # Everyone (total count)
-        func.count().label("everyone"),
-    ).select_from(CachedPost)
+    # Helper for conditional aggregation
+    def filter_count(condition, label: str):
+        total = func.sum(func.cast(condition, Integer)).label(f"total_{label}")
+        unseen = func.sum(
+            func.cast(and_(condition, SeenPost.post_id == None), Integer)
+        ).label(f"unseen_{label}")
+        return total, unseen
 
-    # Apply Filters to the WHERE clause as well to speed up the scan
-    query = query.where(
-        and_(
-            CachedPost.meta_account_id == meta_id,
-            CachedPost.fetched_by_identity_id == identity_id,
-        )
+    # Define our filters matching the UI categories
+    f_shorts = and_(
+        CachedPost.is_reply == False,
+        CachedPost.is_reblog == False,
+        CachedPost.has_media == False,
+        CachedPost.has_link == False,
+        func.length(CachedPost.content) < 500
     )
+    f_storms = and_(
+        CachedPost.is_reblog == False,
+        CachedPost.in_reply_to_id == None,
+        CachedPost.has_link == False
+    )
+    f_news = CachedPost.has_news == True
+    f_software = CachedPost.has_tech == True
+    f_links = CachedPost.has_link == True
+    f_pics = CachedPost.has_media == True
+    f_vids = CachedPost.has_video == True
+    f_discussions = CachedPost.is_reply == True
 
-    # Add user filter if specified (also in WHERE to optimize scan)
-    if user:
-        query = query.where(CachedPost.author_acct == user)
+    # Build the massive select
+    sel_args = []
+    for cond, name in [
+        (True, "everyone"),  # 'True' acts as a placeholder for all posts
+        (f_shorts, "shorts"),
+        (f_storms, "storms"),
+        (f_news, "news"),
+        (f_software, "software"),
+        (f_links, "links"),
+        (f_pics, "pictures"),
+        (f_vids, "videos"),
+        (f_discussions, "discussions"),
+    ]:
+        sel_args.extend(filter_count(cond, name))
+
+    query = select(*sel_args).select_from(
+        outerjoin(CachedPost, SeenPost, and_(
+            CachedPost.id == SeenPost.post_id,
+            SeenPost.meta_account_id == meta_id
+        ))
+    ).where(and_(*base_conditions))
 
     result = await session.execute(query)
     row = result.first()
 
-    return {
-        "user": user or "all",
-        "storms": row.storms or 0,
-        "shorts": row.shorts or 0,
-        "news": row.news or 0,
-        "software": row.software or 0,
-        "pictures": row.pictures or 0,
-        "videos": row.videos or 0,
-        "discussions": row.discussions or 0,
-        "links": row.links or 0,
-        "questions": row.questions or 0,
-        "everyone": row.everyone or 0,
-    }
+    # Format the response for the frontend
+    keys = ["everyone", "shorts", "storms", "news", "software", "links", "pictures", "videos", "discussions"]
+    stats = {"user": user or "all"}
+
+    for key in keys:
+        stats[key] = {
+            "total": getattr(row, f"total_{key}") or 0,
+            "unseen": getattr(row, f"unseen_{key}") or 0
+        }
+
+    return stats

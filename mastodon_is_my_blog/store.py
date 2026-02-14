@@ -423,3 +423,21 @@ async def set_token(value: str) -> None:
             else:
                 session.add(Token(key="mastodon_access_token", value=value))
             await session.commit()
+
+
+class SeenPost(Base):
+    """
+    Tracks which posts a specific MetaAccount has viewed.
+    Scoped by meta_account_id so multiple users don't share read states.
+    """
+    __tablename__ = "seen_posts"
+
+    post_id: Mapped[str] = mapped_column(String, primary_key=True)
+    meta_account_id: Mapped[int] = mapped_column(
+        ForeignKey("meta_accounts.id"), primary_key=True
+    )
+    seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_seen_lookup", "meta_account_id", "post_id"),
+    )

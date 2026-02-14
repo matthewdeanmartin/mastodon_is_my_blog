@@ -16,7 +16,7 @@ from mastodon_is_my_blog.queries import (
 from mastodon_is_my_blog.store import (
     CachedPost,
     MetaAccount,
-    async_session,
+    async_session, SeenPost,
 )
 from mastodon_is_my_blog.utils.perf import time_async_function
 
@@ -52,13 +52,18 @@ async def get_public_posts(
     """
     async with async_session() as session:
         # Base Scoping: Meta Account AND Identity
-        query = select(CachedPost).where(
+        # LEFT JOIN with SeenPost to get read status
+        query = select(CachedPost, SeenPost.post_id.label("is_seen")).outerjoin(
+            SeenPost, and_(
+                CachedPost.id == SeenPost.post_id,
+                SeenPost.meta_account_id == meta.id
+            )
+        ).where(
             and_(
                 CachedPost.meta_account_id == meta.id,
                 CachedPost.fetched_by_identity_id == identity_id,
             )
-        )
-        query = query.order_by(desc(CachedPost.created_at))
+        ).order_by(desc(CachedPost.created_at))
 
         # Handle user filtering
         if user == "everyone" or filter_type == "everyone":
@@ -131,6 +136,7 @@ async def get_public_posts(
                 "content": p.content,
                 "author_acct": p.author_acct,
                 "created_at": p.created_at.isoformat(),
+                "is_read": is_seen is not None,
                 "media_attachments": (
                     json.loads(p.media_attachments) if p.media_attachments else []
                 ),
@@ -144,7 +150,7 @@ async def get_public_posts(
                 "has_link": p.has_link,
                 "tags": json.loads(p.tags) if p.tags else [],
             }
-            for p in posts
+            for p, is_seen in rows
         ]
 
 
@@ -436,6 +442,26 @@ async def get_single_post(
             "is_reply": post.is_reply,
         }
 
+@router.post("/{post_id}/read")
+async def mark_post_as_read(
+        post_id: str,
+        meta: MetaAccount = Depends(get_current_meta_account)
+):
+    """
+    Called by UI mouseover. Marks a post as seen.
+    """
+    async with async_session() as session:
+        # Check if already seen to avoid unique constraint errors/redundant writes
+        stmt = select(SeenPost).where(
+            and_(SeenPost.post_id == post_id, SeenPost.meta_account_id == meta.id)
+        )
+        existing = (await session.execute(stmt)).scalar_one_or_none()
+
+        if not existing:
+            session.add(SeenPost(post_id=post_id, meta_account_id=meta.id))
+            await session.commit()
+
+    return {"status": "success"}
 
 #
 #
