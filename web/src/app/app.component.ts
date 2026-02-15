@@ -7,19 +7,26 @@ import {ApiService} from './api.service';
 import {distinctUntilChanged, map, shareReplay, switchMap, takeUntil, tap, catchError, filter} from 'rxjs/operators';
 import {of, Subject, combineLatest} from 'rxjs';
 
-interface SidebarCounts {
-  storms: number;
-  shorts: number;
-  news: number;
-  software: number;
-  pictures: number;
-  videos: number;
-  discussions: number;
-  links: number;
-  questions: number;
-  everyone: number;
-  reposts: number;
+interface CountDetail {
+  total: number;
+  unseen: number;
 }
+
+interface SidebarCounts {
+  storms: CountDetail;
+  shorts: CountDetail;
+  news: CountDetail;
+  software: CountDetail;
+  pictures: CountDetail;
+  videos: CountDetail;
+  discussions: CountDetail;
+  links: CountDetail;
+  questions: CountDetail;
+  everyone: CountDetail;
+  reposts: CountDetail;
+}
+
+const emptyCount = () => ({ total: 0, unseen: 0 });
 
 @Component({
   selector: 'app-root',
@@ -48,9 +55,14 @@ export class AppComponent implements OnInit, OnDestroy {
   serverDown: boolean = false;
   recentlyViewed: Set<string> = new Set();
 
+
+
+  // Inside AppComponent class
   counts: SidebarCounts = {
-    storms: 0, shorts: 0, news: 0, software: 0, pictures: 0, videos: 0,
-    discussions: 0, links: 0, questions: 0, everyone: 0, reposts: 0
+    storms: emptyCount(), shorts: emptyCount(), news: emptyCount(),
+    software: emptyCount(), pictures: emptyCount(), videos: emptyCount(),
+    discussions: emptyCount(), links: emptyCount(), questions: emptyCount(),
+    everyone: emptyCount(), reposts: emptyCount()
   };
 
   constructor(
@@ -238,19 +250,25 @@ export class AppComponent implements OnInit, OnDestroy {
     const effectiveUser = this.viewingEveryone ? 'everyone' : userForCounts;
 
     this.api.getCounts(this.activeIdentityId, effectiveUser || undefined).subscribe({
+
       next: (c) => {
+        // Helper to extract nested counts safely
+        const mapCount = (data: any): CountDetail => ({
+          total: Number(data?.total || 0),
+          unseen: Number(data?.unseen || 0)
+        });
         this.counts = {
-          storms: Number(c.storms || 0),
-          shorts: Number(c.shorts || 0),
-          news: Number(c.news || 0),
-          software: Number(c.software || 0),
-          pictures: Number(c.pictures || 0),
-          videos: Number(c.videos || 0),
-          discussions: Number(c.discussions || 0),
-          links: Number(c.links || 0),
-          questions: Number(c.questions || 0),
-          everyone: Number(c.everyone || 0),
-          reposts: Number(c.reposts || 0),
+          storms: mapCount(c.storms),
+          shorts: mapCount(c.shorts),
+          news: mapCount(c.news),
+          software: mapCount(c.software),
+          pictures: mapCount(c.pictures),
+          videos: mapCount(c.videos),
+          discussions: mapCount(c.discussions),
+          links: mapCount(c.links),
+          questions: mapCount(c.questions),
+          everyone: mapCount(c.everyone),
+          reposts: mapCount(c.reposts),
         };
       },
       error: (e) => console.log(e),

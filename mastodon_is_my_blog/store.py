@@ -147,7 +147,7 @@ class CachedPost(Base):
     )
 
     # Which of the MetaAccount's identities fetched this?
-    fetched_by_identity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # fetched_by_identity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     visibility: Mapped[str] = mapped_column(String(20))
@@ -430,6 +430,7 @@ class SeenPost(Base):
     Tracks which posts a specific MetaAccount has viewed.
     Scoped by meta_account_id so multiple users don't share read states.
     """
+
     __tablename__ = "seen_posts"
 
     post_id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -438,6 +439,56 @@ class SeenPost(Base):
     )
     seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_seen_lookup", "meta_account_id", "post_id"),
-    )
+    __table_args__ = (Index("ix_seen_lookup", "meta_account_id", "post_id"),)
+
+
+async def mark_post_seen(meta_account_id: int, post_id: str) -> None:
+    async with async_session() as session:
+        stmt = select(SeenPost).where(
+            SeenPost.meta_account_id == meta_account_id,
+            SeenPost.post_id == post_id,
+        )
+        existing = (await session.execute(stmt)).scalar_one_or_none()
+        if not existing:
+            session.add(SeenPost(meta_account_id=meta_account_id, post_id=post_id))
+            await session.commit()
+
+
+async def mark_posts_seen(meta_account_id: int, post_ids: list[str]) -> None:
+    if not post_ids:
+        return
+    async with async_session() as session:
+        for post_id in post_ids:
+            stmt = select(SeenPost).where(
+                SeenPost.meta_account_id == meta_account_id,
+                SeenPost.post_id == post_id,
+            )
+            existing = (await session.execute(stmt)).scalar_one_or_none()
+            if not existing:
+                session.add(SeenPost(meta_account_id=meta_account_id, post_id=post_id))
+        await session.commit()
+
+
+async def get_seen_posts(meta_account_id: int, post_ids: list[str]) -> set[str]:
+    if not post_ids:
+        return set()
+    async with async_session() as session:
+        stmt = select(SeenPost.post_id).where(
+            SeenPost.meta_account_id == meta_account_id,
+            SeenPost.post_id.in_(post_ids),
+        )
+        result = await session.execute(stmt)
+        return set(row[0] for row in result.fetchall())
+
+
+async def get_unread_count(meta_account_id: int, since: datetime | None = None) -> int:
+    async with async_session() as session:
+        if since:
+            stmt = select(SeenPost).where(
+                SeenPost.meta_account_id == meta_account_id,
+                SeenPost.seen_at >= since,
+            )
+        else:
+            stmt = select(SeenPost).where(SeenPost.meta_account_id == meta_account_id)
+        result = await session.execute(stmt)
+        return len(result.fetchall())

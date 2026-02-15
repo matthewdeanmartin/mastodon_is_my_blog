@@ -150,10 +150,21 @@ export class PublicPostComponent implements OnInit {
         // Find current post index in the feed if feed is already loaded
         this.recomputeIndex();
         this.loading = false;
+        
+        // Mark as read when viewing the full post
+        this.markAsSeen(id);
       },
       error: (err) => {
         console.error(err);
         this.loading = false;
+      }
+    });
+  }
+  
+  private markAsSeen(postId: string): void {
+    this.api.markPostSeen(postId).subscribe({
+      error: (err) => {
+        console.error('Failed to mark post as seen', err);
       }
     });
   }

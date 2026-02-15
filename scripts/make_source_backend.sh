@@ -38,4 +38,6 @@ git2md . \
     mastodon_examples \
     utils link_previews.py inspect_post.py identity_verifier.py .venv.example \
     pyproject.toml \
+    .vscode app.db-journal \
+    docs \
   --output SOURCE_BACKEND.md

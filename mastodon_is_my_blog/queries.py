@@ -5,19 +5,19 @@ from datetime import datetime, timedelta, timezone
 
 import dotenv
 from fastapi import HTTPException, Request
-from sqlalchemy import Integer, and_, func, select, outerjoin
+from sqlalchemy import Integer, and_, func, outerjoin, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mastodon_is_my_blog.inspect_post import analyze_content_domains
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
     client_from_identity,
 )
+from mastodon_is_my_blog.store import SeenPost  # ADDED
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedPost,
     MastodonIdentity,
     MetaAccount,
-    SeenPost,  # ADDED
     async_session,
     get_last_sync,
     get_token,
@@ -443,12 +443,12 @@ async def get_counts_optimized(
         CachedPost.is_reblog == False,
         CachedPost.has_media == False,
         CachedPost.has_link == False,
-        func.length(CachedPost.content) < 500
+        func.length(CachedPost.content) < 500,
     )
     f_storms = and_(
         CachedPost.is_reblog == False,
         CachedPost.in_reply_to_id == None,
-        CachedPost.has_link == False
+        CachedPost.has_link == False,
     )
     f_news = CachedPost.has_news == True
     f_software = CachedPost.has_tech == True
@@ -472,24 +472,42 @@ async def get_counts_optimized(
     ]:
         sel_args.extend(filter_count(cond, name))
 
-    query = select(*sel_args).select_from(
-        outerjoin(CachedPost, SeenPost, and_(
-            CachedPost.id == SeenPost.post_id,
-            SeenPost.meta_account_id == meta_id
-        ))
-    ).where(and_(*base_conditions))
+    query = (
+        select(*sel_args)
+        .select_from(
+            outerjoin(
+                CachedPost,
+                SeenPost,
+                and_(
+                    CachedPost.id == SeenPost.post_id,
+                    SeenPost.meta_account_id == meta_id,
+                ),
+            )
+        )
+        .where(and_(*base_conditions))
+    )
 
     result = await session.execute(query)
     row = result.first()
 
     # Format the response for the frontend
-    keys = ["everyone", "shorts", "storms", "news", "software", "links", "pictures", "videos", "discussions"]
+    keys = [
+        "everyone",
+        "shorts",
+        "storms",
+        "news",
+        "software",
+        "links",
+        "pictures",
+        "videos",
+        "discussions",
+    ]
     stats = {"user": user or "all"}
 
     for key in keys:
         stats[key] = {
             "total": getattr(row, f"total_{key}") or 0,
-            "unseen": getattr(row, f"unseen_{key}") or 0
+            "unseen": getattr(row, f"unseen_{key}") or 0,
         }
 
     return stats

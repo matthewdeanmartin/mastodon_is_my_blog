@@ -16,13 +16,65 @@ from mastodon_is_my_blog.queries import (
 from mastodon_is_my_blog.store import (
     CachedPost,
     MetaAccount,
-    async_session, SeenPost,
+    SeenPost,
+    async_session,
+    get_seen_posts,
+    get_unread_count,
+    mark_post_seen,
+    mark_posts_seen,
 )
 from mastodon_is_my_blog.utils.perf import time_async_function
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
+
+
+@router.post("/read")
+async def mark_posts_as_read(
+    post_ids: list[str], meta: MetaAccount = Depends(get_current_meta_account)
+):
+    """
+    Batch mark multiple posts as read.
+    """
+    await mark_posts_seen(meta.id, post_ids)
+    return {"status": "success", "count": len(post_ids)}
+
+
+@router.get("/seen")
+async def get_seen_status(
+    ids: str = Query(..., description="Comma-separated post IDs"),
+    meta: MetaAccount = Depends(get_current_meta_account),
+):
+    """
+    Get seen status for multiple posts.
+    """
+    post_ids = [p.strip() for p in ids.split(",") if p.strip()]
+    seen_ids = await get_seen_posts(meta.id, post_ids)
+    return {"seen": list(seen_ids)}
+
+
+@router.get("/unread-count")
+async def get_unread_post_count(
+    identity_id: int = Query(...), meta: MetaAccount = Depends(get_current_meta_account)
+):
+    """
+    Get count of unread posts for badge display.
+    """
+    async with async_session() as session:
+        stmt = select(func.count(CachedPost.id)).where(
+            and_(
+                CachedPost.meta_account_id == meta.id,
+                CachedPost.fetched_by_identity_id == identity_id,
+                CachedPost.is_reblog == False,
+                CachedPost.is_reply == False,
+            )
+        )
+        total_posts = (await session.execute(stmt)).scalar() or 0
+
+    seen_count = await get_unread_count(meta.id)
+    unread_count = max(0, total_posts - seen_count)
+    return {"unread_count": unread_count}
 
 
 @router.get("")
@@ -53,17 +105,23 @@ async def get_public_posts(
     async with async_session() as session:
         # Base Scoping: Meta Account AND Identity
         # LEFT JOIN with SeenPost to get read status
-        query = select(CachedPost, SeenPost.post_id.label("is_seen")).outerjoin(
-            SeenPost, and_(
-                CachedPost.id == SeenPost.post_id,
-                SeenPost.meta_account_id == meta.id
+        query = (
+            select(CachedPost, SeenPost.post_id.label("is_seen"))
+            .outerjoin(
+                SeenPost,
+                and_(
+                    CachedPost.id == SeenPost.post_id,
+                    SeenPost.meta_account_id == meta.id,
+                ),
             )
-        ).where(
-            and_(
-                CachedPost.meta_account_id == meta.id,
-                CachedPost.fetched_by_identity_id == identity_id,
+            .where(
+                and_(
+                    CachedPost.meta_account_id == meta.id,
+                    CachedPost.fetched_by_identity_id == identity_id,
+                )
             )
-        ).order_by(desc(CachedPost.created_at))
+            .order_by(desc(CachedPost.created_at))
+        )
 
         # Handle user filtering
         if user == "everyone" or filter_type == "everyone":
@@ -128,7 +186,7 @@ async def get_public_posts(
             pass
 
         result = await session.execute(query)
-        posts = result.scalars().all()
+        rows = result.all()
 
         return [
             {
@@ -194,6 +252,10 @@ async def get_storms(
         result = await session.execute(query)
         all_posts = result.scalars().all()
 
+    # Get seen posts for read status
+    post_ids = [p.id for p in all_posts]
+    seen_ids = await get_seen_posts(meta.id, post_ids)
+
     # In-Memory Grouping Algorithm (Same as before, just cleaner query)
     post_map = {p.id: p for p in all_posts}
     children_map = {}
@@ -250,6 +312,7 @@ async def get_storms(
                                 "replies": kid.replies_count,
                                 "likes": kid.favourites_count,
                             },
+                            "is_read": kid.id in seen_ids,
                             "children": collect_children(kid.id, root_author_id),
                         }
                         results.append(kid_data)
@@ -266,6 +329,7 @@ async def get_storms(
                     ),
                     "counts": {"replies": p.replies_count, "likes": p.favourites_count},
                     "author_acct": p.author_acct,
+                    "is_read": p.id in seen_ids,
                 },
                 "branches": collect_children(p.id, p.author_id),
             }
@@ -442,26 +506,17 @@ async def get_single_post(
             "is_reply": post.is_reply,
         }
 
+
 @router.post("/{post_id}/read")
 async def mark_post_as_read(
-        post_id: str,
-        meta: MetaAccount = Depends(get_current_meta_account)
+    post_id: str, meta: MetaAccount = Depends(get_current_meta_account)
 ):
     """
     Called by UI mouseover. Marks a post as seen.
     """
-    async with async_session() as session:
-        # Check if already seen to avoid unique constraint errors/redundant writes
-        stmt = select(SeenPost).where(
-            and_(SeenPost.post_id == post_id, SeenPost.meta_account_id == meta.id)
-        )
-        existing = (await session.execute(stmt)).scalar_one_or_none()
-
-        if not existing:
-            session.add(SeenPost(post_id=post_id, meta_account_id=meta.id))
-            await session.commit()
-
+    await mark_post_seen(meta.id, post_id)
     return {"status": "success"}
+
 
 #
 #

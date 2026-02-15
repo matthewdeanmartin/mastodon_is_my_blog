@@ -36,4 +36,6 @@ git2md . \
     test \
     data domain_categories.py \
     mastodon_examples \
+    .vscode app.db-journal \
+    docs \
   --output SOURCE_BACKEND.md
