@@ -211,3 +211,6 @@ SOURCE_UI.md
 /app.db
 /SOURCE_ALL.md
 /SOURCE_BACKEND.md
+/spec/
+/scripts/tranco.csv
+/scripts/tranco_X462N-1m.csv.zip

@@ -129,7 +129,6 @@ export class AppComponent implements OnInit, OnDestroy {
       this.activeIdentityId = id;
       if (id) {
         this.loadBlogRoll();
-        this.refreshCounts();
       }
     });
 

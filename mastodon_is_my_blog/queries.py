@@ -201,7 +201,6 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
                 account_data = s["account"]
                 last_status_time = to_naive_utc(s["created_at"])
 
-                # Pass identity.id
                 existing = await _upsert_account(
                     session, meta_id, identity.id, account_data
                 )
@@ -211,7 +210,50 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
                     or last_status_time > existing.last_status_at
                 ):
                     existing.last_status_at = last_status_time
+
             await session.commit()
+
+        # Recompute post stats for all accounts seen in this identity's cached posts.
+        # Single GROUP BY query; results written back to cached_accounts.
+        async with async_session() as session:
+            stats_rows = (
+                await session.execute(
+                    select(
+                        CachedPost.author_id,
+                        func.count(CachedPost.id).label("total"),
+                        func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),
+                    )
+                    .where(
+                        and_(
+                            CachedPost.meta_account_id == meta_id,
+                            CachedPost.fetched_by_identity_id == identity.id,
+                        )
+                    )
+                    .group_by(CachedPost.author_id)
+                )
+            ).all()
+
+            if stats_rows:
+                author_ids = [row.author_id for row in stats_rows]
+                accounts_res = await session.execute(
+                    select(CachedAccount).where(
+                        and_(
+                            CachedAccount.meta_account_id == meta_id,
+                            CachedAccount.mastodon_identity_id == identity.id,
+                            CachedAccount.id.in_(author_ids),
+                        )
+                    )
+                )
+                accounts_by_id = {a.id: a for a in accounts_res.scalars().all()}
+
+                for row in stats_rows:
+                    acc = accounts_by_id.get(row.author_id)
+                    if acc:
+                        acc.cached_post_count = row.total or 0
+                        acc.cached_reply_count = row.replies or 0
+
+                await session.commit()
+
     except Exception as e:
         logger.error(e)
         logger.error(f"Failed to sync blog roll for {identity.acct}: {e}")
@@ -445,10 +487,13 @@ async def get_counts_optimized(
         CachedPost.has_link == False,
         func.length(CachedPost.content) < 500,
     )
+    # Storm count approximation: roots that are long enough to qualify.
+    # Self-reply chains can't be counted efficiently in SQL; length >= 500 catches most.
     f_storms = and_(
         CachedPost.is_reblog == False,
         CachedPost.in_reply_to_id == None,
         CachedPost.has_link == False,
+        func.length(CachedPost.content) >= 500,
     )
     f_news = CachedPost.has_news == True
     f_software = CachedPost.has_tech == True

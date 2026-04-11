@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    insert,
     select,
 )
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -134,6 +135,10 @@ class CachedAccount(Base):
         DateTime, nullable=True, index=True
     )  # Added index here for the blogroll sort
 
+    # Materialized post stats — updated at sync time, used for chatty/broadcaster filters
+    cached_post_count: Mapped[int] = mapped_column(Integer, default=0)
+    cached_reply_count: Mapped[int] = mapped_column(Integer, default=0)
+
 
 class CachedPost(Base):
     __tablename__ = "cached_posts"
@@ -197,6 +202,9 @@ class CachedPost(Base):
         Index("ix_posts_meta_created", "meta_account_id", "created_at"),
         Index("ix_posts_meta_author", "meta_account_id", "author_acct", "created_at"),
         Index("ix_posts_meta_clean", "meta_account_id", "is_reblog", "is_reply"),
+        Index("ix_posts_meta_identity_created", "meta_account_id", "fetched_by_identity_id", "created_at"),
+        Index("ix_posts_meta_identity_author", "meta_account_id", "fetched_by_identity_id", "author_acct", "created_at"),
+        Index("ix_posts_in_reply_to", "meta_account_id", "fetched_by_identity_id", "in_reply_to_id"),
     )
 
     # Define Composite Indexes to speed up specific query patterns
@@ -459,13 +467,11 @@ async def mark_posts_seen(meta_account_id: int, post_ids: list[str]) -> None:
         return
     async with async_session() as session:
         for post_id in post_ids:
-            stmt = select(SeenPost).where(
-                SeenPost.meta_account_id == meta_account_id,
-                SeenPost.post_id == post_id,
+            await session.execute(
+                insert(SeenPost)
+                .values(meta_account_id=meta_account_id, post_id=post_id)
+                .prefix_with("OR IGNORE")
             )
-            existing = (await session.execute(stmt)).scalar_one_or_none()
-            if not existing:
-                session.add(SeenPost(meta_account_id=meta_account_id, post_id=post_id))
         await session.commit()
 
 
