@@ -25,4 +25,6 @@ git2md web \
     README.md \
     app.db \
     favicon.ico \
+    .vscode app.db-journal \
+    docs \
   --output SOURCE_UI.md

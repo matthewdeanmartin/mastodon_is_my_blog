@@ -3,7 +3,7 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, desc, exists, func, select
+from sqlalchemy import and_, desc, exists, select
 
 from mastodon_is_my_blog.queries import (
     get_current_meta_account,
@@ -12,7 +12,6 @@ from mastodon_is_my_blog.queries import (
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedNotification,
-    CachedPost,
     MastodonIdentity,
     MetaAccount,
     async_session,
@@ -102,61 +101,22 @@ async def get_blog_roll(
         res = await session.execute(query)
         accounts = res.scalars().all()
 
-        # Post-processing for Chatty / Broadcasters (Reply Ratios)
+        # Post-processing for Chatty / Broadcasters using materialized stats
         if filter_type in ("chatty", "broadcasters"):
-            accounts_with_stats = []
-
+            accounts_with_ratio = []
             for acc in accounts:
-                # Count total posts and replies for this account within this identity context
-                total_stmt = select(func.count(CachedPost.id)).where(
-                    and_(
-                        CachedPost.author_id == acc.id,
-                        CachedPost.meta_account_id == meta.id,
-                        CachedPost.fetched_by_identity_id == identity_id,
-                    )
-                )
-                reply_stmt = select(func.count(CachedPost.id)).where(
-                    and_(
-                        CachedPost.author_id == acc.id,
-                        CachedPost.is_reply == True,
-                        CachedPost.meta_account_id == meta.id,
-                        CachedPost.fetched_by_identity_id == identity_id,
-                    )
-                )
+                total = acc.cached_post_count
+                if total < 5:
+                    continue
+                ratio = acc.cached_reply_count / total
+                if filter_type == "chatty" and ratio > 0.5:
+                    accounts_with_ratio.append((acc, ratio))
+                elif filter_type == "broadcasters" and ratio < 0.2:
+                    accounts_with_ratio.append((acc, ratio))
 
-                total_posts = (await session.execute(total_stmt)).scalar() or 0
-                reply_posts = (await session.execute(reply_stmt)).scalar() or 0
-
-                reply_ratio = reply_posts / total_posts if total_posts > 0 else 0
-
-                accounts_with_stats.append(
-                    {
-                        "account": acc,
-                        "reply_ratio": reply_ratio,
-                        "total_posts": total_posts,
-                    }
-                )
-
-            # Sort by reply ratio
-            if filter_type == "chatty":
-                # High reply ratio = chatty (> 50% replies)
-                accounts_with_stats = [
-                    a
-                    for a in accounts_with_stats
-                    if a["reply_ratio"] > 0.5 and a["total_posts"] >= 5
-                ]
-                accounts_with_stats.sort(key=lambda x: x["reply_ratio"], reverse=True)
-            else:  # broadcasters
-                # Low reply ratio = broadcaster (< 20% replies)
-                accounts_with_stats = [
-                    a
-                    for a in accounts_with_stats
-                    if a["reply_ratio"] < 0.2 and a["total_posts"] >= 5
-                ]
-                accounts_with_stats.sort(key=lambda x: x["reply_ratio"])
-
-            # Extract accounts from the stats
-            accounts = [a["account"] for a in accounts_with_stats[:40]]
+            reverse = filter_type == "chatty"
+            accounts_with_ratio.sort(key=lambda x: x[1], reverse=reverse)
+            accounts = [acc for acc, _ in accounts_with_ratio[:40]]
 
         # Convert to dicts
         return [

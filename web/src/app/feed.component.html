@@ -1,6 +1,7 @@
 <div class="card">
   <h2 class="post-title">
     {{ (currentFilter === 'all' || currentFilter === 'storms') ? 'Latest Storms' : (currentFilter | titlecase) }}
+    <span *ngIf="unreadCount > 0" class="unread-badge">{{ unreadCount }} unread</span>
   </h2>
 
   <div *ngIf="loading" class="muted">Loading...</div>
@@ -34,7 +35,8 @@
 </div>
 
 <ng-template #postTemplate let-p>
-  <div class="row" style="margin-bottom: 5px">
+  <div #postItem [attr.data-post-id]="p.id" [class.read-post]="isPostRead(p.id)" class="post-item" (mouseenter)="onPostMouseEnter(p.id)" (mouseleave)="onPostMouseLeave(p.id)">
+    <div class="row" style="margin-bottom: 5px">
     <a
       [routerLink]="['/p', p.id]"
       [queryParams]="getQueryParams()"
@@ -106,5 +108,6 @@
         <span style="font-size: 1rem;">🔗</span> View on Mastodon
       </a>
     </span>
+  </div>
   </div>
 </ng-template>

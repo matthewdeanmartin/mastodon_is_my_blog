@@ -122,48 +122,98 @@
 
   <!-- Right Sidebar - Only show on People pages -->
   <div class="sidebar-right" *ngIf="isPeoplePage()">
-    <div class="muted" style="margin-bottom:10px;">POST FILTERS</div>
+  <div class="muted" style="margin-bottom:10px;">POST FILTERS</div>
 
-    <button class="nav-btn" [class.active]="currentFilter==='storms' || currentFilter==='all'" (click)="setFilter('storms')">
-      Storms ({{ counts.storms }})
-    </button>
+  <button class="nav-btn" [class.active]="currentFilter==='storms' || currentFilter==='all'" (click)="setFilter('storms')">
+    <div class="row" style="gap: 4px; justify-content: flex-start;">
+      <span>Storms ({{ counts.storms.total }})</span>
+      <span *ngIf="counts.storms.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
+        {{ counts.storms.unseen }}
+      </span>
+    </div>
+  </button>
 
-    <button class="nav-btn" [class.active]="currentFilter==='shorts'" (click)="setFilter('shorts')">
-      Shorts ({{ counts.shorts }})
-    </button>
+  <button class="nav-btn" [class.active]="currentFilter==='shorts'" (click)="setFilter('shorts')">
+    <div class="row" style="gap: 4px; justify-content: flex-start;">
+      <span>Shorts ({{ counts.shorts.total }})</span>
+      <span *ngIf="counts.shorts.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
+        {{ counts.shorts.unseen }}
+      </span>
+    </div>
+  </button>
 
-    <button class="nav-btn" [class.active]="currentFilter==='questions'" (click)="setFilter('questions')">
-      Questions ({{ counts.questions }})
-    </button>
+  <button class="nav-btn" [class.active]="currentFilter==='questions'" (click)="setFilter('questions')">
+    <div class="row" style="gap: 4px; justify-content: flex-start;">
+      <span>Questions ({{ counts.questions.total }})</span>
+      <span *ngIf="counts.questions.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
+        {{ counts.questions.unseen }}
+      </span>
+    </div>
+  </button>
 
-    <button class="nav-btn" [class.active]="currentFilter==='news'" (click)="setFilter('news')">
-      News ({{ counts.news }})
-    </button>
+  <button class="nav-btn" [class.active]="currentFilter==='news'" (click)="setFilter('news')">
+    <div class="row" style="gap: 4px; justify-content: flex-start;">
+      <span>News ({{ counts.news.total }})</span>
+      <span *ngIf="counts.news.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
+        {{ counts.news.unseen }}
+      </span>
+    </div>
+  </button>
 
-    <button class="nav-btn" [class.active]="currentFilter==='software'" (click)="setFilter('software')">
-      Cool Software ({{ counts.software }})
-    </button>
+  <button class="nav-btn" [class.active]="currentFilter==='software'" (click)="setFilter('software')">
+    <div class="row" style="gap: 4px; justify-content: flex-start;">
+      <span>Cool Software ({{ counts.software.total }})</span>
+      <span *ngIf="counts.software.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
+        {{ counts.software.unseen }}
+      </span>
+    </div>
+  </button>
 
-    <button class="nav-btn" [class.active]="currentFilter==='pictures'" (click)="setFilter('pictures')">
-      Pictures ({{ counts.pictures }})
-    </button>
+  <button class="nav-btn" [class.active]="currentFilter==='pictures'" (click)="setFilter('pictures')">
+    <div class="row" style="gap: 4px; justify-content: flex-start;">
+      <span>Pictures ({{ counts.pictures.total }})</span>
+      <span *ngIf="counts.pictures.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
+        {{ counts.pictures.unseen }}
+      </span>
+    </div>
+  </button>
 
-    <button class="nav-btn" [class.active]="currentFilter==='videos'" (click)="setFilter('videos')">
-      Videos ({{ counts.videos }})
-    </button>
+  <button class="nav-btn" [class.active]="currentFilter==='videos'" (click)="setFilter('videos')">
+    <div class="row" style="gap: 4px; justify-content: flex-start;">
+      <span>Videos ({{ counts.videos.total }})</span>
+      <span *ngIf="counts.videos.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
+        {{ counts.videos.unseen }}
+      </span>
+    </div>
+  </button>
 
-    <button class="nav-btn" [class.active]="currentFilter==='discussions'" (click)="setFilter('discussions')">
-      Discussions ({{ counts.discussions }})
-    </button>
+  <button class="nav-btn" [class.active]="currentFilter==='discussions'" (click)="setFilter('discussions')">
+    <div class="row" style="gap: 4px; justify-content: flex-start;">
+      <span>Discussions ({{ counts.discussions.total }})</span>
+      <span *ngIf="counts.discussions.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
+        {{ counts.discussions.unseen }}
+      </span>
+    </div>
+  </button>
 
-    <button class="nav-btn" [class.active]="currentFilter==='links'" (click)="setFilter('links')">
-      Links ({{ counts.links }})
-    </button>
+  <button class="nav-btn" [class.active]="currentFilter==='links'" (click)="setFilter('links')">
+    <div class="row" style="gap: 4px; justify-content: flex-start;">
+      <span>Links ({{ counts.links.total }})</span>
+      <span *ngIf="counts.links.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
+        {{ counts.links.unseen }}
+      </span>
+    </div>
+  </button>
 
-    <button class="nav-btn" [class.active]="currentFilter==='reposts'" (click)="setFilter('reposts')">
-      Reposts ({{ counts.reposts }})
-    </button>
-  </div>
+  <button class="nav-btn" [class.active]="currentFilter==='reposts'" (click)="setFilter('reposts')">
+    <div class="row" style="gap: 4px; justify-content: flex-start;">
+      <span>Reposts ({{ counts.reposts.total }})</span>
+      <span *ngIf="counts.reposts.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
+        {{ counts.reposts.unseen }}
+      </span>
+    </div>
+  </button>
+</div>
 
   <div class="content">
     <router-outlet></router-outlet>

@@ -1,6 +1,7 @@
 # mastodon_is_my_blog/routes/posts.py
 import json
 import logging
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, desc, func, select
@@ -16,13 +17,74 @@ from mastodon_is_my_blog.queries import (
 from mastodon_is_my_blog.store import (
     CachedPost,
     MetaAccount,
-    async_session, SeenPost,
+    SeenPost,
+    async_session,
+    get_seen_posts,
+    get_unread_count,
+    mark_post_seen,
+    mark_posts_seen,
 )
 from mastodon_is_my_blog.utils.perf import time_async_function
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
+
+STORM_MIN_TEXT_LEN = 500
+
+
+def html_text_len(html: str) -> int:
+    """Strip HTML tags and URLs, return character count of remaining text."""
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = re.sub(r"https?://\S+", " ", text)
+    return len(text.strip())
+
+
+@router.post("/read")
+async def mark_posts_as_read(
+    post_ids: list[str], meta: MetaAccount = Depends(get_current_meta_account)
+):
+    """
+    Batch mark multiple posts as read.
+    """
+    await mark_posts_seen(meta.id, post_ids)
+    return {"status": "success", "count": len(post_ids)}
+
+
+@router.get("/seen")
+async def get_seen_status(
+    ids: str = Query(..., description="Comma-separated post IDs"),
+    meta: MetaAccount = Depends(get_current_meta_account),
+):
+    """
+    Get seen status for multiple posts.
+    """
+    post_ids = [p.strip() for p in ids.split(",") if p.strip()]
+    seen_ids = await get_seen_posts(meta.id, post_ids)
+    return {"seen": list(seen_ids)}
+
+
+@router.get("/unread-count")
+async def get_unread_post_count(
+    identity_id: int = Query(...), meta: MetaAccount = Depends(get_current_meta_account)
+):
+    """
+    Get count of unread posts for badge display.
+    """
+    async with async_session() as session:
+        stmt = select(func.count(CachedPost.id)).where(
+            and_(
+                CachedPost.meta_account_id == meta.id,
+                CachedPost.fetched_by_identity_id == identity_id,
+                CachedPost.is_reblog == False,
+                CachedPost.is_reply == False,
+            )
+        )
+        total_posts = (await session.execute(stmt)).scalar() or 0
+
+    seen_count = await get_unread_count(meta.id)
+    unread_count = max(0, total_posts - seen_count)
+    return {"unread_count": unread_count}
 
 
 @router.get("")
@@ -53,17 +115,23 @@ async def get_public_posts(
     async with async_session() as session:
         # Base Scoping: Meta Account AND Identity
         # LEFT JOIN with SeenPost to get read status
-        query = select(CachedPost, SeenPost.post_id.label("is_seen")).outerjoin(
-            SeenPost, and_(
-                CachedPost.id == SeenPost.post_id,
-                SeenPost.meta_account_id == meta.id
+        query = (
+            select(CachedPost, SeenPost.post_id.label("is_seen"))
+            .outerjoin(
+                SeenPost,
+                and_(
+                    CachedPost.id == SeenPost.post_id,
+                    SeenPost.meta_account_id == meta.id,
+                ),
             )
-        ).where(
-            and_(
-                CachedPost.meta_account_id == meta.id,
-                CachedPost.fetched_by_identity_id == identity_id,
+            .where(
+                and_(
+                    CachedPost.meta_account_id == meta.id,
+                    CachedPost.fetched_by_identity_id == identity_id,
+                )
             )
-        ).order_by(desc(CachedPost.created_at))
+            .order_by(desc(CachedPost.created_at))
+        )
 
         # Handle user filtering
         if user == "everyone" or filter_type == "everyone":
@@ -128,7 +196,7 @@ async def get_public_posts(
             pass
 
         result = await session.execute(query)
-        posts = result.scalars().all()
+        rows = result.all()
 
         return [
             {
@@ -174,104 +242,138 @@ async def get_storms(
 ):
     """
     Returns 'Tweet Storms' visible to the specific identity.
+
+    A storm is a root post (no parent, no link) that either:
+    - Has at least one self-reply (same author replied to themselves), OR
+    - Is long (>= STORM_MIN_TEXT_LEN chars of text)
+
+    Instead of loading the full timeline, we:
+    1. Find candidate roots via a subquery (self-replied-to posts) + long-post filter
+    2. Load only roots + their reply descendants
     """
+    scope = and_(
+        CachedPost.meta_account_id == meta.id,
+        CachedPost.fetched_by_identity_id == identity_id,
+        CachedPost.is_reblog == False,
+    )
+    user_filter = (CachedPost.author_acct == user) if (user and user != "everyone") else True
+
     async with async_session() as session:
-        # Base Scoping
-        query = select(CachedPost).where(
+        # Subquery: post IDs that have at least one self-reply.
+        # A self-reply is a post where in_reply_to_id points at a post by the same author.
+        # We find the *parent* IDs by joining a post to itself on in_reply_to_id.
+        parent = CachedPost.__table__.alias("parent")
+        child = CachedPost.__table__.alias("child")
+        self_replied_ids_sq = (
+            select(parent.c.id)
+            .join(child, child.c.in_reply_to_id == parent.c.id)
+            .where(
+                and_(
+                    parent.c.meta_account_id == meta.id,
+                    parent.c.fetched_by_identity_id == identity_id,
+                    child.c.meta_account_id == meta.id,
+                    child.c.fetched_by_identity_id == identity_id,
+                    child.c.author_id == parent.c.author_id,
+                )
+            )
+            .scalar_subquery()
+        )
+
+        # Roots: no parent, no link, and either long or has a self-reply
+        roots_query = (
+            select(CachedPost)
+            .where(
+                and_(
+                    scope,
+                    user_filter,
+                    CachedPost.in_reply_to_id == None,
+                    CachedPost.has_link == False,
+                    (
+                        (func.length(CachedPost.content) >= STORM_MIN_TEXT_LEN)
+                        | CachedPost.id.in_(self_replied_ids_sq)
+                    ),
+                )
+            )
+            .order_by(desc(CachedPost.created_at))
+        )
+        roots = (await session.execute(roots_query)).scalars().all()
+
+        if not roots:
+            return []
+
+        root_ids = [r.id for r in roots]
+
+        # Load all reply descendants for these roots in one query.
+        # We only need posts whose in_reply_to_id is one of the root IDs or their
+        # descendants. Since storm chains are typically short (< 20 posts), two passes
+        # (root children + grandchildren) covers nearly all real cases without recursion.
+        # We load all non-root posts whose author matches any root author and whose
+        # in_reply_to_id is known within our scope, then build the tree in memory.
+        # This is bounded to the reply subgraph, not the full timeline.
+        root_author_ids = {r.author_id for r in roots}
+
+        replies_query = select(CachedPost).where(
             and_(
-                CachedPost.meta_account_id == meta.id,
-                CachedPost.fetched_by_identity_id == identity_id,
+                scope,
+                CachedPost.in_reply_to_id != None,
+                CachedPost.author_id.in_(root_author_ids),
             )
         )
-        query = query.order_by(desc(CachedPost.created_at))
-
-        # Filter by user if provided
         if user and user != "everyone":
-            query = query.where(CachedPost.author_acct == user)
+            replies_query = replies_query.where(CachedPost.author_acct == user)
 
-        query = query.where(CachedPost.is_reblog == False)
+        replies = (await session.execute(replies_query)).scalars().all()
 
-        result = await session.execute(query)
-        all_posts = result.scalars().all()
-
-    # In-Memory Grouping Algorithm (Same as before, just cleaner query)
-    post_map = {p.id: p for p in all_posts}
-    children_map = {}
-    for p in all_posts:
+    # Build children map from the small reply set only
+    children_map: dict[str, list] = {}
+    for p in replies:
         if p.in_reply_to_id:
             children_map.setdefault(p.in_reply_to_id, []).append(p)
 
-    # 3. Identify Roots
-    storms = []
-    processed_ids = set()
+    all_post_ids = root_ids + [p.id for p in replies]
+    seen_ids = await get_seen_posts(meta.id, all_post_ids)
 
-    # We iterate chronologically DESC (newest first) to show latest storms at top
-    sorted_posts = sorted(all_posts, key=lambda x: x.created_at, reverse=True)
+    def collect_children(parent_id: str, root_author_id: str) -> list:
+        results = []
+        direct_kids = sorted(children_map.get(parent_id, []), key=lambda x: x.created_at)
+        for kid in direct_kids:
+            if kid.author_id == root_author_id:
+                results.append(
+                    {
+                        "id": kid.id,
+                        "content": kid.content,
+                        "media": (
+                            json.loads(kid.media_attachments)
+                            if kid.media_attachments
+                            else []
+                        ),
+                        "counts": {
+                            "replies": kid.replies_count,
+                            "likes": kid.favourites_count,
+                        },
+                        "is_read": kid.id in seen_ids,
+                        "children": collect_children(kid.id, root_author_id),
+                    }
+                )
+        return results
 
-    for p in sorted_posts:
-        if p.id in processed_ids:
-            continue
-
-        # Root Definition:
-        # - No parent (in_reply_to_id is None)
-        # - Not a link post (optional preference)
-        # - If it HAS a parent, but that parent isn't in our DB (broken chain), treat as root?
-        #    For now, strict roots only.
-        is_root = False
-        # ROOT DEFINITION UPDATE:
-        # - Must not be a reply
-        # - Must NOT have a link (per user request)
-        if not p.in_reply_to_id and not p.has_link:
-            is_root = True
-
-        if is_root:
-            processed_ids.add(p.id)
-
-            # Recursive collector that strictly follows SELF-REPLIES
-            def collect_children(parent_id: str, root_author_id: str):
-                results = []
-                direct_kids = children_map.get(parent_id, [])
-                # Sort kids by time ASC (chronological reading)
-                direct_kids.sort(key=lambda x: x.created_at)
-
-                for kid in direct_kids:
-                    # STRICT RULE: Must be same author as Root to be part of the storm
-                    if kid.author_id == root_author_id:
-                        processed_ids.add(kid.id)
-                        kid_data = {
-                            "id": kid.id,
-                            "content": kid.content,
-                            "media": (
-                                json.loads(kid.media_attachments)
-                                if kid.media_attachments
-                                else []
-                            ),
-                            "counts": {
-                                "replies": kid.replies_count,
-                                "likes": kid.favourites_count,
-                            },
-                            "children": collect_children(kid.id, root_author_id),
-                        }
-                        results.append(kid_data)
-                return results
-
-            # Build the storm object
-            storm = {
-                "root": {
-                    "id": p.id,
-                    "content": p.content,
-                    "created_at": p.created_at.isoformat(),
-                    "media": (
-                        json.loads(p.media_attachments) if p.media_attachments else []
-                    ),
-                    "counts": {"replies": p.replies_count, "likes": p.favourites_count},
-                    "author_acct": p.author_acct,
-                },
-                "branches": collect_children(p.id, p.author_id),
-            }
-            storms.append(storm)
-
-    return storms
+    return [
+        {
+            "root": {
+                "id": p.id,
+                "content": p.content,
+                "created_at": p.created_at.isoformat(),
+                "media": (
+                    json.loads(p.media_attachments) if p.media_attachments else []
+                ),
+                "counts": {"replies": p.replies_count, "likes": p.favourites_count},
+                "author_acct": p.author_acct,
+                "is_read": p.id in seen_ids,
+            },
+            "branches": collect_children(p.id, p.author_id),
+        }
+        for p in roots
+    ]
 
 
 # --- Hashtag Aggregation ---
@@ -442,26 +544,17 @@ async def get_single_post(
             "is_reply": post.is_reply,
         }
 
+
 @router.post("/{post_id}/read")
 async def mark_post_as_read(
-        post_id: str,
-        meta: MetaAccount = Depends(get_current_meta_account)
+    post_id: str, meta: MetaAccount = Depends(get_current_meta_account)
 ):
     """
     Called by UI mouseover. Marks a post as seen.
     """
-    async with async_session() as session:
-        # Check if already seen to avoid unique constraint errors/redundant writes
-        stmt = select(SeenPost).where(
-            and_(SeenPost.post_id == post_id, SeenPost.meta_account_id == meta.id)
-        )
-        existing = (await session.execute(stmt)).scalar_one_or_none()
-
-        if not existing:
-            session.add(SeenPost(post_id=post_id, meta_account_id=meta.id))
-            await session.commit()
-
+    await mark_post_seen(meta.id, post_id)
     return {"status": "success"}
+
 
 #
 #

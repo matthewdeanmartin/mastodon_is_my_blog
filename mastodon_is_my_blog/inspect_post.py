@@ -6,6 +6,10 @@ from bs4 import BeautifulSoup
 
 from mastodon_is_my_blog.data.domain_categories import DOMAIN_CONFIG
 
+# Mastodon post URLs follow the pattern /@username/numeric_id
+# e.g. https://mastodon.social/@gargron/112345678901234567
+MASTODON_POST_URL_RE = re.compile(r"^/@[\w.]+/\d+$")
+
 # Schema for DOMAIN_CONFIG
 # DOMAIN_CONFIG = {
 #     "video": {
@@ -61,7 +65,11 @@ def analyze_content_domains(
             is_mention_or_tag = "mention" in classes or "hashtag" in classes
 
             if not is_mention_or_tag:
-                flags["has_link"] = True
+                # Mastodon quote-posts use /@user/id URLs — not generic links
+                parsed_path = urlparse(link["href"]).path
+                is_mastodon_post = bool(MASTODON_POST_URL_RE.match(parsed_path))
+                if not is_mastodon_post:
+                    flags["has_link"] = True
 
             domain = urlparse(link["href"]).netloc.lower()
             # Remove 'www.' prefix if present for matching

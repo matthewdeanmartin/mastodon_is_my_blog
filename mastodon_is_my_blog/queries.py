@@ -5,19 +5,19 @@ from datetime import datetime, timedelta, timezone
 
 import dotenv
 from fastapi import HTTPException, Request
-from sqlalchemy import Integer, and_, func, select, outerjoin
+from sqlalchemy import Integer, and_, func, outerjoin, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mastodon_is_my_blog.inspect_post import analyze_content_domains
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
     client_from_identity,
 )
+from mastodon_is_my_blog.store import SeenPost  # ADDED
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedPost,
     MastodonIdentity,
     MetaAccount,
-    SeenPost,  # ADDED
     async_session,
     get_last_sync,
     get_token,
@@ -201,7 +201,6 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
                 account_data = s["account"]
                 last_status_time = to_naive_utc(s["created_at"])
 
-                # Pass identity.id
                 existing = await _upsert_account(
                     session, meta_id, identity.id, account_data
                 )
@@ -211,7 +210,50 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
                     or last_status_time > existing.last_status_at
                 ):
                     existing.last_status_at = last_status_time
+
             await session.commit()
+
+        # Recompute post stats for all accounts seen in this identity's cached posts.
+        # Single GROUP BY query; results written back to cached_accounts.
+        async with async_session() as session:
+            stats_rows = (
+                await session.execute(
+                    select(
+                        CachedPost.author_id,
+                        func.count(CachedPost.id).label("total"),
+                        func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),
+                    )
+                    .where(
+                        and_(
+                            CachedPost.meta_account_id == meta_id,
+                            CachedPost.fetched_by_identity_id == identity.id,
+                        )
+                    )
+                    .group_by(CachedPost.author_id)
+                )
+            ).all()
+
+            if stats_rows:
+                author_ids = [row.author_id for row in stats_rows]
+                accounts_res = await session.execute(
+                    select(CachedAccount).where(
+                        and_(
+                            CachedAccount.meta_account_id == meta_id,
+                            CachedAccount.mastodon_identity_id == identity.id,
+                            CachedAccount.id.in_(author_ids),
+                        )
+                    )
+                )
+                accounts_by_id = {a.id: a for a in accounts_res.scalars().all()}
+
+                for row in stats_rows:
+                    acc = accounts_by_id.get(row.author_id)
+                    if acc:
+                        acc.cached_post_count = row.total or 0
+                        acc.cached_reply_count = row.replies or 0
+
+                await session.commit()
+
     except Exception as e:
         logger.error(e)
         logger.error(f"Failed to sync blog roll for {identity.acct}: {e}")
@@ -443,12 +485,15 @@ async def get_counts_optimized(
         CachedPost.is_reblog == False,
         CachedPost.has_media == False,
         CachedPost.has_link == False,
-        func.length(CachedPost.content) < 500
+        func.length(CachedPost.content) < 500,
     )
+    # Storm count approximation: roots that are long enough to qualify.
+    # Self-reply chains can't be counted efficiently in SQL; length >= 500 catches most.
     f_storms = and_(
         CachedPost.is_reblog == False,
         CachedPost.in_reply_to_id == None,
-        CachedPost.has_link == False
+        CachedPost.has_link == False,
+        func.length(CachedPost.content) >= 500,
     )
     f_news = CachedPost.has_news == True
     f_software = CachedPost.has_tech == True
@@ -472,24 +517,42 @@ async def get_counts_optimized(
     ]:
         sel_args.extend(filter_count(cond, name))
 
-    query = select(*sel_args).select_from(
-        outerjoin(CachedPost, SeenPost, and_(
-            CachedPost.id == SeenPost.post_id,
-            SeenPost.meta_account_id == meta_id
-        ))
-    ).where(and_(*base_conditions))
+    query = (
+        select(*sel_args)
+        .select_from(
+            outerjoin(
+                CachedPost,
+                SeenPost,
+                and_(
+                    CachedPost.id == SeenPost.post_id,
+                    SeenPost.meta_account_id == meta_id,
+                ),
+            )
+        )
+        .where(and_(*base_conditions))
+    )
 
     result = await session.execute(query)
     row = result.first()
 
     # Format the response for the frontend
-    keys = ["everyone", "shorts", "storms", "news", "software", "links", "pictures", "videos", "discussions"]
+    keys = [
+        "everyone",
+        "shorts",
+        "storms",
+        "news",
+        "software",
+        "links",
+        "pictures",
+        "videos",
+        "discussions",
+    ]
     stats = {"user": user or "all"}
 
     for key in keys:
         stats[key] = {
             "total": getattr(row, f"total_{key}") or 0,
-            "unseen": getattr(row, f"unseen_{key}") or 0
+            "unseen": getattr(row, f"unseen_{key}") or 0,
         }
 
     return stats

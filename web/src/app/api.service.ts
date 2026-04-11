@@ -106,7 +106,7 @@ export class ApiService {
 
   // Wrapper to handle errors consistently
   private handleError(error: any): Observable<never> {
-    this.serverDownSubject.next(true);
+    // this.serverDownSubject.next(true);
     return throwError(() => error);
   }
 
@@ -286,6 +286,34 @@ export class ApiService {
   getAnalytics(): Observable<any> {
     return this.http
       .get<any>(`${this.base}/api/posts/analytics`, {headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  // --- Seen Posts ---
+
+  markPostSeen(postId: string): Observable<any> {
+    return this.http
+      .post(`${this.base}/api/posts/${postId}/read`, {}, {headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  markPostsSeen(postIds: string[]): Observable<any> {
+    return this.http
+      .post(`${this.base}/api/posts/read`, postIds, {headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getSeenPosts(postIds: string[]): Observable<{seen: string[]}> {
+    const params = new HttpParams().set('ids', postIds.join(','));
+    return this.http
+      .get<{seen: string[]}>(`${this.base}/api/posts/seen`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getUnreadCount(identityId: number): Observable<{unread_count: number}> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .get<{unread_count: number}>(`${this.base}/api/posts/unread-count`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 }

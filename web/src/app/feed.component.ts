@@ -1,14 +1,15 @@
 // web/src/app/feed.component.ts
 
-import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { ApiService } from './api.service';
-import { CommonModule } from '@angular/common';
-import { DomSanitizer } from '@angular/platform-browser';
-import { LinkPreviewComponent } from './link.component';
-import { LinkPreviewService } from './link.service';
-import { combineLatest } from 'rxjs';
-import { HttpErrorResponse } from '@angular/common/http'; // Import HttpErrorResponse
+import {Component, OnInit, OnDestroy, ElementRef, ViewChildren, QueryList, AfterViewInit} from '@angular/core';
+import {ActivatedRoute, RouterLink} from '@angular/router';
+import {ApiService} from './api.service';
+import {CommonModule} from '@angular/common';
+import {DomSanitizer} from '@angular/platform-browser';
+import {LinkPreviewComponent} from './link.component';
+import {LinkPreviewService} from './link.service';
+import {combineLatest, fromEvent, Subscription} from 'rxjs';
+import {debounceTime, filter} from 'rxjs/operators';
+import {HttpErrorResponse} from '@angular/common/http';
 
 @Component({
   selector: 'app-public-feed',
@@ -16,23 +17,43 @@ import { HttpErrorResponse } from '@angular/common/http'; // Import HttpErrorRes
   imports: [CommonModule, RouterLink, LinkPreviewComponent],
   templateUrl: 'feed.component.html',
 })
-export class PublicFeedComponent implements OnInit {
+export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
+  @ViewChildren('postItem') postItems!: QueryList<ElementRef>;
+  
   items: any[] = [];
   loading = true;
   isStormView = false;
   currentFilter = 'storms';
   currentUser: string | undefined;
   syncingUser = false;
+  unreadCount = 0;
 
-  // Track context
   currentIdentityId: number | null = null;
+  seenPostIds = new Set<string>();
+  
+  private scrollSubscription?: Subscription;
+  private observer?: IntersectionObserver;
+
+  private pendingSeenPosts = new Set<string>();
+  private batchTimer: number | null = null;
+  private readonly BATCH_DELAY_MS = 5000;
+
+  private hoverTimers = new Map<string, number>();
+  private readonly HOVER_DELAY_MS = 500;
+
+  private viewportTimers = new Map<string, number>();
+  private readonly VIEWPORT_THRESHOLD_MS = 1500;
+
+  private readonly isTouchDevice: boolean;
 
   constructor(
     private route: ActivatedRoute,
     private api: ApiService,
     private sanitizer: DomSanitizer,
     private linkPreviewService: LinkPreviewService,
-  ) {}
+  ) {
+    this.isTouchDevice = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
+  }
 
   ngOnInit(): void {
     // Combine Route Params with Identity State
@@ -70,6 +91,8 @@ export class PublicFeedComponent implements OnInit {
         this.attemptUserSync(user, identityId);
       } else {
         this.items = data;
+        this.trackSeenPosts(data);
+        this.updateUnreadCount();
       }
     };
 
@@ -147,5 +170,166 @@ export class PublicFeedComponent implements OnInit {
   getPostUrls(post: any): string[] {
     // Extract URLs from post content for link previews
     return this.linkPreviewService.extractUrls(post.content || '');
+  }
+
+  ngAfterViewInit(): void {
+    this.setupScrollTracking();
+  }
+
+  ngOnDestroy(): void {
+    this.scrollSubscription?.unsubscribe();
+    this.observer?.disconnect();
+    this.flushPendingPosts();
+    this.clearAllTimers();
+  }
+
+  private clearAllTimers(): void {
+    if (this.batchTimer !== null) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+    this.hoverTimers.forEach((timer) => clearTimeout(timer));
+    this.hoverTimers.clear();
+    this.viewportTimers.forEach((timer) => clearTimeout(timer));
+    this.viewportTimers.clear();
+  }
+
+  private setupScrollTracking(): void {
+    if (typeof IntersectionObserver === 'undefined') return;
+    if (!this.isTouchDevice) return;
+
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const postId = entry.target.getAttribute('data-post-id');
+          if (!postId || this.seenPostIds.has(postId)) return;
+
+          if (entry.isIntersecting) {
+            this.startViewportTimer(postId);
+          } else {
+            this.cancelViewportTimer(postId);
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    this.postItems?.changes.subscribe(() => {
+      this.observeNewItems();
+    });
+    this.observeNewItems();
+  }
+
+  private observeNewItems(): void {
+    this.observer?.disconnect();
+    this.postItems?.forEach((el) => {
+      this.observer?.observe(el.nativeElement);
+    });
+  }
+
+  onPostMouseEnter(postId: string): void {
+    if (this.isTouchDevice || this.seenPostIds.has(postId)) return;
+
+    if (this.hoverTimers.has(postId)) return;
+
+    const timer = window.setTimeout(() => {
+      this.hoverTimers.delete(postId);
+      this.addToPendingSeen(postId);
+    }, this.HOVER_DELAY_MS);
+
+    this.hoverTimers.set(postId, timer);
+  }
+
+  onPostMouseLeave(postId: string): void {
+    const timer = this.hoverTimers.get(postId);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.hoverTimers.delete(postId);
+    }
+  }
+
+  private startViewportTimer(postId: string): void {
+    if (this.viewportTimers.has(postId)) return;
+
+    const timer = window.setTimeout(() => {
+      this.viewportTimers.delete(postId);
+      this.addToPendingSeen(postId);
+    }, this.VIEWPORT_THRESHOLD_MS);
+
+    this.viewportTimers.set(postId, timer);
+  }
+
+  private cancelViewportTimer(postId: string): void {
+    const timer = this.viewportTimers.get(postId);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.viewportTimers.delete(postId);
+    }
+  }
+
+  private addToPendingSeen(postId: string): void {
+    if (this.seenPostIds.has(postId) || this.pendingSeenPosts.has(postId)) return;
+
+    this.pendingSeenPosts.add(postId);
+
+    if (this.batchTimer === null) {
+      this.batchTimer = window.setTimeout(() => {
+        this.flushPendingPosts();
+      }, this.BATCH_DELAY_MS);
+    }
+  }
+
+  private flushPendingPosts(): void {
+    if (this.batchTimer !== null) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+
+    if (this.pendingSeenPosts.size === 0) return;
+
+    const postIds = Array.from(this.pendingSeenPosts);
+    this.pendingSeenPosts.clear();
+
+    postIds.forEach((id) => this.seenPostIds.add(id));
+    this.updateUnreadCount();
+
+    this.api.markPostsSeen(postIds).subscribe({
+      error: (err) => {
+        console.error('Failed to mark posts as seen', err);
+      }
+    });
+  }
+
+  private updateUnreadCount(): void {
+    this.unreadCount = this.items.length - this.seenPostIds.size;
+  }
+
+  private trackSeenPosts(data: any[]): void {
+    const postIds: string[] = [];
+    
+    for (const item of data) {
+      if (this.isStormView && item.root) {
+        postIds.push(item.root.id);
+        for (const branch of item.branches || []) {
+          postIds.push(branch.id);
+        }
+      } else {
+        postIds.push(item.id);
+      }
+    }
+
+    this.api.getSeenPosts(postIds).subscribe({
+      next: (res) => {
+        this.seenPostIds = new Set(res.seen);
+        this.updateUnreadCount();
+      },
+      error: (err) => {
+        console.error('Failed to get seen posts', err);
+      }
+    });
+  }
+
+  isPostRead(postId: string): boolean {
+    return this.seenPostIds.has(postId);
   }
 }

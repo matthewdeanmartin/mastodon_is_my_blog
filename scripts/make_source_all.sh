@@ -31,4 +31,6 @@ git2md . \
     app.db \
     favicon.ico \
     alembic alembic_sync \
+    .vscode app.db-journal \
+    docs \
   --output SOURCE_ALL.md

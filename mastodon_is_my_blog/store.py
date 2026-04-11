@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    insert,
     select,
 )
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -134,6 +135,10 @@ class CachedAccount(Base):
         DateTime, nullable=True, index=True
     )  # Added index here for the blogroll sort
 
+    # Materialized post stats — updated at sync time, used for chatty/broadcaster filters
+    cached_post_count: Mapped[int] = mapped_column(Integer, default=0)
+    cached_reply_count: Mapped[int] = mapped_column(Integer, default=0)
+
 
 class CachedPost(Base):
     __tablename__ = "cached_posts"
@@ -147,7 +152,7 @@ class CachedPost(Base):
     )
 
     # Which of the MetaAccount's identities fetched this?
-    fetched_by_identity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # fetched_by_identity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     content: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     visibility: Mapped[str] = mapped_column(String(20))
@@ -197,6 +202,9 @@ class CachedPost(Base):
         Index("ix_posts_meta_created", "meta_account_id", "created_at"),
         Index("ix_posts_meta_author", "meta_account_id", "author_acct", "created_at"),
         Index("ix_posts_meta_clean", "meta_account_id", "is_reblog", "is_reply"),
+        Index("ix_posts_meta_identity_created", "meta_account_id", "fetched_by_identity_id", "created_at"),
+        Index("ix_posts_meta_identity_author", "meta_account_id", "fetched_by_identity_id", "author_acct", "created_at"),
+        Index("ix_posts_in_reply_to", "meta_account_id", "fetched_by_identity_id", "in_reply_to_id"),
     )
 
     # Define Composite Indexes to speed up specific query patterns
@@ -430,6 +438,7 @@ class SeenPost(Base):
     Tracks which posts a specific MetaAccount has viewed.
     Scoped by meta_account_id so multiple users don't share read states.
     """
+
     __tablename__ = "seen_posts"
 
     post_id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -438,6 +447,54 @@ class SeenPost(Base):
     )
     seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_seen_lookup", "meta_account_id", "post_id"),
-    )
+    __table_args__ = (Index("ix_seen_lookup", "meta_account_id", "post_id"),)
+
+
+async def mark_post_seen(meta_account_id: int, post_id: str) -> None:
+    async with async_session() as session:
+        stmt = select(SeenPost).where(
+            SeenPost.meta_account_id == meta_account_id,
+            SeenPost.post_id == post_id,
+        )
+        existing = (await session.execute(stmt)).scalar_one_or_none()
+        if not existing:
+            session.add(SeenPost(meta_account_id=meta_account_id, post_id=post_id))
+            await session.commit()
+
+
+async def mark_posts_seen(meta_account_id: int, post_ids: list[str]) -> None:
+    if not post_ids:
+        return
+    async with async_session() as session:
+        for post_id in post_ids:
+            await session.execute(
+                insert(SeenPost)
+                .values(meta_account_id=meta_account_id, post_id=post_id)
+                .prefix_with("OR IGNORE")
+            )
+        await session.commit()
+
+
+async def get_seen_posts(meta_account_id: int, post_ids: list[str]) -> set[str]:
+    if not post_ids:
+        return set()
+    async with async_session() as session:
+        stmt = select(SeenPost.post_id).where(
+            SeenPost.meta_account_id == meta_account_id,
+            SeenPost.post_id.in_(post_ids),
+        )
+        result = await session.execute(stmt)
+        return set(row[0] for row in result.fetchall())
+
+
+async def get_unread_count(meta_account_id: int, since: datetime | None = None) -> int:
+    async with async_session() as session:
+        if since:
+            stmt = select(SeenPost).where(
+                SeenPost.meta_account_id == meta_account_id,
+                SeenPost.seen_at >= since,
+            )
+        else:
+            stmt = select(SeenPost).where(SeenPost.meta_account_id == meta_account_id)
+        result = await session.execute(stmt)
+        return len(result.fetchall())
