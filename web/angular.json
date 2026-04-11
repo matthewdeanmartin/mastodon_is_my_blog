@@ -3,7 +3,10 @@
   "version": 1,
   "cli": {
     "packageManager": "npm",
-    "analytics": "988cda69-c3c8-4594-a9fc-ba18fd540fb1"
+    "analytics": "988cda69-c3c8-4594-a9fc-ba18fd540fb1",
+    "schematicCollections": [
+      "angular-eslint"
+    ]
   },
   "newProjectRoot": "projects",
   "projects": {
@@ -30,7 +33,9 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"]
+            "styles": [
+              "src/styles.scss"
+            ]
           },
           "configurations": {
             "production": {
@@ -68,12 +73,25 @@
           },
           "defaultConfiguration": "development"
         },
-"test": {
+        "test": {
           "builder": "@angular/build:unit-test",
           "options": {
             "tsConfig": "tsconfig.spec.json",
-            "setupFiles": ["src/test-setup.ts"],
-            "include": ["src/**/*.spec.ts"]
+            "setupFiles": [
+              "src/test-setup.ts"
+            ],
+            "include": [
+              "src/**/*.spec.ts"
+            ]
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "src/**/*.ts",
+              "src/**/*.html"
+            ]
           }
         }
       }
