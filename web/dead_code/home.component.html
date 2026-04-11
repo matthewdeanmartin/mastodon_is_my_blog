@@ -1,7 +1,9 @@
 <div class="card">
   <div class="row">
     <div>
-      <div class="muted" *ngIf="me">@{{ me?.acct }}</div>
+      @if (me) {
+        <div class="muted">@{{ me?.acct }}</div>
+      }
       <h2 class="post-title">New post</h2>
     </div>
     <div>
@@ -22,15 +24,21 @@
 
 <div class="card">
   <h2 class="post-title">Posts</h2>
-  <div *ngIf="!posts?.length" class="muted">No posts loaded.</div>
-  <div *ngFor="let p of posts; let i = index">
-    <hr *ngIf="i>0"/>
-    <div class="row">
-      <a [routerLink]="['/post', p.id]"><strong>{{ p.created_at | date:'medium' }}</strong></a>
-      <small>{{ p.visibility }}</small>
+  @if (!posts?.length) {
+    <div class="muted">No posts loaded.</div>
+  }
+  @for (p of posts; track p; let i = $index) {
+    <div>
+      @if (i>0) {
+        <hr/>
+      }
+      <div class="row">
+        <a [routerLink]="['/post', p.id]"><strong>{{ p.created_at | date:'medium' }}</strong></a>
+        <small>{{ p.visibility }}</small>
+      </div>
+      <div class="post-body">{{ stripHtml(p.content) }}</div>
     </div>
-    <div class="post-body">{{ stripHtml(p.content) }}</div>
-  </div>
+  }
 </div>
 
 <div style="height:12px"></div>

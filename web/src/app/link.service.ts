@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, shareReplay } from 'rxjs/operators';
@@ -14,10 +14,10 @@ export interface LinkPreview {
 
 @Injectable({ providedIn: 'root' })
 export class LinkPreviewService {
+  private http = inject(HttpClient);
+
   private base = 'http://localhost:8000';
   private cache = new Map<string, Observable<LinkPreview | null>>();
-
-  constructor(private http: HttpClient) {}
 
   /**
    * Fetches link preview/card data for a given URL.

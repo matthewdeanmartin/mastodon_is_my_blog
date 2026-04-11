@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 class PerformanceLogger:
     """Context manager for timing code blocks"""
 
-    def __init__(self, operation: str, logger: logging.Logger = logger):
+    def __init__(self, operation: str, perf_logger: logging.Logger = logger):
         self.operation: str = operation
-        self.logger: logging.Logger = logger
+        self.logger: logging.Logger = perf_logger
         self.start_time: float = 0.0
 
     def __enter__(self) -> "PerformanceLogger":
@@ -34,15 +34,15 @@ class PerformanceLogger:
 
 
 @asynccontextmanager
-async def async_perf_log(operation: str, logger: logging.Logger = logger):
+async def async_perf_log(operation: str, perf_logger: logging.Logger = logger):
     """Async context manager for timing async operations"""
     start: float = time.perf_counter()
-    logger.info(f"Starting: {operation}")
+    perf_logger.info(f"Starting: {operation}")
     try:
         yield
     finally:
         elapsed: float = time.perf_counter() - start
-        logger.info(f"Completed: {operation} in {elapsed:.3f}s")
+        perf_logger.info(f"Completed: {operation} in {elapsed:.3f}s")
 
 
 def time_function(func: Callable) -> Callable:

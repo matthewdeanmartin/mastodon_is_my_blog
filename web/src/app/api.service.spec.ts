@@ -284,12 +284,15 @@ describe('ApiService', () => {
       const req = httpMock.expectOne((r) => r.url.includes('/api/posts'));
       req.flush('Not found', { status: 404, statusText: 'Not Found' });
 
-      try {
-        await promise;
-        expect.fail('Should have thrown');
-      } catch (err: any) {
-        expect(err.status).toBe(404);
-      }
+      await promise.then(
+        () => {
+          throw new Error('Should have thrown');
+        },
+        (err: unknown) => {
+          const error = err as { status: number };
+          expect(error.status).toBe(404);
+        },
+      );
     });
   });
 

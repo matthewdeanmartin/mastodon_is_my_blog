@@ -1,6 +1,6 @@
 // src/app/image-feed.component.ts
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, inject } from '@angular/core';
+
 import { ApiService } from './api.service';
 import { Router } from '@angular/router';
 import { combineLatest } from 'rxjs';
@@ -12,12 +12,12 @@ interface ImagePost {
   author_acct: string;
   author_display_name: string;
   author_avatar: string;
-  media_attachments: Array<{
+  media_attachments: {
     type: string;
     url: string;
     preview_url?: string;
     description?: string;
-  }>;
+  }[];
   counts: {
     likes: number;
     replies: number;
@@ -28,59 +28,71 @@ interface ImagePost {
 @Component({
   selector: 'app-image-feed',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
     <div class="image-feed-container">
       <div class="filter-bar">
         <h2 style="margin: 0;">Photo Gallery</h2>
         <div class="filter-buttons">
-          <button
-            *ngFor="let f of filters"
-            [class.active]="currentFilter === f.value"
-            (click)="setFilter(f.value)"
-            class="filter-btn">
-            {{ f.label }}
-          </button>
+          @for (f of filters; track f) {
+            <button
+              [class.active]="currentFilter === f.value"
+              (click)="setFilter(f.value)"
+              class="filter-btn">
+              {{ f.label }}
+            </button>
+          }
         </div>
       </div>
-
-      <div *ngIf="loading" class="loading-state">
-        <div class="loading-spinner"></div>
-        <p>Loading images...</p>
-      </div>
-
-      <div *ngIf="!loading && images.length === 0" class="empty-state">
-        <p style="color: #9ca3af; font-size: 1.1rem;">No images found</p>
-      </div>
-
-      <div *ngIf="!loading && images.length > 0" class="image-grid">
-        <div
-          *ngFor="let post of images"
-          class="image-card"
-          (click)="viewPost(post)">
-          <div class="image-wrapper">
-            <img
-              [src]="post.media_attachments[0].preview_url || post.media_attachments[0].url"
-              [alt]="post.media_attachments[0].description || 'Image'"
-              loading="lazy">
-            <div class="image-overlay">
-              <div class="overlay-stats">
-                <span>❤️ {{ post.counts.likes }}</span>
-                <span>💬 {{ post.counts.replies }}</span>
+    
+      @if (loading) {
+        <div class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>Loading images...</p>
+        </div>
+      }
+    
+      @if (!loading && images.length === 0) {
+        <div class="empty-state">
+          <p style="color: #9ca3af; font-size: 1.1rem;">No images found</p>
+        </div>
+      }
+    
+      @if (!loading && images.length > 0) {
+        <div class="image-grid">
+          @for (post of images; track post) {
+            <div
+              class="image-card"
+              (click)="viewPost(post)"
+              (keydown.enter)="viewPost(post)"
+              tabindex="0">
+              <div class="image-wrapper">
+                <img
+                  [src]="post.media_attachments[0].preview_url || post.media_attachments[0].url"
+                  [alt]="post.media_attachments[0].description || 'Image'"
+                  loading="lazy">
+                  <div class="image-overlay">
+                    <div class="overlay-stats">
+                      <span>❤️ {{ post.counts.likes }}</span>
+                      <span>💬 {{ post.counts.replies }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="image-meta">
+                  <div class="author-info">
+                    <img [src]="post.author_avatar" alt="" class="author-avatar">
+                    <span class="author-name">{{ post.author_display_name || post.author_acct }}</span>
+                  </div>
+                  @if (post.content) {
+                    <div class="image-caption" [innerHTML]="stripHtml(post.content)"></div>
+                  }
+                </div>
               </div>
-            </div>
+            }
           </div>
-          <div class="image-meta">
-            <div class="author-info">
-              <img [src]="post.author_avatar" class="author-avatar">
-              <span class="author-name">{{ post.author_display_name || post.author_acct }}</span>
-            </div>
-            <div *ngIf="post.content" class="image-caption" [innerHTML]="stripHtml(post.content)"></div>
-          </div>
-        </div>
+        }
       </div>
-    </div>
-  `,
+    `,
   styles: [`
     .image-feed-container {
       background: white;
@@ -243,6 +255,9 @@ interface ImagePost {
   `]
 })
 export class ImageFeedComponent implements OnInit {
+  private api = inject(ApiService);
+  private router = inject(Router);
+
   images: ImagePost[] = [];
   loading = true;
   currentFilter = 'recent';
@@ -253,11 +268,6 @@ export class ImageFeedComponent implements OnInit {
     { value: 'following', label: 'Following' },
     { value: 'everyone', label: 'Everyone' }
   ];
-
-  constructor(
-    private api: ApiService,
-    private router: Router
-  ) {}
 
   ngOnInit(): void {
     // Wait for identity to be ready
@@ -286,13 +296,17 @@ export class ImageFeedComponent implements OnInit {
           .filter(p => p.media_attachments && p.media_attachments.length > 0)
           .map(p => ({
             id: p.id,
-            content: p.content,
+            content: p.content ?? '',
             created_at: p.created_at,
             author_acct: p.author_acct,
             author_display_name: p.author_display_name || p.author_acct,
             author_avatar: p.author_avatar || '',
-            media_attachments: p.media_attachments,
-            counts: p.counts || { likes: 0, replies: 0, reposts: 0 }
+            media_attachments: p.media_attachments ?? [],
+            counts: {
+              likes: p.counts?.likes ?? 0,
+              replies: p.counts?.replies ?? 0,
+              reposts: p.counts?.reposts ?? 0,
+            }
           }));
 
         // Sort based on filter
@@ -307,7 +321,7 @@ export class ImageFeedComponent implements OnInit {
 
         this.loading = false;
       },
-      error: (err) => {
+      error: (err: unknown) => {
         console.error('Error loading images:', err);
         this.loading = false;
       }

@@ -126,7 +126,7 @@ def _abs_url(base: str, maybe: Optional[str]) -> Optional[str]:
 
 def _favicon(base: str, soup: BeautifulSoup) -> Optional[str]:
     for rel in ("icon", "shortcut icon", "apple-touch-icon"):
-        tag = soup.find("link", rel=lambda v: isinstance(v, str) and rel in v.lower())
+        tag = soup.find("link", rel=lambda v, r=rel: isinstance(v, str) and r in v.lower())
         if tag and tag.get("href"):
             return urljoin(base, tag["href"])
     return urljoin(base, "/favicon.ico")
@@ -158,10 +158,10 @@ async def fetch_card(url: str = Query(..., min_length=8, max_length=2048)):
     ) as client:
         try:
             r = await client.get(url)
-        except httpx.TooManyRedirects:
-            raise HTTPException(400, "Too many redirects.")
-        except httpx.RequestError:
-            raise HTTPException(502, "Upstream fetch failed.")
+        except httpx.TooManyRedirects as exc:
+            raise HTTPException(400, "Too many redirects.") from exc
+        except httpx.RequestError as exc:
+            raise HTTPException(502, "Upstream fetch failed.") from exc
 
     ctype = (r.headers.get("content-type") or "").lower()
     if "text/html" not in ctype and "application/xhtml" not in ctype:

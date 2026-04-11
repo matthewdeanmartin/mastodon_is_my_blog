@@ -1,25 +1,31 @@
-import {Injectable} from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
-import {MastodonStatus} from './mastodon';
+import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext} from './mastodon';
+import {RawContentPost} from './content-feed.utils';
 import {Observable, throwError, timer, BehaviorSubject, of, Subject} from 'rxjs';
 import {catchError, shareReplay, switchMap, tap} from 'rxjs/operators';
 
+export interface Storm {
+  root: RawContentPost;
+  branches: RawContentPost[];
+}
+
 @Injectable({providedIn: 'root'})
 export class ApiService {
+  private http = inject(HttpClient);
+
   base = 'http://localhost:8000';
-  private META_KEY = 'meta_account_id';
-  private IDENTITY_KEY = 'mastodon_identity_id';
+  private readonly META_KEY = 'meta_account_id';
+  private readonly IDENTITY_KEY = 'mastodon_identity_id';
 
   // Observable to track server status
-  private serverDownSubject = new BehaviorSubject<boolean>(false);
+  private serverDownSubject = new BehaviorSubject(false);
   public serverDown$ = this.serverDownSubject.asObservable();
 
   // Trigger for components to refresh data (e.g. counts) after write/sync
   public refreshNeeded$ = new Subject<void>();
 
-  private pollingSubscription: any = null;
-
-  private readonly syncInflight = new Map<string, Observable<any>>();
+  private readonly syncInflight = new Map<string, Observable<unknown>>();
 
   // Meta Account State (The human)
   private metaIdSubject = new BehaviorSubject<string | null>(this.getMetaAccountId());
@@ -29,7 +35,7 @@ export class ApiService {
   private identityIdSubject = new BehaviorSubject<number | null>(this.getStoredIdentityId());
   public readonly identityId$ = this.identityIdSubject.asObservable();
 
-  constructor(private http: HttpClient) {
+  constructor() {
     this.startHealthCheck();
   }
 
@@ -105,14 +111,14 @@ export class ApiService {
   }
 
   // Wrapper to handle errors consistently
-  private handleError(error: any): Observable<never> {
+  private handleError(error: unknown): Observable<never> {
     // this.serverDownSubject.next(true);
     return throwError(() => error);
   }
 
   // --- PUBLIC READ (Context Aware) ---
 
-  getPublicPosts(identityId: number, filter: string = 'all', user?: string): Observable<any[]> {
+  getPublicPosts(identityId: number, filter = 'all', user?: string): Observable<RawContentPost[]> {
     let params = new HttpParams()
       .set('identity_id', identityId.toString())
       .set('filter_type', filter);
@@ -120,72 +126,71 @@ export class ApiService {
       params = params.set('user', user);
     }
     return this.http
-      .get<any[]>(`${this.base}/api/posts`, {params, headers: this.headers})
+      .get<RawContentPost[]>(`${this.base}/api/posts`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  getStorms(identityId: number, user?: string): Observable<any[]> {
+  getStorms(identityId: number, user?: string): Observable<Storm[]> {
     let params = new HttpParams().set('identity_id', identityId.toString());
     if (user) {
       params = params.set('user', user);
     }
     return this.http
-      .get<any[]>(`${this.base}/api/posts/storms`, {params, headers: this.headers})
+      .get<Storm[]>(`${this.base}/api/posts/storms`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  getShorts(identityId: number, user?: string): Observable<any[]> {
+  getShorts(identityId: number, user?: string): Observable<RawContentPost[]> {
     let params = new HttpParams().set('identity_id', identityId.toString());
     if (user) {
       params = params.set('user', user);
     }
     return this.http
-      .get<any[]>(`${this.base}/api/posts/shorts`, {params, headers: this.headers})
+      .get<RawContentPost[]>(`${this.base}/api/posts/shorts`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  getBlogRoll(identityId: number, filter: string = 'all'): Observable<any[]> {
-    let params = new HttpParams()
+  getBlogRoll(identityId: number, filter = 'all'): Observable<MastodonAccount[]> {
+    const params = new HttpParams()
       .set('identity_id', identityId.toString())
       .set('filter_type', filter);
 
     return this.http
-      .get<any[]>(`${this.base}/api/accounts/blogroll`, {params, headers: this.headers})
+      .get<MastodonAccount[]>(`${this.base}/api/accounts/blogroll`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  getCounts(identityId: number, user?: string): Observable<any> {
+  getCounts(identityId: number, user?: string): Observable<unknown> {
     let params = new HttpParams().set('identity_id', identityId.toString());
     if (user) params = params.set('user', user);
     return this.http
-      .get<any>(`${this.base}/api/posts/counts`, {params, headers: this.headers})
+      .get<unknown>(`${this.base}/api/posts/counts`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  getAccountInfo(acct: string, identityId: number): Observable<any> {
+  getAccountInfo(acct: string, identityId: number): Observable<MastodonAccount> {
     const params = new HttpParams().set('identity_id', identityId.toString());
     return this.http
-      .get<any>(`${this.base}/api/accounts/${acct}`, {params, headers: this.headers})
+      .get<MastodonAccount>(`${this.base}/api/accounts/${acct}`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  syncAccount(acct: string, identityId: number): Observable<any> {
+  syncAccount(acct: string, identityId: number): Observable<unknown> {
     const params = new HttpParams().set('identity_id', identityId.toString());
     return this.http
-      .post<any>(`${this.base}/api/accounts/${acct}/sync`, {}, {params, headers: this.headers})
+      .post<unknown>(`${this.base}/api/accounts/${acct}/sync`, {}, {params, headers: this.headers})
       .pipe(
         tap(() => this.refreshNeeded$.next()), // Notify listeners to refresh data/counts
         catchError((err) => this.handleError(err))
       );
   }
 
-  syncAccountDedup(acct: string, identityId: number): Observable<any> {
+  syncAccountDedup(acct: string, identityId: number): Observable<unknown> {
     const key = `${identityId}:${acct.trim()}`;
     const existing = this.syncInflight.get(key);
     if (existing) return existing;
 
     const req$ = this.syncAccount(acct, identityId).pipe(
-      tap({next: () => {}, error: () => {}}),
       catchError(err => throwError(() => err)),
       shareReplay(1)
     );
@@ -201,56 +206,52 @@ export class ApiService {
 
   // --- Single Item Reads (Less Context Sensitive) ---
 
-  getPublicPost(id: string) {
+  getPublicPost(id: string): Observable<MastodonStatus> {
     return this.http
-      .get<any>(`${this.base}/api/posts/${id}`, {headers: this.headers})
+      .get<MastodonStatus>(`${this.base}/api/posts/${id}`, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   // UPDATED: Now accepts identityId to correctly resolve post status/visibility
-  getPostContext(id: string, identityId?: number): Observable<any> {
+  getPostContext(id: string, identityId?: number): Observable<MastodonContext> {
     let params = new HttpParams();
     if (identityId) {
       params = params.set('identity_id', identityId.toString());
     }
     return this.http
-      .get<any>(`${this.base}/api/posts/${id}/context`, {params, headers: this.headers})
+      .get<MastodonContext>(`${this.base}/api/posts/${id}/context`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   // --- Admin / Write ---
 
-  getIdentities(): Observable<any[]> {
+  getIdentities(): Observable<Identity[]> {
     return this.http
-      .get<any[]>(`${this.base}/api/admin/identities`, {headers: this.headers})
+      .get<Identity[]>(`${this.base}/api/admin/identities`, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  loginUrl() {
+  loginUrl(): string {
     return `${this.base}/auth/login`;
   }
 
-  getAdminStatus() {
+  getAdminStatus(): Observable<AdminStatus> {
     return this.http
-      .get<{
-        connected: boolean;
-        last_sync: string;
-        current_user: any;
-      }>(`${this.base}/api/admin/status`, {headers: this.headers})
+      .get<AdminStatus>(`${this.base}/api/admin/status`, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  triggerSync(force: boolean = false) {
+  triggerSync(force = false): Observable<unknown> {
     return this.http
-      .post(`${this.base}/api/admin/sync?force=${force}`, {}, {headers: this.headers})
+      .post<unknown>(`${this.base}/api/admin/sync?force=${force}`, {}, {headers: this.headers})
       .pipe(
           tap(() => this.refreshNeeded$.next()),
           catchError((err) => this.handleError(err))
       );
   }
 
-  me() {
-    return this.http.get(`${this.base}/api/me`, {headers: this.headers}).pipe(catchError((err) => this.handleError(err)));
+  me(): Observable<unknown> {
+    return this.http.get<unknown>(`${this.base}/api/me`, {headers: this.headers}).pipe(catchError((err) => this.handleError(err)));
   }
 
   // posts() {
@@ -259,47 +260,47 @@ export class ApiService {
   //     .pipe(catchError((err) => this.handleError(err)));
   // }
 
-  createPost(status: string) {
+  createPost(status: string): Observable<unknown> {
     return this.http
-      .post(`${this.base}/api/posts`, {status, visibility: 'public'}, {headers: this.headers})
+      .post<unknown>(`${this.base}/api/posts`, {status, visibility: 'public'}, {headers: this.headers})
       .pipe(
           tap(() => this.refreshNeeded$.next()),
           catchError((err) => this.handleError(err))
       );
   }
 
-  getPost(id: string) {
+  getPost(id: string): Observable<MastodonStatus> {
     return this.http
       .get<MastodonStatus>(`${this.base}/api/posts/${id}`, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  editPost(id: string, status: string) {
+  editPost(id: string, status: string): Observable<unknown> {
     return this.http
-      .post(`${this.base}/api/posts/${id}/edit`, {status}, {headers: this.headers})
+      .post<unknown>(`${this.base}/api/posts/${id}/edit`, {status}, {headers: this.headers})
       .pipe(
           tap(() => this.refreshNeeded$.next()),
           catchError((err) => this.handleError(err))
       );
   }
 
-  getAnalytics(): Observable<any> {
+  getAnalytics(): Observable<unknown> {
     return this.http
-      .get<any>(`${this.base}/api/posts/analytics`, {headers: this.headers})
+      .get<unknown>(`${this.base}/api/posts/analytics`, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   // --- Seen Posts ---
 
-  markPostSeen(postId: string): Observable<any> {
+  markPostSeen(postId: string): Observable<unknown> {
     return this.http
-      .post(`${this.base}/api/posts/${postId}/read`, {}, {headers: this.headers})
+      .post<unknown>(`${this.base}/api/posts/${postId}/read`, {}, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  markPostsSeen(postIds: string[]): Observable<any> {
+  markPostsSeen(postIds: string[]): Observable<unknown> {
     return this.http
-      .post(`${this.base}/api/posts/read`, postIds, {headers: this.headers})
+      .post<unknown>(`${this.base}/api/posts/read`, postIds, {headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 

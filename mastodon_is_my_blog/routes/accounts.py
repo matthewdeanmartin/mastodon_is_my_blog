@@ -46,7 +46,7 @@ async def get_blog_roll(
         if not identity:
             raise HTTPException(404, "Identity not found")
 
-        my_account_id = identity.account_id
+        _ = identity.account_id
 
         # Base Query: STRICTLY people I follow
         # This removes the "weirdos" (boost-only strangers) from all views.
@@ -54,7 +54,7 @@ async def get_blog_roll(
             and_(
                 CachedAccount.meta_account_id == meta.id,
                 CachedAccount.mastodon_identity_id == identity_id,
-                CachedAccount.is_following == True,  # <--- The fix for "unknown people"
+                CachedAccount.is_following is True,  # <--- The fix for "unknown people"
             )
         )
 
@@ -63,7 +63,7 @@ async def get_blog_roll(
             if filter_type == "top_friends":
                 # Mutuals who have interacted via notifications
                 # This includes: mentions, replies, favorites, reblogs
-                query = query.where(CachedAccount.is_followed_by == True)
+                query = query.where(CachedAccount.is_followed_by is True)
 
                 # Subquery: Check if there's ANY notification from this account
                 has_interaction = exists(
@@ -85,12 +85,12 @@ async def get_blog_roll(
                 query = query.order_by(desc(CachedAccount.last_status_at))
 
         elif filter_type == "mutuals":
-            query = query.where(CachedAccount.is_followed_by == True)
+            query = query.where(CachedAccount.is_followed_by is True)
             query = query.order_by(desc(CachedAccount.last_status_at))
 
         elif filter_type == "bots":
             # Strict flag check only
-            query = query.where(CachedAccount.bot == True)
+            query = query.where(CachedAccount.bot is True)
             query = query.order_by(desc(CachedAccount.last_status_at))
 
         else:  # "all", "chatty", "broadcasters"
@@ -186,7 +186,7 @@ async def get_account_info(
         if account.fields:
             try:
                 fields_data = json.loads(account.fields)
-            except:
+            except Exception:
                 fields_data = []
 
         return {

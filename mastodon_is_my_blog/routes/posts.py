@@ -72,12 +72,12 @@ async def get_unread_post_count(
     Get count of unread posts for badge display.
     """
     async with async_session() as session:
-        stmt = select(func.count(CachedPost.id)).where(
+        stmt = select(func.count(CachedPost.id)).where(  # pylint: disable=not-callable
             and_(
                 CachedPost.meta_account_id == meta.id,
                 CachedPost.fetched_by_identity_id == identity_id,
-                CachedPost.is_reblog == False,
-                CachedPost.is_reply == False,
+                CachedPost.is_reblog is False,
+                CachedPost.is_reply is False,
             )
         )
         total_posts = (await session.execute(stmt)).scalar() or 0
@@ -156,7 +156,7 @@ async def get_public_posts(
         if filter_type == "all":
             # Show roots only (hide replies to others, keep self-threads)
             query = query.where(
-                and_(CachedPost.is_reblog == False, CachedPost.is_reply == False)
+                and_(CachedPost.is_reblog is False, CachedPost.is_reply is False)
             )
         elif filter_type == "storms":
             # not implemented yet!
@@ -166,31 +166,31 @@ async def get_public_posts(
             # NEW: Short text posts, no media, no links, not a reply
             query = query.where(
                 and_(
-                    CachedPost.is_reply == False,
-                    CachedPost.is_reblog == False,
-                    CachedPost.has_media == False,
-                    CachedPost.has_video == False,
-                    CachedPost.has_link == False,
+                    CachedPost.is_reply is False,
+                    CachedPost.is_reblog is False,
+                    CachedPost.has_media is False,
+                    CachedPost.has_video is False,
+                    CachedPost.has_link is False,
                     func.length(CachedPost.content) < 500,
                 )
             )
         elif filter_type == "discussions":
             # Only replies to others
-            query = query.where(CachedPost.is_reply == True)
+            query = query.where(CachedPost.is_reply is True)
         elif filter_type == "pictures":
-            query = query.where(CachedPost.has_media == True)
+            query = query.where(CachedPost.has_media is True)
         elif filter_type == "videos":
-            query = query.where(CachedPost.has_video == True)
+            query = query.where(CachedPost.has_video is True)
         elif filter_type == "news":
-            query = query.where(CachedPost.has_news == True)
+            query = query.where(CachedPost.has_news is True)
         elif filter_type == "software":
-            query = query.where(CachedPost.has_tech == True)
+            query = query.where(CachedPost.has_tech is True)
         elif filter_type == "links":
             # New Filter: Posts with links
-            query = query.where(CachedPost.has_link == True)
+            query = query.where(CachedPost.has_link is True)
         elif filter_type == "questions":
             # Filter for posts with questions
-            query = query.where(CachedPost.has_question == True)
+            query = query.where(CachedPost.has_question is True)
         elif filter_type == "everyone":
             # No additional filters, show all posts
             pass
@@ -254,7 +254,7 @@ async def get_storms(
     scope = and_(
         CachedPost.meta_account_id == meta.id,
         CachedPost.fetched_by_identity_id == identity_id,
-        CachedPost.is_reblog == False,
+        CachedPost.is_reblog is False,
     )
     user_filter = (CachedPost.author_acct == user) if (user and user != "everyone") else True
 
@@ -286,8 +286,8 @@ async def get_storms(
                 and_(
                     scope,
                     user_filter,
-                    CachedPost.in_reply_to_id == None,
-                    CachedPost.has_link == False,
+                    CachedPost.in_reply_to_id is None,
+                    CachedPost.has_link is False,
                     (
                         (func.length(CachedPost.content) >= STORM_MIN_TEXT_LEN)
                         | CachedPost.id.in_(self_replied_ids_sq)
@@ -315,7 +315,7 @@ async def get_storms(
         replies_query = select(CachedPost).where(
             and_(
                 scope,
-                CachedPost.in_reply_to_id != None,
+                CachedPost.in_reply_to_id is not None,
                 CachedPost.author_id.in_(root_author_ids),
             )
         )
@@ -408,7 +408,7 @@ async def get_hashtags(
             for t in tags:
                 lower_t = t.lower()
                 tag_counts[lower_t] = tag_counts.get(lower_t, 0) + 1
-        except:
+        except (json.JSONDecodeError, TypeError):
             continue
 
     # Return sorted by count
@@ -474,9 +474,9 @@ async def fetch_card_endpoint(url: str = Query(..., min_length=8, max_length=204
 
 
 # --- Context Crawler ---
-@router.get("/{id}/context")
+@router.get("/{post_id}/context")
 @time_async_function
-async def get_post_context(id: str, identity_id: int = Query(...)):
+async def get_post_context(post_id: str, identity_id: int = Query(...)):
     """
     Crawls the conversation graph for a specific post.
     """
@@ -484,16 +484,16 @@ async def get_post_context(id: str, identity_id: int = Query(...)):
     try:
         # We await this because client_from_identity_id is async
         m = await client_from_identity_id(identity_id)
-    except ValueError:
-        raise HTTPException(404, "Identity not found")
+    except ValueError as exc:
+        raise HTTPException(404, "Identity not found") from exc
 
     try:
         # Mastodon API 'status_context' does the crawling for us
         # It returns 'ancestors' and 'descendants' list
-        context = m.status_context(id)
+        context = m.status_context(post_id)
 
         # We also need the target post itself
-        target = m.status(id)
+        target = m.status(post_id)
 
         return {
             "ancestors": context["ancestors"],
@@ -502,12 +502,12 @@ async def get_post_context(id: str, identity_id: int = Query(...)):
         }
     except Exception as e:
         logger.error(e)
-        raise HTTPException(404, f"Could not fetch context: {str(e)}")
+        raise HTTPException(404, f"Could not fetch context: {str(e)}") from e
 
 
-@router.get("/{id}")
+@router.get("/{post_id}")
 async def get_single_post(
-    id: str, meta: MetaAccount = Depends(get_current_meta_account)
+    post_id: str, meta: MetaAccount = Depends(get_current_meta_account)
 ):
     """
     Get a single cached post.
@@ -518,7 +518,7 @@ async def get_single_post(
         # SCOPED: meta_account_id
         stmt = select(CachedPost).where(
             and_(
-                CachedPost.id == id,
+                CachedPost.id == post_id,
                 CachedPost.meta_account_id == meta.id,
             )
         )

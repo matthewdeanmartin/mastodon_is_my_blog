@@ -1,54 +1,76 @@
 <div class="card">
   <h2 class="post-title">
     {{ (currentFilter === 'all' || currentFilter === 'storms') ? 'Latest Storms' : (currentFilter | titlecase) }}
-    <span *ngIf="unreadCount > 0" class="unread-badge">{{ unreadCount }} unread</span>
+    @if (unreadCount > 0) {
+      <span class="unread-badge">{{ unreadCount }} unread</span>
+    }
   </h2>
 
-  <div *ngIf="loading" class="muted">Loading...</div>
+  @if (loading) {
+    <div class="muted">Loading...</div>
+  }
 
-  <div *ngIf="isStormView && !loading">
-    <div *ngFor="let storm of items; let i = index">
-      <hr *ngIf="i > 0" />
-
-      <ng-container
-        *ngTemplateOutlet="postTemplate; context: { $implicit: storm.root }"
-      ></ng-container>
-
-      <div style="margin-left: 20px; border-left: 2px solid #eee; padding-left: 15px">
-        <div *ngFor="let branch of storm.branches">
+  @if (isStormView && !loading) {
+    <div>
+      @for (storm of stormFeedItems; track storm; let i = $index) {
+        <div>
+          @if (i > 0) {
+            <hr />
+          }
           <ng-container
-            *ngTemplateOutlet="postTemplate; context: { $implicit: branch }"
+            *ngTemplateOutlet="postTemplate; context: { $implicit: storm.root }"
           ></ng-container>
+          <div style="margin-left: 20px; border-left: 2px solid #eee; padding-left: 15px">
+            @for (branch of storm.branches; track branch) {
+              <div>
+                <ng-container
+                  *ngTemplateOutlet="postTemplate; context: { $implicit: branch }"
+                ></ng-container>
+              </div>
+            }
+          </div>
         </div>
-      </div>
+      }
     </div>
-  </div>
+  }
 
-  <div *ngIf="!isStormView && !loading">
-    <div *ngFor="let p of items; let i = index">
-      <hr *ngIf="i > 0" />
-      <ng-container *ngTemplateOutlet="postTemplate; context: { $implicit: p }"></ng-container>
+  @if (!isStormView && !loading) {
+    <div>
+      @for (p of flatFeedItems; track p; let i = $index) {
+        <div>
+          @if (i > 0) {
+            <hr />
+          }
+          <ng-container *ngTemplateOutlet="postTemplate; context: { $implicit: p }"></ng-container>
+        </div>
+      }
     </div>
-  </div>
+  }
 
-  <div *ngIf="!loading && items.length === 0" class="muted">No posts found for this filter.</div>
+  @if (!loading && items.length === 0) {
+    <div class="muted">No posts found for this filter.</div>
+  }
 </div>
 
 <ng-template #postTemplate let-p>
   <div #postItem [attr.data-post-id]="p.id" [class.read-post]="isPostRead(p.id)" class="post-item" (mouseenter)="onPostMouseEnter(p.id)" (mouseleave)="onPostMouseLeave(p.id)">
     <div class="row" style="margin-bottom: 5px">
-    <a
-      [routerLink]="['/p', p.id]"
-      [queryParams]="getQueryParams()"
-      class="muted"
-      style="font-size: 0.85rem"
-    >
-      <span *ngIf="p.created_at">{{ p.created_at | date: 'mediumDate' }}</span>
-      <span *ngIf="!p.created_at">Just now</span>
-    </a>
-    <div>
-      <span
-        *ngIf="p.is_reblog"
+      <a
+        [routerLink]="['/p', p.id]"
+        [queryParams]="getQueryParams()"
+        class="muted"
+        style="font-size: 0.85rem"
+        >
+        @if (p.created_at) {
+          <span>{{ p.created_at | date: 'mediumDate' }}</span>
+        }
+        @if (!p.created_at) {
+          <span>Just now</span>
+        }
+      </a>
+      <div>
+        @if (p.is_reblog) {
+          <span
         style="
           background: #e3f2fd;
           color: #1976d2;
@@ -57,10 +79,11 @@
           font-size: 0.75rem;
           font-weight: 600;
         "
-        >REBLOG</span
-      >
-      <span
-        *ngIf="p.is_reply"
+            >REBLOG</span
+            >
+          }
+          @if (p.is_reply) {
+            <span
         style="
           background: #f3e5f5;
           color: #7b1fa2;
@@ -70,44 +93,52 @@
           font-weight: 600;
           margin-left: 4px;
         "
-        >REPLY</span
-      >
-    </div>
-  </div>
+              >REPLY</span
+              >
+            }
+          </div>
+        </div>
 
-  <div class="post-body">
-    <!-- First show a plain text preview, then link to full post -->
-    <!--    <span>{{ stripHtml(p.content).slice(0, 2000) }}{{ p.content.length > 2000 ? '...' : '' }}</span>-->
-    <span [innerHTML]="stripHtml(p.content)"></span>
-  </div>
+        <div class="post-body">
+          <!-- First show a plain text preview, then link to full post -->
+          <!--    <span>{{ stripHtml(p.content).slice(0, 2000) }}{{ p.content.length > 2000 ? '...' : '' }}</span>-->
+          <span [innerHTML]="stripHtml(p.content)"></span>
+        </div>
 
-  <!-- Link Previews -->
-  <div *ngFor="let url of getPostUrls(p)">
-    <app-link-preview [url]="url"></app-link-preview>
-  </div>
+        <!-- Link Previews -->
+        @for (url of getPostUrls(p); track url) {
+          <div>
+            <app-link-preview [url]="url"></app-link-preview>
+          </div>
+        }
 
-  <div
-    *ngIf="getImages(p).length > 0"
-    style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;"
-  >
-    <img
-      *ngFor="let img of getImages(p)"
-      [src]="img.preview_url || img.url"
-      style="width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee"
-    />
-  </div>
+        @if (getImages(p).length > 0) {
+          <div
+            style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;"
+            >
+            @for (img of getImages(p); track img) {
+              <img
+                [src]="img.preview_url || img.url"
+                alt=""
+                style="width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee"
+                />
+            }
+          </div>
+        }
 
-  <div style="margin-top: 6px; margin-bottom: 15px">
-    <a [routerLink]="['/p', p.id]"><small>Read more</small></a>
-    <span *ngIf="p.counts" class="muted" style="margin-left: 10px; font-size: 0.8rem">
-      {{ p.counts.replies }} replies &bull; {{ p.counts.likes }} likes
-    </span>
-    <span style="margin-left: 10px;">
-      <a [href]="getOriginalPostUrl(p)" target="_blank" rel="noopener noreferrer"
-         style="font-size: 0.8rem; color: #6366f1; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-        <span style="font-size: 1rem;">🔗</span> View on Mastodon
-      </a>
-    </span>
-  </div>
-  </div>
-</ng-template>
+        <div style="margin-top: 6px; margin-bottom: 15px">
+          <a [routerLink]="['/p', p.id]"><small>Read more</small></a>
+          @if (p.counts) {
+            <span class="muted" style="margin-left: 10px; font-size: 0.8rem">
+              {{ p.counts.replies }} replies &bull; {{ p.counts.likes }} likes
+            </span>
+          }
+          <span style="margin-left: 10px;">
+            <a [href]="getOriginalPostUrl(p)" target="_blank" rel="noopener noreferrer"
+              style="font-size: 0.8rem; color: #6366f1; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+              <span style="font-size: 1rem;">🔗</span> View on Mastodon
+            </a>
+          </span>
+        </div>
+      </div>
+    </ng-template>

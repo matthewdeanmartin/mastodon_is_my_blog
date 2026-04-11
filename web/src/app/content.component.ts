@@ -1,12 +1,12 @@
 // src/app/content.component.ts
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterLink, RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-content',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterOutlet],
+  imports: [RouterLink, RouterOutlet],
   template: `
     <div class="content-layout">
       <div class="content-nav">

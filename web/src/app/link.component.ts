@@ -1,41 +1,50 @@
-import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, Input, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+
 import { LinkPreviewService, LinkPreview } from './link.service';
 
 @Component({
   selector: 'app-link-preview',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div *ngIf="preview" class="link-preview-card">
-      <a [href]="preview.url" target="_blank" rel="noopener noreferrer" class="preview-link">
-        <div class="preview-content">
-          <img *ngIf="preview.image"
-               [src]="preview.image"
-               [alt]="preview.title || 'Preview image'"
-               class="preview-image"
-               (error)="onImageError($event)">
-
-          <div class="preview-text">
-            <div class="preview-header">
-              <img *ngIf="preview.favicon && !faviconError"
-                   [src]="preview.favicon"
-                   alt="Site icon"
-                   class="preview-favicon"
-                   (error)="onFaviconError()">
-              <span *ngIf="preview.site_name" class="preview-site">{{ preview.site_name }}</span>
+    @if (preview) {
+      <div class="link-preview-card">
+        <a [href]="preview.url" target="_blank" rel="noopener noreferrer" class="preview-link">
+          <div class="preview-content">
+            @if (preview.image) {
+              <img
+                [src]="preview.image"
+                [alt]="preview.title || 'Preview image'"
+                class="preview-image"
+                (error)="onImageError($event)">
+            }
+            <div class="preview-text">
+              <div class="preview-header">
+                @if (preview.favicon && !faviconError) {
+                  <img
+                    [src]="preview.favicon"
+                    alt="Site icon"
+                    class="preview-favicon"
+                    (error)="onFaviconError()">
+                }
+                @if (preview.site_name) {
+                  <span class="preview-site">{{ preview.site_name }}</span>
+                }
+              </div>
+              @if (preview.title) {
+                <h4 class="preview-title">{{ preview.title }}</h4>
+              }
+              @if (preview.description) {
+                <p class="preview-description">{{ preview.description }}</p>
+              }
+              <div class="preview-url">{{ getDisplayUrl(preview.url) }}</div>
             </div>
-
-            <h4 *ngIf="preview.title" class="preview-title">{{ preview.title }}</h4>
-            <p *ngIf="preview.description" class="preview-description">{{ preview.description }}</p>
-
-            <div class="preview-url">{{ getDisplayUrl(preview.url) }}</div>
           </div>
-        </div>
-      </a>
-    </div>
-  `,
+        </a>
+      </div>
+    }
+    `,
   styles: [`
     .link-preview-card {
       margin: 12px 0;
@@ -141,12 +150,12 @@ import { LinkPreviewService, LinkPreview } from './link.service';
   `]
 })
 export class LinkPreviewComponent implements OnInit {
-  @Input() url: string = '';
+  private previewService = inject(LinkPreviewService);
+
+  @Input() url = '';
 
   preview: LinkPreview | null = null;
   faviconError = false;
-
-  constructor(private previewService: LinkPreviewService) {}
 
   ngOnInit(): void {
     if (this.url) {

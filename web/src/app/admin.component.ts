@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { ApiService } from './api.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AdminStatus } from './mastodon';
 
 @Component({
   selector: 'app-admin',
@@ -10,11 +11,11 @@ import { FormsModule } from '@angular/forms';
   templateUrl: 'admin.component.html',
 })
 export class AdminComponent implements OnInit {
-  status: any;
+  api = inject(ApiService);
+
+  status: AdminStatus | null = null;
   draft = '';
   syncing = false;
-
-  constructor(public api: ApiService) {}
 
   ngOnInit() {
     this.refreshStatus();

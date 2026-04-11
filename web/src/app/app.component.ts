@@ -1,11 +1,12 @@
 // src/app/app.component.ts
-import {Component, OnDestroy, OnInit} from '@angular/core';
-import {CommonModule} from '@angular/common';
-import {ActivatedRoute, NavigationEnd, Router, RouterLink,RouterLinkActive, RouterOutlet} from '@angular/router';
+import {Component, OnDestroy, OnInit, inject} from '@angular/core';
+
+import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
 
 import {ApiService} from './api.service';
-import {distinctUntilChanged, map, shareReplay, switchMap, takeUntil, tap, catchError, filter} from 'rxjs/operators';
+import {distinctUntilChanged, map, shareReplay, switchMap, takeUntil, catchError, filter} from 'rxjs/operators';
 import {of, Subject, combineLatest} from 'rxjs';
+import {Identity, MastodonAccount} from './mastodon';
 
 interface CountDetail {
   total: number;
@@ -31,29 +32,33 @@ const emptyCount = () => ({ total: 0, unseen: 0 });
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit, OnDestroy {
+  private api = inject(ApiService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+
   private readonly destroy$ = new Subject<void>();
-  currentFilter: string = 'storms';
-  currentBlogFilter: string = 'all';
+  currentFilter = 'storms';
+  currentBlogFilter = 'all';
 
   // Identities State
-  identities: any[] = [];
+  identities: Identity[] = [];
   currentMetaId: string | null = null;
   activeIdentityId: number | null = null; // The ID of the identity currently providing context
 
   // Navigation State
   currentUser: string | null = null; // The acct string of the user being VIEWED
-  viewingEveryone: boolean = false;
+  viewingEveryone = false;
   currentPage: 'people' | 'content' | 'forum' = 'people';
 
-  blogRoll: any[] = [];
-  mainUser: any = null; // The "Profile" of the currently connected user
-  activeUserInfo: any = null; // The "Profile" of the user we are viewing
-  serverDown: boolean = false;
-  recentlyViewed: Set<string> = new Set();
+  blogRoll: MastodonAccount[] = [];
+  mainUser: MastodonAccount | null = null; // The "Profile" of the currently connected user
+  activeUserInfo: MastodonAccount | null = null; // The "Profile" of the user we are viewing
+  serverDown = false;
+  recentlyViewed: Set<string> = new Set<string>();
 
 
 
@@ -64,13 +69,6 @@ export class AppComponent implements OnInit, OnDestroy {
     discussions: emptyCount(), links: emptyCount(), questions: emptyCount(),
     everyone: emptyCount(), reposts: emptyCount()
   };
-
-  constructor(
-    private api: ApiService,
-    private router: Router,
-    private route: ActivatedRoute,
-  ) {
-  }
 
 
   ngOnDestroy(): void {
@@ -97,7 +95,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     // Subscribe to server status
-    this.api.serverDown$.subscribe((isDown) => {
+    this.api.serverDown$.subscribe(() => {
       // this.serverDown = isDown;
     });
 
@@ -121,7 +119,7 @@ export class AppComponent implements OnInit, OnDestroy {
           this.setContextIdentity(ids[0].id);
         }
       },
-      error: (e) => console.log('Could not fetch identities', e)
+      error: (e: unknown) => console.log('Could not fetch identities', e)
     });
 
     // React to Identity Changes
@@ -250,27 +248,28 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.api.getCounts(this.activeIdentityId, effectiveUser || undefined).subscribe({
 
-      next: (c) => {
+      next: (response: unknown) => {
+        const c = response as Record<string, { total?: number, unseen?: number }>;
         // Helper to extract nested counts safely
-        const mapCount = (data: any): CountDetail => ({
+        const mapCount = (data?: { total?: number, unseen?: number }): CountDetail => ({
           total: Number(data?.total || 0),
           unseen: Number(data?.unseen || 0)
         });
         this.counts = {
-          storms: mapCount(c.storms),
-          shorts: mapCount(c.shorts),
-          news: mapCount(c.news),
-          software: mapCount(c.software),
-          pictures: mapCount(c.pictures),
-          videos: mapCount(c.videos),
-          discussions: mapCount(c.discussions),
-          links: mapCount(c.links),
-          questions: mapCount(c.questions),
-          everyone: mapCount(c.everyone),
-          reposts: mapCount(c.reposts),
+          storms: mapCount(c['storms']),
+          shorts: mapCount(c['shorts']),
+          news: mapCount(c['news']),
+          software: mapCount(c['software']),
+          pictures: mapCount(c['pictures']),
+          videos: mapCount(c['videos']),
+          discussions: mapCount(c['discussions']),
+          links: mapCount(c['links']),
+          questions: mapCount(c['questions']),
+          everyone: mapCount(c['everyone']),
+          reposts: mapCount(c['reposts']),
         };
       },
-      error: (e) => console.log(e),
+      error: (e: unknown) => console.log(e),
     });
   }
 
@@ -379,7 +378,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (userToPrefetch) {
       this.api.syncAccount(userToPrefetch.acct, this.activeIdentityId).subscribe({
         next: () => console.log(`Prefetch complete for ${userToPrefetch.acct}`),
-        error: (err) => console.error(`Prefetch failed for ${userToPrefetch.acct}`, err)
+        error: (err: unknown) => console.error(`Prefetch failed for ${userToPrefetch.acct}`, err)
       });
     }
   }

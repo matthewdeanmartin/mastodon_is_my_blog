@@ -5,22 +5,25 @@
   </div>
 
   <div style="margin-left: 10px; font-size: 0.85rem; color: #94a3b8; margin-right: 10px;">
-      Context:
+    Context:
   </div>
 
   <div class="identity-list">
-    <button
-      *ngFor="let id of identities"
-      class="identity-chip"
-      [class.active]="activeIdentityId === id.id"
-      (click)="setContextIdentity(id.id)">
-      <span class="icon">👤</span>
-      <span>{{ id.acct }}</span>
-    </button>
+    @for (id of identities; track id) {
+      <button
+        class="identity-chip"
+        [class.active]="activeIdentityId === id.id"
+        (click)="setContextIdentity(id.id)">
+        <span class="icon">👤</span>
+        <span>{{ id.acct }}</span>
+      </button>
+    }
 
-    <div *ngIf="identities.length === 0" style="color: #64748b; font-style: italic;">
+    @if (identities.length === 0) {
+      <div style="color: #64748b; font-style: italic;">
         No identities found. Add one in Admin.
-    </div>
+      </div>
+    }
   </div>
 </div>
 
@@ -36,202 +39,217 @@
   </div>
 
   <!-- Active User Display - Only show on People pages -->
-  <div class="active-user-card" *ngIf="activeUserInfo && isPeoplePage()">
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-      <img [src]="activeUserInfo.avatar"
-           style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid #6366f1;">
-      <div>
-        <h3 style="margin: 0; font-size: 1.1rem;">{{ activeUserInfo.display_name || activeUserInfo.acct }}</h3>
-        <div class="muted" style="font-size: 0.85rem;">@{{ activeUserInfo.acct }}</div>
+  @if (activeUserInfo && isPeoplePage()) {
+    <div class="active-user-card">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+        <img [src]="activeUserInfo.avatar" alt=""
+          style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid #6366f1;">
+          <div>
+            <h3 style="margin: 0; font-size: 1.1rem;">{{ activeUserInfo.display_name || activeUserInfo.acct }}</h3>
+            <div class="muted" style="font-size: 0.85rem;">@{{ activeUserInfo.acct }}</div>
+          </div>
+        </div>
+        @if (activeUserInfo.note) {
+          <div
+            [innerHTML]="activeUserInfo.note"
+            style="font-size: 0.9rem; color: #555; line-height: 1.5;">
+          </div>
+        }
       </div>
-    </div>
-    <div *ngIf="activeUserInfo.note"
-         [innerHTML]="activeUserInfo.note"
-         style="font-size: 0.9rem; color: #555; line-height: 1.5;">
-    </div>
-  </div>
+    }
 
-  <!-- Left Sidebar - Only show on People pages -->
-  <div class="sidebar-left" *ngIf="isPeoplePage()">
-    <!-- Home Button (Return to Main User) -->
-    <button class="nav-btn"
-            [class.active]="isViewingMainUser()"
-            (click)="viewMainUser()"
-            style="background: #6366f1; color: white; font-weight: 600; margin-bottom: 5px;">
-      🏠 My Blog
-    </button>
+    <!-- Left Sidebar - Only show on People pages -->
+    @if (isPeoplePage()) {
+      <div class="sidebar-left">
+        <!-- Home Button (Return to Main User) -->
+        <button class="nav-btn"
+          [class.active]="isViewingMainUser()"
+          (click)="viewMainUser()"
+          style="background: #6366f1; color: white; font-weight: 600; margin-bottom: 5px;">
+          🏠 My Blog
+        </button>
+        <!-- Everyone Button -->
+        <button class="nav-btn"
+          [class.active]="viewingEveryone"
+          (click)="viewEveryone()"
+          style="background: #f59e0b; color: white; font-weight: 600; margin-bottom: 5px;">
+          🌍 Everyone's Blog
+        </button>
+        <!-- Next Blog Button -->
+        <button class="nav-btn"
+          (click)="viewNextBlogrollUser()"
+          [disabled]="blogRoll.length === 0"
+          style="background: #10b981; color: white; font-weight: 600; margin-bottom: 15px;">
+          ⏭️ Next Blog
+        </button>
+        <hr>
+          <div class="muted" style="margin-bottom:10px;">BLOG ROLL FILTERS</div>
+          <button class="nav-btn" [class.active]="currentBlogFilter==='top_friends'" (click)="setBlogFilter('top_friends')">Top Friends</button>
+          <button class="nav-btn" [class.active]="currentBlogFilter==='mutuals'" (click)="setBlogFilter('mutuals')">Mutuals</button>
+          <button class="nav-btn" [class.active]="currentBlogFilter==='chatty'" (click)="setBlogFilter('chatty')">Chatty</button>
+          <button class="nav-btn" [class.active]="currentBlogFilter==='broadcasters'" (click)="setBlogFilter('broadcasters')">Broadcasters</button>
+          <button class="nav-btn" [class.active]="currentBlogFilter==='bots'" (click)="setBlogFilter('bots')">Bots</button>
+          <button class="nav-btn" [class.active]="currentBlogFilter==='all'" (click)="setBlogFilter('all')">All</button>
+          <hr>
+            <div class="muted" style="margin-bottom:10px;">BLOG ROLL</div>
+            @if (blogRoll.length === 0) {
+              <div class="muted" style="font-style: italic; font-size: 0.85rem;">
+                No friends found for this identity.
+              </div>
+            }
+            @for (acc of blogRoll; track acc) {
+              <div style="margin-bottom: 8px;">
+                <!-- was  queryParamsHandling="merge" why not now?-->
+                <a [routerLink]="['/']"
+                  [queryParams]="{user: acc.acct, filter: 'storms'}"
+                  (click)="prefetchNextBlogrollUser(acc.acct)"
+                  [style.background]="isActiveUser(acc.acct) ? '#e0e7ff' : (isRecentlyViewed(acc.acct) ? '#f3f4f6' : 'transparent')"
+                  [style.border-left]="isActiveUser(acc.acct) ? '3px solid #6366f1' : 'none'"
+                  [style.padding]="'8px'"
+                  [style.border-radius]="'4px'"
+                  [style.display]="'flex'"
+                  [style.align-items]="'center'"
+                  [style.gap]="'8px'"
+                  style="text-decoration: none; color: #333; cursor: pointer; transition: all 0.2s;">
+                  <img [src]="acc.avatar" alt="" style="width: 24px; height: 24px; border-radius: 50%;">
+                  <span style="font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ acc.display_name || acc.acct }}
+                  </span>
+                </a>
+              </div>
+            }
+            <hr>
+              <div class="muted" style="margin-bottom:10px;">LINKS</div>
+              <a href="https://mastodon.social" target="_blank" class="nav-btn">My Profile</a>
+            </div>
+          }
 
-    <!-- Everyone Button -->
-    <button class="nav-btn"
-            [class.active]="viewingEveryone"
-            (click)="viewEveryone()"
-            style="background: #f59e0b; color: white; font-weight: 600; margin-bottom: 5px;">
-      🌍 Everyone's Blog
-    </button>
+          <!-- Right Sidebar - Only show on People pages -->
+          @if (isPeoplePage()) {
+            <div class="sidebar-right">
+              <div class="muted" style="margin-bottom:10px;">POST FILTERS</div>
+              <button class="nav-btn" [class.active]="currentFilter==='storms' || currentFilter==='all'" (click)="setFilter('storms')">
+                <div class="row" style="gap: 4px; justify-content: flex-start;">
+                  <span>Storms ({{ counts.storms.total }})</span>
+                  @if (counts.storms.unseen > 0) {
+                    <span class="unread-badge" style="animation: none; margin-left: auto;">
+                      {{ counts.storms.unseen }}
+                    </span>
+                  }
+                </div>
+              </button>
+              <button class="nav-btn" [class.active]="currentFilter==='shorts'" (click)="setFilter('shorts')">
+                <div class="row" style="gap: 4px; justify-content: flex-start;">
+                  <span>Shorts ({{ counts.shorts.total }})</span>
+                  @if (counts.shorts.unseen > 0) {
+                    <span class="unread-badge" style="animation: none; margin-left: auto;">
+                      {{ counts.shorts.unseen }}
+                    </span>
+                  }
+                </div>
+              </button>
+              <button class="nav-btn" [class.active]="currentFilter==='questions'" (click)="setFilter('questions')">
+                <div class="row" style="gap: 4px; justify-content: flex-start;">
+                  <span>Questions ({{ counts.questions.total }})</span>
+                  @if (counts.questions.unseen > 0) {
+                    <span class="unread-badge" style="animation: none; margin-left: auto;">
+                      {{ counts.questions.unseen }}
+                    </span>
+                  }
+                </div>
+              </button>
+              <button class="nav-btn" [class.active]="currentFilter==='news'" (click)="setFilter('news')">
+                <div class="row" style="gap: 4px; justify-content: flex-start;">
+                  <span>News ({{ counts.news.total }})</span>
+                  @if (counts.news.unseen > 0) {
+                    <span class="unread-badge" style="animation: none; margin-left: auto;">
+                      {{ counts.news.unseen }}
+                    </span>
+                  }
+                </div>
+              </button>
+              <button class="nav-btn" [class.active]="currentFilter==='software'" (click)="setFilter('software')">
+                <div class="row" style="gap: 4px; justify-content: flex-start;">
+                  <span>Cool Software ({{ counts.software.total }})</span>
+                  @if (counts.software.unseen > 0) {
+                    <span class="unread-badge" style="animation: none; margin-left: auto;">
+                      {{ counts.software.unseen }}
+                    </span>
+                  }
+                </div>
+              </button>
+              <button class="nav-btn" [class.active]="currentFilter==='pictures'" (click)="setFilter('pictures')">
+                <div class="row" style="gap: 4px; justify-content: flex-start;">
+                  <span>Pictures ({{ counts.pictures.total }})</span>
+                  @if (counts.pictures.unseen > 0) {
+                    <span class="unread-badge" style="animation: none; margin-left: auto;">
+                      {{ counts.pictures.unseen }}
+                    </span>
+                  }
+                </div>
+              </button>
+              <button class="nav-btn" [class.active]="currentFilter==='videos'" (click)="setFilter('videos')">
+                <div class="row" style="gap: 4px; justify-content: flex-start;">
+                  <span>Videos ({{ counts.videos.total }})</span>
+                  @if (counts.videos.unseen > 0) {
+                    <span class="unread-badge" style="animation: none; margin-left: auto;">
+                      {{ counts.videos.unseen }}
+                    </span>
+                  }
+                </div>
+              </button>
+              <button class="nav-btn" [class.active]="currentFilter==='discussions'" (click)="setFilter('discussions')">
+                <div class="row" style="gap: 4px; justify-content: flex-start;">
+                  <span>Discussions ({{ counts.discussions.total }})</span>
+                  @if (counts.discussions.unseen > 0) {
+                    <span class="unread-badge" style="animation: none; margin-left: auto;">
+                      {{ counts.discussions.unseen }}
+                    </span>
+                  }
+                </div>
+              </button>
+              <button class="nav-btn" [class.active]="currentFilter==='links'" (click)="setFilter('links')">
+                <div class="row" style="gap: 4px; justify-content: flex-start;">
+                  <span>Links ({{ counts.links.total }})</span>
+                  @if (counts.links.unseen > 0) {
+                    <span class="unread-badge" style="animation: none; margin-left: auto;">
+                      {{ counts.links.unseen }}
+                    </span>
+                  }
+                </div>
+              </button>
+              <button class="nav-btn" [class.active]="currentFilter==='reposts'" (click)="setFilter('reposts')">
+                <div class="row" style="gap: 4px; justify-content: flex-start;">
+                  <span>Reposts ({{ counts.reposts.total }})</span>
+                  @if (counts.reposts.unseen > 0) {
+                    <span class="unread-badge" style="animation: none; margin-left: auto;">
+                      {{ counts.reposts.unseen }}
+                    </span>
+                  }
+                </div>
+              </button>
+            </div>
+          }
 
-    <!-- Next Blog Button -->
-    <button class="nav-btn"
-            (click)="viewNextBlogrollUser()"
-            [disabled]="blogRoll.length === 0"
-            style="background: #10b981; color: white; font-weight: 600; margin-bottom: 15px;">
-      ⏭️ Next Blog
-    </button>
+          <div class="content">
+            <router-outlet></router-outlet>
+          </div>
 
-    <hr>
+          <div class="footer">
+            Powered by Mastodon & FastAPI. &copy; 2026.<br>
+            <a href="https://www.flaticon.com/free-icons/elephant" title="elephant icons">Elephant icons created by Freepik -
+            Flaticon</a>
+          </div>
+        </div>
 
-    <div class="muted" style="margin-bottom:10px;">BLOG ROLL FILTERS</div>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='top_friends'" (click)="setBlogFilter('top_friends')">Top Friends</button>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='mutuals'" (click)="setBlogFilter('mutuals')">Mutuals</button>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='chatty'" (click)="setBlogFilter('chatty')">Chatty</button>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='broadcasters'" (click)="setBlogFilter('broadcasters')">Broadcasters</button>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='bots'" (click)="setBlogFilter('bots')">Bots</button>
-    <button class="nav-btn" [class.active]="currentBlogFilter==='all'" (click)="setBlogFilter('all')">All</button>
-
-    <hr>
-
-    <div class="muted" style="margin-bottom:10px;">BLOG ROLL</div>
-    <div *ngIf="blogRoll.length === 0" class="muted" style="font-style: italic; font-size: 0.85rem;">
-        No friends found for this identity.
-    </div>
-
-    <div *ngFor="let acc of blogRoll" style="margin-bottom: 8px;">
-<!-- was  queryParamsHandling="merge" why not now?-->
-      <a [routerLink]="['/']"
-         [queryParams]="{user: acc.acct, filter: 'storms'}"
-         (click)="prefetchNextBlogrollUser(acc.acct)"
-
-         [style.background]="isActiveUser(acc.acct) ? '#e0e7ff' : (isRecentlyViewed(acc.acct) ? '#f3f4f6' : 'transparent')"
-         [style.border-left]="isActiveUser(acc.acct) ? '3px solid #6366f1' : 'none'"
-         [style.padding]="'8px'"
-         [style.border-radius]="'4px'"
-         [style.display]="'flex'"
-         [style.align-items]="'center'"
-         [style.gap]="'8px'"
-         style="text-decoration: none; color: #333; cursor: pointer; transition: all 0.2s;">
-        <img [src]="acc.avatar" style="width: 24px; height: 24px; border-radius: 50%;">
-        <span style="font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          {{ acc.display_name || acc.acct }}
-        </span>
-      </a>
-    </div>
-
-    <hr>
-    <div class="muted" style="margin-bottom:10px;">LINKS</div>
-    <a href="https://mastodon.social" target="_blank" class="nav-btn">My Profile</a>
-  </div>
-
-  <!-- Right Sidebar - Only show on People pages -->
-  <div class="sidebar-right" *ngIf="isPeoplePage()">
-  <div class="muted" style="margin-bottom:10px;">POST FILTERS</div>
-
-  <button class="nav-btn" [class.active]="currentFilter==='storms' || currentFilter==='all'" (click)="setFilter('storms')">
-    <div class="row" style="gap: 4px; justify-content: flex-start;">
-      <span>Storms ({{ counts.storms.total }})</span>
-      <span *ngIf="counts.storms.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
-        {{ counts.storms.unseen }}
-      </span>
-    </div>
-  </button>
-
-  <button class="nav-btn" [class.active]="currentFilter==='shorts'" (click)="setFilter('shorts')">
-    <div class="row" style="gap: 4px; justify-content: flex-start;">
-      <span>Shorts ({{ counts.shorts.total }})</span>
-      <span *ngIf="counts.shorts.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
-        {{ counts.shorts.unseen }}
-      </span>
-    </div>
-  </button>
-
-  <button class="nav-btn" [class.active]="currentFilter==='questions'" (click)="setFilter('questions')">
-    <div class="row" style="gap: 4px; justify-content: flex-start;">
-      <span>Questions ({{ counts.questions.total }})</span>
-      <span *ngIf="counts.questions.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
-        {{ counts.questions.unseen }}
-      </span>
-    </div>
-  </button>
-
-  <button class="nav-btn" [class.active]="currentFilter==='news'" (click)="setFilter('news')">
-    <div class="row" style="gap: 4px; justify-content: flex-start;">
-      <span>News ({{ counts.news.total }})</span>
-      <span *ngIf="counts.news.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
-        {{ counts.news.unseen }}
-      </span>
-    </div>
-  </button>
-
-  <button class="nav-btn" [class.active]="currentFilter==='software'" (click)="setFilter('software')">
-    <div class="row" style="gap: 4px; justify-content: flex-start;">
-      <span>Cool Software ({{ counts.software.total }})</span>
-      <span *ngIf="counts.software.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
-        {{ counts.software.unseen }}
-      </span>
-    </div>
-  </button>
-
-  <button class="nav-btn" [class.active]="currentFilter==='pictures'" (click)="setFilter('pictures')">
-    <div class="row" style="gap: 4px; justify-content: flex-start;">
-      <span>Pictures ({{ counts.pictures.total }})</span>
-      <span *ngIf="counts.pictures.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
-        {{ counts.pictures.unseen }}
-      </span>
-    </div>
-  </button>
-
-  <button class="nav-btn" [class.active]="currentFilter==='videos'" (click)="setFilter('videos')">
-    <div class="row" style="gap: 4px; justify-content: flex-start;">
-      <span>Videos ({{ counts.videos.total }})</span>
-      <span *ngIf="counts.videos.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
-        {{ counts.videos.unseen }}
-      </span>
-    </div>
-  </button>
-
-  <button class="nav-btn" [class.active]="currentFilter==='discussions'" (click)="setFilter('discussions')">
-    <div class="row" style="gap: 4px; justify-content: flex-start;">
-      <span>Discussions ({{ counts.discussions.total }})</span>
-      <span *ngIf="counts.discussions.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
-        {{ counts.discussions.unseen }}
-      </span>
-    </div>
-  </button>
-
-  <button class="nav-btn" [class.active]="currentFilter==='links'" (click)="setFilter('links')">
-    <div class="row" style="gap: 4px; justify-content: flex-start;">
-      <span>Links ({{ counts.links.total }})</span>
-      <span *ngIf="counts.links.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
-        {{ counts.links.unseen }}
-      </span>
-    </div>
-  </button>
-
-  <button class="nav-btn" [class.active]="currentFilter==='reposts'" (click)="setFilter('reposts')">
-    <div class="row" style="gap: 4px; justify-content: flex-start;">
-      <span>Reposts ({{ counts.reposts.total }})</span>
-      <span *ngIf="counts.reposts.unseen > 0" class="unread-badge" style="animation: none; margin-left: auto;">
-        {{ counts.reposts.unseen }}
-      </span>
-    </div>
-  </button>
-</div>
-
-  <div class="content">
-    <router-outlet></router-outlet>
-  </div>
-
-  <div class="footer">
-    Powered by Mastodon & FastAPI. &copy; 2026.<br>
-    <a href="https://www.flaticon.com/free-icons/elephant" title="elephant icons">Elephant icons created by Freepik -
-      Flaticon</a>
-  </div>
-</div>
-
-<div class="server-down-overlay" *ngIf="serverDown">
-  <div class="server-down-modal">
-    <div class="server-down-icon">🔌</div>
-    <h2>Connection Lost</h2>
-    <p>We are having trouble reaching the server.</p>
-    <div class="loading-spinner"></div>
-    <p><small>Attempting to reconnect...</small></p>
-  </div>
-</div>
+        @if (serverDown) {
+          <div class="server-down-overlay">
+            <div class="server-down-modal">
+              <div class="server-down-icon">🔌</div>
+              <h2>Connection Lost</h2>
+              <p>We are having trouble reaching the server.</p>
+              <div class="loading-spinner"></div>
+              <p><small>Attempting to reconnect...</small></p>
+            </div>
+          </div>
+        }

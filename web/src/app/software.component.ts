@@ -1,10 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService } from './api.service';
 import { Router } from '@angular/router';
 import {
   ContentFeedFilter,
-  ContentFeedGroup,
   ContentFeedPost,
   contentFeedFilters,
   getContentUserFilter,
@@ -12,6 +11,7 @@ import {
   groupLinkPosts,
   normalizeContentPost,
   sortContentPosts,
+  ContentFeedGroup,
 } from './content-feed.utils';
 
 @Component({
@@ -28,42 +28,48 @@ import {
           </p>
         </div>
         <div class="filter-buttons">
-          <button
-            *ngFor="let filter of filters"
-            [class.active]="currentFilter === filter.value"
-            (click)="setFilter(filter.value)"
-            class="filter-btn">
-            {{ filter.label }}
-          </button>
+          @for (filter of filters; track filter) {
+            <button
+              [class.active]="currentFilter === filter.value"
+              (click)="setFilter(filter.value)"
+              class="filter-btn">
+              {{ filter.label }}
+            </button>
+          }
         </div>
       </div>
-
-      <div *ngIf="loading" class="muted">Loading software posts...</div>
-
-      <div *ngIf="!loading && posts.length === 0" class="muted">
-        No software recommendations found.
-      </div>
-
-      <div
-        *ngFor="let post of posts"
-        class="content-card">
-        <div class="row" style="gap: 12px; align-items: flex-start;">
-          <div>
-            <strong>{{ post.author_display_name || post.author_acct }}</strong>
-            <div class="muted" style="margin-top: 4px;">{{ post.created_at | date: 'short' }}</div>
-          </div>
-          <div class="signal-row">
-            <span class="signal-pill">Score {{ getPopularityScore(post) }}</span>
-            <span class="signal-pill">❤️ {{ post.counts.likes }}</span>
-            <span class="signal-pill">💬 {{ post.counts.replies }}</span>
-            <span class="signal-pill">🔁 {{ post.counts.reposts }}</span>
-          </div>
+    
+      @if (loading) {
+        <div class="muted">Loading software posts...</div>
+      }
+    
+      @if (!loading && posts.length === 0) {
+        <div class="muted">
+          No software recommendations found.
         </div>
-        <div [innerHTML]="post.content" style="margin: 12px 0;"></div>
-        <button (click)="viewPost(post.id)" class="secondary">View Details</button>
-      </div>
+      }
+    
+      @for (post of posts; track post) {
+        <div
+          class="content-card">
+          <div class="row" style="gap: 12px; align-items: flex-start;">
+            <div>
+              <strong>{{ post.author_display_name || post.author_acct }}</strong>
+              <div class="muted" style="margin-top: 4px;">{{ post.created_at | date: 'short' }}</div>
+            </div>
+            <div class="signal-row">
+              <span class="signal-pill">Score {{ getPopularityScore(post) }}</span>
+              <span class="signal-pill">❤️ {{ post.counts.likes }}</span>
+              <span class="signal-pill">💬 {{ post.counts.replies }}</span>
+              <span class="signal-pill">🔁 {{ post.counts.reposts }}</span>
+            </div>
+          </div>
+          <div [innerHTML]="post.content" style="margin: 12px 0;"></div>
+          <button (click)="viewPost(post.id)" class="secondary">View Details</button>
+        </div>
+      }
     </div>
-  `,
+    `,
   styles: [`
     .filter-bar {
       display: flex;
@@ -129,12 +135,13 @@ import {
   `]
 })
 export class SoftwareFeedComponent implements OnInit {
+  private api = inject(ApiService);
+  private router = inject(Router);
+
   posts: ContentFeedPost[] = [];
   loading = true;
   currentFilter: ContentFeedFilter = 'recent';
   readonly filters = contentFeedFilters;
-
-  constructor(private api: ApiService, private router: Router) {}
 
   ngOnInit(): void {
     this.api.identityId$.subscribe((identityId) => {
@@ -195,49 +202,56 @@ export class SoftwareFeedComponent implements OnInit {
           </p>
         </div>
         <div class="filter-buttons">
-          <button
-            *ngFor="let filter of filters"
-            [class.active]="currentFilter === filter.value"
-            (click)="setFilter(filter.value)"
-            class="filter-btn">
-            {{ filter.label }}
-          </button>
+          @for (filter of filters; track filter) {
+            <button
+              [class.active]="currentFilter === filter.value"
+              (click)="setFilter(filter.value)"
+              class="filter-btn">
+              {{ filter.label }}
+            </button>
+          }
         </div>
       </div>
-
-      <div *ngIf="loading" class="muted">Loading links...</div>
-
-      <div *ngIf="!loading && groups.length === 0" class="muted">
-        No links found.
-      </div>
-
-      <div *ngFor="let group of groups" style="margin-bottom: 30px;">
-        <div class="row" style="align-items: center; gap: 12px; margin-bottom: 12px;">
-          <h3 style="color: #6366f1; font-size: 1.1rem; margin: 0;">{{ group.domain }}</h3>
-          <span class="signal-pill">{{ group.posts.length }} mentions</span>
-          <span class="signal-pill">Score {{ group.totalScore }}</span>
+    
+      @if (loading) {
+        <div class="muted">Loading links...</div>
+      }
+    
+      @if (!loading && groups.length === 0) {
+        <div class="muted">
+          No links found.
         </div>
-
-        <div
-          *ngFor="let post of group.posts"
-          style="margin: 15px 0; padding-left: 15px; border-left: 3px solid #e5e7eb;">
-          <div class="row" style="gap: 10px; align-items: center;">
-            <div class="muted">
-              {{ post.author_display_name || post.author_acct }} • {{ post.created_at | date: 'short' }}
-            </div>
-            <div class="signal-row">
-              <span class="signal-pill">Score {{ getPopularityScore(post) }}</span>
-              <span class="signal-pill">❤️ {{ post.counts.likes }}</span>
-              <span class="signal-pill">💬 {{ post.counts.replies }}</span>
-              <span class="signal-pill">🔁 {{ post.counts.reposts }}</span>
-            </div>
+      }
+    
+      @for (group of groups; track group) {
+        <div style="margin-bottom: 30px;">
+          <div class="row" style="align-items: center; gap: 12px; margin-bottom: 12px;">
+            <h3 style="color: #6366f1; font-size: 1.1rem; margin: 0;">{{ group.domain }}</h3>
+            <span class="signal-pill">{{ group.posts.length }} mentions</span>
+            <span class="signal-pill">Score {{ group.totalScore }}</span>
           </div>
-          <div [innerHTML]="post.content" style="margin: 5px 0;"></div>
-          <button (click)="viewPost(post.id)" class="secondary" style="margin-top: 8px;">View</button>
+          @for (post of group.posts; track post) {
+            <div
+              style="margin: 15px 0; padding-left: 15px; border-left: 3px solid #e5e7eb;">
+              <div class="row" style="gap: 10px; align-items: center;">
+                <div class="muted">
+                  {{ post.author_display_name || post.author_acct }} • {{ post.created_at | date: 'short' }}
+                </div>
+                <div class="signal-row">
+                  <span class="signal-pill">Score {{ getPopularityScore(post) }}</span>
+                  <span class="signal-pill">❤️ {{ post.counts.likes }}</span>
+                  <span class="signal-pill">💬 {{ post.counts.replies }}</span>
+                  <span class="signal-pill">🔁 {{ post.counts.reposts }}</span>
+                </div>
+              </div>
+              <div [innerHTML]="post.content" style="margin: 5px 0;"></div>
+              <button (click)="viewPost(post.id)" class="secondary" style="margin-top: 8px;">View</button>
+            </div>
+          }
         </div>
-      </div>
+      }
     </div>
-  `,
+    `,
   styles: [`
     .filter-bar {
       display: flex;
@@ -297,12 +311,13 @@ export class SoftwareFeedComponent implements OnInit {
   `]
 })
 export class LinksFeedComponent implements OnInit {
+  private api = inject(ApiService);
+  private router = inject(Router);
+
   groups: ContentFeedGroup[] = [];
   loading = true;
   currentFilter: ContentFeedFilter = 'recent';
   readonly filters = contentFeedFilters;
-
-  constructor(private api: ApiService, private router: Router) {}
 
   ngOnInit(): void {
     this.api.identityId$.subscribe((identityId) => {
@@ -364,44 +379,53 @@ export class LinksFeedComponent implements OnInit {
           </p>
         </div>
         <div class="filter-buttons">
-          <button
-            *ngFor="let filter of filters"
-            [class.active]="currentFilter === filter.value"
-            (click)="setFilter(filter.value)"
-            class="filter-btn">
-            {{ filter.label }}
-          </button>
+          @for (filter of filters; track filter) {
+            <button
+              [class.active]="currentFilter === filter.value"
+              (click)="setFilter(filter.value)"
+              class="filter-btn">
+              {{ filter.label }}
+            </button>
+          }
         </div>
       </div>
-
-      <div *ngIf="loading" class="muted">Loading news...</div>
-
-      <div *ngIf="!loading && posts.length === 0" class="muted">
-        No news articles found.
-      </div>
-
-      <div *ngFor="let post of posts" style="margin-bottom: 25px; padding: 15px; background: #f9fafb; border-radius: 8px;">
-        <div class="row" style="margin-bottom: 10px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <img
-              *ngIf="post.author_avatar"
-              [src]="post.author_avatar"
-              style="width: 32px; height: 32px; border-radius: 50%;">
-            <strong>{{ post.author_display_name || post.author_acct }}</strong>
-          </div>
-          <div class="signal-row">
-            <span class="signal-pill">{{ post.created_at | date: 'short' }}</span>
-            <span class="signal-pill">Score {{ getPopularityScore(post) }}</span>
-            <span class="signal-pill">❤️ {{ post.counts.likes }}</span>
-            <span class="signal-pill">💬 {{ post.counts.replies }}</span>
-            <span class="signal-pill">🔁 {{ post.counts.reposts }}</span>
-          </div>
+    
+      @if (loading) {
+        <div class="muted">Loading news...</div>
+      }
+    
+      @if (!loading && posts.length === 0) {
+        <div class="muted">
+          No news articles found.
         </div>
-        <div [innerHTML]="post.content"></div>
-        <button (click)="viewPost(post.id)" class="secondary" style="margin-top: 10px;">Read More</button>
-      </div>
+      }
+    
+      @for (post of posts; track post) {
+        <div style="margin-bottom: 25px; padding: 15px; background: #f9fafb; border-radius: 8px;">
+          <div class="row" style="margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              @if (post.author_avatar) {
+                <img
+                  [src]="post.author_avatar"
+                  alt=""
+                  style="width: 32px; height: 32px; border-radius: 50%;">
+              }
+              <strong>{{ post.author_display_name || post.author_acct }}</strong>
+            </div>
+            <div class="signal-row">
+              <span class="signal-pill">{{ post.created_at | date: 'short' }}</span>
+              <span class="signal-pill">Score {{ getPopularityScore(post) }}</span>
+              <span class="signal-pill">❤️ {{ post.counts.likes }}</span>
+              <span class="signal-pill">💬 {{ post.counts.replies }}</span>
+              <span class="signal-pill">🔁 {{ post.counts.reposts }}</span>
+            </div>
+          </div>
+          <div [innerHTML]="post.content"></div>
+          <button (click)="viewPost(post.id)" class="secondary" style="margin-top: 10px;">Read More</button>
+        </div>
+      }
     </div>
-  `,
+    `,
   styles: [`
     .filter-bar {
       display: flex;
@@ -462,12 +486,13 @@ export class LinksFeedComponent implements OnInit {
   `]
 })
 export class NewsFeedComponent implements OnInit {
+  private api = inject(ApiService);
+  private router = inject(Router);
+
   posts: ContentFeedPost[] = [];
   loading = true;
   currentFilter: ContentFeedFilter = 'recent';
   readonly filters = contentFeedFilters;
-
-  constructor(private api: ApiService, private router: Router) {}
 
   ngOnInit(): void {
     this.api.identityId$.subscribe((identityId) => {

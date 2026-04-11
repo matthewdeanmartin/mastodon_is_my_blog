@@ -119,10 +119,10 @@ async def _upsert_account(
         )
         session.add(new_acc)
         return new_acc
-    else:
-        for k, v in data.items():
-            setattr(existing, k, v)
-        return existing
+
+    for k, v in data.items():
+        setattr(existing, k, v)
+    return existing
 
 
 async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[dict]:
@@ -187,7 +187,7 @@ async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity) ->
             await session.commit()
     except Exception as e:
         logger.error(e)
-        logger.error(f"Failed to sync friends for {identity.acct}: {e}")
+        logger.error("Failed to sync friends for {identity.acct}: %s", e)
 
 
 async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) -> None:
@@ -220,8 +220,8 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
                 await session.execute(
                     select(
                         CachedPost.author_id,
-                        func.count(CachedPost.id).label("total"),
-                        func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),
+                        func.count(CachedPost.id).label("total"),  # pylint: disable=not-callable
+                        func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),  # pylint: disable=not-callable
                     )
                     .where(
                         and_(
@@ -256,7 +256,7 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
 
     except Exception as e:
         logger.error(e)
-        logger.error(f"Failed to sync blog roll for {identity.acct}: {e}")
+        logger.error("Failed to sync blog roll for {identity.acct}: %s", e)
 
 
 async def sync_user_timeline_for_identity(
@@ -372,7 +372,7 @@ async def sync_user_timeline_for_identity(
 
     except Exception as e:
         logger.error(e)
-        logger.error(f"Sync error {sync_key}: {e}")
+        logger.error("Sync error {sync_key}: %s", e)
         return {"status": "error", "msg": str(e)}
 
 
@@ -425,9 +425,9 @@ async def sync_blog_roll_activity() -> None:
 
 async def sync_user_timeline(
     acct: str | None = None,
-    acct_id: str | None = None,
+    _acct_id: str | None = None,
     force: bool = False,
-    cooldown_minutes: int = 15,
+    _cooldown_minutes: int = 15,
 ) -> dict:
     """Legacy wrapper: Syncs posts for a specific user to Default Meta Account."""
     if acct == "everyone":
@@ -473,34 +473,34 @@ async def get_counts_optimized(
 
     # Helper for conditional aggregation
     def filter_count(condition, label: str):
-        total = func.sum(func.cast(condition, Integer)).label(f"total_{label}")
+        total = func.sum(func.cast(condition, Integer)).label(f"total_{label}")  # pylint: disable=not-callable
         unseen = func.sum(
-            func.cast(and_(condition, SeenPost.post_id == None), Integer)
+            func.cast(and_(condition, SeenPost.post_id is None), Integer)  # pylint: disable=not-callable
         ).label(f"unseen_{label}")
         return total, unseen
 
     # Define our filters matching the UI categories
     f_shorts = and_(
-        CachedPost.is_reply == False,
-        CachedPost.is_reblog == False,
-        CachedPost.has_media == False,
-        CachedPost.has_link == False,
+        CachedPost.is_reply is False,
+        CachedPost.is_reblog is False,
+        CachedPost.has_media is False,
+        CachedPost.has_link is False,
         func.length(CachedPost.content) < 500,
     )
     # Storm count approximation: roots that are long enough to qualify.
     # Self-reply chains can't be counted efficiently in SQL; length >= 500 catches most.
     f_storms = and_(
-        CachedPost.is_reblog == False,
-        CachedPost.in_reply_to_id == None,
-        CachedPost.has_link == False,
+        CachedPost.is_reblog is False,
+        CachedPost.in_reply_to_id is None,
+        CachedPost.has_link is False,
         func.length(CachedPost.content) >= 500,
     )
-    f_news = CachedPost.has_news == True
-    f_software = CachedPost.has_tech == True
-    f_links = CachedPost.has_link == True
-    f_pics = CachedPost.has_media == True
-    f_vids = CachedPost.has_video == True
-    f_discussions = CachedPost.is_reply == True
+    f_news = CachedPost.has_news is True
+    f_software = CachedPost.has_tech is True
+    f_links = CachedPost.has_link is True
+    f_pics = CachedPost.has_media is True
+    f_vids = CachedPost.has_video is True
+    f_discussions = CachedPost.is_reply is True
 
     # Build the massive select
     sel_args = []

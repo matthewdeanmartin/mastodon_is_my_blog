@@ -1,3 +1,4 @@
+from __future__ import annotations
 # mastodon_is_my_blog/store.py
 import logging
 import os

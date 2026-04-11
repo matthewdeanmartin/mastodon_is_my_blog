@@ -1,45 +1,18 @@
-import {Component, OnInit} from '@angular/core';
-import {ActivatedRoute, Router, RouterLink} from '@angular/router';
+import { Component, OnInit, inject } from '@angular/core';
+import {ActivatedRoute, Router} from '@angular/router';
 import {ApiService} from './api.service';
 import {CommonModule} from '@angular/common';
 import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {LinkPreviewComponent} from './link.component';
 import {LinkPreviewService} from './link.service';
-
-// Interfaces for Mastodon API shape (returned by Context)
-interface Account {
-  id: string;
-  acct: string;
-  display_name: string;
-  avatar: string;
-  url: string;
-}
-
-interface Status {
-  id: string;
-  content: string;
-  created_at: string;
-  account: Account;
-  in_reply_to_id: string | null;
-  media_attachments: any[];
-  replies_count: number;
-  favourites_count: number;
-  reblogs_count: number;
-  visibility: string;
-}
+import {MastodonMediaAttachment, MastodonStatus} from './mastodon';
 
 interface TreeNode {
-  post: Status;
+  post: MastodonStatus;
   children: TreeNode[];
 }
 
-interface MediaAttachment {
-  type: string;
-  url: string;
-  preview_url?: string;
-  description?: string;
-}
-
+/*
 interface CachedPost {
   id: string;
   content: string;
@@ -53,21 +26,13 @@ interface CachedPost {
   replies_count: number;
   media_attachments: MediaAttachment[];
 }
+*/
 
-interface CommentAccount {
-  display_name: string;
-  acct: string;
-}
-
-interface Comment {
-  account: CommentAccount;
-  content: string;
-  created_at: string;
-}
-
+/*
 interface CommentsResponse {
   descendants: Comment[];
 }
+*/
 
 @Component({
   selector: 'app-public-post',
@@ -91,30 +56,27 @@ interface CommentsResponse {
   `]
 })
 export class PublicPostComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private api = inject(ApiService);
+  private sanitizer = inject(DomSanitizer);
+  private linkPreviewService = inject(LinkPreviewService);
+
   private feedReady = false;
   private targetId: string | null = null;
   loading = true;
   loadingNext = false;
-  ancestors: Status[] = [];
-  target: Status | null = null;
+  ancestors: MastodonStatus[] = [];
+  target: MastodonStatus | null = null;
   descendantTree: TreeNode[] = [];
 
   // The account of the blog we are currently viewing (for highlighting)
   blogUserAcct: string | null = null;
-  currentFilter: string = 'all';
+  currentFilter = 'all';
 
   // For next post functionality
-  private allPosts: any[] = [];
-  private currentPostIndex: number = -1;
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private api: ApiService,
-    private sanitizer: DomSanitizer,
-    private linkPreviewService: LinkPreviewService,
-  ) {
-  }
+  private allPosts: { id: string; created_at: string }[] = [];
+  private currentPostIndex = -1;
 
   ngOnInit(): void {
     // Check if we are viewing a specific user's blog context
@@ -144,8 +106,9 @@ export class PublicPostComponent implements OnInit {
     this.api.getPostContext(id, identityId || undefined).subscribe({
       next: (data) => {
         this.ancestors = data.ancestors || [];
-        this.target = data.target;
-        this.descendantTree = this.buildTree(data.descendants || [], this.target!.id);
+        const target = data.target ?? null;
+        this.target = target;
+        this.descendantTree = target ? this.buildTree(data.descendants || [], target.id) : [];
 
         // Find current post index in the feed if feed is already loaded
         this.recomputeIndex();
@@ -154,7 +117,7 @@ export class PublicPostComponent implements OnInit {
         // Mark as read when viewing the full post
         this.markAsSeen(id);
       },
-      error: (err) => {
+      error: (err: unknown) => {
         console.error(err);
         this.loading = false;
       }
@@ -163,7 +126,7 @@ export class PublicPostComponent implements OnInit {
   
   private markAsSeen(postId: string): void {
     this.api.markPostSeen(postId).subscribe({
-      error: (err) => {
+      error: (err: unknown) => {
         console.error('Failed to mark post as seen', err);
       }
     });
@@ -248,7 +211,7 @@ export class PublicPostComponent implements OnInit {
   /**
    * Constructs a nested tree from the flat descendants list.
    */
-  buildTree(flatPosts: Status[], targetId: string): TreeNode[] {
+  buildTree(flatPosts: MastodonStatus[], targetId: string): TreeNode[] {
     const map = new Map<string, TreeNode>();
 
     // Initialize all nodes
@@ -280,7 +243,7 @@ export class PublicPostComponent implements OnInit {
     return roots;
   }
 
-  isActiveUser(post: Status): boolean {
+  isActiveUser(post: MastodonStatus): boolean {
     if (!this.blogUserAcct) return false;
     return post.account.acct === this.blogUserAcct;
   }
@@ -333,11 +296,11 @@ export class PublicPostComponent implements OnInit {
     return this.sanitizer.bypassSecurityTrustHtml(processed);
   }
 
-  getMediaImages(post: Status): any[] {
+  getMediaImages(post: MastodonStatus): MastodonMediaAttachment[] {
     return post.media_attachments?.filter((m) => m.type === 'image') || [];
   }
 
-  getOriginalPostUrl(post: Status): string {
+  getOriginalPostUrl(post: MastodonStatus): string {
     const acct = post.account.acct;
     if (!acct) return '#';
 
@@ -351,7 +314,7 @@ export class PublicPostComponent implements OnInit {
   /**
    * Extract URLs from post content for link previews
    */
-  getPostUrls(post: Status): string[] {
+  getPostUrls(post: MastodonStatus): string[] {
     const content = post.content || '';
     return this.linkPreviewService.extractUrls(content);
   }

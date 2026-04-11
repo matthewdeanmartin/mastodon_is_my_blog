@@ -3,6 +3,7 @@
 Factory functions for creating Mastodon API clients.
 """
 import logging
+import os
 
 import dotenv
 from mastodon import Mastodon
@@ -23,14 +24,13 @@ PERF = True
 
 def client(
     *,
-    base_url: str,
-    client_id: str,
-    client_secret: str,
-    access_token: str,
+    base_url: str = os.environ.get("MASTODON_API_BASE_URL", ""),
+    client_id: str = os.environ.get("MASTODON_CLIENT_ID", ""),
+    client_secret: str = os.environ.get("MASTODON_CLIENT_SECRET", ""),
+    access_token: str | None = os.environ.get("MASTODON_ACCESS_TOKEN"),
 ) -> Mastodon | TimedMastodonClient:
     """
     Creates a Mastodon client with direct credentials.
-    Strictly requires all arguments.
     """
     if not base_url:
         raise ValueError("Missing required config: base_url")
@@ -38,11 +38,9 @@ def client(
         raise ValueError("Missing required config: client_id")
     if not client_secret:
         raise ValueError("Missing required config: client_secret")
-    if not access_token:
-        raise ValueError("Missing required config: access_token")
 
     if not base_url.startswith("http"):
-        logger.error(f"Invalid base_url format: {base_url}")
+        logger.error("Invalid base_url format: %s", base_url)
         raise ValueError("base_url must start with http or https")
 
     final_base_url = base_url.rstrip("/")

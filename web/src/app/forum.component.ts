@@ -1,20 +1,21 @@
 // src/app/forum.component.ts
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ApiService } from './api.service';
+import { RawContentPost } from './content-feed.utils';
 
 interface Discussion {
   id: string;
-  root_post: any;
+  root_post: RawContentPost;
   participant_count: number;
   reply_count: number;
   latest_reply_at: string;
-  participants: Array<{
+  participants: {
     acct: string;
     display_name: string;
     avatar: string;
-  }>;
+  }[];
 }
 
 @Component({
@@ -29,62 +30,73 @@ interface Discussion {
           Multi-person threads from your friends and mutuals
         </p>
       </div>
-
+    
       <div class="filter-bar">
-        <button
-          *ngFor="let f of filters"
-          [class.active]="currentFilter === f.value"
-          (click)="setFilter(f.value)"
-          class="filter-btn">
-          {{ f.label }}
-        </button>
+        @for (f of filters; track f) {
+          <button
+            [class.active]="currentFilter === f.value"
+            (click)="setFilter(f.value)"
+            class="filter-btn">
+            {{ f.label }}
+          </button>
+        }
       </div>
-
-      <div *ngIf="loading" class="loading-state">
-        <div class="loading-spinner"></div>
-        <p>Loading discussions...</p>
-      </div>
-
-      <div *ngIf="!loading && discussions.length === 0" class="empty-state">
-        <p>No active discussions found</p>
-      </div>
-
-      <div *ngIf="!loading && discussions.length > 0" class="discussions-list">
-        <div *ngFor="let disc of discussions" class="discussion-card">
-          <div class="discussion-header">
-            <div class="participants">
-              <img
-                *ngFor="let p of disc.participants.slice(0, 5)"
-                [src]="p.avatar"
-                [title]="p.display_name || p.acct"
-                class="participant-avatar">
-              <span *ngIf="disc.participant_count > 5" class="more-count">
-                +{{ disc.participant_count - 5 }}
-              </span>
-            </div>
-            <div class="discussion-meta">
-              <span class="reply-count">💬 {{ disc.reply_count }} replies</span>
-              <span class="time-ago">{{ disc.latest_reply_at | date: 'short' }}</span>
-            </div>
-          </div>
-
-          <div class="discussion-preview">
-            <div class="author-line">
-              <strong>{{ disc.root_post.author_display_name || disc.root_post.author_acct }}</strong>
-              <span class="muted">started the conversation</span>
-            </div>
-            <div class="content-preview" [innerHTML]="stripHtml(disc.root_post.content)"></div>
-          </div>
-
-          <div class="discussion-footer">
-            <a [routerLink]="['/p', disc.id]" class="view-thread-btn">
-              View Full Thread →
-            </a>
-          </div>
+    
+      @if (loading) {
+        <div class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>Loading discussions...</p>
         </div>
-      </div>
+      }
+    
+      @if (!loading && discussions.length === 0) {
+        <div class="empty-state">
+          <p>No active discussions found</p>
+        </div>
+      }
+    
+      @if (!loading && discussions.length > 0) {
+        <div class="discussions-list">
+          @for (disc of discussions; track disc) {
+            <div class="discussion-card">
+              <div class="discussion-header">
+                <div class="participants">
+                  @for (p of disc.participants.slice(0, 5); track p) {
+                    <img
+                      [src]="p.avatar"
+                      [title]="p.display_name || p.acct"
+                      alt=""
+                      class="participant-avatar">
+                  }
+                  @if (disc.participant_count > 5) {
+                    <span class="more-count">
+                      +{{ disc.participant_count - 5 }}
+                    </span>
+                  }
+                </div>
+                <div class="discussion-meta">
+                  <span class="reply-count">💬 {{ disc.reply_count }} replies</span>
+                  <span class="time-ago">{{ disc.latest_reply_at | date: 'short' }}</span>
+                </div>
+              </div>
+              <div class="discussion-preview">
+                <div class="author-line">
+                  <strong>{{ disc.root_post.author_display_name || disc.root_post.author_acct }}</strong>
+                  <span class="muted">started the conversation</span>
+                </div>
+                <div class="content-preview" [innerHTML]="stripHtml(disc.root_post.content)"></div>
+              </div>
+              <div class="discussion-footer">
+                <a [routerLink]="['/p', disc.id]" class="view-thread-btn">
+                  View Full Thread →
+                </a>
+              </div>
+            </div>
+          }
+        </div>
+      }
     </div>
-  `,
+    `,
   styles: [`
     .forum-container {
       max-width: 900px;
@@ -245,18 +257,18 @@ interface Discussion {
   `]
 })
 export class ForumComponent implements OnInit {
+  private api = inject(ApiService);
+
   discussions: Discussion[] = [];
   loading = true;
   currentFilter = 'active';
 
-  filters = [
+  readonly filters = [
     { value: 'active', label: 'Most Active' },
     { value: 'recent', label: 'Recent' },
     { value: 'friends', label: 'Friends Only' },
     { value: 'all', label: 'All Discussions' }
   ];
-
-  constructor(private api: ApiService) {}
 
   ngOnInit(): void {
     const identityId = this.api.getCurrentIdentityId();
@@ -302,7 +314,7 @@ export class ForumComponent implements OnInit {
 
         this.loading = false;
       },
-      error: (err) => {
+      error: (err: unknown) => {
         console.error('Error loading discussions:', err);
         this.loading = false;
       }
@@ -317,7 +329,7 @@ export class ForumComponent implements OnInit {
     }
   }
 
-  stripHtml(html: string): string {
+  stripHtml(html?: string): string {
     return (html || '').replace(/<[^>]+>/g, '').trim();
   }
 }

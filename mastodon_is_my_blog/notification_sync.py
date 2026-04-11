@@ -120,8 +120,8 @@ async def sync_notifications_for_identity(
                         CachedAccount.id == account_id,
                         CachedAccount.meta_account_id == meta_id,
                         CachedAccount.mastodon_identity_id == identity.id,
-                        CachedAccount.is_following == True,
-                        CachedAccount.is_followed_by == True,
+                        CachedAccount.is_following is True,
+                        CachedAccount.is_followed_by is True,
                     )
                 )
                 mutual = (await session.execute(stmt)).scalar_one_or_none()
@@ -149,5 +149,5 @@ async def sync_notifications_for_identity(
         return stats
 
     except Exception as e:
-        logger.error(f"Failed to sync notifications for {identity.acct}: {e}")
+        logger.error("Failed to sync notifications for {identity.acct}: %s", e)
         return {"error": str(e), "total": 0}

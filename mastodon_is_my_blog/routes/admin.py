@@ -55,7 +55,7 @@ async def add_identity(
     (Simplified OAuth flow - normally requires redirect)
     """
     # Create temp client to exchange code
-    m = client(base_url, client_id, client_secret)
+    m = client(base_url=base_url, client_id=client_id, client_secret=client_secret)
     access_token = m.log_in(code=code, scopes=["read", "write"])
     me = m.account_verify_credentials()
 
@@ -107,7 +107,7 @@ async def admin_status() -> dict:
                     }
                 except Exception as e:
                     logger.error(e)
-                    logger.error(f"Failed to verify credentials: {e}")
+                    logger.error("Failed to verify credentials: %s", e)
                     connected = False
 
     last_sync = await get_last_sync()

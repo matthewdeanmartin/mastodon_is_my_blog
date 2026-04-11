@@ -1,5 +1,5 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, inject } from '@angular/core';
+
 import { FormsModule } from '@angular/forms';
 import { ApiService } from './api.service';
 import { Router } from '@angular/router';
@@ -7,7 +7,7 @@ import { Router } from '@angular/router';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   template: `
     <div class="container" style="max-width: 400px; margin-top: 50px;">
       <h2 class="post-title">Select Meta Account</h2>
@@ -30,9 +30,10 @@ import { Router } from '@angular/router';
   `
 })
 export class LoginComponent {
-  metaId: string = '1';
+  private api = inject(ApiService);
+  private router = inject(Router);
 
-  constructor(private api: ApiService, private router: Router) {}
+  metaId = '1';
 
   login() {
     if (this.metaId) {

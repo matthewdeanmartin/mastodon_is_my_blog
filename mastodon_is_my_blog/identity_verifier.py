@@ -23,11 +23,11 @@ async def verify_identity(identity_id: int) -> bool:
         identity = (await session.execute(stmt)).scalar_one_or_none()
 
         if not identity:
-            logger.error(f"Identity {identity_id} not found")
+            logger.error("Identity %s not found", identity_id)
             return False
 
         if not identity.access_token:
-            logger.error(f"Identity {identity_id} has no access token")
+            logger.error("Identity %s has no access token", identity_id)
             return False
 
         try:
@@ -44,12 +44,12 @@ async def verify_identity(identity_id: int) -> bool:
             identity.account_id = str(me["id"])
 
             await session.commit()
-            logger.info(f"Verified identity {identity_id}: {me['acct']}")
+            logger.info("Verified identity {identity_id}: %s", me['acct'])
             return True
 
         except Exception as e:
-            logger.error(e)
-            logger.error(f"Failed to verify identity {identity_id}: {e}")
+            logger.error("Identity verification failed: %s", e)
+            logger.error("Failed to verify identity {identity_id}: %s", e)
             return False
 
 

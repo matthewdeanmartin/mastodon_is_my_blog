@@ -34,7 +34,7 @@ dotenv.load_dotenv()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     # Startup: Initialize database
     await init_db()
     # Ensure default user exists for local dev

@@ -1,15 +1,17 @@
 // web/src/app/feed.component.ts
 
-import {Component, OnInit, OnDestroy, ElementRef, ViewChildren, QueryList, AfterViewInit} from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, ViewChildren, QueryList, AfterViewInit, inject } from '@angular/core';
 import {ActivatedRoute, RouterLink} from '@angular/router';
 import {ApiService} from './api.service';
 import {CommonModule} from '@angular/common';
-import {DomSanitizer} from '@angular/platform-browser';
+import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {LinkPreviewComponent} from './link.component';
 import {LinkPreviewService} from './link.service';
-import {combineLatest, fromEvent, Subscription} from 'rxjs';
-import {debounceTime, filter} from 'rxjs/operators';
+import {combineLatest, Subscription} from 'rxjs';
 import {HttpErrorResponse} from '@angular/common/http';
+import {RawContentPost} from './content-feed.utils';
+import {Storm} from './api.service';
+import {MastodonMediaAttachment} from './mastodon';
 
 @Component({
   selector: 'app-public-feed',
@@ -18,9 +20,14 @@ import {HttpErrorResponse} from '@angular/common/http';
   templateUrl: 'feed.component.html',
 })
 export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
+  private route = inject(ActivatedRoute);
+  private api = inject(ApiService);
+  private sanitizer = inject(DomSanitizer);
+  private linkPreviewService = inject(LinkPreviewService);
+
   @ViewChildren('postItem') postItems!: QueryList<ElementRef>;
   
-  items: any[] = [];
+  items: (RawContentPost | Storm)[] = [];
   loading = true;
   isStormView = false;
   currentFilter = 'storms';
@@ -46,13 +53,16 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private readonly isTouchDevice: boolean;
 
-  constructor(
-    private route: ActivatedRoute,
-    private api: ApiService,
-    private sanitizer: DomSanitizer,
-    private linkPreviewService: LinkPreviewService,
-  ) {
+  constructor() {
     this.isTouchDevice = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
+  }
+
+  get stormFeedItems(): Storm[] {
+    return this.items.filter((item): item is Storm => 'root' in item);
+  }
+
+  get flatFeedItems(): RawContentPost[] {
+    return this.items.filter((item): item is RawContentPost => !('root' in item));
   }
 
   ngOnInit(): void {
@@ -84,7 +94,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     this.items = [];
 
     // Define the success handler to reuse
-    const handleSuccess = (data: any[]) => {
+    const handleSuccess = (data: (RawContentPost | Storm)[]) => {
       this.loading = false;
       // If we got an empty list for a specific user, try syncing ONCE to see if they exist remotely
       if (data.length === 0 && user && user !== 'everyone' && filter !== 'everyone' && !this.syncingUser) {
@@ -109,17 +119,17 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     // If 'storms' (or legacy 'all'), use the Storms endpoint for the threaded view
     if (filter === 'storms' || filter === 'all') {
       this.isStormView = true;
-      this.api.getStorms(identityId, user).subscribe({ next: handleSuccess, error: handleError });
+      this.api.getStorms(identityId, user).subscribe({ next: handleSuccess as (data: Storm[]) => void, error: handleError });
     }
     // If 'shorts', use the new Shorts endpoint for flat view
     else if (filter === 'shorts') {
       this.isStormView = false;
-      this.api.getShorts(identityId, user).subscribe({ next: handleSuccess, error: handleError });
+      this.api.getShorts(identityId, user).subscribe({ next: handleSuccess as (data: RawContentPost[]) => void, error: handleError });
     }
     else {
       // Otherwise use the standard flat list with the specific filter
       this.isStormView = false;
-      this.api.getPublicPosts(identityId, filter, user).subscribe({ next: handleSuccess, error: handleError });
+      this.api.getPublicPosts(identityId, filter, user).subscribe({ next: handleSuccess as (data: RawContentPost[]) => void, error: handleError });
     }
   }
 
@@ -129,37 +139,37 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
 
     // We only try this once per navigation to avoid loops
     this.api.syncAccount(acct, identityId).subscribe({
-      next: (res) => {
+      next: () => {
         // Retry load exactly once
         this.load(this.currentFilter, acct, identityId);
       },
-      error: (err) => {
+      error: (err: unknown) => {
         console.error('Failed to sync user', err);
         this.loading = false;
       },
     });
   }
 
-  stripHtml(html: string) {
-    return this.sanitizer.bypassSecurityTrustHtml(html);
+  stripHtml(html?: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(html ?? '');
     // return (html || '').replace(/<[^>]+>/g, '').trim();
   }
 
-  getImages(post: any) {
+  getImages(post: RawContentPost): MastodonMediaAttachment[] {
     // Handle storm root vs regular post structure if needed,
     // but the API ensures 'media' or 'media_attachments' exists.
-    const media = post.media_attachments || post.media || [];
-    return media.filter((m: any) => m.type === 'image');
+    const media = post.media_attachments || [];
+    return media.filter((m) => m.type === 'image');
   }
   getQueryParams() {
-    const params: any = { filter: this.currentFilter };
+    const params: Record<string, string> = { filter: this.currentFilter };
     if (this.currentUser) {
-      params.user = this.currentUser;
+      params['user'] = this.currentUser;
     }
     return params;
   }
 
-   getOriginalPostUrl(post: any): string {
+   getOriginalPostUrl(post: RawContentPost): string {
     const acct = post.author_acct;
     if (!acct) return '#';
 
@@ -167,7 +177,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     return `https://${parts[1] || 'mastodon.social'}/@${parts[0]}/${post.id}`;
   }
 
-  getPostUrls(post: any): string[] {
+  getPostUrls(post: RawContentPost): string[] {
     // Extract URLs from post content for link previews
     return this.linkPreviewService.extractUrls(post.content || '');
   }
@@ -294,7 +304,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     this.updateUnreadCount();
 
     this.api.markPostsSeen(postIds).subscribe({
-      error: (err) => {
+      error: (err: unknown) => {
         console.error('Failed to mark posts as seen', err);
       }
     });
@@ -304,26 +314,26 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     this.unreadCount = this.items.length - this.seenPostIds.size;
   }
 
-  private trackSeenPosts(data: any[]): void {
+  private trackSeenPosts(data: (RawContentPost | Storm)[]): void {
     const postIds: string[] = [];
     
     for (const item of data) {
-      if (this.isStormView && item.root) {
+      if (this.isStormView && 'root' in item) {
         postIds.push(item.root.id);
         for (const branch of item.branches || []) {
           postIds.push(branch.id);
         }
-      } else {
-        postIds.push(item.id);
+      } else if ('id' in item) {
+        postIds.push((item as RawContentPost).id);
       }
     }
 
     this.api.getSeenPosts(postIds).subscribe({
       next: (res) => {
-        this.seenPostIds = new Set(res.seen);
+        this.seenPostIds = new Set<string>(res.seen);
         this.updateUnreadCount();
       },
-      error: (err) => {
+      error: (err: unknown) => {
         console.error('Failed to get seen posts', err);
       }
     });

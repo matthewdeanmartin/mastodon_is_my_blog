@@ -1,3 +1,5 @@
+import {MastodonMediaAttachment} from './mastodon';
+
 export type ContentFeedFilter = 'recent' | 'popular' | 'following' | 'everyone';
 
 export interface ContentCounts {
@@ -23,7 +25,7 @@ export interface ContentFeedGroup {
   totalScore: number;
 }
 
-interface RawContentPost {
+export interface RawContentPost {
   id: string;
   content?: string;
   created_at: string;
@@ -31,9 +33,10 @@ interface RawContentPost {
   author_display_name?: string;
   author_avatar?: string;
   counts?: Partial<ContentCounts>;
+  media_attachments?: MastodonMediaAttachment[];
 }
 
-export const contentFeedFilters: Array<{ value: ContentFeedFilter; label: string }> = [
+export const contentFeedFilters: { value: ContentFeedFilter; label: string }[] = [
   { value: 'recent', label: 'Recent' },
   { value: 'popular', label: 'Popular' },
   { value: 'following', label: 'Following' },
@@ -93,7 +96,7 @@ export function extractFirstDomain(content: string): string {
     }
   }
 
-  const urlMatch = content.match(/https?:\/\/([^\/\s"'<>]+)/i);
+  const urlMatch = content.match(/https?:\/\/([^/\s"'<>]+)/i);
   return urlMatch?.[1]?.replace(/^www\./, '') || 'other';
 }
 
