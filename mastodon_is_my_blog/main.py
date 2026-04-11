@@ -19,6 +19,7 @@ from mastodon_is_my_blog.queries import (
 )
 from mastodon_is_my_blog.routes import accounts, admin, posts, writing
 from mastodon_is_my_blog.store import (
+    async_session,
     bootstrap_identities_from_env,
     get_or_create_default_meta_account,
     get_token,
