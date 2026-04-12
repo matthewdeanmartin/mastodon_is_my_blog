@@ -12,9 +12,11 @@ dependencies = [
   "beautifulsoup4>=4.12",
   "alembic>=1.18.0",
   "httpx>=0.28.1", # script
-    "pandas",
-    "requests",
-    "tldextract"
+  "pandas",
+  "requests",
+  "tldextract",
+  "datasette>=0.65.2",
+  "datasette-vega>=0.6.2",
 ]
 
 [build-system]

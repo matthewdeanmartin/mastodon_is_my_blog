@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>app.db dog-meme dashboard</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-alt: #1f2937;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #60a5fa;
+      --accent-alt: #34d399;
+      --warning: #f59e0b;
+      --border: rgba(148, 163, 184, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #020617 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    a {
+      color: #93c5fd;
+    }
+
+    .hero,
+    .panel {
+      background: rgba(17, 24, 39, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(2, 6, 23, 0.35);
+    }
+
+    .hero {
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      color: var(--warning);
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 0 0 8px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    .hero p:last-child,
+    .panel p:last-child {
+      margin-bottom: 0;
+    }
+
+    .grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .card-grid {
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      margin-bottom: 20px;
+    }
+
+    .chart-grid {
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    }
+
+    .panel {
+      padding: 18px;
+    }
+
+    .metric {
+      font-size: 1.9rem;
+      font-weight: 700;
+      margin: 6px 0 2px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .chart-shell {
+      width: 100%;
+      min-height: 280px;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .legend .accent::before {
+      background: var(--accent);
+    }
+
+    .legend .accent-alt::before {
+      background: var(--accent-alt);
+    }
+
+    .legend .warning::before {
+      background: var(--warning);
+    }
+
+    .query-links {
+      display: grid;
+      gap: 10px;
+      padding-left: 18px;
+      margin-bottom: 0;
+    }
+
+    .status {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">I do not know what I am doing dog dashboard</p>
+      <h1>app.db at a glance</h1>
+      <p>This page uses Datasette canned-query JSON endpoints from the parent <code>..\app.db</code>. Click through to the underlying queries whenever you want the raw rows instead of the pretty-ish shapes.</p>
+      <p><a href="/app">Browse the database</a> · <a href="/app#queries">Jump to canned queries</a></p>
+      <div id="status" class="status">Loading charts...</div>
+    </section>
+
+    <section id="metrics" class="grid card-grid"></section>
+
+    <section class="grid chart-grid">
+      <article class="panel">
+        <h2>Posts by month</h2>
+        <p class="muted">Posting volume, replies, and posts with links over the last 24 months in the cache.</p>
+        <div id="posts-by-month" class="chart-shell"></div>
+        <div class="legend">
+          <span class="accent">Posts</span>
+          <span class="accent-alt">Replies</span>
+          <span class="warning">Posts with links</span>
+        </div>
+        <p><a href="/app/posts_by_month">Open query</a></p>
+      </article>
+
+      <article class="panel">
+        <h2>Notification mix</h2>
+        <p class="muted">What kind of notifications show up most often.</p>
+        <div id="notification-types" class="chart-shell"></div>
+        <p><a href="/app/notification_types">Open query</a></p>
+      </article>
+
+      <article class="panel">
+        <h2>Top posting accounts</h2>
+        <p class="muted">Who dominates the cached timeline right now.</p>
+        <div id="top-accounts" class="chart-shell"></div>
+        <p><a href="/app/top_posting_accounts">Open query</a></p>
+      </article>
+
+      <article class="panel">
+        <h2>Content hub matches</h2>
+        <p class="muted">Which content-hub groups are actually catching posts.</p>
+        <div id="hub-matches" class="chart-shell"></div>
+        <p><a href="/app/content_hub_match_counts">Open query</a></p>
+      </article>
+
+      <article class="panel">
+        <h2>Useful rabbit holes</h2>
+        <p class="muted">A few canned queries to poke next.</p>
+        <ol class="query-links">
+          <li><a href="/app/posts_for_author?acct=agiletortoise">Posts for one author</a></li>
+          <li><a href="/app/link_preview_statuses">Link preview statuses</a></li>
+          <li><a href="/app/cached_posts?_sort_desc=created_at">Newest cached posts table</a></li>
+          <li><a href="/app/content_hub_groups?_sort_desc=updated_at">Content hub groups table</a></li>
+        </ol>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const statusElement = document.getElementById("status");
+    const metricsElement = document.getElementById("metrics");
+
+    function formatNumber(value) {
+      return Number(value).toLocaleString();
+    }
+
+    async function loadQuery(name) {
+      const response = await fetch(`/app/${name}.json?_shape=objects`);
+      if (!response.ok) {
+        throw new Error(`Query ${name} failed with ${response.status}`);
+      }
+      const payload = await response.json();
+      if (Array.isArray(payload)) {
+        return payload;
+      }
+      if (Array.isArray(payload.rows)) {
+        return payload.rows;
+      }
+      if (payload.rows && Array.isArray(payload.rows)) {
+        return payload.rows;
+      }
+      if (payload.rows && typeof payload.rows === "object") {
+        return Object.values(payload.rows);
+      }
+      return [];
+    }
+
+    function metricCard(label, value) {
+      const article = document.createElement("article");
+      article.className = "panel";
+      article.innerHTML = `
+        <p class="muted">${label}</p>
+        <p class="metric">${formatNumber(value)}</p>
+      `;
+      return article;
+    }
+
+    function renderMetrics(rows) {
+      const row = rows[0];
+      if (!row) {
+        return;
+      }
+      metricsElement.replaceChildren(
+        metricCard("Cached posts", row.posts),
+        metricCard("Accounts", row.accounts),
+        metricCard("Notifications", row.notifications),
+        metricCard("Link previews", row.link_previews),
+        metricCard("Content hub groups", row.content_hub_groups),
+        metricCard("Hub matches", row.content_hub_matches),
+      );
+    }
+
+    function createSvg(width, height) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      svg.setAttribute("role", "img");
+      return svg;
+    }
+
+    function drawAxes(svg, width, height, margin) {
+      const axisColor = "rgba(148, 163, 184, 0.4)";
+      const xAxis = document.createElementNS(svg.namespaceURI, "line");
+      xAxis.setAttribute("x1", margin.left);
+      xAxis.setAttribute("y1", height - margin.bottom);
+      xAxis.setAttribute("x2", width - margin.right);
+      xAxis.setAttribute("y2", height - margin.bottom);
+      xAxis.setAttribute("stroke", axisColor);
+      svg.appendChild(xAxis);
+
+      const yAxis = document.createElementNS(svg.namespaceURI, "line");
+      yAxis.setAttribute("x1", margin.left);
+      yAxis.setAttribute("y1", margin.top);
+      yAxis.setAttribute("x2", margin.left);
+      yAxis.setAttribute("y2", height - margin.bottom);
+      yAxis.setAttribute("stroke", axisColor);
+      svg.appendChild(yAxis);
+    }
+
+    function text(svg, x, y, value, anchor = "middle", size = "11", fill = "var(--muted)") {
+      const element = document.createElementNS(svg.namespaceURI, "text");
+      element.setAttribute("x", x);
+      element.setAttribute("y", y);
+      element.setAttribute("fill", fill);
+      element.setAttribute("font-size", size);
+      element.setAttribute("text-anchor", anchor);
+      element.setAttribute("font-family", "system-ui, sans-serif");
+      element.textContent = value;
+      svg.appendChild(element);
+      return element;
+    }
+
+    function renderMultiLineChart(containerId, rows, series) {
+      const container = document.getElementById(containerId);
+      const width = 760;
+      const height = 280;
+      const margin = { top: 20, right: 20, bottom: 44, left: 48 };
+      const chartWidth = width - margin.left - margin.right;
+      const chartHeight = height - margin.top - margin.bottom;
+      const maxValue = Math.max(
+        1,
+        ...rows.flatMap((row) => series.map((item) => Number(row[item.key] || 0))),
+      );
+      const step = rows.length > 1 ? chartWidth / (rows.length - 1) : chartWidth;
+      const svg = createSvg(width, height);
+      drawAxes(svg, width, height, margin);
+
+      series.forEach((item) => {
+        const points = rows.map((row, index) => {
+          const x = margin.left + (index * step);
+          const y = margin.top + chartHeight - ((Number(row[item.key] || 0) / maxValue) * chartHeight);
+          return `${x},${y}`;
+        }).join(" ");
+
+        const polyline = document.createElementNS(svg.namespaceURI, "polyline");
+        polyline.setAttribute("fill", "none");
+        polyline.setAttribute("stroke", item.color);
+        polyline.setAttribute("stroke-width", "3");
+        polyline.setAttribute("points", points);
+        svg.appendChild(polyline);
+      });
+
+      rows.forEach((row, index) => {
+        if (index % Math.max(1, Math.ceil(rows.length / 8)) !== 0 && index !== rows.length - 1) {
+          return;
+        }
+        const x = margin.left + (index * step);
+        text(svg, x, height - 16, row.month, "middle");
+      });
+
+      text(svg, margin.left, 14, `max ${formatNumber(maxValue)}`, "start");
+      container.replaceChildren(svg);
+    }
+
+    function renderBarChart(containerId, rows, valueKey, labelKey, color, limit = 10) {
+      const container = document.getElementById(containerId);
+      const picked = rows.slice(0, limit);
+      const width = 760;
+      const height = 280;
+      const margin = { top: 16, right: 20, bottom: 28, left: 160 };
+      const chartWidth = width - margin.left - margin.right;
+      const chartHeight = height - margin.top - margin.bottom;
+      const rowHeight = chartHeight / Math.max(1, picked.length);
+      const maxValue = Math.max(1, ...picked.map((row) => Number(row[valueKey] || 0)));
+      const svg = createSvg(width, height);
+
+      picked.forEach((row, index) => {
+        const y = margin.top + (index * rowHeight);
+        const value = Number(row[valueKey] || 0);
+        const barWidth = (value / maxValue) * chartWidth;
+
+        const rect = document.createElementNS(svg.namespaceURI, "rect");
+        rect.setAttribute("x", margin.left);
+        rect.setAttribute("y", y + 5);
+        rect.setAttribute("width", barWidth);
+        rect.setAttribute("height", Math.max(12, rowHeight - 10));
+        rect.setAttribute("rx", "6");
+        rect.setAttribute("fill", color);
+        svg.appendChild(rect);
+
+        text(svg, margin.left - 8, y + (rowHeight / 2) + 4, row[labelKey], "end");
+        text(svg, margin.left + barWidth + 8, y + (rowHeight / 2) + 4, formatNumber(value), "start", "11", "var(--text)");
+      });
+
+      container.replaceChildren(svg);
+    }
+
+    async function start() {
+      try {
+        const [overview, postsByMonth, notificationTypes, topAccounts, hubMatches] = await Promise.all([
+          loadQuery("overview_counts"),
+          loadQuery("posts_by_month"),
+          loadQuery("notification_types"),
+          loadQuery("top_posting_accounts"),
+          loadQuery("content_hub_match_counts"),
+        ]);
+
+        renderMetrics(overview);
+        renderMultiLineChart("posts-by-month", postsByMonth, [
+          { key: "posts", color: "#60a5fa" },
+          { key: "replies", color: "#34d399" },
+          { key: "link_posts", color: "#f59e0b" },
+        ]);
+        renderBarChart("notification-types", notificationTypes, "notifications", "type", "#34d399", 8);
+        renderBarChart("top-accounts", topAccounts, "posts", "author_acct", "#60a5fa", 10);
+        renderBarChart("hub-matches", hubMatches.filter((row) => Number(row.matched_posts) > 0), "matched_posts", "slug", "#f59e0b", 10);
+        statusElement.textContent = "Loaded. Click any chart section to drop into the backing query.";
+      } catch (error) {
+        console.error(error);
+        statusElement.textContent = `Dashboard load failed: ${error.message}`;
+      }
+    }
+
+    start();
+  </script>
+</body>
+</html>

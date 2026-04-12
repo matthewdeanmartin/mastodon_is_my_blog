@@ -1,0 +1,178 @@
+title: app.db dog-meme dataview
+description_html: |-
+  <p>Datasette playground for the parent <code>app.db</code>. Start with the
+  <a href="/dataview/dashboard.html">dashboard</a>, then open the canned queries below and see where the chaos leads.</p>
+license: Private local data
+source: mastodon_is_my_blog parent database
+allow_sql: false
+databases:
+  app:
+    description_html: |-
+      <p>Read-only analytics over <code>..\app.db</code>. Internal token tables are blocked, and the interesting Mastodon tables stay browsable.</p>
+    tables:
+      alembic_version:
+        hidden: true
+      app_state:
+        hidden: true
+      meta_accounts:
+        hidden: true
+      seen_posts:
+        hidden: true
+      tokens:
+        hidden: true
+        allow: false
+        description: Contains Mastodon tokens. Hidden and blocked from Datasette.
+      mastodon_identities:
+        hidden: true
+        allow: false
+        description: Contains Mastodon client credentials and access tokens. Hidden and blocked from Datasette.
+      cached_posts:
+        sort_desc: created_at
+        size: 50
+        columns:
+          author_acct: Mastodon account that authored the cached post.
+          created_at: Original Mastodon timestamp for the post.
+          discovery_source: Whether the post came from timeline sync or a content-hub fetch.
+          content_hub_only: True when the record exists only for content-hub features.
+      cached_accounts:
+        sort_desc: cached_post_count
+        size: 50
+      cached_notifications:
+        sort_desc: created_at
+        size: 50
+      cached_link_previews:
+        sort_desc: fetched_at
+        size: 50
+      content_hub_groups:
+        sort_desc: updated_at
+        size: 50
+      content_hub_post_matches:
+        sort_desc: created_at
+        size: 50
+    queries:
+      overview_counts:
+        title: Overview counts
+        hide_sql: true
+        description_html: |-
+          <p>One-row summary for the dashboard cards.</p>
+        sql: |-
+          select
+            (select count(*) from cached_posts) as posts,
+            (select count(*) from cached_accounts) as accounts,
+            (select count(*) from cached_notifications) as notifications,
+            (select count(*) from cached_link_previews) as link_previews,
+            (select count(*) from content_hub_groups) as content_hub_groups,
+            (select count(*) from content_hub_post_matches) as content_hub_matches
+      posts_by_month:
+        title: Posts by month
+        hide_sql: true
+        description_html: |-
+          <p>Monthly posting volume with reply, media, and link counts. Good first stop for "what even is in here?".</p>
+        sql: |-
+          with monthly as (
+            select
+              substr(created_at, 1, 7) as month,
+              count(*) as posts,
+              sum(case when is_reply then 1 else 0 end) as replies,
+              sum(case when has_media then 1 else 0 end) as media_posts,
+              sum(case when has_link then 1 else 0 end) as link_posts
+            from cached_posts
+            group by substr(created_at, 1, 7)
+            order by month desc
+            limit 24
+          )
+          select *
+          from monthly
+          order by month
+      notification_types:
+        title: Notification mix
+        hide_sql: true
+        description_html: |-
+          <p>Breakdown of favourites, mentions, boosts, follows, and the weirder notification types.</p>
+        sql: |-
+          select
+            type,
+            count(*) as notifications,
+            min(created_at) as first_seen,
+            max(created_at) as last_seen
+          from cached_notifications
+          group by type
+          order by notifications desc, type
+      top_posting_accounts:
+        title: Top posting accounts
+        hide_sql: true
+        description_html: |-
+          <p>Most frequently cached authors, plus a few engagement hints.</p>
+        sql: |-
+          select
+            author_acct,
+            count(*) as posts,
+            sum(case when is_reply then 1 else 0 end) as replies,
+            round(avg(favourites_count), 2) as avg_favourites,
+            round(avg(reblogs_count), 2) as avg_reblogs,
+            max(created_at) as last_seen
+          from cached_posts
+          group by author_acct
+          having count(*) >= 10
+          order by posts desc, author_acct
+          limit 30
+      content_hub_match_counts:
+        title: Content hub matches by group
+        hide_sql: true
+        description_html: |-
+          <p>Shows which content-hub groups are actually catching posts.</p>
+        sql: |-
+          select
+            g.id,
+            g.slug,
+            g.name,
+            g.source_type,
+            g.is_read_only,
+            count(m.post_id) as matched_posts,
+            max(m.created_at) as last_match_at
+          from content_hub_groups as g
+          left join content_hub_post_matches as m
+            on g.id = m.group_id
+           and g.meta_account_id = m.meta_account_id
+          group by
+            g.id,
+            g.slug,
+            g.name,
+            g.source_type,
+            g.is_read_only
+          order by matched_posts desc, g.slug
+          limit 50
+      link_preview_statuses:
+        title: Link preview status counts
+        hide_sql: true
+        description_html: |-
+          <p>Quick quality check for fetched link previews.</p>
+        sql: |-
+          select
+            status,
+            count(*) as previews,
+            min(fetched_at) as first_fetched_at,
+            max(fetched_at) as last_fetched_at
+          from cached_link_previews
+          group by status
+          order by previews desc, status
+      posts_for_author:
+        title: Posts for a specific author
+        hide_sql: true
+        params:
+          - acct
+          - limit
+        description_html: |-
+          <p>Pass an <code>acct</code> value such as <code>agiletortoise</code> and an optional <code>limit</code>.</p>
+        sql: |-
+          select
+            created_at,
+            visibility,
+            favourites_count,
+            reblogs_count,
+            replies_count,
+            substr(trim(replace(replace(content, char(10), ' '), char(13), ' ')), 1, 280) as snippet
+          from cached_posts
+          where lower(author_acct) = lower(:acct)
+          order by created_at desc
+          limit cast(coalesce(nullif(:limit, ''), '50') as integer)
