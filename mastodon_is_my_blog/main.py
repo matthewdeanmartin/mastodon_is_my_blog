@@ -18,7 +18,7 @@ from mastodon_is_my_blog.queries import (
     sync_accounts_friends_followers,
     sync_user_timeline,
 )
-from mastodon_is_my_blog.routes import accounts, admin, posts, writing
+from mastodon_is_my_blog.routes import accounts, admin, content_hub, posts, writing
 from mastodon_is_my_blog.utils.perf import performance_middleware
 from mastodon_is_my_blog.store import (
     bootstrap_identities_from_env,
@@ -62,6 +62,7 @@ app.middleware("http")(performance_middleware)
 
 app.include_router(accounts.router)
 app.include_router(admin.router)
+app.include_router(content_hub.router)
 app.include_router(posts.router)
 app.include_router(writing.router)
 

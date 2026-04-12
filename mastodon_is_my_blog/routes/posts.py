@@ -17,6 +17,7 @@ from mastodon_is_my_blog.queries import (
     get_current_meta_account,
 )
 from mastodon_is_my_blog.store import (
+    CachedAccount,
     CachedPost,
     MetaAccount,
     SeenPost,
@@ -31,6 +32,24 @@ from mastodon_is_my_blog.utils.perf import time_async_function
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
+
+
+async def fetch_account_info(
+    session, meta_id: int, identity_id: int, accts: set[str]
+) -> dict[str, dict]:
+    """Return {acct: {avatar, display_name}} for the given set of accts."""
+    if not accts:
+        return {}
+    result = await session.execute(
+        select(CachedAccount.acct, CachedAccount.avatar, CachedAccount.display_name).where(
+            and_(
+                CachedAccount.meta_account_id == meta_id,
+                CachedAccount.mastodon_identity_id == identity_id,
+                CachedAccount.acct.in_(accts),
+            )
+        )
+    )
+    return {row.acct: {"avatar": row.avatar, "display_name": row.display_name} for row in result.all()}
 
 STORM_MIN_TEXT_LEN = 500
 DEFAULT_PAGE_LIMIT = 30
@@ -98,6 +117,7 @@ async def get_unread_post_count(
                 CachedPost.fetched_by_identity_id == identity_id,
                 CachedPost.is_reblog.is_(False),
                 CachedPost.is_reply.is_(False),
+                CachedPost.content_hub_only.is_(False),
             )
         )
         total_posts = (await session.execute(stmt)).scalar() or 0
@@ -151,6 +171,7 @@ async def get_public_posts(
                 and_(
                     CachedPost.meta_account_id == meta.id,
                     CachedPost.fetched_by_identity_id == identity_id,
+                    CachedPost.content_hub_only.is_(False),
                 )
             )
             .order_by(desc(CachedPost.created_at), desc(CachedPost.id))
@@ -239,11 +260,16 @@ async def get_public_posts(
         has_more = len(rows) > limit
         rows = rows[:limit]
 
+        author_accts = {p.author_acct for p, _ in rows}
+        account_info = await fetch_account_info(session, meta.id, identity_id, author_accts)
+
         items = [
             {
                 "id": p.id,
                 "content": p.content,
                 "author_acct": p.author_acct,
+                "author_avatar": account_info.get(p.author_acct, {}).get("avatar", ""),
+                "author_display_name": account_info.get(p.author_acct, {}).get("display_name", ""),
                 "created_at": p.created_at.isoformat(),
                 "is_read": is_seen is not None,
                 "media_attachments": (
@@ -312,6 +338,7 @@ async def get_storms(
         CachedPost.meta_account_id == meta.id,
         CachedPost.fetched_by_identity_id == identity_id,
         CachedPost.is_reblog.is_(False),
+        CachedPost.content_hub_only.is_(False),
     )
     user_filter = (CachedPost.author_acct == user) if (user and user != "everyone") else True
 
@@ -432,6 +459,9 @@ async def get_storms(
                 )
         return results
 
+    root_accts = {p.author_acct for p in roots}
+    account_info = await fetch_account_info(session, meta.id, identity_id, root_accts)
+
     storm_items = [
         {
             "root": {
@@ -443,6 +473,8 @@ async def get_storms(
                 ),
                 "counts": {"replies": p.replies_count, "likes": p.favourites_count},
                 "author_acct": p.author_acct,
+                "author_avatar": account_info.get(p.author_acct, {}).get("avatar", ""),
+                "author_display_name": account_info.get(p.author_acct, {}).get("display_name", ""),
                 "is_read": p.id in seen_ids,
             },
             "branches": collect_children(p.id, p.author_id),
@@ -471,6 +503,7 @@ async def get_hashtags(
             and_(
                 CachedPost.meta_account_id == meta.id,
                 CachedPost.fetched_by_identity_id == identity_id,
+                CachedPost.content_hub_only.is_(False),
             )
         )
 

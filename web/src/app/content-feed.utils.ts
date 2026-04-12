@@ -37,6 +37,8 @@ export interface RawContentPost {
   media_attachments?: MastodonMediaAttachment[];
   is_reblog?: boolean;
   is_reply?: boolean;
+  // media field used in storms response
+  media?: MastodonMediaAttachment[];
 }
 
 /**
@@ -54,6 +56,9 @@ export interface FeedViewModel {
   counts?: Partial<ContentCounts>;
   is_reblog?: boolean;
   is_reply?: boolean;
+  author_acct: string;
+  author_display_name: string;
+  author_avatar: string;
 }
 
 const IGNORED_LINK_DOMAINS = ['mastodon.social', 'appdot.net'];
@@ -72,16 +77,23 @@ function extractFirstLinkUrl(html: string): string | null {
   return null;
 }
 
-function buildOriginalUrl(acct: string, postId: string): string {
+function buildOriginalUrl(acct: string, postId: string, localBaseUrl?: string | null): string {
   if (!acct) return '#';
   const parts = acct.split('@');
-  return `https://${parts[1] || 'mastodon.social'}/@${parts[0]}/${postId}`;
+  const username = parts[0];
+  const remoteInstance = parts[1];
+  if (localBaseUrl && remoteInstance) {
+    // Open remote post via your own instance: /@user@remote/id
+    return `${localBaseUrl.replace(/\/$/, '')}/@${username}@${remoteInstance}/${postId}`;
+  }
+  return `https://${remoteInstance || 'mastodon.social'}/@${username}/${postId}`;
 }
 
 export function toFeedViewModel(
   post: RawContentPost,
   sanitize: (html: string) => SafeHtml,
   seenIds: ReadonlySet<string>,
+  localBaseUrl?: string | null,
 ): FeedViewModel {
   const html = post.content ?? '';
   const media = post.media_attachments ?? [];
@@ -91,11 +103,14 @@ export function toFeedViewModel(
     safeContentHtml: sanitize(html),
     firstLinkUrl: extractFirstLinkUrl(html),
     images: media.filter(m => m.type === 'image'),
-    originalUrl: buildOriginalUrl(post.author_acct, post.id),
+    originalUrl: buildOriginalUrl(post.author_acct, post.id, localBaseUrl),
     isRead: seenIds.has(post.id),
     counts: post.counts,
     is_reblog: post.is_reblog,
     is_reply: post.is_reply,
+    author_acct: post.author_acct,
+    author_display_name: post.author_display_name || post.author_acct,
+    author_avatar: post.author_avatar || '',
   };
 }
 

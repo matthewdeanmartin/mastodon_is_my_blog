@@ -182,6 +182,153 @@ async def get_perf_stats(last_n: int = 50) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Content Hub bundle CRUD
+# ---------------------------------------------------------------------------
+
+
+from fastapi import Query as QueryParam
+from pydantic import BaseModel
+
+from mastodon_is_my_blog.content_hub_service import (
+    create_client_bundle,
+    update_client_bundle,
+)
+from mastodon_is_my_blog.store import (
+    ContentHubGroup,
+    ContentHubGroupTerm,
+)
+
+
+class TermInput(BaseModel):
+    term: str
+    term_type: str  # hashtag | search
+
+
+class BundleCreateRequest(BaseModel):
+    name: str
+    terms: list[TermInput] = []
+
+
+class BundleUpdateRequest(BaseModel):
+    name: str | None = None
+    terms: list[TermInput] | None = None
+
+
+def group_to_dict(group: ContentHubGroup, terms: list[ContentHubGroupTerm]) -> dict:
+    return {
+        "id": group.id,
+        "name": group.name,
+        "slug": group.slug,
+        "source_type": group.source_type,
+        "is_read_only": group.is_read_only,
+        "last_fetched_at": group.last_fetched_at.isoformat() if group.last_fetched_at else None,
+        "created_at": group.created_at.isoformat(),
+        "updated_at": group.updated_at.isoformat(),
+        "terms": [
+            {
+                "id": t.id,
+                "term": t.term,
+                "term_type": t.term_type,
+                "normalized_term": t.normalized_term,
+            }
+            for t in terms
+        ],
+    }
+
+
+@router.get("/content-hub/bundles")
+async def list_bundles(
+    identity_id: int = QueryParam(...),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> list[dict]:
+    """List all content hub groups (bundles + server follows) for the current identity."""
+    from sqlalchemy.orm import selectinload
+
+    async with async_session() as session:
+        stmt = (
+            select(ContentHubGroup)
+            .options(selectinload(ContentHubGroup.terms))
+            .where(
+                ContentHubGroup.meta_account_id == meta.id,
+                ContentHubGroup.identity_id == identity_id,
+            )
+            .order_by(ContentHubGroup.source_type, ContentHubGroup.name)
+        )
+        groups = (await session.execute(stmt)).scalars().all()
+        return [group_to_dict(g, g.terms) for g in groups]
+
+
+@router.post("/content-hub/bundles")
+async def create_bundle(
+    body: BundleCreateRequest,
+    identity_id: int = QueryParam(...),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """Create a new client-side bundle for the current identity."""
+    group = await create_client_bundle(
+        meta.id,
+        identity_id,
+        body.name,
+        [{"term": t.term, "term_type": t.term_type} for t in body.terms],
+    )
+    async with async_session() as session:
+        stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group.id)
+        terms = (await session.execute(stmt)).scalars().all()
+    return group_to_dict(group, terms)
+
+
+@router.put("/content-hub/bundles/{bundle_id}")
+async def update_bundle(
+    bundle_id: int,
+    body: BundleUpdateRequest,
+    identity_id: int = QueryParam(...),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """Update name and/or terms of a client-side bundle."""
+    try:
+        group = await update_client_bundle(
+            meta.id,
+            identity_id,
+            bundle_id,
+            body.name,
+            (
+                [{"term": t.term, "term_type": t.term_type} for t in body.terms]
+                if body.terms is not None
+                else None
+            ),
+        )
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+    async with async_session() as session:
+        stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group.id)
+        terms = (await session.execute(stmt)).scalars().all()
+    return group_to_dict(group, terms)
+
+
+@router.delete("/content-hub/bundles/{bundle_id}")
+async def delete_bundle(
+    bundle_id: int,
+    identity_id: int = QueryParam(...),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """Delete a client-side bundle."""
+    async with async_session() as session:
+        group = await session.get(ContentHubGroup, bundle_id)
+        if (
+            group is None
+            or group.meta_account_id != meta.id
+            or group.identity_id != identity_id
+        ):
+            raise HTTPException(404, "Bundle not found")
+        if group.is_read_only:
+            raise HTTPException(403, "Cannot delete a read-only server-follow group")
+        await session.delete(group)
+        await session.commit()
+    return {"deleted": True, "id": bundle_id}
+
+
+# ---------------------------------------------------------------------------
 # 4.5  Catch-up endpoints
 # ---------------------------------------------------------------------------
 

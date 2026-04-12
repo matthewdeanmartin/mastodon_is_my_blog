@@ -262,14 +262,15 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private buildViewModels(data: (RawContentPost | Storm)[]): void {
     const sanitize = (html: string) => this.sanitizer.bypassSecurityTrustHtml(html);
+    const localBaseUrl = this.api.getIdentityBaseUrl();
     for (const item of data) {
       if ('root' in item) {
-        this.viewModels.set(item.root.id, toFeedViewModel(item.root, sanitize, this.seenPostIds));
+        this.viewModels.set(item.root.id, toFeedViewModel(item.root, sanitize, this.seenPostIds, localBaseUrl));
         for (const branch of item.branches ?? []) {
-          this.viewModels.set(branch.id, toFeedViewModel(branch, sanitize, this.seenPostIds));
+          this.viewModels.set(branch.id, toFeedViewModel(branch, sanitize, this.seenPostIds, localBaseUrl));
         }
       } else {
-        this.viewModels.set(item.id, toFeedViewModel(item, sanitize, this.seenPostIds));
+        this.viewModels.set(item.id, toFeedViewModel(item, sanitize, this.seenPostIds, localBaseUrl));
       }
     }
   }

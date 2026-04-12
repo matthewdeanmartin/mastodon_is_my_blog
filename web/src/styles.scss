@@ -319,6 +319,10 @@ small {
     background: #6366f1;
     color: white;
     border-color: #6366f1;
+
+    * {
+      color: inherit;
+    }
   }
 }
 

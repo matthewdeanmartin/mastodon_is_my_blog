@@ -65,6 +65,7 @@ export interface Identity {
   display_name: string;
   avatar_url: string;
   is_active: boolean;
+  base_url: string;
 }
 
 export interface MastodonContext {
@@ -95,4 +96,66 @@ export interface CatchupQueueEntry {
 export interface CatchupQueue {
   identity_id: number;
   queue: CatchupQueueEntry[];
+}
+
+// Content Hub
+
+export interface ContentHubTerm {
+  id: number;
+  term: string;
+  term_type: 'hashtag' | 'search';
+}
+
+export interface ContentHubGroup {
+  id: number;
+  name: string;
+  slug: string;
+  source_type: 'client_bundle' | 'server_follow';
+  is_read_only: boolean;
+  last_fetched_at: string | null;
+  terms: ContentHubTerm[];
+}
+
+export interface ContentHubPost {
+  id: string;
+  content: string;
+  author_acct: string;
+  author_avatar: string;
+  author_display_name: string;
+  created_at: string;
+  media_attachments: unknown[];
+  tags: unknown[];
+  counts: { replies: number; reblogs: number; likes: number };
+  has_video: boolean;
+  has_link: boolean;
+  is_reblog: boolean;
+  is_reply: boolean;
+}
+
+export interface ContentHubGroupPostsResponse {
+  items: ContentHubPost[];
+  next_cursor: string | null;
+  stale: boolean;
+  group: { id: number; name: string; last_fetched_at: string | null };
+}
+
+// Admin bundle models
+
+export interface AdminBundleTerm {
+  id: number;
+  term: string;
+  term_type: 'hashtag' | 'search';
+  normalized_term: string;
+}
+
+export interface AdminBundle {
+  id: number;
+  name: string;
+  slug: string;
+  source_type: 'client_bundle' | 'server_follow';
+  is_read_only: boolean;
+  last_fetched_at: string | null;
+  created_at: string;
+  updated_at: string;
+  terms: AdminBundleTerm[];
 }

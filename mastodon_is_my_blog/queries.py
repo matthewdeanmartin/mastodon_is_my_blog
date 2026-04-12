@@ -246,9 +246,15 @@ async def bulk_upsert_posts(
     meta_id: int,
     identity_id: int,
     statuses: list[dict],
+    *,
+    discovery_source: str = "timeline",
+    content_hub_only: bool = False,
 ) -> tuple[int, int]:
     """
     Bulk upsert CachedPost rows from raw Mastodon API status dicts.
+
+    discovery_source and content_hub_only are applied to all rows in this batch.
+    These fields are never overwritten on conflict — the first write wins.
 
     Returns (new_count, updated_count).  Does NOT commit.
     """
@@ -259,6 +265,8 @@ async def bulk_upsert_posts(
     payloads: dict[str, dict] = {}
     for status in statuses:
         payload = build_post_payload(meta_id, identity_id, status)
+        payload["discovery_source"] = discovery_source
+        payload["content_hub_only"] = content_hub_only
         payloads[payload["id"]] = payload
 
     if not payloads:
@@ -281,10 +289,15 @@ async def bulk_upsert_posts(
     )
 
     stmt = sqlite_insert(CachedPost).values(list(payloads.values()))
+    # Exclude discovery metadata from conflict updates so that a timeline sync
+    # never overwrites content_hub_only / discovery_source set by Content Hub.
     non_pk_cols = [
         c.name
         for c in CachedPost.__table__.columns
-        if c.name not in ("id", "meta_account_id", "fetched_by_identity_id")
+        if c.name not in (
+            "id", "meta_account_id", "fetched_by_identity_id",
+            "discovery_source", "content_hub_only",
+        )
     ]
     update_cols = {c: stmt.excluded[c] for c in non_pk_cols}
     stmt = stmt.on_conflict_do_update(
@@ -661,6 +674,7 @@ async def get_counts_optimized(
     base_conditions = [
         CachedPost.meta_account_id == meta_id,
         CachedPost.fetched_by_identity_id == identity_id,
+        CachedPost.content_hub_only.is_(False),
     ]
 
     if user:

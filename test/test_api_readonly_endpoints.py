@@ -361,10 +361,15 @@ def test_public_posts_endpoint_returns_serialized_posts(
         has_link=True,
         tags='["Intro"]',
     )
+    account_row = SimpleNamespace(acct="alice@example.com", avatar="https://img.example.com/alice.png", display_name="Alice")
+
     monkeypatch.setattr(
         posts,
         "async_session",
-        FakeSessionFactory([FakeResult(all_rows=[(post, "p1")])]),
+        FakeSessionFactory([
+            FakeResult(all_rows=[(post, "p1")]),
+            FakeResult(all_rows=[account_row]),
+        ]),
     )
 
     response = api_client.get("/api/posts?identity_id=5&filter_type=all")
@@ -376,6 +381,8 @@ def test_public_posts_endpoint_returns_serialized_posts(
                 "id": "p1",
                 "content": "<p>Hello</p>",
                 "author_acct": "alice@example.com",
+                "author_avatar": "https://img.example.com/alice.png",
+                "author_display_name": "Alice",
                 "created_at": "2024-01-02T12:00:00",
                 "is_read": True,
                 "media_attachments": [{"type": "image"}],
@@ -457,6 +464,8 @@ def test_storms_endpoint_returns_root_and_branch_posts(
         assert post_ids == ["root-1", "reply-1"]
         return {"reply-1"}
 
+    account_row = SimpleNamespace(acct="alice@example.com", avatar="https://img.example.com/alice.png", display_name="Alice")
+
     monkeypatch.setattr(
         posts,
         "async_session",
@@ -464,6 +473,7 @@ def test_storms_endpoint_returns_root_and_branch_posts(
             [
                 FakeResult(scalars_values=[root]),
                 FakeResult(scalars_values=[reply]),
+                FakeResult(all_rows=[account_row]),
             ]
         ),
     )
@@ -482,6 +492,8 @@ def test_storms_endpoint_returns_root_and_branch_posts(
                     "media": [],
                     "counts": {"replies": 5, "likes": 6},
                     "author_acct": "alice@example.com",
+                    "author_avatar": "https://img.example.com/alice.png",
+                    "author_display_name": "Alice",
                     "is_read": False,
                 },
                 "branches": [

@@ -65,12 +65,19 @@
 <ng-template #postTemplate let-p>
   @if (vm(p.id); as v) {
     <div #postItem [attr.data-post-id]="p.id" [class.read-post]="v.isRead" class="post-item" (mouseenter)="onPostMouseEnter(p.id)" (mouseleave)="onPostMouseLeave(p.id)">
-      <div class="row" style="margin-bottom: 5px">
+      <div class="row" style="margin-bottom: 8px; justify-content: flex-start; gap: 8px;">
+        @if (v.author_avatar) {
+          <img [src]="v.author_avatar" alt="" style="width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;" loading="lazy" decoding="async">
+        }
+        <div style="display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0;">
+          <span style="font-size: 0.9rem; font-weight: 600; color: #1f2937; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ v.author_display_name }}</span>
+          <span class="muted" style="font-size: 0.75rem;">@{{ v.author_acct }}</span>
+        </div>
         <a
           [routerLink]="['/p', p.id]"
           [queryParams]="getQueryParams()"
           class="muted"
-          style="font-size: 0.85rem"
+          style="font-size: 0.8rem; white-space: nowrap; flex-shrink: 0;"
           >
           @if (p.created_at) {
             <span>{{ p.created_at | date: 'mediumDate' }}</span>

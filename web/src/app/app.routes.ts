@@ -8,6 +8,7 @@ import {ContentComponent} from './content.component';
 import {ImageFeedComponent} from './image.component';
 import {LinksFeedComponent, NewsFeedComponent, SoftwareFeedComponent} from './software.component';
 import {ForumComponent} from './forum.component';
+import {ContentHubGroupComponent} from './content-hub-group.component';
 
 export const routes: Routes = [
   { path: '', component: PublicFeedComponent },
@@ -16,16 +17,19 @@ export const routes: Routes = [
   { path: 'write', component: WriteComponent },
   { path: 'admin', component: AdminComponent },
 
-  // Content App
+  // Content Hub
   {
     path: 'content',
     component: ContentComponent,
     children: [
       { path: '', redirectTo: 'images', pathMatch: 'full' },
+      // Fixed content-type filters (cached posts from follows)
       { path: 'images', component: ImageFeedComponent },
       { path: 'software', component: SoftwareFeedComponent },
       { path: 'links', component: LinksFeedComponent },
       { path: 'news', component: NewsFeedComponent },
+      // Dynamic hashtag groups
+      { path: 'group/:groupId', component: ContentHubGroupComponent },
     ]
   },
 

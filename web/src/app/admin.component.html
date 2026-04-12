@@ -125,5 +125,135 @@
         <div class="muted" style="font-size: 0.9rem;">No accounts in the catch-up queue.</div>
       }
     </div>
+
+    <hr style="margin-top: 28px;" />
+
+    <!-- Content Hub bundles -->
+    <div style="margin-top: 24px;">
+      <div class="row" style="margin-bottom: 12px; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <h3 style="margin: 0; font-size: 1rem; flex: 1;">Content Hub Bundles</h3>
+        <button class="secondary" style="font-size: 0.8rem;" (click)="syncFollows()" [disabled]="syncingFollows">
+          {{ syncingFollows ? 'Syncing...' : 'Sync Server Follows' }}
+        </button>
+        <button style="font-size: 0.8rem;" (click)="startCreateBundle()" [disabled]="!!editState">
+          + New Bundle
+        </button>
+      </div>
+
+      @if (bundlesError) {
+        <div style="color: #dc2626; font-size: 0.875rem; margin-bottom: 10px;">{{ bundlesError }}</div>
+      }
+
+      <!-- Edit / Create form -->
+      @if (editState) {
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <h4 style="margin: 0 0 12px 0; font-size: 0.95rem;">
+            {{ editState.bundleId === null ? 'New Bundle' : 'Edit Bundle' }}
+          </h4>
+
+          <div style="margin-bottom: 10px;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">Name</label>
+            <input
+              [(ngModel)]="editState.name"
+              placeholder="Bundle name"
+              style="width: 100%; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.875rem; box-sizing: border-box;" />
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <div class="row" style="margin-bottom: 6px; align-items: center;">
+              <label style="font-size: 0.85rem; font-weight: 600;">Terms</label>
+              <button class="secondary" style="font-size: 0.75rem; padding: 3px 10px;" (click)="addTerm()">+ Add term</button>
+            </div>
+
+            @for (term of editState.terms; track $index; let i = $index) {
+              <div class="row" style="gap: 6px; margin-bottom: 6px; align-items: center;">
+                <select
+                  [(ngModel)]="term.term_type"
+                  style="padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.8rem; background: white;">
+                  <option value="hashtag"># hashtag</option>
+                  <option value="search">search</option>
+                </select>
+                <input
+                  [(ngModel)]="term.term"
+                  [placeholder]="term.term_type === 'hashtag' ? 'python' : 'python jobs'"
+                  style="flex: 1; padding: 5px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.875rem;" />
+                <button class="secondary" style="font-size: 0.8rem; padding: 4px 10px; color: #dc2626; border-color: #dc2626;" (click)="removeTerm(i)">
+                  &times;
+                </button>
+              </div>
+            }
+
+            @if (editState.terms.length === 0) {
+              <div class="muted" style="font-size: 0.8rem;">No terms yet — add at least one hashtag or search query.</div>
+            }
+          </div>
+
+          @if (editState.error) {
+            <div style="color: #dc2626; font-size: 0.875rem; margin-bottom: 8px;">{{ editState.error }}</div>
+          }
+
+          <div class="row" style="gap: 8px; justify-content: flex-end;">
+            <button class="secondary" (click)="cancelEdit()" [disabled]="editState.saving">Cancel</button>
+            <button (click)="saveBundle()" [disabled]="editState.saving">
+              {{ editState.saving ? 'Saving...' : 'Save' }}
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Bundle list -->
+      @if (bundlesLoading) {
+        <div class="muted" style="font-size: 0.875rem;">Loading...</div>
+      }
+
+      @if (!bundlesLoading && bundles.length === 0 && !editState) {
+        <div class="muted" style="font-size: 0.875rem;">
+          No bundles yet. Create one or sync your server-side followed hashtags.
+        </div>
+      }
+
+      @for (bundle of bundles; track bundle.id) {
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: white;">
+          <div class="row" style="align-items: flex-start; gap: 8px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 0;">
+              <div class="row" style="align-items: center; gap: 6px; margin-bottom: 4px;">
+                <strong style="font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ bundle.name }}</strong>
+                @if (bundle.source_type === 'server_follow') {
+                  <span style="font-size: 0.65rem; background: #f0fdf4; color: #166534; padding: 1px 6px; border-radius: 3px; font-weight: 700; text-transform: uppercase; white-space: nowrap;">server follow</span>
+                } @else {
+                  <span style="font-size: 0.65rem; background: #eef2ff; color: #4338ca; padding: 1px 6px; border-radius: 3px; font-weight: 700; text-transform: uppercase; white-space: nowrap;">bundle</span>
+                }
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px;">
+                @for (term of bundle.terms; track term.id) {
+                  <span style="font-size: 0.75rem; background: #f3f4f6; border: 1px solid #e5e7eb; padding: 2px 8px; border-radius: 999px; color: #374151;">
+                    {{ termTypeLabel(term) }} {{ term.term }}
+                  </span>
+                }
+                @if (bundle.terms.length === 0) {
+                  <span class="muted" style="font-size: 0.75rem;">No terms</span>
+                }
+              </div>
+              @if (bundle.last_fetched_at) {
+                <div class="muted" style="font-size: 0.75rem;">Last fetched: {{ bundle.last_fetched_at | date: 'short' }}</div>
+              }
+            </div>
+            @if (!bundle.is_read_only) {
+              <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                <button class="secondary" style="font-size: 0.8rem; padding: 4px 12px;" (click)="startEditBundle(bundle)" [disabled]="!!editState">
+                  Edit
+                </button>
+                <button
+                  style="font-size: 0.8rem; padding: 4px 12px; background: #fee2e2; color: #dc2626; border-color: #fca5a5;"
+                  (click)="deleteBundle(bundle)"
+                  [disabled]="deletingId === bundle.id">
+                  {{ deletingId === bundle.id ? '...' : 'Delete' }}
+                </button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
   }
 </div>

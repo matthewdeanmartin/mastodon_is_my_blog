@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
-import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext, CatchupStatus, CatchupQueue} from './mastodon';
+import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext, CatchupStatus, CatchupQueue, ContentHubGroup, ContentHubGroupPostsResponse, AdminBundle} from './mastodon';
 import {RawContentPost} from './content-feed.utils';
 import {Observable, throwError, timer, BehaviorSubject, of, Subject} from 'rxjs';
 import {catchError, shareReplay, switchMap, tap} from 'rxjs/operators';
@@ -80,6 +80,8 @@ export class ApiService {
   private identityIdSubject = new BehaviorSubject<number | null>(this.getStoredIdentityId());
   public readonly identityId$ = this.identityIdSubject.asObservable();
 
+  private currentIdentityBaseUrl: string | null = null;
+
   constructor() {
     this.startHealthCheck();
     this.refreshNeeded$.subscribe(() => this.routeCache.clear());
@@ -105,9 +107,16 @@ export class ApiService {
 
   // --- Identity State Helpers ---
 
-  setIdentityId(id: number) {
+  setIdentityId(id: number, baseUrl?: string) {
     localStorage.setItem(this.IDENTITY_KEY, id.toString());
     this.identityIdSubject.next(id);
+    if (baseUrl !== undefined) {
+      this.currentIdentityBaseUrl = baseUrl;
+    }
+  }
+
+  getIdentityBaseUrl(): string | null {
+    return this.currentIdentityBaseUrl;
   }
 
   getStoredIdentityId(): number | null {
@@ -433,6 +442,76 @@ export class ApiService {
     const params = new HttpParams().set('identity_id', identityId.toString());
     return this.http
       .get<{unread_count: number}>(`${this.base}/api/posts/unread-count`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  // --- Content Hub ---
+
+  getContentHubGroups(identityId: number): Observable<ContentHubGroup[]> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .get<ContentHubGroup[]>(`${this.base}/api/content-hub/groups`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getContentHubGroupPosts(
+    groupId: number,
+    identityId: number,
+    tab: 'text' | 'videos' | 'jobs' = 'text',
+    before?: string | null,
+    limit = 30,
+  ): Observable<ContentHubGroupPostsResponse> {
+    let params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('tab', tab)
+      .set('limit', limit.toString());
+    if (before) params = params.set('before', before);
+    return this.http
+      .get<ContentHubGroupPostsResponse>(`${this.base}/api/content-hub/groups/${groupId}/posts`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  refreshContentHubGroup(groupId: number, identityId: number): Observable<unknown> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .post<unknown>(`${this.base}/api/content-hub/groups/${groupId}/refresh`, {}, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  syncContentHubFollows(identityId: number): Observable<unknown> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .post<unknown>(`${this.base}/api/content-hub/sync-follows`, {}, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  // --- Admin Bundle CRUD ---
+
+  getAdminBundles(identityId: number): Observable<AdminBundle[]> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .get<AdminBundle[]>(`${this.base}/api/admin/content-hub/bundles`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  createAdminBundle(identityId: number, name: string, terms: {term: string; term_type: string}[]): Observable<AdminBundle> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .post<AdminBundle>(`${this.base}/api/admin/content-hub/bundles`, {name, terms}, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  updateAdminBundle(identityId: number, bundleId: number, name: string | null, terms: {term: string; term_type: string}[] | null): Observable<AdminBundle> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .put<AdminBundle>(`${this.base}/api/admin/content-hub/bundles/${bundleId}`, {name, terms}, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  deleteAdminBundle(identityId: number, bundleId: number): Observable<unknown> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .delete<unknown>(`${this.base}/api/admin/content-hub/bundles/${bundleId}`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 }

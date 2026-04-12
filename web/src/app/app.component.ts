@@ -114,9 +114,10 @@ export class AppComponent implements OnInit, OnDestroy {
         const validStored = storedId && ids.find(i => i.id === storedId);
 
         if (validStored) {
-          this.setContextIdentity(storedId!);
+          const identity = ids.find(i => i.id === storedId)!;
+          this.setContextIdentity(storedId!, identity.base_url);
         } else if (ids.length > 0) {
-          this.setContextIdentity(ids[0].id);
+          this.setContextIdentity(ids[0].id, ids[0].base_url);
         }
       },
       error: (e: unknown) => console.log('Could not fetch identities', e)
@@ -206,11 +207,12 @@ export class AppComponent implements OnInit, OnDestroy {
     return this.currentPage === 'people';
   }
 
-  setContextIdentity(id: number) {
-    this.api.setIdentityId(id);
-    // UPDATED: Navigate to home (My Blog/Storms) when context switches to ensure clean state
+  setContextIdentity(id: number, baseUrl?: string) {
+    this.api.setIdentityId(id, baseUrl);
+    const identity = this.identities.find(i => i.id === id);
+    // Navigate to this identity's own blog view
     this.router.navigate(['/'], {
-      queryParams: {user: null, filter: 'storms'}
+      queryParams: {user: identity?.acct ?? null, filter: 'storms'}
     });
   }
 
@@ -330,9 +332,9 @@ export class AppComponent implements OnInit, OnDestroy {
 
 
   viewMainUser(): void {
+    const identity = this.identities.find(i => i.id === this.activeIdentityId);
     this.router.navigate(['/'], {
-      queryParams: {user: null},
-      queryParamsHandling: 'merge',
+      queryParams: {user: identity?.acct ?? null, filter: 'storms'},
     });
     window.scrollTo({top: 0, behavior: 'smooth'});
   }
@@ -384,7 +386,9 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   isViewingMainUser(): boolean {
-    return !this.currentUser && !this.viewingEveryone;
+    if (this.viewingEveryone) return false;
+    const identity = this.identities.find(i => i.id === this.activeIdentityId);
+    return !!identity && this.currentUser === identity.acct;
   }
 
   isRecentlyViewed(acct: string): boolean {

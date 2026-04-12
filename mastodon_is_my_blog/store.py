@@ -156,6 +156,12 @@ class CachedPost(Base):
     # Which of the MetaAccount's identities fetched this?
     # fetched_by_identity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     content: Mapped[str] = mapped_column(Text)
+
+    # Content Hub discovery metadata
+    discovery_source: Mapped[str] = mapped_column(
+        String(20), default="timeline"
+    )  # timeline | hashtag | search
+    content_hub_only: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     visibility: Mapped[str] = mapped_column(String(20))
 
@@ -207,6 +213,7 @@ class CachedPost(Base):
         Index("ix_posts_meta_identity_created", "meta_account_id", "fetched_by_identity_id", "created_at"),
         Index("ix_posts_meta_identity_author", "meta_account_id", "fetched_by_identity_id", "author_acct", "created_at"),
         Index("ix_posts_in_reply_to", "meta_account_id", "fetched_by_identity_id", "in_reply_to_id"),
+        Index("ix_posts_content_hub_only", "meta_account_id", "fetched_by_identity_id", "content_hub_only"),
     )
 
     # Define Composite Indexes to speed up specific query patterns
@@ -314,6 +321,93 @@ class AppState(Base):
     key: Mapped[str] = mapped_column(String, primary_key=True)
     # Key format suggestion: "timeline:{meta_id}:{identity_id}"
     last_sync: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class ContentHubGroup(Base):
+    """
+    A named bundle of hashtags / search terms forming a Content Hub group.
+    client_bundle groups are per-identity and editable; server_follow groups
+    are imported read-only from the identity's followed hashtags.
+    """
+
+    __tablename__ = "content_hub_groups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    meta_account_id: Mapped[int] = mapped_column(
+        ForeignKey("meta_accounts.id"), index=True
+    )
+    identity_id: Mapped[int] = mapped_column(
+        ForeignKey("mastodon_identities.id"), index=True
+    )
+    name: Mapped[str] = mapped_column(String)
+    slug: Mapped[str] = mapped_column(String)
+    source_type: Mapped[str] = mapped_column(String(20))  # client_bundle | server_follow
+    is_read_only: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    terms: Mapped[List["ContentHubGroupTerm"]] = relationship(
+        "ContentHubGroupTerm", back_populates="group", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        Index("ix_hub_groups_identity", "meta_account_id", "identity_id"),
+        Index("ix_hub_groups_slug", "meta_account_id", "identity_id", "slug"),
+    )
+
+
+class ContentHubGroupTerm(Base):
+    """
+    A single hashtag or raw search query belonging to a ContentHubGroup.
+    """
+
+    __tablename__ = "content_hub_group_terms"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("content_hub_groups.id", ondelete="CASCADE"), index=True
+    )
+    term: Mapped[str] = mapped_column(String)
+    term_type: Mapped[str] = mapped_column(String(20))  # hashtag | search
+    normalized_term: Mapped[str] = mapped_column(String, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    group: Mapped["ContentHubGroup"] = relationship(
+        "ContentHubGroup", back_populates="terms"
+    )
+
+
+class ContentHubPostMatch(Base):
+    """
+    Records that a cached post matched a Content Hub group term.
+    Avoids recomputing matches on every request and preserves raw-search history.
+    """
+
+    __tablename__ = "content_hub_post_matches"
+
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("content_hub_groups.id", ondelete="CASCADE"), primary_key=True
+    )
+    post_id: Mapped[str] = mapped_column(String, primary_key=True)
+    meta_account_id: Mapped[int] = mapped_column(
+        ForeignKey("meta_accounts.id"), primary_key=True
+    )
+    fetched_by_identity_id: Mapped[int] = mapped_column(
+        ForeignKey("mastodon_identities.id")
+    )
+    matched_term_id: Mapped[int | None] = mapped_column(
+        ForeignKey("content_hub_group_terms.id"), nullable=True
+    )
+    matched_via: Mapped[str] = mapped_column(String(20))  # hashtag | search
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_hub_matches_group_post", "group_id", "meta_account_id"),
+        Index("ix_hub_matches_post", "post_id", "meta_account_id"),
+    )
 
 
 async def init_db() -> None:

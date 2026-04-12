@@ -1,0 +1,179 @@
+<div class="card">
+  <!-- Header -->
+  <div class="group-header">
+    <div>
+      <h2 class="post-title" style="margin-bottom: 4px;">{{ groupName || 'Loading...' }}</h2>
+      @if (lastFetchedAt) {
+        <div class="muted" style="font-size: 0.8rem;">
+          Last refreshed: {{ lastFetchedAt | date: 'medium' }}
+          @if (stale) {
+            <span class="stale-badge">stale</span>
+          }
+        </div>
+      } @else {
+        <div class="muted" style="font-size: 0.8rem;">Never fetched</div>
+      }
+    </div>
+    <button
+      class="secondary"
+      style="white-space: nowrap;"
+      (click)="forceRefresh()"
+      [disabled]="refreshing || loading">
+      {{ refreshing ? 'Refreshing...' : 'Force Refresh' }}
+    </button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    @for (tab of tabs; track tab.value) {
+      <button
+        class="tab-btn"
+        [class.active]="activeTab === tab.value"
+        (click)="setTab(tab.value)">
+        {{ tab.label }}
+      </button>
+    }
+  </div>
+
+  <!-- Posts -->
+  @if (loading) {
+    <div class="muted">Loading...</div>
+  }
+
+  @if (!loading && posts.length === 0) {
+    <div class="muted">
+      No posts found for this group.
+      @if (stale) {
+        Use Force Refresh to fetch from Mastodon.
+      }
+    </div>
+  }
+
+  @if (!loading) {
+    @for (p of posts; track p.id; let i = $index) {
+      <div>
+        @if (i > 0) {
+          <hr />
+        }
+        <div class="post-item">
+          <div class="row" style="margin-bottom: 8px; justify-content: flex-start; gap: 8px;">
+            @if (p.author_avatar) {
+              <img [src]="p.author_avatar" alt="" style="width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;" loading="lazy" decoding="async">
+            }
+            <div style="display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0;">
+              <span style="font-size: 0.9rem; font-weight: 600; color: #1f2937; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ p.author_display_name }}</span>
+              <span class="muted" style="font-size: 0.75rem;">@{{ p.author_acct }}</span>
+            </div>
+            <span class="muted" style="font-size: 0.8rem; white-space: nowrap; flex-shrink: 0;">
+              {{ p.created_at | date: 'mediumDate' }}
+            </span>
+            <div style="display: flex; gap: 4px;">
+              @if (p.is_reblog) {
+                <span class="badge reblog">REBLOG</span>
+              }
+              @if (p.is_reply) {
+                <span class="badge reply">REPLY</span>
+              }
+            </div>
+          </div>
+
+          <div class="post-body">
+            <span [innerHTML]="p.safeHtml"></span>
+          </div>
+
+          <div style="margin-top: 6px; margin-bottom: 12px;">
+            <span class="muted" style="font-size: 0.8rem;">
+              {{ p.counts.replies }} replies &bull; {{ p.counts.likes }} likes &bull; {{ p.counts.reblogs }} boosts
+            </span>
+          </div>
+        </div>
+      </div>
+    }
+  }
+
+  @if (!loading && nextCursor) {
+    <div style="padding: 16px 0; text-align: center;">
+      @if (loadingMore) {
+        <span class="muted">Loading more...</span>
+      } @else {
+        <button class="secondary" (click)="loadMore()">Load more</button>
+      }
+    </div>
+  }
+</div>
+
+<style>
+  .group-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .stale-badge {
+    display: inline-block;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 6px;
+  }
+
+  .tab-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 12px;
+  }
+
+  .tab-btn {
+    padding: 5px 16px;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: #374151;
+    transition: all 0.2s;
+    font-weight: 500;
+  }
+
+  .tab-btn:hover {
+    background: #f3f4f6;
+    border-color: #6366f1;
+  }
+
+  .tab-btn.active {
+    background: #6366f1;
+    color: white;
+    border-color: #6366f1;
+  }
+
+  .post-item {
+    padding: 4px 0;
+  }
+
+  .badge {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .badge.reblog {
+    background: #e3f2fd;
+    color: #1976d2;
+  }
+
+  .badge.reply {
+    background: #f3e5f5;
+    color: #7b1fa2;
+  }
+</style>

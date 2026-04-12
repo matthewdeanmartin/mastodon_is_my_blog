@@ -309,8 +309,13 @@ export class PublicPostComponent implements OnInit {
     const parts = acct.split('@');
     const username = parts[0];
     const instance = parts[1] || 'mastodon.social';
+    const canonicalUrl = `https://${instance}/@${username}/${post.id}`;
 
-    return `https://${instance}/@${username}/${post.id}`;
+    const localBaseUrl = this.api.getIdentityBaseUrl();
+    if (localBaseUrl && parts[1]) {
+      return `${localBaseUrl.replace(/\/$/, '')}/@${username}@${parts[1]}/${post.id}`;
+    }
+    return canonicalUrl;
   }
 
   /**

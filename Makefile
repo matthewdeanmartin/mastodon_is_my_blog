@@ -124,7 +124,11 @@ test: test-backend test-frontend
 # Run backend tests
 test-backend:
 	@echo "Running backend tests..."
-	pytest
+	uv run pytest test -q --tb=line --no-header --color=no --cov=mastodon_is_my_blog --cov-fail-under 48 --cov-branch --cov-report=term:skip-covered --timeout=5 --session-timeout=600 2>&1 | tail -50
+
+pytest: test-backend
+	@echo "Running backend tests..."
+
 
 # Run frontend tests
 test-frontend:
