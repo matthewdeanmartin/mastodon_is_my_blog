@@ -1,6 +1,6 @@
 // web/src/app/feed.component.ts
 
-import { Component, OnInit, OnDestroy, ElementRef, ViewChildren, ViewChild, QueryList, AfterViewInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, ViewChildren, ViewChild, QueryList, AfterViewInit, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import {ActivatedRoute, RouterLink} from '@angular/router';
 import {ApiService, FeedPage} from './api.service';
 import {CommonModule} from '@angular/common';
@@ -16,11 +16,13 @@ import {Storm} from './api.service';
   standalone: true,
   imports: [CommonModule, RouterLink, LinkPreviewComponent],
   templateUrl: 'feed.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
   private route = inject(ActivatedRoute);
   private api = inject(ApiService);
   private sanitizer = inject(DomSanitizer);
+  private cdr = inject(ChangeDetectorRef);
 
   @ViewChildren('postItem') postItems!: QueryList<ElementRef>;
   @ViewChild('loadMoreSentinel') loadMoreSentinel?: ElementRef<HTMLElement>;
@@ -115,6 +117,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
         this.nextCursor = page.next_cursor;
         this.trackSeenPosts(data);
         this.updateUnreadCount();
+        this.cdr.markForCheck();
         // Observe the load-more sentinel after the first page lands.
         // Defer so the DOM has rendered the sentinel.
         setTimeout(() => this.setupLoadMoreObserver(), 0);
@@ -171,6 +174,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
       this.loadingMore = false;
       this.trackSeenPosts(page.items);
       this.updateUnreadCount();
+      this.cdr.markForCheck();
       if (this.nextCursor) {
         setTimeout(() => this.setupLoadMoreObserver(), 0);
       } else {
@@ -433,6 +437,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
         this.seenPostIds = new Set<string>(res.seen);
         this.rebuildReadState();
         this.updateUnreadCount();
+        this.cdr.markForCheck();
       },
       error: (err: unknown) => {
         console.error('Failed to get seen posts', err);

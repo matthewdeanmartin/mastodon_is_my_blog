@@ -470,8 +470,16 @@ async def sync_user_timeline_for_identity(
     acct: str | None = None,
     force: bool = False,
     cooldown_minutes: int = 15,
+    deep: bool = False,
+    max_pages: int | None = None,
+    rate_budget=None,
 ) -> dict:
-    """Syncs posts for a specific identity and optional target account."""
+    """Syncs posts for a specific identity and optional target account.
+
+    When deep=True, walks all available pages via max_id pagination instead of
+    fetching a single page of 200.  max_pages caps the walk; rate_budget
+    (a catchup.RateBudget) is shared across concurrent deep fetches.
+    """
     target_acct_desc = acct if acct else "self"
     sync_key = f"timeline:{meta_id}:{identity.id}:{target_acct_desc}"
 
@@ -498,29 +506,64 @@ async def sync_user_timeline_for_identity(
                 target_account = m.account_verify_credentials()
                 target_id = target_account["id"]
 
-            statuses = m.account_statuses(target_id, limit=200)
-            t.rows_fetched = len(statuses)
+            total_fetched = 0
+            total_new = 0
+            total_updated = 0
 
-            async with async_session() as session:
-                # Upsert Author
-                await bulk_upsert_accounts(
-                    session,
-                    meta_id,
-                    identity.id,
-                    [{"account_data": target_account}],
+            if deep:
+                from mastodon_is_my_blog.catchup import (
+                    deep_fetch_user_timeline,
+                    get_stop_at_id,
                 )
 
-                new_count, updated_count = await bulk_upsert_posts(
-                    session, meta_id, identity.id, statuses
+                stop_at_id = await get_stop_at_id(
+                    meta_id, identity.id, target_account["acct"]
                 )
 
-                await session.commit()
-                await update_last_sync(sync_key)
-                t.rows_written = new_count + updated_count
-                t.rows_skipped = 0
-                t.extra["new"] = new_count
-                t.extra["updated"] = updated_count
-                return {"status": "success", "count": len(statuses)}
+                async for page in deep_fetch_user_timeline(
+                    m,
+                    str(target_id),
+                    stop_at_id=stop_at_id,
+                    max_pages=max_pages,
+                    rate_budget=rate_budget,
+                ):
+                    total_fetched += len(page)
+                    async with async_session() as session:
+                        await bulk_upsert_accounts(
+                            session,
+                            meta_id,
+                            identity.id,
+                            [{"account_data": target_account}],
+                        )
+                        new_count, updated_count = await bulk_upsert_posts(
+                            session, meta_id, identity.id, page
+                        )
+                        await session.commit()
+                    total_new += new_count
+                    total_updated += updated_count
+            else:
+                statuses = m.account_statuses(target_id, limit=200)
+                total_fetched = len(statuses)
+
+                async with async_session() as session:
+                    await bulk_upsert_accounts(
+                        session,
+                        meta_id,
+                        identity.id,
+                        [{"account_data": target_account}],
+                    )
+                    total_new, total_updated = await bulk_upsert_posts(
+                        session, meta_id, identity.id, statuses
+                    )
+                    await session.commit()
+
+            await update_last_sync(sync_key)
+            t.rows_fetched = total_fetched
+            t.rows_written = total_new + total_updated
+            t.rows_skipped = 0
+            t.extra["new"] = total_new
+            t.extra["updated"] = total_updated
+            return {"status": "success", "count": total_fetched}
 
         except Exception as e:
             logger.error(e)

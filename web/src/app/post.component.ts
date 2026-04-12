@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
 import {ApiService} from './api.service';
 import {CommonModule} from '@angular/common';
@@ -39,6 +39,7 @@ interface CommentsResponse {
   standalone: true,
   imports: [CommonModule, LinkPreviewComponent],
   templateUrl: 'post.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
     .tree-line {
       position: absolute;
@@ -61,6 +62,7 @@ export class PublicPostComponent implements OnInit {
   private api = inject(ApiService);
   private sanitizer = inject(DomSanitizer);
   private linkPreviewService = inject(LinkPreviewService);
+  private cdr = inject(ChangeDetectorRef);
 
   private feedReady = false;
   private targetId: string | null = null;
@@ -113,7 +115,8 @@ export class PublicPostComponent implements OnInit {
         // Find current post index in the feed if feed is already loaded
         this.recomputeIndex();
         this.loading = false;
-        
+        this.cdr.markForCheck();
+
         // Mark as read when viewing the full post
         this.markAsSeen(id);
       },
@@ -149,6 +152,7 @@ export class PublicPostComponent implements OnInit {
     const onDone = () => {
       this.feedReady = true;
       this.recomputeIndex();
+      this.cdr.markForCheck();
     };
 
     if (isStorms) {

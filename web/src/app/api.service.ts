@@ -1,9 +1,48 @@
 import { Injectable, inject } from '@angular/core';
 import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
-import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext} from './mastodon';
+import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext, CatchupStatus, CatchupQueue} from './mastodon';
 import {RawContentPost} from './content-feed.utils';
 import {Observable, throwError, timer, BehaviorSubject, of, Subject} from 'rxjs';
 import {catchError, shareReplay, switchMap, tap} from 'rxjs/operators';
+
+const CACHE_TTL_MS = 30_000;
+const CACHE_MAX = 64;
+
+interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
+
+class LruCache<T> {
+  private map = new Map<string, CacheEntry<T>>();
+
+  constructor(private max: number) {}
+
+  get(key: string): T | null {
+    const entry = this.map.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+      this.map.delete(key);
+      return null;
+    }
+    // Re-insert to mark as recently used
+    this.map.delete(key);
+    this.map.set(key, entry);
+    return entry.value;
+  }
+
+  set(key: string, value: T, ttlMs: number): void {
+    if (this.map.size >= this.max) {
+      // Evict least-recently-used (first key in insertion order)
+      this.map.delete(this.map.keys().next().value!);
+    }
+    this.map.set(key, {value, expiresAt: Date.now() + ttlMs});
+  }
+
+  clear(): void {
+    this.map.clear();
+  }
+}
 
 export interface Storm {
   root: RawContentPost;
@@ -31,6 +70,7 @@ export class ApiService {
   public refreshNeeded$ = new Subject<void>();
 
   private readonly syncInflight = new Map<string, Observable<unknown>>();
+  private readonly routeCache = new LruCache<unknown>(CACHE_MAX);
 
   // Meta Account State (The human)
   private metaIdSubject = new BehaviorSubject<string | null>(this.getMetaAccountId());
@@ -42,6 +82,7 @@ export class ApiService {
 
   constructor() {
     this.startHealthCheck();
+    this.refreshNeeded$.subscribe(() => this.routeCache.clear());
   }
 
   // --- Meta Account / Auth Helpers ---
@@ -115,6 +156,12 @@ export class ApiService {
       });
   }
 
+  private cached<T>(key: string, source$: Observable<T>): Observable<T> {
+    const hit = this.routeCache.get(key) as T | null;
+    if (hit !== null) return of(hit);
+    return source$.pipe(tap((v) => this.routeCache.set(key, v, CACHE_TTL_MS)));
+  }
+
   // Wrapper to handle errors consistently
   private handleError(error: unknown): Observable<never> {
     // this.serverDownSubject.next(true);
@@ -140,9 +187,10 @@ export class ApiService {
     if (before) {
       params = params.set('before', before);
     }
-    return this.http
+    const key = `posts:${params.toString()}`;
+    return this.cached(key, this.http
       .get<FeedPage<RawContentPost>>(`${this.base}/api/posts`, {params, headers: this.headers})
-      .pipe(catchError((err) => this.handleError(err)));
+      .pipe(catchError((err) => this.handleError(err))));
   }
 
   getStorms(
@@ -160,9 +208,10 @@ export class ApiService {
     if (before) {
       params = params.set('before', before);
     }
-    return this.http
+    const key = `storms:${params.toString()}`;
+    return this.cached(key, this.http
       .get<FeedPage<Storm>>(`${this.base}/api/posts/storms`, {params, headers: this.headers})
-      .pipe(catchError((err) => this.handleError(err)));
+      .pipe(catchError((err) => this.handleError(err))));
   }
 
   getShorts(
@@ -190,17 +239,19 @@ export class ApiService {
       .set('identity_id', identityId.toString())
       .set('filter_type', filter);
 
-    return this.http
+    const key = `blogroll:${params.toString()}`;
+    return this.cached(key, this.http
       .get<MastodonAccount[]>(`${this.base}/api/accounts/blogroll`, {params, headers: this.headers})
-      .pipe(catchError((err) => this.handleError(err)));
+      .pipe(catchError((err) => this.handleError(err))));
   }
 
   getCounts(identityId: number, user?: string): Observable<unknown> {
     let params = new HttpParams().set('identity_id', identityId.toString());
     if (user) params = params.set('user', user);
-    return this.http
+    const key = `counts:${params.toString()}`;
+    return this.cached(key, this.http
       .get<unknown>(`${this.base}/api/posts/counts`, {params, headers: this.headers})
-      .pipe(catchError((err) => this.handleError(err)));
+      .pipe(catchError((err) => this.handleError(err))));
   }
 
   getAccountInfo(acct: string, identityId: number): Observable<MastodonAccount> {
@@ -317,6 +368,38 @@ export class ApiService {
           tap(() => this.refreshNeeded$.next()),
           catchError((err) => this.handleError(err))
       );
+  }
+
+  startCatchup(mode: 'urgent' | 'trickle', identityId?: number | null): Observable<CatchupStatus> {
+    let params = new HttpParams().set('mode', mode);
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .post<CatchupStatus>(`${this.base}/api/admin/catchup`, {}, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getCatchupStatus(identityId?: number | null): Observable<CatchupStatus> {
+    let params = new HttpParams();
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .get<CatchupStatus>(`${this.base}/api/admin/catchup/status`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  cancelCatchup(identityId?: number | null): Observable<unknown> {
+    let params = new HttpParams();
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .delete<unknown>(`${this.base}/api/admin/catchup`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getCatchupQueue(identityId?: number | null, maxAccounts = 10): Observable<CatchupQueue> {
+    let params = new HttpParams().set('max_accounts', maxAccounts.toString());
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .get<CatchupQueue>(`${this.base}/api/admin/catchup/queue`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
   }
 
   getAnalytics(): Observable<unknown> {

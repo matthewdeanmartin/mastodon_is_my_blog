@@ -16,7 +16,7 @@
       </button>
     </div>
     <!-- Ancestors -->
-    @for (ancestor of ancestors; track ancestor; let i = $index) {
+    @for (ancestor of ancestors; track ancestor.id; let i = $index) {
       <div style="margin-bottom: 20px; position: relative;">
         <div class="card"
           [style.border-left]="isActiveUser(ancestor) ? '4px solid #6366f1' : '1px solid #e1e8ed'"
@@ -54,8 +54,8 @@
           }
           @if (getMediaImages(ancestor).length > 0) {
             <div style="margin-top: 10px; display: flex; gap: 8px;">
-              @for (m of getMediaImages(ancestor); track m) {
-                <img [src]="m.url" alt="" style="height: 100px; border-radius: 4px;">
+              @for (m of getMediaImages(ancestor); track m.id) {
+                <img [src]="m.url" alt="" style="height: 100px; border-radius: 4px;" loading="lazy" decoding="async">
               }
             </div>
           }
@@ -98,15 +98,17 @@
         style="font-size: 1.15rem; margin: 20px 0;"
       [innerHTML]="processContent(target.content)"></div>
       <!-- Link Previews for Target Post -->
-      @for (url of getPostUrls(target); track url) {
+      @for (url of getPostUrls(target); track url; let ti = $index) {
         <div>
           <app-link-preview [url]="url"></app-link-preview>
         </div>
       }
       @if (getMediaImages(target).length > 0) {
         <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
-          @for (m of getMediaImages(target); track m) {
-            <img [src]="m.url" alt="" style="max-width: 100%; border-radius: 8px;">
+          @for (m of getMediaImages(target); track m.id; let mi = $index) {
+            <img [src]="m.url" alt="" style="max-width: 100%; border-radius: 8px;"
+              [attr.loading]="mi === 0 ? null : 'lazy'"
+              [attr.decoding]="mi === 0 ? null : 'async'">
           }
         </div>
       }
@@ -122,7 +124,7 @@
     @if (descendantTree.length > 0) {
       <div>
         <h3 class="muted" style="margin-bottom: 20px; font-size: 1rem; text-transform: uppercase;">Discussion</h3>
-        @for (node of descendantTree; track node) {
+        @for (node of descendantTree; track node.post.id) {
           <div>
             <ng-container *ngTemplateOutlet="treeNode; context: { node: node }"></ng-container>
           </div>
@@ -184,8 +186,8 @@
 
       @if (getMediaImages(node.post).length > 0) {
         <div style="margin-top: 8px;">
-          @for (m of getMediaImages(node.post); track m) {
-            <img [src]="m.url" alt="" style="height: 80px; border-radius: 4px; margin-right: 5px;">
+          @for (m of getMediaImages(node.post); track m.id) {
+            <img [src]="m.url" alt="" style="height: 80px; border-radius: 4px; margin-right: 5px;" loading="lazy" decoding="async">
           }
         </div>
       }
@@ -199,7 +201,7 @@
 
     @if (node.children.length > 0) {
       <div style="margin-left: 24px; border-left: 2px solid #e5e7eb; padding-left: 12px;">
-        @for (child of node.children; track child) {
+        @for (child of node.children; track child.post.id) {
           <div>
             <ng-container *ngTemplateOutlet="treeNode; context: { node: child }"></ng-container>
           </div>

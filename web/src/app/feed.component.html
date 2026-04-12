@@ -125,11 +125,13 @@
             <div
               style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;"
               >
-              @for (img of v.images; track img) {
+              @for (img of v.images; track img.id) {
                 <img
                   [src]="img.preview_url || img.url"
                   alt=""
                   style="width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee"
+                  loading="lazy"
+                  decoding="async"
                   />
               }
             </div>

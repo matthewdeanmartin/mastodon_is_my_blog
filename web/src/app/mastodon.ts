@@ -72,3 +72,27 @@ export interface MastodonContext {
   descendants: MastodonStatus[];
   target: MastodonStatus;
 }
+
+export interface CatchupStatus {
+  running: boolean;
+  mode: 'urgent' | 'trickle';
+  done: number;
+  total: number;
+  current_acct: string | null;
+  errors: number;
+  started_at: string;
+  finished_at: string | null;
+  rate_limited: boolean;
+}
+
+export interface CatchupQueueEntry {
+  acct: string;
+  display_name: string;
+  is_followed_by: boolean;
+  last_status_at: string | null;
+}
+
+export interface CatchupQueue {
+  identity_id: number;
+  queue: CatchupQueueEntry[];
+}

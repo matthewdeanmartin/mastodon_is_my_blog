@@ -9,7 +9,7 @@
   </div>
 
   <div class="identity-list">
-    @for (id of identities; track id) {
+    @for (id of identities; track id.id) {
       <button
         class="identity-chip"
         [class.active]="activeIdentityId === id.id"
@@ -34,7 +34,8 @@
       <a routerLink="/" routerLinkActive="active-nav" [routerLinkActiveOptions]="{exact: true}">👥 People</a>
       <a routerLink="/content" routerLinkActive="active-nav">📦 Content</a>
       <a routerLink="/forum" routerLinkActive="active-nav">💬 Forum</a>
-      <a routerLink="/admin" class="admin-link">✏️ Write</a>
+      <a routerLink="/write" routerLinkActive="active-nav">✏️ Write</a>
+      <a routerLink="/admin" routerLinkActive="active-nav">⚙️ Admin</a>
     </nav>
   </div>
 
@@ -97,7 +98,7 @@
                 No friends found for this identity.
               </div>
             }
-            @for (acc of blogRoll; track acc) {
+            @for (acc of blogRoll; track acc.acct) {
               <div style="margin-bottom: 8px;">
                 <!-- was  queryParamsHandling="merge" why not now?-->
                 <a [routerLink]="['/']"
@@ -111,7 +112,7 @@
                   [style.align-items]="'center'"
                   [style.gap]="'8px'"
                   style="text-decoration: none; color: #333; cursor: pointer; transition: all 0.2s;">
-                  <img [src]="acc.avatar" alt="" style="width: 24px; height: 24px; border-radius: 50%;">
+                  <img [src]="acc.avatar" alt="" style="width: 24px; height: 24px; border-radius: 50%;" loading="lazy" decoding="async">
                   <span style="font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                     {{ acc.display_name || acc.acct }}
                   </span>
