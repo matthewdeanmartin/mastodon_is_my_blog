@@ -71,18 +71,17 @@
 
 ## Features
 
-- ✍️ Write and publish posts to Mastodon
 - 📝 View your posts in a clean blog format
 - 💬 View comments/replies on your posts
 - ✏️ Edit posts (creates new post with updated content)
 - 🎨 Blog-style UI with clean typography
+- 📦 Static site generator for public viewing
+- ✍️ Write and publish posts to Mastodon
 
 ## Future Features
 
-- 📦 Static site generator for public viewing
 - 🏷️ Tag filtering and organization
 - 🔍 Search functionality
-- 📱 Better mobile responsiveness
 
 ## Troubleshooting
 
