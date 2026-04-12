@@ -13,6 +13,7 @@ from mastodon_is_my_blog.mastodon_apis.masto_client import (
     client_from_identity,
 )
 from mastodon_is_my_blog.store import SeenPost  # ADDED
+from mastodon_is_my_blog.utils.perf import sync_stage
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedPost,
@@ -167,96 +168,108 @@ async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[di
 
 async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity) -> None:
     """Syncs following/followers for a specific identity."""
-    m = client_from_identity(identity)
-    try:
-        me = m.account_verify_credentials()
-        following = m.account_following(me["id"], limit=80)
-        followers = m.account_followers(me["id"], limit=80)
+    async with sync_stage(f"sync_friends:{identity.acct}") as t:
+        m = client_from_identity(identity)
+        try:
+            me = m.account_verify_credentials()
+            following = m.account_following(me["id"], limit=80)
+            followers = m.account_followers(me["id"], limit=80)
+            t.rows_fetched = len(following) + len(followers)
 
-        async with async_session() as session:
-            for acc in following:
-                # Pass identity.id
-                await _upsert_account(
-                    session, meta_id, identity.id, acc, is_following=True
-                )
-            for acc in followers:
-                # Pass identity.id
-                await _upsert_account(
-                    session, meta_id, identity.id, acc, is_followed_by=True
-                )
-            await session.commit()
-    except Exception as e:
-        logger.error(e)
-        logger.error("Failed to sync friends for {identity.acct}: %s", e)
+            async with async_session() as session:
+                written = 0
+                for acc in following:
+                    await _upsert_account(
+                        session, meta_id, identity.id, acc, is_following=True
+                    )
+                    written += 1
+                for acc in followers:
+                    await _upsert_account(
+                        session, meta_id, identity.id, acc, is_followed_by=True
+                    )
+                    written += 1
+                await session.commit()
+                t.rows_written = written
+        except Exception as e:
+            logger.error(e)
+            logger.error("Failed to sync friends for %s: %s", identity.acct, e)
+            raise
 
 
 async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) -> None:
     """Syncs home timeline activity for blog roll."""
-    m = client_from_identity(identity)
+    async with sync_stage(f"sync_blog_roll:{identity.acct}") as t:
+        m = client_from_identity(identity)
 
-    try:
-        home_statuses = m.timeline_home(limit=100)
-        async with async_session() as session:
-            for s in home_statuses:
-                account_data = s["account"]
-                last_status_time = to_naive_utc(s["created_at"])
+        try:
+            home_statuses = m.timeline_home(limit=100)
+            t.rows_fetched = len(home_statuses)
 
-                existing = await _upsert_account(
-                    session, meta_id, identity.id, account_data
-                )
+            async with async_session() as session:
+                written = 0
+                for s in home_statuses:
+                    account_data = s["account"]
+                    last_status_time = to_naive_utc(s["created_at"])
 
-                if (
-                    not existing.last_status_at
-                    or last_status_time > existing.last_status_at
-                ):
-                    existing.last_status_at = last_status_time
-
-            await session.commit()
-
-        # Recompute post stats for all accounts seen in this identity's cached posts.
-        # Single GROUP BY query; results written back to cached_accounts.
-        async with async_session() as session:
-            stats_rows = (
-                await session.execute(
-                    select(
-                        CachedPost.author_id,
-                        func.count(CachedPost.id).label("total"),  # pylint: disable=not-callable
-                        func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),  # pylint: disable=not-callable
+                    existing = await _upsert_account(
+                        session, meta_id, identity.id, account_data
                     )
-                    .where(
-                        and_(
-                            CachedPost.meta_account_id == meta_id,
-                            CachedPost.fetched_by_identity_id == identity.id,
-                        )
-                    )
-                    .group_by(CachedPost.author_id)
-                )
-            ).all()
 
-            if stats_rows:
-                author_ids = [row.author_id for row in stats_rows]
-                accounts_res = await session.execute(
-                    select(CachedAccount).where(
-                        and_(
-                            CachedAccount.meta_account_id == meta_id,
-                            CachedAccount.mastodon_identity_id == identity.id,
-                            CachedAccount.id.in_(author_ids),
-                        )
-                    )
-                )
-                accounts_by_id = {a.id: a for a in accounts_res.scalars().all()}
-
-                for row in stats_rows:
-                    acc = accounts_by_id.get(row.author_id)
-                    if acc:
-                        acc.cached_post_count = row.total or 0
-                        acc.cached_reply_count = row.replies or 0
+                    if (
+                        not existing.last_status_at
+                        or last_status_time > existing.last_status_at
+                    ):
+                        existing.last_status_at = last_status_time
+                    written += 1
 
                 await session.commit()
+                t.rows_written = written
 
-    except Exception as e:
-        logger.error(e)
-        logger.error("Failed to sync blog roll for {identity.acct}: %s", e)
+            # Recompute post stats for all accounts seen in this identity's cached posts.
+            # Single GROUP BY query; results written back to cached_accounts.
+            async with async_session() as session:
+                stats_rows = (
+                    await session.execute(
+                        select(
+                            CachedPost.author_id,
+                            func.count(CachedPost.id).label("total"),  # pylint: disable=not-callable
+                            func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),  # pylint: disable=not-callable
+                        )
+                        .where(
+                            and_(
+                                CachedPost.meta_account_id == meta_id,
+                                CachedPost.fetched_by_identity_id == identity.id,
+                            )
+                        )
+                        .group_by(CachedPost.author_id)
+                    )
+                ).all()
+
+                if stats_rows:
+                    author_ids = [row.author_id for row in stats_rows]
+                    accounts_res = await session.execute(
+                        select(CachedAccount).where(
+                            and_(
+                                CachedAccount.meta_account_id == meta_id,
+                                CachedAccount.mastodon_identity_id == identity.id,
+                                CachedAccount.id.in_(author_ids),
+                            )
+                        )
+                    )
+                    accounts_by_id = {a.id: a for a in accounts_res.scalars().all()}
+
+                    for row in stats_rows:
+                        acc = accounts_by_id.get(row.author_id)
+                        if acc:
+                            acc.cached_post_count = row.total or 0
+                            acc.cached_reply_count = row.replies or 0
+
+                    await session.commit()
+
+        except Exception as e:
+            logger.error(e)
+            logger.error("Failed to sync blog roll for %s: %s", identity.acct, e)
+            raise
 
 
 async def sync_user_timeline_for_identity(
@@ -277,103 +290,114 @@ async def sync_user_timeline_for_identity(
     ):
         return {"status": "skipped"}
 
-    m = client_from_identity(identity)
+    stage_name = f"sync_timeline:{identity.acct}:{target_acct_desc}"
+    async with sync_stage(stage_name) as t:
+        m = client_from_identity(identity)
 
-    try:
-        if acct:
-            s_res = m.account_search(acct, limit=1)
-            if not s_res:
-                return {"status": "not_found"}
-            target_account = s_res[0]
-            target_id = target_account["id"]
-        else:
-            target_account = m.account_verify_credentials()
-            target_id = target_account["id"]
+        try:
+            if acct:
+                s_res = m.account_search(acct, limit=1)
+                if not s_res:
+                    return {"status": "not_found"}
+                target_account = s_res[0]
+                target_id = target_account["id"]
+            else:
+                target_account = m.account_verify_credentials()
+                target_id = target_account["id"]
 
-        statuses = m.account_statuses(target_id, limit=200)
+            statuses = m.account_statuses(target_id, limit=200)
+            t.rows_fetched = len(statuses)
 
-        async with async_session() as session:
-            # Upsert Author
-            await _upsert_account(session, meta_id, identity.id, target_account)
+            async with async_session() as session:
+                # Upsert Author
+                await _upsert_account(session, meta_id, identity.id, target_account)
 
-            for s in statuses:
-                is_reblog = s["reblog"] is not None
-                actual = s["reblog"] if is_reblog else s
+                new_count = 0
+                updated_count = 0
+                for s in statuses:
+                    is_reblog = s["reblog"] is not None
+                    actual = s["reblog"] if is_reblog else s
 
-                # Check Reply Status
-                in_reply_to_id = actual.get("in_reply_to_id")
-                in_reply_to_account = actual.get("in_reply_to_account_id")
-                is_reply_to_other = in_reply_to_id is not None and str(
-                    in_reply_to_account
-                ) != str(actual["account"]["id"])
+                    # Check Reply Status
+                    in_reply_to_id = actual.get("in_reply_to_id")
+                    in_reply_to_account = actual.get("in_reply_to_account_id")
+                    is_reply_to_other = in_reply_to_id is not None and str(
+                        in_reply_to_account
+                    ) != str(actual["account"]["id"])
 
-                flags = analyze_content_domains(
-                    actual["content"], actual["media_attachments"], is_reply_to_other
-                )
-                media_json = (
-                    json.dumps(actual["media_attachments"])
-                    if actual["media_attachments"]
-                    else None
-                )
-                created_at = to_naive_utc(s["created_at"])
-                tags_json = json.dumps([t["name"] for t in s.get("tags", [])])
-
-                # Check if post exists FOR THIS META ACCOUNT
-                stmt = select(CachedPost).where(
-                    and_(
-                        CachedPost.id == str(s["id"]),
-                        CachedPost.meta_account_id == meta_id,
-                        CachedPost.fetched_by_identity_id == identity.id,
+                    flags = analyze_content_domains(
+                        actual["content"], actual["media_attachments"], is_reply_to_other
                     )
-                )
-                existing = (await session.execute(stmt)).scalar_one_or_none()
-
-                post_data = {
-                    "content": actual["content"],
-                    "created_at": created_at,
-                    "visibility": s["visibility"],
-                    "author_acct": actual["account"]["acct"],
-                    "author_id": str(actual["account"]["id"]),
-                    "is_reblog": is_reblog,
-                    "is_reply": is_reply_to_other,
-                    "in_reply_to_id": str(in_reply_to_id) if in_reply_to_id else None,
-                    "in_reply_to_account_id": (
-                        str(in_reply_to_account) if in_reply_to_account else None
-                    ),
-                    "has_media": flags["has_media"],
-                    "has_video": flags["has_video"],
-                    "has_news": flags["has_news"],
-                    "has_tech": flags["has_tech"],
-                    "has_link": flags["has_link"],
-                    "has_question": flags["has_question"],
-                    "tags": tags_json,
-                    "replies_count": s["replies_count"],
-                    "reblogs_count": s["reblogs_count"],
-                    "favourites_count": s["favourites_count"],
-                    "media_attachments": media_json,
-                    "fetched_by_identity_id": identity.id,
-                }
-
-                if not existing:
-                    new_post = CachedPost(
-                        id=str(s["id"]),
-                        meta_account_id=meta_id,
-                        # fetched_by_identity_id is already inside **post_data
-                        **post_data,
+                    media_json = (
+                        json.dumps(actual["media_attachments"])
+                        if actual["media_attachments"]
+                        else None
                     )
-                    session.add(new_post)
-                else:
-                    for k, v in post_data.items():
-                        setattr(existing, k, v)
+                    created_at = to_naive_utc(s["created_at"])
+                    tags_json = json.dumps([t_tag["name"] for t_tag in s.get("tags", [])])
 
-            await session.commit()
-            await update_last_sync(sync_key)
-            return {"status": "success", "count": len(statuses)}
+                    # Check if post exists FOR THIS META ACCOUNT
+                    stmt = select(CachedPost).where(
+                        and_(
+                            CachedPost.id == str(s["id"]),
+                            CachedPost.meta_account_id == meta_id,
+                            CachedPost.fetched_by_identity_id == identity.id,
+                        )
+                    )
+                    existing = (await session.execute(stmt)).scalar_one_or_none()
 
-    except Exception as e:
-        logger.error(e)
-        logger.error("Sync error {sync_key}: %s", e)
-        return {"status": "error", "msg": str(e)}
+                    post_data = {
+                        "content": actual["content"],
+                        "created_at": created_at,
+                        "visibility": s["visibility"],
+                        "author_acct": actual["account"]["acct"],
+                        "author_id": str(actual["account"]["id"]),
+                        "is_reblog": is_reblog,
+                        "is_reply": is_reply_to_other,
+                        "in_reply_to_id": str(in_reply_to_id) if in_reply_to_id else None,
+                        "in_reply_to_account_id": (
+                            str(in_reply_to_account) if in_reply_to_account else None
+                        ),
+                        "has_media": flags["has_media"],
+                        "has_video": flags["has_video"],
+                        "has_news": flags["has_news"],
+                        "has_tech": flags["has_tech"],
+                        "has_link": flags["has_link"],
+                        "has_question": flags["has_question"],
+                        "tags": tags_json,
+                        "replies_count": s["replies_count"],
+                        "reblogs_count": s["reblogs_count"],
+                        "favourites_count": s["favourites_count"],
+                        "media_attachments": media_json,
+                        "fetched_by_identity_id": identity.id,
+                    }
+
+                    if not existing:
+                        new_post = CachedPost(
+                            id=str(s["id"]),
+                            meta_account_id=meta_id,
+                            # fetched_by_identity_id is already inside **post_data
+                            **post_data,
+                        )
+                        session.add(new_post)
+                        new_count += 1
+                    else:
+                        for k, v in post_data.items():
+                            setattr(existing, k, v)
+                        updated_count += 1
+
+                await session.commit()
+                await update_last_sync(sync_key)
+                t.rows_written = new_count + updated_count
+                t.rows_skipped = 0
+                t.extra["new"] = new_count
+                t.extra["updated"] = updated_count
+                return {"status": "success", "count": len(statuses)}
+
+        except Exception as e:
+            logger.error(e)
+            logger.error("Sync error %s: %s", sync_key, e)
+            return {"status": "error", "msg": str(e)}
 
 
 async def sync_accounts_friends_followers() -> None:

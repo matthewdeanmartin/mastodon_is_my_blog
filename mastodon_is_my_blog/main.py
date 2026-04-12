@@ -18,8 +18,8 @@ from mastodon_is_my_blog.queries import (
     sync_user_timeline,
 )
 from mastodon_is_my_blog.routes import accounts, admin, posts, writing
+from mastodon_is_my_blog.utils.perf import performance_middleware
 from mastodon_is_my_blog.store import (
-    async_session,
     bootstrap_identities_from_env,
     get_or_create_default_meta_account,
     get_token,
@@ -50,6 +50,8 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.middleware("http")(performance_middleware)
 
 app.include_router(accounts.router)
 app.include_router(admin.router)

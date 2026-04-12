@@ -16,7 +16,13 @@ from mastodon_is_my_blog.store import (
     async_session,
     get_last_sync,
 )
-from mastodon_is_my_blog.utils.perf import time_async_function
+from mastodon_is_my_blog.utils.perf import (
+    card_timings,
+    feed_timings,
+    preview_cache_counters,
+    stage_timings,
+    time_async_function,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -116,4 +122,59 @@ async def admin_status() -> dict:
         "connected": connected,
         "last_sync": last_sync.isoformat() if last_sync else None,
         "current_user": current_user,
+    }
+
+
+@router.get("/perf")
+async def get_perf_stats(last_n: int = 50) -> dict:
+    """
+    Returns recent performance telemetry.
+
+    - stage_timings: last N sync-stage timings (sync_friends, sync_blog_roll,
+      sync_notifications, sync_timeline).
+    - feed_timings: last N feed-query timings captured by the request middleware.
+    - card_timings: last N link-preview card fetch timings.
+    - preview_cache: running hit/miss/stale/error counters for the preview cache.
+    """
+    n = max(1, min(last_n, 200))
+
+    def stage_to_dict(t) -> dict:
+        return {
+            "stage": t.stage,
+            "elapsed_s": round(t.elapsed_s, 3),
+            "rows_fetched": t.rows_fetched,
+            "rows_written": t.rows_written,
+            "rows_skipped": t.rows_skipped,
+            "cache_hits": t.cache_hits,
+            "extra": t.extra,
+            "ts": t.ts,
+            "ok": t.ok,
+            "error": t.error,
+        }
+
+    def feed_to_dict(t) -> dict:
+        return {
+            "query": t.query,
+            "elapsed_s": round(t.elapsed_s, 3),
+            "row_count": t.row_count,
+            "ts": t.ts,
+        }
+
+    def card_to_dict(t) -> dict:
+        return {
+            "url": t.url,
+            "elapsed_s": round(t.elapsed_s, 3),
+            "cache_status": t.cache_status,
+            "ts": t.ts,
+        }
+
+    recent_stages = list(stage_timings)[-n:]
+    recent_feeds = list(feed_timings)[-n:]
+    recent_cards = list(card_timings)[-n:]
+
+    return {
+        "stage_timings": [stage_to_dict(t) for t in reversed(recent_stages)],
+        "feed_timings": [feed_to_dict(t) for t in reversed(recent_feeds)],
+        "card_timings": [card_to_dict(t) for t in reversed(recent_cards)],
+        "preview_cache": preview_cache_counters.as_dict(),
     }
