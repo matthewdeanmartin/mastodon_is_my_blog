@@ -54,7 +54,7 @@ async def get_blog_roll(
             and_(
                 CachedAccount.meta_account_id == meta.id,
                 CachedAccount.mastodon_identity_id == identity_id,
-                CachedAccount.is_following is True,  # <--- The fix for "unknown people"
+                CachedAccount.is_following.is_(True),
             )
         )
 
@@ -63,7 +63,7 @@ async def get_blog_roll(
             if filter_type == "top_friends":
                 # Mutuals who have interacted via notifications
                 # This includes: mentions, replies, favorites, reblogs
-                query = query.where(CachedAccount.is_followed_by is True)
+                query = query.where(CachedAccount.is_followed_by.is_(True))
 
                 # Subquery: Check if there's ANY notification from this account
                 has_interaction = exists(
@@ -85,12 +85,12 @@ async def get_blog_roll(
                 query = query.order_by(desc(CachedAccount.last_status_at))
 
         elif filter_type == "mutuals":
-            query = query.where(CachedAccount.is_followed_by is True)
+            query = query.where(CachedAccount.is_followed_by.is_(True))
             query = query.order_by(desc(CachedAccount.last_status_at))
 
         elif filter_type == "bots":
             # Strict flag check only
-            query = query.where(CachedAccount.bot is True)
+            query = query.where(CachedAccount.bot.is_(True))
             query = query.order_by(desc(CachedAccount.last_status_at))
 
         else:  # "all", "chatty", "broadcasters"

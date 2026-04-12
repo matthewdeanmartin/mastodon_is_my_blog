@@ -96,8 +96,8 @@ async def get_unread_post_count(
             and_(
                 CachedPost.meta_account_id == meta.id,
                 CachedPost.fetched_by_identity_id == identity_id,
-                CachedPost.is_reblog is False,
-                CachedPost.is_reply is False,
+                CachedPost.is_reblog.is_(False),
+                CachedPost.is_reply.is_(False),
             )
         )
         total_posts = (await session.execute(stmt)).scalar() or 0
@@ -192,7 +192,7 @@ async def get_public_posts(
         if filter_type == "all":
             # Show roots only (hide replies to others, keep self-threads)
             query = query.where(
-                and_(CachedPost.is_reblog is False, CachedPost.is_reply is False)
+                and_(CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(False))
             )
         elif filter_type == "storms":
             # not implemented yet!
@@ -202,31 +202,31 @@ async def get_public_posts(
             # NEW: Short text posts, no media, no links, not a reply
             query = query.where(
                 and_(
-                    CachedPost.is_reply is False,
-                    CachedPost.is_reblog is False,
-                    CachedPost.has_media is False,
-                    CachedPost.has_video is False,
-                    CachedPost.has_link is False,
+                    CachedPost.is_reply.is_(False),
+                    CachedPost.is_reblog.is_(False),
+                    CachedPost.has_media.is_(False),
+                    CachedPost.has_video.is_(False),
+                    CachedPost.has_link.is_(False),
                     func.length(CachedPost.content) < 500,
                 )
             )
         elif filter_type == "discussions":
             # Only replies to others
-            query = query.where(CachedPost.is_reply is True)
+            query = query.where(CachedPost.is_reply.is_(True))
         elif filter_type == "pictures":
-            query = query.where(CachedPost.has_media is True)
+            query = query.where(CachedPost.has_media.is_(True))
         elif filter_type == "videos":
-            query = query.where(CachedPost.has_video is True)
+            query = query.where(CachedPost.has_video.is_(True))
         elif filter_type == "news":
-            query = query.where(CachedPost.has_news is True)
+            query = query.where(CachedPost.has_news.is_(True))
         elif filter_type == "software":
-            query = query.where(CachedPost.has_tech is True)
+            query = query.where(CachedPost.has_tech.is_(True))
         elif filter_type == "links":
             # New Filter: Posts with links
-            query = query.where(CachedPost.has_link is True)
+            query = query.where(CachedPost.has_link.is_(True))
         elif filter_type == "questions":
             # Filter for posts with questions
-            query = query.where(CachedPost.has_question is True)
+            query = query.where(CachedPost.has_question.is_(True))
         elif filter_type == "everyone":
             # No additional filters, show all posts
             pass
@@ -311,7 +311,7 @@ async def get_storms(
     scope = and_(
         CachedPost.meta_account_id == meta.id,
         CachedPost.fetched_by_identity_id == identity_id,
-        CachedPost.is_reblog is False,
+        CachedPost.is_reblog.is_(False),
     )
     user_filter = (CachedPost.author_acct == user) if (user and user != "everyone") else True
 
@@ -343,8 +343,8 @@ async def get_storms(
                 and_(
                     scope,
                     user_filter,
-                    CachedPost.in_reply_to_id is None,
-                    CachedPost.has_link is False,
+                    CachedPost.in_reply_to_id.is_(None),
+                    CachedPost.has_link.is_(False),
                     (
                         (func.length(CachedPost.content) >= STORM_MIN_TEXT_LEN)
                         | CachedPost.id.in_(self_replied_ids_sq)
@@ -390,7 +390,7 @@ async def get_storms(
         replies_query = select(CachedPost).where(
             and_(
                 scope,
-                CachedPost.in_reply_to_id is not None,
+                CachedPost.in_reply_to_id.is_not(None),
                 CachedPost.author_id.in_(root_author_ids),
             )
         )

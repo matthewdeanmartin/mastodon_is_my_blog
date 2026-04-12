@@ -627,32 +627,32 @@ async def get_counts_optimized(
     def filter_count(condition, label: str):
         total = func.sum(func.cast(condition, Integer)).label(f"total_{label}")  # pylint: disable=not-callable
         unseen = func.sum(
-            func.cast(and_(condition, SeenPost.post_id is None), Integer)  # pylint: disable=not-callable
+            func.cast(and_(condition, SeenPost.post_id.is_(None)), Integer)  # pylint: disable=not-callable
         ).label(f"unseen_{label}")
         return total, unseen
 
     # Define our filters matching the UI categories
     f_shorts = and_(
-        CachedPost.is_reply is False,
-        CachedPost.is_reblog is False,
-        CachedPost.has_media is False,
-        CachedPost.has_link is False,
+        CachedPost.is_reply.is_(False),
+        CachedPost.is_reblog.is_(False),
+        CachedPost.has_media.is_(False),
+        CachedPost.has_link.is_(False),
         func.length(CachedPost.content) < 500,
     )
     # Storm count approximation: roots that are long enough to qualify.
     # Self-reply chains can't be counted efficiently in SQL; length >= 500 catches most.
     f_storms = and_(
-        CachedPost.is_reblog is False,
-        CachedPost.in_reply_to_id is None,
-        CachedPost.has_link is False,
+        CachedPost.is_reblog.is_(False),
+        CachedPost.in_reply_to_id.is_(None),
+        CachedPost.has_link.is_(False),
         func.length(CachedPost.content) >= 500,
     )
-    f_news = CachedPost.has_news is True
-    f_software = CachedPost.has_tech is True
-    f_links = CachedPost.has_link is True
-    f_pics = CachedPost.has_media is True
-    f_vids = CachedPost.has_video is True
-    f_discussions = CachedPost.is_reply is True
+    f_news = CachedPost.has_news.is_(True)
+    f_software = CachedPost.has_tech.is_(True)
+    f_links = CachedPost.has_link.is_(True)
+    f_pics = CachedPost.has_media.is_(True)
+    f_vids = CachedPost.has_video.is_(True)
+    f_discussions = CachedPost.is_reply.is_(True)
 
     # Build the massive select
     sel_args = []
