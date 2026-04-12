@@ -2,7 +2,10 @@
 
 My attempt to create an alternative Mastodon client based on a blogging interface instead of the infinite feed.
 
-Write, edit, and manage your Mastodon posts in a clean, blog-style interface.
+- Transform your tweet storms into a static eleventy blog.
+- View your friends content in person centric way
+- View your special interests in a focused way
+- Write, edit, and manage your Mastodon posts in a clean, blog-style interface. (Kind of still in progress)
 
 ## Why?
 
@@ -88,14 +91,14 @@ npm --prefix docs-src run build
 
 ## More Roadmap
 
-- [ ] Static site generation for public viewing
 - [ ] Draft saving
-- [ ] Tags filtering, tags view using hashtags
 - [ ] Analytics dashboard
-- [ ] RSS feed links
-- [ ] Support multiple accounts
+- [ ] RSS feed links. Maybe already done? Check eleventy.
 
 ## Why not a single user instance?
+
+First off, that is really a different concept. A single user instance without massive customization is still going to be
+same experience as mastodon.social, both for people reading your content and for you reading other people's content. 
 
 It costs a minimum of $10 a month and requires a server to be running all the time. Administering a server is a burden.
 
