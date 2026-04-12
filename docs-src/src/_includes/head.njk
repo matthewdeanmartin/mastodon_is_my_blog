@@ -1,0 +1,39 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="text-scale" content="scale">
+
+{% set siteTitle = site.title or pkg.title %}
+{% if page.url == '/' %}
+  {% set pageTitle = siteTitle %}
+{% elseif title %}
+  {% set pageTitle = (title | decodeHtml) + " - " + siteTitle %}
+{% else %}
+  {% set pageTitle = siteTitle %}
+{% endif %}
+<title>{{ pageTitle }}</title>
+<meta property="og:title" content="{{ pageTitle }}">
+
+{% include "css.njk" %}
+{% include "js.njk" %}
+
+{% set pageDescription = description or site.description %}
+<meta name="description" content="{{ pageDescription | decodeHtml }}">
+<meta property="og:description" content="{{ pageDescription | decodeHtml }}">
+
+{% if site.url %}
+  <link rel="canonical" href="{{ site.url + page.url }}" itemprop="url">
+  <meta property="og:url" content="{{ site.url + page.url }}">
+{% endif %}
+
+{% if content_type == "page" %}
+  <meta property="og:type" content="website">
+{% else %}
+  <meta property="og:type" content="article">
+  {% if published_at %}
+    <meta property="article:published_time" content="{{ published_at }}">
+  {% endif %}
+{% endif %}
+
+<meta property="og:site_name" content="{{ siteTitle }}">
+<meta name="theme-color" content="#663399">
+<meta name="generator" content="{{ eleventy.generator }}">

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+  <head>
+    {% include "head.njk" %}
+  </head>
+
+  <body>
+    <div class="page">
+      <div class="with-sidebar">
+        <div>
+          <div class="sidebar">
+            <header role="banner" class="cluster">
+              <div>
+                <div class="sitelogo-parent">
+                  <p class="sitelogo">
+                    <a href="{{ '/' | relativeUrl(page.url) }}">{{ site.title or pkg.title }}</a>
+                  </p>
+                </div>
+                <div>
+                  {% include "components/navigation.njk" %}
+                </div>
+              </div>
+            </header>
+          </div>
+          <div class="not-sidebar">
+            <main role="main">
+              {% block content %}
+                {{ content | safe }}
+              {% endblock %}
+            </main>
+          </div>
+        </div>
+      </div>
+      {% include "components/footer.njk" %}
+    </div>
+  </body>
+</html>

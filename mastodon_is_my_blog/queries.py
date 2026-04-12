@@ -486,6 +486,7 @@ async def sync_user_timeline_for_identity(
     deep: bool = False,
     max_pages: int | None = None,
     rate_budget=None,
+    stop_at_cached: bool = True,
 ) -> dict:
     """Syncs posts for a specific identity and optional target account.
 
@@ -529,9 +530,11 @@ async def sync_user_timeline_for_identity(
                     get_stop_at_id,
                 )
 
-                stop_at_id = await get_stop_at_id(
-                    meta_id, identity.id, target_account["acct"]
-                )
+                stop_at_id = None
+                if stop_at_cached:
+                    stop_at_id = await get_stop_at_id(
+                        meta_id, identity.id, target_account["acct"]
+                    )
 
                 async for page in deep_fetch_user_timeline(
                     m,

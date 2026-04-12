@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { ApiService } from './api.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminStatus, CatchupStatus, CatchupQueue, AdminBundle, AdminBundleTerm } from './mastodon';
+import { AdminStatus, CatchupStatus, CatchupQueue, AdminBundle, AdminBundleTerm, OwnAccountCatchupResult } from './mastodon';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 
@@ -30,6 +30,9 @@ export class AdminComponent implements OnInit, OnDestroy {
 
   status: AdminStatus | null = null;
   syncing = false;
+  ownAccountSyncing = false;
+  ownAccountMessage: string | null = null;
+  ownAccountError: string | null = null;
 
   catchupStatus: CatchupStatus | null = null;
   catchupQueue: CatchupQueue | null = null;
@@ -73,10 +76,33 @@ export class AdminComponent implements OnInit, OnDestroy {
     });
   }
 
+  catchupOwnAccount() {
+    this.ownAccountSyncing = true;
+    this.ownAccountMessage = null;
+    this.ownAccountError = null;
+    const identityId = this.currentIdentityId();
+    this.api.catchupOwnAccount(identityId).subscribe({
+      next: (result: OwnAccountCatchupResult) => {
+        this.ownAccountSyncing = false;
+        this.refreshStatus();
+        const importedCount = result.count ?? 0;
+        this.ownAccountMessage = importedCount === 1
+          ? 'Imported 1 post from your own account history.'
+          : `Imported ${importedCount} posts from your own account history.`;
+      },
+      error: (err) => {
+        this.ownAccountSyncing = false;
+        this.ownAccountError = err?.error?.detail ?? 'Failed to import your own account history';
+      },
+    });
+  }
+
   loadCatchupQueue() {
     this.api.getCatchupQueue().subscribe({
       next: (q) => (this.catchupQueue = q),
-      error: () => {},
+      error: (err) => {
+        this.catchupError = err?.error?.detail ?? 'Failed to load catch-up queue';
+      },
     });
   }
 
@@ -86,7 +112,11 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.catchupStatus = s;
         if (s.running) this.startPolling();
       },
-      error: () => {},
+      error: (err) => {
+        if (err?.status !== 404) {
+          this.catchupError = err?.error?.detail ?? 'Failed to load catch-up status';
+        }
+      },
     });
   }
 
@@ -109,7 +139,9 @@ export class AdminComponent implements OnInit, OnDestroy {
   stopCatchup() {
     this.api.cancelCatchup().subscribe({
       next: () => this.checkCatchupStatus(),
-      error: () => {},
+      error: (err) => {
+        this.catchupError = err?.error?.detail ?? 'Failed to stop catch-up';
+      },
     });
   }
 

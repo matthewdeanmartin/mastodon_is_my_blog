@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
-import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext, CatchupStatus, CatchupQueue, ContentHubGroup, ContentHubGroupPostsResponse, AdminBundle} from './mastodon';
+import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext, CatchupStatus, CatchupQueue, ContentHubGroup, ContentHubGroupPostsResponse, AdminBundle, OwnAccountCatchupResult} from './mastodon';
 import {RawContentPost} from './content-feed.utils';
 import {Observable, throwError, timer, BehaviorSubject, of, Subject} from 'rxjs';
 import {catchError, shareReplay, switchMap, tap} from 'rxjs/operators';
@@ -385,6 +385,17 @@ export class ApiService {
     return this.http
       .post<CatchupStatus>(`${this.base}/api/admin/catchup`, {}, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  catchupOwnAccount(identityId?: number | null): Observable<OwnAccountCatchupResult> {
+    let params = new HttpParams();
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .post<OwnAccountCatchupResult>(`${this.base}/api/admin/own-account/catchup`, {}, {params, headers: this.headers})
+      .pipe(
+          tap(() => this.refreshNeeded$.next()),
+          catchError((err) => this.handleError(err))
+      );
   }
 
   getCatchupStatus(identityId?: number | null): Observable<CatchupStatus> {

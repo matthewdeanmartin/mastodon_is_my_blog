@@ -1,7 +1,17 @@
 const path = require("node:path");
 
 module.exports = function (eleventyConfig) {
-  eleventyConfig.addPassthroughCopy({ "src/assets": "assets" });
+  eleventyConfig.setDataDeepMerge(true);
+  eleventyConfig.addPassthroughCopy({ "src/assets/generated": "assets/generated" });
+  eleventyConfig.addPassthroughCopy({ "src/assets/js": "assets/js" });
+  eleventyConfig.addCollection("navigation", (collectionApi) =>
+    collectionApi
+      .getAll()
+      .filter((item) => item.data && item.data.nav)
+      .sort(
+        (left, right) => (left.data.nav.order || 0) - (right.data.nav.order || 0)
+      )
+  );
 
   eleventyConfig.addFilter("formatDate", (value) => {
     const date = new Date(value);
@@ -49,14 +59,16 @@ module.exports = function (eleventyConfig) {
   });
 
   return {
-    dir: {
-      input: "src",
-      includes: "_includes",
-      data: "_data",
-      output: "../docs",
-    },
+    templateFormats: ["md", "njk"],
     markdownTemplateEngine: "njk",
     htmlTemplateEngine: "njk",
     dataTemplateEngine: "njk",
+    dir: {
+      input: "src",
+      includes: "_includes",
+      layouts: "_layouts",
+      data: "_data",
+      output: "../docs",
+    },
   };
 };

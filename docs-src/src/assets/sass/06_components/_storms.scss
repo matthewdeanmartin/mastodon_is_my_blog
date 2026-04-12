@@ -1,0 +1,85 @@
+.page-content,
+.site-intro,
+.storm-card,
+.storm-page,
+.author-card,
+.storm-reply {
+  padding: var(--gap);
+  background: #fff;
+  border: 1px solid #ddd;
+  border-left: 0.3rem solid var(--theme-color);
+}
+
+.page-content,
+.storm-page {
+  overflow-wrap: anywhere;
+}
+
+.page-content > h1,
+.storm-card h2,
+.storm-page h1,
+.author-card h2 {
+  margin-top: 0;
+}
+
+.site-intro p:last-child,
+.storm-card p:last-child,
+.author-card p:last-child,
+.storm-reply p:last-child,
+.storm-page p:last-child {
+  margin-bottom: 0;
+}
+
+.storm-list,
+.author-list,
+.storm-children,
+.storm-media-grid {
+  display: grid;
+  gap: var(--gap);
+}
+
+.storm-meta,
+.author-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  color: var(--color-meta);
+  font-size: 0.95em;
+}
+
+.storm-body > :first-child {
+  margin-top: 0;
+}
+
+.storm-body > :last-child {
+  margin-bottom: 0;
+}
+
+.storm-section-title {
+  margin-bottom: 0;
+}
+
+.storm-media-item,
+.storm-media-item img {
+  display: block;
+}
+
+.storm-media-item {
+  margin: 0;
+}
+
+.storm-reply {
+  border-left-color: #a886e7;
+}
+
+.storm-children {
+  margin-top: var(--gap);
+  padding-left: var(--gap);
+  border-left: 1px dashed #ddd;
+}
+
+.empty-state {
+  padding: var(--gap);
+  border: 1px dashed #ddd;
+  color: var(--color-meta);
+}

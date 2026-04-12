@@ -14,6 +14,9 @@
     <!-- Sync section -->
     <div style="margin-bottom: 24px;">
       <h3 style="margin: 0 0 8px 0; font-size: 1rem;">Cache Sync</h3>
+      <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px;">
+        Refreshes cached follows/followers, recent home timeline activity, notifications, and your own recent posts for the connected identity.
+      </div>
       <div class="row">
         <div>
           <strong>Status:</strong> Connected<br />
@@ -23,6 +26,25 @@
           {{ syncing ? 'Syncing...' : 'Force Refresh Cache' }}
         </button>
       </div>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 1rem;">Own Account Archive</h3>
+      <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px;">
+        Fetches your full Mastodon posting history from your own account and stores it in the cache for static blog generation. This can take a while on older accounts.
+      </div>
+
+      @if (ownAccountError) {
+        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem;">{{ ownAccountError }}</div>
+      }
+
+      @if (ownAccountMessage) {
+        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem;">{{ ownAccountMessage }}</div>
+      }
+
+      <button (click)="catchupOwnAccount()" [disabled]="ownAccountSyncing">
+        {{ ownAccountSyncing ? 'Importing...' : 'Initialize/Catch Up Own Account' }}
+      </button>
     </div>
 
     <hr />
@@ -152,8 +174,9 @@
           </h4>
 
           <div style="margin-bottom: 10px;">
-            <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">Name</label>
+            <label for="bundle-name" style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">Name</label>
             <input
+              id="bundle-name"
               [(ngModel)]="editState.name"
               placeholder="Bundle name"
               style="width: 100%; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.875rem; box-sizing: border-box;" />
@@ -161,7 +184,7 @@
 
           <div style="margin-bottom: 12px;">
             <div class="row" style="margin-bottom: 6px; align-items: center;">
-              <label style="font-size: 0.85rem; font-weight: 600;">Terms</label>
+              <span style="font-size: 0.85rem; font-weight: 600;">Terms</span>
               <button class="secondary" style="font-size: 0.75rem; padding: 3px 10px;" (click)="addTerm()">+ Add term</button>
             </div>
 

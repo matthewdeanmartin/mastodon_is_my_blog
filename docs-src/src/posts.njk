@@ -1,5 +1,5 @@
 ---
-layout: layouts/base.njk
+layout: base
 pagination:
   data: storms.storms
   size: 1
@@ -8,6 +8,7 @@ permalink: "/posts/{{ storm.slug }}/index.html"
 eleventyComputed:
   title: "{{ storm.title }}"
   description: "{{ storm.excerpt }}"
+  published_at: "{{ storm.created_at }}"
 ---
 {% from "partials/storm-tree.njk" import renderNode %}
 <article class="storm-page">

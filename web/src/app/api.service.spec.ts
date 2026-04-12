@@ -226,6 +226,15 @@ describe('ApiService', () => {
       req.flush({});
     });
 
+    it('should trigger own-account catchup with identity id', () => {
+      service.catchupOwnAccount(42).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url.includes('/api/admin/own-account/catchup'));
+      expect(req.request.method).toBe('POST');
+      expect(req.request.params.get('identity_id')).toBe('42');
+      req.flush({ status: 'success', count: 123 });
+    });
+
     it('should create post with status and visibility', () => {
       service.createPost('Hello World').subscribe();
 

@@ -221,6 +221,73 @@ def test_admin_status_returns_connection_summary(
     }
 
 
+def test_admin_own_account_catchup_runs_full_history_sync(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    identity = SimpleNamespace(id=5, acct="alice@example.com")
+    captured: dict[str, Any] = {}
+
+    async def fake_get_identity(meta, identity_id):
+        captured["meta_id"] = meta.id
+        captured["identity_id"] = identity_id
+        return identity
+
+    async def fake_sync_user_timeline_for_identity(
+        meta_id: int,
+        selected_identity,
+        **kwargs,
+    ) -> dict[str, Any]:
+        captured["sync_meta_id"] = meta_id
+        captured["sync_identity"] = selected_identity
+        captured["kwargs"] = kwargs
+        return {"status": "success", "count": 321}
+
+    monkeypatch.setattr(admin, "_get_identity", fake_get_identity)
+    monkeypatch.setattr(
+        admin,
+        "sync_user_timeline_for_identity",
+        fake_sync_user_timeline_for_identity,
+    )
+
+    response = api_client.post("/api/admin/own-account/catchup?identity_id=5")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "success", "count": 321}
+    assert captured == {
+        "meta_id": 7,
+        "identity_id": 5,
+        "sync_meta_id": 7,
+        "sync_identity": identity,
+        "kwargs": {
+            "force": True,
+            "deep": True,
+            "stop_at_cached": False,
+        },
+    }
+
+
+def test_admin_own_account_catchup_returns_bad_gateway_on_sync_error(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_get_identity(meta, identity_id):
+        return SimpleNamespace(id=5, acct="alice@example.com")
+
+    async def fake_sync_user_timeline_for_identity(*args, **kwargs) -> dict[str, str]:
+        return {"status": "error", "msg": "boom"}
+
+    monkeypatch.setattr(admin, "_get_identity", fake_get_identity)
+    monkeypatch.setattr(
+        admin,
+        "sync_user_timeline_for_identity",
+        fake_sync_user_timeline_for_identity,
+    )
+
+    response = api_client.post("/api/admin/own-account/catchup")
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "boom"}
+
+
 def test_blogroll_endpoint_returns_accounts(
     api_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

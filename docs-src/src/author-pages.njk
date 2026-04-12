@@ -1,5 +1,5 @@
 ---
-layout: layouts/base.njk
+layout: pages
 pagination:
   data: storms.authors
   size: 1
@@ -10,7 +10,6 @@ eleventyComputed:
   description: "Storms by {{ author.acct }}"
 ---
 <section class="site-intro">
-  <h1>@{{ author.acct }}</h1>
   <p>{{ author.storm_count }} exported storms.</p>
   <p><a href="{{ author.api_base_url }}/@{{ author.acct }}">Open this account on Mastodon</a></p>
 </section>

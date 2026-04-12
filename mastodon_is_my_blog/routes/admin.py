@@ -10,7 +10,11 @@ from mastodon_is_my_blog.mastodon_apis.masto_client import (
     client,
     client_from_identity,
 )
-from mastodon_is_my_blog.queries import get_current_meta_account, sync_all_identities
+from mastodon_is_my_blog.queries import (
+    get_current_meta_account,
+    sync_all_identities,
+    sync_user_timeline_for_identity,
+)
 from mastodon_is_my_blog.store import (
     MastodonIdentity,
     MetaAccount,
@@ -37,6 +41,32 @@ async def trigger_sync(
 ) -> dict:
     res = await sync_all_identities(meta, force=force)
     return {"results": res}
+
+
+@router.post("/own-account/catchup")
+@time_async_function
+async def catchup_own_account(
+    identity_id: int | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """
+    Fetch the full status history for the selected identity's own account.
+
+    Unlike the regular sync flow, this walks all available pages and does not
+    stop at the newest cached post. It is intended to backfill the archive used
+    for static blog generation.
+    """
+    identity = await _get_identity(meta, identity_id)
+    result = await sync_user_timeline_for_identity(
+        meta.id,
+        identity,
+        force=True,
+        deep=True,
+        stop_at_cached=False,
+    )
+    if result.get("status") == "error":
+        raise HTTPException(502, result.get("msg", "Own-account catch-up failed"))
+    return result
 
 
 @router.get("/identities")

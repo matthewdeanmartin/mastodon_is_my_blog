@@ -98,6 +98,12 @@ export interface CatchupQueue {
   queue: CatchupQueueEntry[];
 }
 
+export interface OwnAccountCatchupResult {
+  status: 'success' | 'error' | 'skipped' | 'not_found';
+  count?: number;
+  msg?: string;
+}
+
 // Content Hub
 
 export interface ContentHubTerm {

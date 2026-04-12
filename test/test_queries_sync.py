@@ -322,6 +322,65 @@ async def test_sync_user_timeline_for_identity_deep_syncs_search_result(
 
 
 @pytest.mark.asyncio
+async def test_sync_user_timeline_for_identity_full_history_skips_cache_cutoff(
+    db_session,
+    patch_async_session,
+) -> None:
+    patch_async_session(queries, store)
+    db_session.add(make_meta_account())
+    identity = make_identity()
+    db_session.add(identity)
+    await db_session.commit()
+
+    page = [make_status("status-1", account_id="me-1", acct="alice@example.social")]
+    received_stop_ids: list[str | None] = []
+
+    async def fake_deep_fetch(*args, **kwargs):
+        received_stop_ids.append(kwargs.get("stop_at_id"))
+        yield page
+
+    client = MagicMock()
+    client.account_verify_credentials.return_value = make_account_data(
+        "me-1",
+        acct="alice@example.social",
+    )
+
+    with (
+        patch.object(queries, "get_last_sync", AsyncMock(return_value=None)),
+        patch.object(queries, "client_from_identity", return_value=client),
+        patch(
+            "mastodon_is_my_blog.catchup.get_stop_at_id",
+            AsyncMock(side_effect=AssertionError("should not be called")),
+        ),
+        patch(
+            "mastodon_is_my_blog.catchup.deep_fetch_user_timeline",
+            fake_deep_fetch,
+        ),
+        patch.object(
+            queries,
+            "analyze_content_domains",
+            return_value={
+                "has_media": False,
+                "has_video": False,
+                "has_news": False,
+                "has_tech": False,
+                "has_link": False,
+                "has_question": False,
+            },
+        ),
+    ):
+        result = await queries.sync_user_timeline_for_identity(
+            1,
+            identity,
+            deep=True,
+            stop_at_cached=False,
+        )
+
+    assert result == {"status": "success", "count": 1}
+    assert received_stop_ids == [None]
+
+
+@pytest.mark.asyncio
 async def test_sync_user_timeline_for_identity_returns_error_payload_on_failure() -> None:
     identity = make_identity()
     client = MagicMock()
