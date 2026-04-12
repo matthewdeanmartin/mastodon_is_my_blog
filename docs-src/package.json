@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "A themed Eleventy export of long Mastodon posts and self-reply threads.",
-  "title": "Mastodon Storms",
+  "title": "Mastodon is my Blog",
   "scripts": {
     "clean": "node -e \"const fs=require('node:fs'); const path=require('node:path'); const target=path.resolve(process.cwd(),'..','docs'); fs.rmSync(target,{recursive:true,force:true}); fs.mkdirSync(target,{recursive:true});\"",
     "build:styles": "node -e \"const fs=require('node:fs'); fs.mkdirSync('src/assets/generated',{recursive:true});\" && sass --load-path=src/assets/sass --load-path=node_modules --no-source-map --style=compressed src/assets/sass/critical.scss src/assets/generated/critical.css && sass --load-path=src/assets/sass --load-path=node_modules --no-source-map --style=compressed src/assets/sass/not-critical.scss src/assets/generated/not-critical.css",

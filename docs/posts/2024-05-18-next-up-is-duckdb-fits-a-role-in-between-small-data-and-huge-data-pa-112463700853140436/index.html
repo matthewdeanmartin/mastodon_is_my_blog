@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="text-scale" content="scale">
+
+
+
+  
+
+<title>next up is duckdb. Fits a role in between small data and huge data. pandas &gt;... - Mastodon is my Blog</title>
+<meta property="og:title" content="next up is duckdb. Fits a role in between small data and huge data. pandas &gt;... - Mastodon is my Blog">
+
+<link rel="stylesheet" href="../../assets/generated/critical.css">
+<link rel="stylesheet" href="../../assets/generated/not-critical.css">
+
+<script src="../../assets/js/critical.js"></script>
+<script src="../../assets/js/scrolling-tables.js"></script>
+
+
+
+<meta name="description" content="next up is duckdb. Fits a role in between small data and huge data. pandas &gt; duck db &gt; distributed systems (spark etc)">
+<meta property="og:description" content="next up is duckdb. Fits a role in between small data and huge data. pandas &gt; duck db &gt; distributed systems (spark etc)">
+
+
+
+
+  <meta property="og:type" content="article">
+  
+    <meta property="article:published_time" content="2024-05-18T19:18:08.514000">
+  
+
+
+<meta property="og:site_name" content="Mastodon is my Blog">
+<meta name="theme-color" content="#663399">
+<meta name="generator" content="Eleventy v3.1.5">
+
+  </head>
+
+  <body>
+    
+    <div class="page">
+      <div class="with-sidebar">
+        <div>
+          <div class="sidebar">
+            <header role="banner" class="cluster">
+              <div>
+                <div class="sitelogo-parent">
+                  <p class="sitelogo">
+                    <a href="../../">Mastodon is my Blog</a>
+                  </p>
+                </div>
+                <div>
+                  <nav role="navigation" class="cluster">
+  <ul>
+    
+      
+      
+      <li class="">
+        <a href="../../">
+          Home
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../authors/">
+          Identities
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../blogroll/">
+          Blogroll
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../profile/">
+          Profile
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../what-is-this/">
+          What Is This?
+        </a>
+      </li>
+    
+  </ul>
+</nav>
+
+                </div>
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Identities</p>
+                  <ul class="sidebar-links">
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/everybodhi/">@everybodhi</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/matthewmartin/">@matthewmartin</a>
+                    </li>
+                    
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/">@mistersql</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/runmattrun/">@runmattrun</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Archive</p>
+                  <ul class="sidebar-links">
+                    <li class="">
+                      <a href="../../authors/mistersql/">Latest</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/04/">2026-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/03/">2026-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/02/">2026-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/01/">2026-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/12/">2025-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/11/">2025-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/10/">2025-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/09/">2025-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/08/">2025-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/07/">2025-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/06/">2025-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/05/">2025-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/04/">2025-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/03/">2025-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/02/">2025-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/01/">2025-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/12/">2024-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/11/">2024-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/10/">2024-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/09/">2024-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/08/">2024-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/07/">2024-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/06/">2024-6</a>
+                    </li>
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/2024/05/">2024-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/04/">2024-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/03/">2024-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/02/">2024-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/01/">2024-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/12/">2023-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/11/">2023-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/10/">2023-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/09/">2023-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/08/">2023-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/07/">2023-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/06/">2023-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/05/">2023-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/04/">2023-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/03/">2023-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/02/">2023-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/01/">2023-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/12/">2022-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/11/">2022-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/10/">2022-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2018/03/">2018-3</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+              </div>
+            </header>
+          </div>
+          <div class="not-sidebar">
+            <main role="main">
+              
+                
+
+
+<article class="storm-page">
+  <header>
+    <h1>next up is duckdb. Fits a role in between small data and huge data. pandas &gt;...</h1>
+    <div class="storm-meta">
+      <span><a href="../../authors/mistersql/">@mistersql</a></span>
+      <time datetime="2024-05-18T19:18:08.514000">May 18, 2024</time>
+    </div>
+  </header>
+
+  <div class="storm-body"><p><a href="https://mastodon.social/tags/pyconus" class="mention hashtag" rel="tag">#<span>pyconus</span></a> next up is duckdb.</p><p>Fits a role in between small data and huge data.<br />pandas &gt; duck db &gt; distributed systems (spark etc)</p></div>
+
+  
+
+  
+  <section>
+    <h2 class="storm-section-title">Self-replies</h2>
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-18T19:20:53.852000">May 18, 2024</time>
+  </header>
+  <div class="storm-body"><p>Runs in process like sqlite does (but not inmemory, can be saved to file/page out)<br />MIT license<br />Uses modern tricks to run very fast<br />Easy enough for non-specialist</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-18T19:24:14.329000">May 18, 2024</time>
+  </header>
+  <div class="storm-body"><p>me: sounds like it is for supporting &quot;data frame oriented programming&quot;<br />---<br />SQL (postgres) poorly optimized for big data<br />Analytic dbs poorly optimized for installing the whole thing on your laptop<br />---<br />duck db tries to be an analytics db that works well on a workstation (local processing instead of sending data across network for a sql db to work with it)</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-18T19:26:11.159000">May 18, 2024</time>
+  </header>
+  <div class="storm-body"><p>duckb syntax is postgres-like<br />Pivot/unpivot features<br />... many features new to me...</p><p>GROUP BY ALL, SORT BY ALL, syntactic sugar to avoid listing lots of columns</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-18T19:27:18.500000">May 18, 2024</time>
+  </header>
+  <div class="storm-body"><p>Duckdb will query a dataframe in the current variable scope with SQL as if it was a table.  </p><p>Whoa....</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-18T19:29:49.424000">May 18, 2024</time>
+  </header>
+  <div class="storm-body"><p>Duckdb can load/expert data fast... <br />Has ecosystem integrations (all the dataframe libraries, not just pandas)<br />Supports &quot;Relational API&quot; (what?) and SQL.</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-18T19:30:23.974000">May 18, 2024</time>
+  </header>
+  <div class="storm-body"><p>ah Relational API <a href="https://duckdb.org/docs/api/python/relational_api.html" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">duckdb.org/docs/api/python/rel</span><span class="invisible">ational_api.html</span></a></p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-18T19:37:12.566000">May 18, 2024</time>
+  </header>
+  <div class="storm-body"><p>You can simulate working with pyspark using duckdb on your workstation.... I wonder if this will simulate AWS Glue close enough?</p></div>
+  
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112463775830322140">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112463749052866090">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112463746788609252">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112463736897651860">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112463732484290514">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112463724827855121">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112463711689331602">Comment</a>
+  </footer>
+</article>
+
+    
+  </section>
+  
+
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112463700853140436">Comment</a>
+  </footer>
+
+  
+  <nav class="thread-pagination" aria-label="Thread navigation">
+    
+    <a class="thread-pagination-link" href="../2024-05-18-now-for-some-asyncio-first-let-s-get-our-ducks-out-of-row-112464108567993194/">Previous</a>
+    
+    
+    <a class="thread-pagination-link" href="../2024-05-18-time-to-learn-to-use-rust-with-python-from-this-guy-112463289264713368/">Next</a>
+    
+  </nav>
+  
+</article>
+
+              
+            </main>
+          </div>
+        </div>
+      </div>
+      <footer>
+  <p>
+    Generated from the local Mastodon cache at 2026-04-12T21:29:06.795266+00:00
+    with <a href="https://www.11ty.dev/">Eleventy v3.1.5</a>.
+  </p>
+</footer>
+
+    </div>
+  </body>
+</html>

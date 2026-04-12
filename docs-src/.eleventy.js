@@ -35,6 +35,10 @@ module.exports = function (eleventyConfig) {
     (storms || []).filter((storm) => storm.author && storm.author.acct === acct)
   );
 
+  eleventyConfig.addFilter("head", (items, count) =>
+    Array.isArray(items) ? items.slice(0, count) : []
+  );
+
   eleventyConfig.addFilter("authorArchiveFor", (archives, acct) =>
     (archives || []).find((archive) => archive.author && archive.author.acct === acct)
   );
@@ -42,6 +46,25 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addFilter("monthsByAuthor", (authorMonths, acct) =>
     (authorMonths || []).filter((entry) => entry.author && entry.author.acct === acct)
   );
+
+  eleventyConfig.addFilter("previousStorm", (storms, stormId) => {
+    const index = (storms || []).findIndex((storm) => storm.id === stormId);
+    return index > 0 ? storms[index - 1] : null;
+  });
+
+  eleventyConfig.addFilter("nextStorm", (storms, stormId) => {
+    const index = (storms || []).findIndex((storm) => storm.id === stormId);
+    return index >= 0 && index < storms.length - 1 ? storms[index + 1] : null;
+  });
+
+  eleventyConfig.addFilter("stormMonthUrl", (storm) => {
+    if (!storm || !storm.author || !storm.author.acct || !storm.created_at) {
+      return null;
+    }
+
+    const [year, month] = String(storm.created_at).split("-");
+    return `/authors/${String(storm.author.acct).toLowerCase()}/${year}/${month}/`;
+  });
 
   eleventyConfig.addFilter("relativeUrl", (targetUrl, pageUrl = "/") => {
     const normalizedTarget = (targetUrl || "/").replace(/\\/g, "/");

@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="text-scale" content="scale">
+
+
+
+  
+
+<title>Gotta catch up on mocking with at When I ask the bots to write unit tests, they... - Mastodon is my Blog</title>
+<meta property="og:title" content="Gotta catch up on mocking with at When I ask the bots to write unit tests, they... - Mastodon is my Blog">
+
+<link rel="stylesheet" href="../../assets/generated/critical.css">
+<link rel="stylesheet" href="../../assets/generated/not-critical.css">
+
+<script src="../../assets/js/critical.js"></script>
+<script src="../../assets/js/scrolling-tables.js"></script>
+
+
+
+<meta name="description" content="Gotta catch up on mocking with at When I ask the bots to write unit tests, they use ALL the mocking libraries, The theme at the talk is mocking using `unittest` the built in way.">
+<meta property="og:description" content="Gotta catch up on mocking with at When I ask the bots to write unit tests, they use ALL the mocking libraries, The theme at the talk is mocking using `unittest` the built in way.">
+
+
+
+
+  <meta property="og:type" content="article">
+  
+    <meta property="article:published_time" content="2024-05-17T15:03:12.479000">
+  
+
+
+<meta property="og:site_name" content="Mastodon is my Blog">
+<meta name="theme-color" content="#663399">
+<meta name="generator" content="Eleventy v3.1.5">
+
+  </head>
+
+  <body>
+    
+    <div class="page">
+      <div class="with-sidebar">
+        <div>
+          <div class="sidebar">
+            <header role="banner" class="cluster">
+              <div>
+                <div class="sitelogo-parent">
+                  <p class="sitelogo">
+                    <a href="../../">Mastodon is my Blog</a>
+                  </p>
+                </div>
+                <div>
+                  <nav role="navigation" class="cluster">
+  <ul>
+    
+      
+      
+      <li class="">
+        <a href="../../">
+          Home
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../authors/">
+          Identities
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../blogroll/">
+          Blogroll
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../profile/">
+          Profile
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../what-is-this/">
+          What Is This?
+        </a>
+      </li>
+    
+  </ul>
+</nav>
+
+                </div>
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Identities</p>
+                  <ul class="sidebar-links">
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/everybodhi/">@everybodhi</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/matthewmartin/">@matthewmartin</a>
+                    </li>
+                    
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/">@mistersql</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/runmattrun/">@runmattrun</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Archive</p>
+                  <ul class="sidebar-links">
+                    <li class="">
+                      <a href="../../authors/mistersql/">Latest</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/04/">2026-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/03/">2026-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/02/">2026-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/01/">2026-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/12/">2025-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/11/">2025-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/10/">2025-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/09/">2025-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/08/">2025-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/07/">2025-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/06/">2025-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/05/">2025-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/04/">2025-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/03/">2025-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/02/">2025-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/01/">2025-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/12/">2024-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/11/">2024-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/10/">2024-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/09/">2024-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/08/">2024-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/07/">2024-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/06/">2024-6</a>
+                    </li>
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/2024/05/">2024-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/04/">2024-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/03/">2024-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/02/">2024-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/01/">2024-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/12/">2023-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/11/">2023-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/10/">2023-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/09/">2023-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/08/">2023-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/07/">2023-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/06/">2023-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/05/">2023-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/04/">2023-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/03/">2023-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/02/">2023-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/01/">2023-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/12/">2022-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/11/">2022-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/10/">2022-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2018/03/">2018-3</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+              </div>
+            </header>
+          </div>
+          <div class="not-sidebar">
+            <main role="main">
+              
+                
+
+
+<article class="storm-page">
+  <header>
+    <h1>Gotta catch up on mocking with at When I ask the bots to write unit tests, they...</h1>
+    <div class="storm-meta">
+      <span><a href="../../authors/mistersql/">@mistersql</a></span>
+      <time datetime="2024-05-17T15:03:12.479000">May 17, 2024</time>
+    </div>
+  </header>
+
+  <div class="storm-body"><p>Gotta catch up on mocking with <a href="https://mastodon.social/tags/python" class="mention hashtag" rel="tag">#<span>python</span></a> at <a href="https://mastodon.social/tags/pyconus" class="mention hashtag" rel="tag">#<span>pyconus</span></a> <br />When I ask the bots to write unit tests, they use ALL the mocking libraries, </p><p>The theme at the talk is mocking using `unittest` the built in way.</p></div>
+
+  
+
+  
+  <section>
+    <h2 class="storm-section-title">Self-replies</h2>
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:07:57.527000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p>What&#39;s a good unit test?<br />- One assertion at at time -- eh, maybe.<br />- Independent/isolated/controlled &lt;-- mocking&#39;s role<br />- Relevant/Meaningful &lt;--- hard<br />- Repeatable/deterministic &lt;-- also mocking&#39;s role<br />- Automatic &lt;- CI all the things<br />- Descriptive &lt;-- long names</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:09:11.727000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p>Shadows on the wall parable ref! Mocks are the shadows on the wall.</p><p>What is I hear, is I should code in a cave.</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:10:19.281000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p>Good practices<br />- minimize mocking<br />- use a library instead of your handrolled<br />- complex mocking means you should refactor</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:11:33.850000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p>MagicMock means dict, list, str behavior* is mocked automatically. (Confusing why we would ever not use MagicMock)</p><p>* dunder methods</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:16:47.134000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p>If the mock doesn&#39;t work<br />`<span class="h-card" translate="no"><a href="https://mastodon.social/@patch" class="u-url mention">@<span>patch</span></a></span>(&quot;library.thing&quot;)` then try<br />`<span class="h-card" translate="no"><a href="https://mastodon.social/@patch" class="u-url mention">@<span>patch</span></a></span>(&quot;my_code_where_i_import.library.library.thing&quot;)`</p><p>The other trick is to switch to <br />`import library as lib` instead of `from library import thing`</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:18:19.641000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p><span class="h-card" translate="no"><a href="https://mastodon.social/@patch" class="u-url mention">@<span>patch</span></a></span> autospec helps avoid mocking methods that don&#39;t exist. I think.</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:22:54.974000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p><span class="h-card" translate="no"><a href="https://mastodon.social/@patch" class="u-url mention">@<span>patch</span></a></span> Code for the talk: <a href="https://github.com/liz-acosta/testing-strategies-for-python" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">github.com/liz-acosta/testing-</span><span class="invisible">strategies-for-python</span></a></p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:26:55.095000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p><span class="h-card" translate="no"><a href="https://mastodon.social/@patch" class="u-url mention">@<span>patch</span></a></span> Audience question: why/when use doctest? Simple scenarios. <br />Agreed.<br />Audience question: can you mock `self`? <br />me: don&#39;t mock yourself, it is bad for self-esteem. <br />me serious: sounds like how you&#39;d test metaprogramming - I&#39;ve never seen ordinary tests mock the `self`</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:29:08.608000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p><span class="h-card" translate="no"><a href="https://mastodon.social/@patch" class="u-url mention">@<span>patch</span></a></span> Audience question: Do mocks have use outside of unittesting?<br />speaker: maybe in an integration testing scenario with some bits mocked, e.g. a webserver with fake parts<br />me: Finding a mocking library outside of testing code would be astonishing. I&#39;d want to see comments in such code to justify it.</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:31:40.340000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p><span class="h-card" translate="no"><a href="https://mastodon.social/@patch" class="u-url mention">@<span>patch</span></a></span> Audience question: how do I encourage the team to do unit tests?<br />speaker: unit testing something you can do now or you can do emergency app support at 3am<br />audience question: how do you know if you are mocking too much?<br />speaker: 2+ maybe<br />me: 5+, or if it is easy to use the real thing (file system is best example)</p></div>
+  
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457148028190206">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457138084595854">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457129334718576">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457113597066104">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457095553467524">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457089491417695">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457068960158326">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457064073248359">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457059646056218">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457054783107710">Comment</a>
+  </footer>
+</article>
+
+    
+  </section>
+  
+
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457036102059782">Comment</a>
+  </footer>
+
+  
+  <nav class="thread-pagination" aria-label="Thread navigation">
+    
+    <a class="thread-pagination-link" href="../2024-05-17-next-up-is-dead-code-at-i-use-vulture-and-some-decorators-to-mark-wh-112457190253286155/">Previous</a>
+    
+    
+    <a class="thread-pagination-link" href="../2024-05-17-a-github-interaction-i-won-t-link-to-me-this-is-broken-on-window-112456991332818582/">Next</a>
+    
+  </nav>
+  
+</article>
+
+              
+            </main>
+          </div>
+        </div>
+      </div>
+      <footer>
+  <p>
+    Generated from the local Mastodon cache at 2026-04-12T21:29:06.795266+00:00
+    with <a href="https://www.11ty.dev/">Eleventy v3.1.5</a>.
+  </p>
+</footer>
+
+    </div>
+  </body>
+</html>

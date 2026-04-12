@@ -9,16 +9,18 @@ eleventyComputed:
   title: "{{ storm.title }}"
   description: "{{ storm.excerpt }}"
   published_at: "{{ storm.created_at }}"
+  sidebar_archive_acct: "{{ storm.author.acct }}"
+  sidebar_archive_month_path: "{{ storm | stormMonthUrl }}"
 ---
 {% from "partials/storm-tree.njk" import renderNode %}
+{% set previousThread = storms.storms | previousStorm(storm.id) %}
+{% set nextThread = storms.storms | nextStorm(storm.id) %}
 <article class="storm-page">
   <header>
     <h1>{{ storm.title }}</h1>
     <div class="storm-meta">
       <span><a href="{{ ('/authors/' + (storm.author.acct | lower) + '/') | relativeUrl(page.url) }}">@{{ storm.author.acct }}</a></span>
       <time datetime="{{ storm.created_at }}">{{ storm.created_at | formatDate }}</time>
-      <span>{{ storm.cleaned_length }} cleaned characters</span>
-      <a href="{{ storm.original_url }}">View on Mastodon</a>
     </div>
   </header>
 
@@ -45,5 +47,20 @@ eleventyComputed:
       {{ renderNode(branch) }}
     {% endfor %}
   </section>
+  {% endif %}
+
+  <footer class="storm-actions">
+    <a href="{{ storm.original_url }}">Comment</a>
+  </footer>
+
+  {% if previousThread or nextThread %}
+  <nav class="thread-pagination" aria-label="Thread navigation">
+    {% if previousThread %}
+    <a class="thread-pagination-link" href="{{ ('/posts/' + previousThread.slug + '/') | relativeUrl(page.url) }}">Previous</a>
+    {% endif %}
+    {% if nextThread %}
+    <a class="thread-pagination-link" href="{{ ('/posts/' + nextThread.slug + '/') | relativeUrl(page.url) }}">Next</a>
+    {% endif %}
+  </nav>
   {% endif %}
 </article>

@@ -8,21 +8,20 @@ nav:
 ---
 <section class="site-intro">
   <p>{{ site.description }}</p>
-  <p>{{ storms.storm_count }} exported posts across {{ storms.authors.length }} identities. Long single posts use a {{ storms.min_text_length }} character threshold after stripping HTML, links, mentions, and hashtags.</p>
+  <p>{{ storms.storm_count }} exported posts across {{ storms.authors.length }} identities. This page shows the latest 30 threads.</p>
 </section>
 
 {% if storms.storms.length %}
 <section class="storm-list">
-  {% for storm in storms.storms %}
+  {% for storm in storms.storms | head(30) %}
   <article class="storm-card">
     <header>
       <h2><a href="{{ ('/posts/' + storm.slug + '/') | relativeUrl(page.url) }}">{{ storm.title }}</a></h2>
       <div class="storm-meta">
-        <span>@{{ storm.author.acct }}</span>
+        <span><a href="{{ ('/authors/' + (storm.author.acct | lower) + '/') | relativeUrl(page.url) }}">@{{ storm.author.acct }}</a></span>
         <time datetime="{{ storm.created_at }}">{{ storm.created_at | formatDate }}</time>
-        <span>{{ storm.cleaned_length }} cleaned characters</span>
         {% if storm.reply_count %}
-        <span>{{ storm.reply_count }} self-replies</span>
+        <span>Self-replies</span>
         {% endif %}
       </div>
     </header>

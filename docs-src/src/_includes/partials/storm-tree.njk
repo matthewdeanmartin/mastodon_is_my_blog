@@ -2,7 +2,6 @@
 <article class="storm-reply">
   <header class="storm-meta">
     <time datetime="{{ node.created_at }}">{{ node.created_at | formatDate }}</time>
-    <a href="{{ node.original_url }}">View on Mastodon</a>
   </header>
   <div class="storm-body">{{ node.content_html | safe }}</div>
   {% if node.media.length %}
@@ -25,5 +24,8 @@
     {% endfor %}
   </div>
   {% endif %}
+  <footer class="storm-actions">
+    <a href="{{ node.original_url }}">Comment</a>
+  </footer>
 </article>
 {% endmacro %}

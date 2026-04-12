@@ -8,27 +8,17 @@ permalink: "/authors/{{ author.acct | lower }}/index.html"
 eleventyComputed:
   title: "@{{ author.acct }}"
   description: "Storms by {{ author.acct }}"
+  sidebar_archive_acct: "{{ author.acct }}"
 ---
 {% set authorArchive = stormArchives.authors | authorArchiveFor(author.acct) %}
 {% set recentStorms = authorArchive.recentStorms if authorArchive else (storms.storms | stormsByAuthor(author.acct)) %}
 <section class="site-intro">
   <p>{{ author.storm_count }} exported storms{% if authorArchive %} across {{ authorArchive.months.length }} archive months{% endif %}.</p>
   <p><a href="{{ author.api_base_url }}/@{{ author.acct }}">Open this account on Mastodon</a></p>
+  {% if authorArchive and authorArchive.months.length %}
+  <p>Browse the monthly archive in the sidebar.</p>
+  {% endif %}
 </section>
-
-{% if authorArchive and authorArchive.months.length %}
-<section class="archive-section">
-  <h2>Browse by month</h2>
-  <div class="archive-month-list">
-    {% for month in authorArchive.months %}
-    <a class="archive-month-link" href="{{ month.path | relativeUrl(page.url) }}">
-      <span>{{ month.label }}</span>
-      <span class="archive-month-count">{{ month.count }}</span>
-    </a>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
 
 {% if recentStorms.length %}
 <section class="archive-section">
@@ -40,9 +30,8 @@ eleventyComputed:
     <h2><a href="{{ ('/posts/' + storm.slug + '/') | relativeUrl(page.url) }}">{{ storm.title }}</a></h2>
     <div class="storm-meta">
       <time datetime="{{ storm.created_at }}">{{ storm.created_at | formatDate }}</time>
-      <span>{{ storm.cleaned_length }} cleaned characters</span>
       {% if storm.reply_count %}
-      <span>{{ storm.reply_count }} self-replies</span>
+      <span>Self-replies</span>
       {% endif %}
     </div>
     <p class="storm-excerpt">{{ storm.excerpt }}</p>

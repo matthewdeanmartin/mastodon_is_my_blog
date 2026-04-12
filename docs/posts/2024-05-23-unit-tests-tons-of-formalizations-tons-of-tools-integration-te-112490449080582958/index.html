@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="text-scale" content="scale">
+
+
+
+  
+
+<title>**Unit tests**: tons of formalizations, tons of tools **Integration tests**:... - Mastodon is my Blog</title>
+<meta property="og:title" content="**Unit tests**: tons of formalizations, tons of tools **Integration tests**:... - Mastodon is my Blog">
+
+<link rel="stylesheet" href="../../assets/generated/critical.css">
+<link rel="stylesheet" href="../../assets/generated/not-critical.css">
+
+<script src="../../assets/js/critical.js"></script>
+<script src="../../assets/js/scrolling-tables.js"></script>
+
+
+
+<meta name="description" content="**Unit tests**: tons of formalizations, tons of tools **Integration tests**: ... uh you&#39;re on your own... maybe just never do any integration tests...">
+<meta property="og:description" content="**Unit tests**: tons of formalizations, tons of tools **Integration tests**: ... uh you&#39;re on your own... maybe just never do any integration tests...">
+
+
+
+
+  <meta property="og:type" content="article">
+  
+    <meta property="article:published_time" content="2024-05-23T12:40:34.068000">
+  
+
+
+<meta property="og:site_name" content="Mastodon is my Blog">
+<meta name="theme-color" content="#663399">
+<meta name="generator" content="Eleventy v3.1.5">
+
+  </head>
+
+  <body>
+    
+    <div class="page">
+      <div class="with-sidebar">
+        <div>
+          <div class="sidebar">
+            <header role="banner" class="cluster">
+              <div>
+                <div class="sitelogo-parent">
+                  <p class="sitelogo">
+                    <a href="../../">Mastodon is my Blog</a>
+                  </p>
+                </div>
+                <div>
+                  <nav role="navigation" class="cluster">
+  <ul>
+    
+      
+      
+      <li class="">
+        <a href="../../">
+          Home
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../authors/">
+          Identities
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../blogroll/">
+          Blogroll
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../profile/">
+          Profile
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../what-is-this/">
+          What Is This?
+        </a>
+      </li>
+    
+  </ul>
+</nav>
+
+                </div>
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Identities</p>
+                  <ul class="sidebar-links">
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/everybodhi/">@everybodhi</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/matthewmartin/">@matthewmartin</a>
+                    </li>
+                    
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/">@mistersql</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/runmattrun/">@runmattrun</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Archive</p>
+                  <ul class="sidebar-links">
+                    <li class="">
+                      <a href="../../authors/mistersql/">Latest</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/04/">2026-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/03/">2026-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/02/">2026-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/01/">2026-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/12/">2025-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/11/">2025-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/10/">2025-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/09/">2025-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/08/">2025-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/07/">2025-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/06/">2025-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/05/">2025-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/04/">2025-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/03/">2025-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/02/">2025-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/01/">2025-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/12/">2024-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/11/">2024-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/10/">2024-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/09/">2024-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/08/">2024-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/07/">2024-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/06/">2024-6</a>
+                    </li>
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/2024/05/">2024-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/04/">2024-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/03/">2024-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/02/">2024-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/01/">2024-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/12/">2023-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/11/">2023-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/10/">2023-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/09/">2023-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/08/">2023-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/07/">2023-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/06/">2023-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/05/">2023-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/04/">2023-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/03/">2023-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/02/">2023-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/01/">2023-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/12/">2022-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/11/">2022-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/10/">2022-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2018/03/">2018-3</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+              </div>
+            </header>
+          </div>
+          <div class="not-sidebar">
+            <main role="main">
+              
+                
+
+
+<article class="storm-page">
+  <header>
+    <h1>**Unit tests**: tons of formalizations, tons of tools **Integration tests**:...</h1>
+    <div class="storm-meta">
+      <span><a href="../../authors/mistersql/">@mistersql</a></span>
+      <time datetime="2024-05-23T12:40:34.068000">May 23, 2024</time>
+    </div>
+  </header>
+
+  <div class="storm-body"><p>**Unit tests**: tons of formalizations, tons of tools<br />**Integration tests**: ... uh you&#39;re on your own... maybe just never do any integration tests...</p></div>
+
+  
+
+  
+  <section>
+    <h2 class="storm-section-title">Self-replies</h2>
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-23T12:43:16.783000">May 23, 2024</time>
+  </header>
+  <div class="storm-body"><p>I think if there was an integration test tool, it would:<br />- Have 1 tool per thing that holds state (db, redis, file system)<br />- That tool would reset state between runs</p><p>(Fixtures exist but those are place you can put code, not the code that goes in a fixture)</p><p>Now I&#39;m going to go search pypi and see if this idea has already been done 25 times</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-23T12:47:04.862000">May 23, 2024</time>
+  </header>
+  <div class="storm-body"><p>Another thing about integration tests is the add more test statuses</p><p>- code is bad (failed test)<br />- server wasn&#39;t available (code is indeterminate quality)<br />- code is good (everything worked)</p><p>Because of the indeterminancy, integration tests need to be separated from pure unit tests &amp; run on a different interval &amp; have a different policy when they are indeterminate, cf pure unit test failures which should always fail the whole build.</p></div>
+  
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112490474691938732">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112490459744987306">Comment</a>
+  </footer>
+</article>
+
+    
+  </section>
+  
+
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112490449080582958">Comment</a>
+  </footer>
+
+  
+  <nav class="thread-pagination" aria-label="Thread navigation">
+    
+    <a class="thread-pagination-link" href="../2024-05-24-on-one-hand-everyone-says-don-t-anthropomorphize-the-bots-so-we-ma-112495968635240424/">Previous</a>
+    
+    
+    <a class="thread-pagination-link" href="../2024-05-23-re-masking-at-pycon-the-organizers-knew-their-likely-attendees-not-e-112487566237869655/">Next</a>
+    
+  </nav>
+  
+</article>
+
+              
+            </main>
+          </div>
+        </div>
+      </div>
+      <footer>
+  <p>
+    Generated from the local Mastodon cache at 2026-04-12T21:29:06.795266+00:00
+    with <a href="https://www.11ty.dev/">Eleventy v3.1.5</a>.
+  </p>
+</footer>
+
+    </div>
+  </body>
+</html>

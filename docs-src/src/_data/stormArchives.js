@@ -51,6 +51,7 @@ for (const storm of storms.storms || []) {
       year,
       month,
       label: monthLabel(year, month),
+      shortLabel: `${year}-${Number(month)}`,
       count: 0,
       path: authorMonthPath(acct, year, month),
       storms: [],

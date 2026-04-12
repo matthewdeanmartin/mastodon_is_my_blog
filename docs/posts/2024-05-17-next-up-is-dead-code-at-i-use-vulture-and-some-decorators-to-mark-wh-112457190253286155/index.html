@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="text-scale" content="scale">
+
+
+
+  
+
+<title>Next up is &quot;dead code&quot; at I use vulture and some decorators to mark what is... - Mastodon is my Blog</title>
+<meta property="og:title" content="Next up is &quot;dead code&quot; at I use vulture and some decorators to mark what is... - Mastodon is my Blog">
+
+<link rel="stylesheet" href="../../assets/generated/critical.css">
+<link rel="stylesheet" href="../../assets/generated/not-critical.css">
+
+<script src="../../assets/js/critical.js"></script>
+<script src="../../assets/js/scrolling-tables.js"></script>
+
+
+
+<meta name="description" content="Next up is &quot;dead code&quot; at I use vulture and some decorators to mark what is public, what do you all use?">
+<meta property="og:description" content="Next up is &quot;dead code&quot; at I use vulture and some decorators to mark what is public, what do you all use?">
+
+
+
+
+  <meta property="og:type" content="article">
+  
+    <meta property="article:published_time" content="2024-05-17T15:42:24.639000">
+  
+
+
+<meta property="og:site_name" content="Mastodon is my Blog">
+<meta name="theme-color" content="#663399">
+<meta name="generator" content="Eleventy v3.1.5">
+
+  </head>
+
+  <body>
+    
+    <div class="page">
+      <div class="with-sidebar">
+        <div>
+          <div class="sidebar">
+            <header role="banner" class="cluster">
+              <div>
+                <div class="sitelogo-parent">
+                  <p class="sitelogo">
+                    <a href="../../">Mastodon is my Blog</a>
+                  </p>
+                </div>
+                <div>
+                  <nav role="navigation" class="cluster">
+  <ul>
+    
+      
+      
+      <li class="">
+        <a href="../../">
+          Home
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../authors/">
+          Identities
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../blogroll/">
+          Blogroll
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../profile/">
+          Profile
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../what-is-this/">
+          What Is This?
+        </a>
+      </li>
+    
+  </ul>
+</nav>
+
+                </div>
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Identities</p>
+                  <ul class="sidebar-links">
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/everybodhi/">@everybodhi</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/matthewmartin/">@matthewmartin</a>
+                    </li>
+                    
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/">@mistersql</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/runmattrun/">@runmattrun</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Archive</p>
+                  <ul class="sidebar-links">
+                    <li class="">
+                      <a href="../../authors/mistersql/">Latest</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/04/">2026-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/03/">2026-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/02/">2026-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/01/">2026-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/12/">2025-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/11/">2025-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/10/">2025-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/09/">2025-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/08/">2025-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/07/">2025-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/06/">2025-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/05/">2025-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/04/">2025-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/03/">2025-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/02/">2025-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/01/">2025-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/12/">2024-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/11/">2024-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/10/">2024-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/09/">2024-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/08/">2024-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/07/">2024-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/06/">2024-6</a>
+                    </li>
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/2024/05/">2024-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/04/">2024-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/03/">2024-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/02/">2024-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/01/">2024-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/12/">2023-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/11/">2023-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/10/">2023-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/09/">2023-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/08/">2023-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/07/">2023-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/06/">2023-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/05/">2023-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/04/">2023-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/03/">2023-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/02/">2023-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/01/">2023-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/12/">2022-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/11/">2022-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/10/">2022-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2018/03/">2018-3</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+              </div>
+            </header>
+          </div>
+          <div class="not-sidebar">
+            <main role="main">
+              
+                
+
+
+<article class="storm-page">
+  <header>
+    <h1>Next up is &quot;dead code&quot; at I use vulture and some decorators to mark what is...</h1>
+    <div class="storm-meta">
+      <span><a href="../../authors/mistersql/">@mistersql</a></span>
+      <time datetime="2024-05-17T15:42:24.639000">May 17, 2024</time>
+    </div>
+  </header>
+
+  <div class="storm-body"><p>Next up is &quot;dead code&quot; at <a href="https://mastodon.social/tags/pyconus" class="mention hashtag" rel="tag">#<span>pyconus</span></a> </p><p>I use vulture and some decorators to mark what is public, what do you all use?</p><p><a href="https://pypi.org/project/vulture/" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="">pypi.org/project/vulture/</span><span class="invisible"></span></a></p></div>
+
+  
+
+  
+  <section>
+    <h2 class="storm-section-title">Self-replies</h2>
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:45:53.331000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p>(and I&#39;m noodling with the idea of putting an `__all__` into every `__init__.py` to track what is public. I know vulture can use an &quot;ignore&quot; file, but I&#39;d rather more explicit entrypoint markers. Stuff other than vulture needs to know what is unused because it is an entry point.</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:48:46.962000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p>Dead code&#39;s costs<br />- perf costs (at built time?)<br />- maintenance <br />Why<br />- API changes<br />- deprecations<br />- temp debuging <br />- redundancy<br />- legacy (old crap)</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:50:29.585000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p>More impacts<br />- attack surface<br />- readability problems</p><p>me: seems like some of these dead code categories are &quot;code that should be dead&quot;</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:53:49.780000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p>Unused imports can increase execution time. <br />me: pylint/ruff protect me from this. Still no protection against libraries with lots of startup costs on `import`</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T15:54:23.752000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p>`deadcode` is new to me:</p><p><a href="https://pypi.org/project/deadcode/" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="">pypi.org/project/deadcode/</span><span class="invisible"></span></a></p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-05-17T16:12:00.783000">May 17, 2024</time>
+  </header>
+  <div class="storm-body"><p>Facebook uses a tool called SCARF to delete dead code, tables &amp; data  automatically. Sounds risky. Maybe if it is was in a monorepo &amp; you could assume that all the refs to the thing are in the same repo.</p><p><a href="https://engineering.fb.com/2023/10/24/data-infrastructure/automating-dead-code-cleanup/" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">engineering.fb.com/2023/10/24/</span><span class="invisible">data-infrastructure/automating-dead-code-cleanup/</span></a></p></div>
+  
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457306654941843">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457237381244574">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457235154927030">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457222034901985">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457215309499902">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457203930416144">Comment</a>
+  </footer>
+</article>
+
+    
+  </section>
+  
+
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/112457190253286155">Comment</a>
+  </footer>
+
+  
+  <nav class="thread-pagination" aria-label="Thread navigation">
+    
+    <a class="thread-pagination-link" href="../2024-05-17-now-learning-how-to-package-native-binaries-with-my-python-code-112457688993897238/">Previous</a>
+    
+    
+    <a class="thread-pagination-link" href="../2024-05-17-gotta-catch-up-on-mocking-with-at-when-i-ask-the-bots-to-write-unit-te-112457036102059782/">Next</a>
+    
+  </nav>
+  
+</article>
+
+              
+            </main>
+          </div>
+        </div>
+      </div>
+      <footer>
+  <p>
+    Generated from the local Mastodon cache at 2026-04-12T21:29:06.795266+00:00
+    with <a href="https://www.11ty.dev/">Eleventy v3.1.5</a>.
+  </p>
+</footer>
+
+    </div>
+  </body>
+</html>

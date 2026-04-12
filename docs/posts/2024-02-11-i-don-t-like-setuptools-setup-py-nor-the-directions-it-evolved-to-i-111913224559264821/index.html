@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="text-scale" content="scale">
+
+
+
+  
+
+<title>I don&#39;t like setuptools, setup.py nor the directions it evolved to. I will... - Mastodon is my Blog</title>
+<meta property="og:title" content="I don&#39;t like setuptools, setup.py nor the directions it evolved to. I will... - Mastodon is my Blog">
+
+<link rel="stylesheet" href="../../assets/generated/critical.css">
+<link rel="stylesheet" href="../../assets/generated/not-critical.css">
+
+<script src="../../assets/js/critical.js"></script>
+<script src="../../assets/js/scrolling-tables.js"></script>
+
+
+
+<meta name="description" content="I don&#39;t like setuptools, setup.py nor the directions it evolved to. I will continue to not use setuptools except when some tool only works when you add setup tools into the mix...">
+<meta property="og:description" content="I don&#39;t like setuptools, setup.py nor the directions it evolved to. I will continue to not use setuptools except when some tool only works when you add setup tools into the mix...">
+
+
+
+
+  <meta property="og:type" content="article">
+  
+    <meta property="article:published_time" content="2024-02-11T14:04:46.857000">
+  
+
+
+<meta property="og:site_name" content="Mastodon is my Blog">
+<meta name="theme-color" content="#663399">
+<meta name="generator" content="Eleventy v3.1.5">
+
+  </head>
+
+  <body>
+    
+    <div class="page">
+      <div class="with-sidebar">
+        <div>
+          <div class="sidebar">
+            <header role="banner" class="cluster">
+              <div>
+                <div class="sitelogo-parent">
+                  <p class="sitelogo">
+                    <a href="../../">Mastodon is my Blog</a>
+                  </p>
+                </div>
+                <div>
+                  <nav role="navigation" class="cluster">
+  <ul>
+    
+      
+      
+      <li class="">
+        <a href="../../">
+          Home
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../authors/">
+          Identities
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../blogroll/">
+          Blogroll
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../profile/">
+          Profile
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../what-is-this/">
+          What Is This?
+        </a>
+      </li>
+    
+  </ul>
+</nav>
+
+                </div>
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Identities</p>
+                  <ul class="sidebar-links">
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/everybodhi/">@everybodhi</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/matthewmartin/">@matthewmartin</a>
+                    </li>
+                    
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/">@mistersql</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/runmattrun/">@runmattrun</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Archive</p>
+                  <ul class="sidebar-links">
+                    <li class="">
+                      <a href="../../authors/mistersql/">Latest</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/04/">2026-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/03/">2026-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/02/">2026-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/01/">2026-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/12/">2025-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/11/">2025-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/10/">2025-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/09/">2025-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/08/">2025-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/07/">2025-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/06/">2025-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/05/">2025-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/04/">2025-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/03/">2025-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/02/">2025-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/01/">2025-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/12/">2024-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/11/">2024-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/10/">2024-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/09/">2024-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/08/">2024-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/07/">2024-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/06/">2024-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/05/">2024-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/04/">2024-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/03/">2024-3</a>
+                    </li>
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/2024/02/">2024-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/01/">2024-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/12/">2023-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/11/">2023-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/10/">2023-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/09/">2023-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/08/">2023-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/07/">2023-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/06/">2023-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/05/">2023-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/04/">2023-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/03/">2023-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/02/">2023-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/01/">2023-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/12/">2022-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/11/">2022-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/10/">2022-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2018/03/">2018-3</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+              </div>
+            </header>
+          </div>
+          <div class="not-sidebar">
+            <main role="main">
+              
+                
+
+
+<article class="storm-page">
+  <header>
+    <h1>I don&#39;t like setuptools, setup.py nor the directions it evolved to. I will...</h1>
+    <div class="storm-meta">
+      <span><a href="../../authors/mistersql/">@mistersql</a></span>
+      <time datetime="2024-02-11T14:04:46.857000">February 11, 2024</time>
+    </div>
+  </header>
+
+  <div class="storm-body"><p><a href="https://mastodon.social/tags/python" class="mention hashtag" rel="tag">#<span>python</span></a> I don&#39;t like setuptools, setup.py nor the directions it evolved to. I will continue to not use setuptools except when some tool only works when you add setup tools into the mix (cython, mypyc) and in that case, I will use something else for the things that don&#39;t have to be setuptools.</p><p>It is a solution for native code interop developers who have unlimited tolerance for great galloping complexity. That it makes c++ developers happy, I mean, good for them.</p></div>
+
+  
+
+  
+  <section>
+    <h2 class="storm-section-title">Self-replies</h2>
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-02-11T14:07:48.186000">February 11, 2024</time>
+  </header>
+  <div class="storm-body"><p>Poetry and pipenv both made no particular effort to support native interop and they&#39;re better products for it.</p><p>For my concerns, if there were two toolchains, one that brings joy to assembler, c, c++ and rust developers and another that brings joy to pure python developers, that would be nice. If other people thought the same, we probably could converge on two popular toolchains.</p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-02-11T14:09:00.618000">February 11, 2024</time>
+  </header>
+  <div class="storm-body"><p>Getting to 1 package manager to rule them all by asking people to go with the only thing that works will for Fortran (etc) developers means asking pure python developers to put up with a project that has no upper bound on the level of complexity that is allowed to get into DX.</p></div>
+  
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/111913241189997689">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/111913236443050155">Comment</a>
+  </footer>
+</article>
+
+    
+  </section>
+  
+
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/111913224559264821">Comment</a>
+  </footer>
+
+  
+  <nav class="thread-pagination" aria-label="Thread navigation">
+    
+    <a class="thread-pagination-link" href="../2024-02-11-setuptools-itself-doesn-t-have-to-install-package-dependencies-crea-111913357071947704/">Previous</a>
+    
+    
+    <a class="thread-pagination-link" href="../2024-02-10-wapo-may-8-1945-the-war-is-over-the-death-toll-is-50-000-german-chi-111908059470065402/">Next</a>
+    
+  </nav>
+  
+</article>
+
+              
+            </main>
+          </div>
+        </div>
+      </div>
+      <footer>
+  <p>
+    Generated from the local Mastodon cache at 2026-04-12T21:29:06.795266+00:00
+    with <a href="https://www.11ty.dev/">Eleventy v3.1.5</a>.
+  </p>
+</footer>
+
+    </div>
+  </body>
+</html>

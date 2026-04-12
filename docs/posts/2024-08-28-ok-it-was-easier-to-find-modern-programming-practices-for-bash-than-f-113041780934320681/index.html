@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="text-scale" content="scale">
+
+
+
+  
+
+<title>Ok, it was easier to find modern programming practices for bash than for -... - Mastodon is my Blog</title>
+<meta property="og:title" content="Ok, it was easier to find modern programming practices for bash than for -... - Mastodon is my Blog">
+
+<link rel="stylesheet" href="../../assets/generated/critical.css">
+<link rel="stylesheet" href="../../assets/generated/not-critical.css">
+
+<script src="../../assets/js/critical.js"></script>
+<script src="../../assets/js/scrolling-tables.js"></script>
+
+
+
+<meta name="description" content="Ok, it was easier to find modern programming practices for bash than for - maybe it is more fun with the paid versions of COBOL. - lint? compiler warnings - unit tests? Sort of?...">
+<meta property="og:description" content="Ok, it was easier to find modern programming practices for bash than for - maybe it is more fun with the paid versions of COBOL. - lint? compiler warnings - unit tests? Sort of?...">
+
+
+
+
+  <meta property="og:type" content="article">
+  
+    <meta property="article:published_time" content="2024-08-28T21:31:30.541000">
+  
+
+
+<meta property="og:site_name" content="Mastodon is my Blog">
+<meta name="theme-color" content="#663399">
+<meta name="generator" content="Eleventy v3.1.5">
+
+  </head>
+
+  <body>
+    
+    <div class="page">
+      <div class="with-sidebar">
+        <div>
+          <div class="sidebar">
+            <header role="banner" class="cluster">
+              <div>
+                <div class="sitelogo-parent">
+                  <p class="sitelogo">
+                    <a href="../../">Mastodon is my Blog</a>
+                  </p>
+                </div>
+                <div>
+                  <nav role="navigation" class="cluster">
+  <ul>
+    
+      
+      
+      <li class="">
+        <a href="../../">
+          Home
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../authors/">
+          Identities
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../blogroll/">
+          Blogroll
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../profile/">
+          Profile
+        </a>
+      </li>
+    
+      
+      
+      <li class="">
+        <a href="../../what-is-this/">
+          What Is This?
+        </a>
+      </li>
+    
+  </ul>
+</nav>
+
+                </div>
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Identities</p>
+                  <ul class="sidebar-links">
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/everybodhi/">@everybodhi</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/matthewmartin/">@matthewmartin</a>
+                    </li>
+                    
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/">@mistersql</a>
+                    </li>
+                    
+                    
+                    <li class="">
+                      <a href="../../authors/runmattrun/">@runmattrun</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+                
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Archive</p>
+                  <ul class="sidebar-links">
+                    <li class="">
+                      <a href="../../authors/mistersql/">Latest</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/04/">2026-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/03/">2026-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/02/">2026-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2026/01/">2026-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/12/">2025-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/11/">2025-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/10/">2025-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/09/">2025-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/08/">2025-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/07/">2025-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/06/">2025-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/05/">2025-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/04/">2025-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/03/">2025-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/02/">2025-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2025/01/">2025-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/12/">2024-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/11/">2024-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/10/">2024-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/09/">2024-9</a>
+                    </li>
+                    
+                    <li class="current">
+                      <a href="../../authors/mistersql/2024/08/">2024-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/07/">2024-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/06/">2024-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/05/">2024-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/04/">2024-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/03/">2024-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/02/">2024-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2024/01/">2024-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/12/">2023-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/11/">2023-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/10/">2023-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/09/">2023-9</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/08/">2023-8</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/07/">2023-7</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/06/">2023-6</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/05/">2023-5</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/04/">2023-4</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/03/">2023-3</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/02/">2023-2</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2023/01/">2023-1</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/12/">2022-12</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/11/">2022-11</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2022/10/">2022-10</a>
+                    </li>
+                    
+                    <li class="">
+                      <a href="../../authors/mistersql/2018/03/">2018-3</a>
+                    </li>
+                    
+                  </ul>
+                </section>
+                
+              </div>
+            </header>
+          </div>
+          <div class="not-sidebar">
+            <main role="main">
+              
+                
+
+
+<article class="storm-page">
+  <header>
+    <h1>Ok, it was easier to find modern programming practices for bash than for -...</h1>
+    <div class="storm-meta">
+      <span><a href="../../authors/mistersql/">@mistersql</a></span>
+      <time datetime="2024-08-28T21:31:30.541000">August 28, 2024</time>
+    </div>
+  </header>
+
+  <div class="storm-body"><p>Ok, it was easier to find modern programming practices for bash than for <a href="https://mastodon.social/tags/GnuCOBOL" class="mention hashtag" rel="tag">#<span>GnuCOBOL</span></a> - maybe it is more fun with the paid versions of COBOL.</p><p>- lint? compiler warnings<br />- unit tests? Sort of? Couldn&#39;t get &#39;em to work<br />- package management? where?<br />- &quot;awesome cobol&quot; directory? more like awesome 404s</p><p><a href="https://github.com/matthewdeanmartin/isopod_cob" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">github.com/matthewdeanmartin/i</span><span class="invisible">sopod_cob</span></a></p></div>
+
+  
+
+  
+  <section>
+    <h2 class="storm-section-title">Self-replies</h2>
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-08-29T01:56:28.430000">August 29, 2024</time>
+  </header>
+  <div class="storm-body"><p>Now for the same app in <a href="https://mastodon.social/tags/golang" class="mention hashtag" rel="tag">#<span>golang</span></a> </p><p>- it is so fast<br />- syntax is nice<br />- format, lint, docs are built in<br />- modules and packages ... they still don&#39;t click with my brain<br />- can implement a richer game for the same effort than cobol or bash (and I&#39;m not even writing the code here)</p><p><a href="https://github.com/matthewdeanmartin/isopod_go" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">github.com/matthewdeanmartin/i</span><span class="invisible">sopod_go</span></a></p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-08-29T18:47:08.134000">August 29, 2024</time>
+  </header>
+  <div class="storm-body"><p>And now for <a href="https://mastodon.social/tags/ruby" class="mention hashtag" rel="tag">#<span>ruby</span></a>!</p><p>&lt;insert I don&#39;t know I&#39;m doing dog here&gt;</p><p>I&#39;m convinced I didn&#39;t set up a venv correctly and I just installed all the dependencies to the system ruby interpreter.</p><p>Everything else was easy and modern feeling.</p><p><a href="https://mastodon.social/tags/rubylang" class="mention hashtag" rel="tag">#<span>rubylang</span></a> </p><p><a href="https://github.com/matthewdeanmartin/isopod_ruby" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">github.com/matthewdeanmartin/i</span><span class="invisible">sopod_ruby</span></a></p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-08-29T22:06:23.683000">August 29, 2024</time>
+  </header>
+  <div class="storm-body"><p>And now for cpp (pain!) using <a href="https://mastodon.social/tags/clion" class="mention hashtag" rel="tag">#<span>clion</span></a> (nice) and cmake (pain!)</p><p>C++ is the COBOL of 2024.<br />- unpleasant<br />- still relevant because of legacy code bases<br />- would be laughed off the stage if introduced today</p><p>I couldn&#39;t figure out how to run cmake from the terminal. I think I&#39;d have to write a CMakeCache.txt by hand (that finds the toolchain) and not clear it works with git-bash.</p><p><a href="https://github.com/matthewdeanmartin/isopod_cpp" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">github.com/matthewdeanmartin/i</span><span class="invisible">sopod_cpp</span></a></p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-08-30T21:16:08.322000">August 30, 2024</time>
+  </header>
+  <div class="storm-body"><p>Alright, moving along &amp; being more careful about how I tag my posts (It appears a tag means, &quot;I want to fight with strangers, anything critical is actually an insult to you &amp; your ancestors&quot;)</p><p>**Vanilla Javascript! **<br />- It is less painful than it was in 2013. Sort of. Took a few tries to get modules right.<br />- Packaging *a website* is still adhoc<br />- jest with JS made me miss TypeScript because mocking seemed to just work with TS, but not for vanilla js modules<br />- live demo!</p><p><a href="https://github.com/matthewdeanmartin/isopod_js" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">github.com/matthewdeanmartin/i</span><span class="invisible">sopod_js</span></a></p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-08-31T00:37:29.237000">August 31, 2024</time>
+  </header>
+  <div class="storm-body"><p>We&#39;re up to Angular! The build script is not done, but no one is paying me to finish it, </p><p>- Typescript is good. The Vanilla JS people are wrong.<br />- Bots have a hard time with Angular because it is fundamentally LOTS of pages.<br />- Feels like the componentization is a lie. All the parts need to know about each other.<br />- Uh, it is snappy.<br />- Helps pay the rent and mortgage for people on my team</p><p><a href="https://github.com/matthewdeanmartin/isopod_angular" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">github.com/matthewdeanmartin/i</span><span class="invisible">sopod_angular</span></a></p></div>
+  
+  
+  <div class="storm-children">
+    
+      
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="2024-08-31T17:35:58.673000">August 31, 2024</time>
+  </header>
+  <div class="storm-body"><p>Now for <a href="https://mastodon.social/tags/rustlang" class="mention hashtag" rel="tag">#<span>rustlang</span></a> </p><p>- batteries included (format, lint, package mgmt)<br />- bot needed two tries get borrowing &amp; ownership right<br />- wait, what, already done?</p><p>Unlike a certain other language/build system I won&#39;t mention because they&#39;ll hound me in the comments...</p><p>Rust doesn&#39;t feel like you are getting continually punched in the face by a developer that hates you.</p><p>After this experiment, 95% of my native coding effort is going into rust &amp; go. (not c/c++). Devex matters, huh.</p><p><a href="https://github.com/matthewdeanmartin/isopod_rust/blob/main/isopod_adventure/Makefile" target="_blank" rel="nofollow noopener" translate="no"><span class="invisible">https://</span><span class="ellipsis">github.com/matthewdeanmartin/i</span><span class="invisible">sopod_rust/blob/main/isopod_adventure/Makefile</span></a></p></div>
+  
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/113057841720101187">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/113053836852496193">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/113053045117750843">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/113047580421694352">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/113046796903082957">Comment</a>
+  </footer>
+</article>
+
+    
+  </div>
+  
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/113042822819310096">Comment</a>
+  </footer>
+</article>
+
+    
+  </section>
+  
+
+  <footer class="storm-actions">
+    <a href="https://mastodon.social/@mistersql/113041780934320681">Comment</a>
+  </footer>
+
+  
+  <nav class="thread-pagination" aria-label="Thread navigation">
+    
+    <a class="thread-pagination-link" href="../2024-08-29-idea-human-brain-tissue-in-a-vat-in-the-cloud-as-a-paas-113045254314916898/">Previous</a>
+    
+    
+    <a class="thread-pagination-link" href="../2024-08-27-beginner-s-shouldn-t-start-with-an-ide-they-should-win-a-pissing-cont-113036647649313486/">Next</a>
+    
+  </nav>
+  
+</article>
+
+              
+            </main>
+          </div>
+        </div>
+      </div>
+      <footer>
+  <p>
+    Generated from the local Mastodon cache at 2026-04-12T21:29:06.795266+00:00
+    with <a href="https://www.11ty.dev/">Eleventy v3.1.5</a>.
+  </p>
+</footer>
+
+    </div>
+  </body>
+</html>

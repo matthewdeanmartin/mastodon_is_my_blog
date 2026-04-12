@@ -5,6 +5,7 @@
   </head>
 
   <body>
+    {% set sidebarArchive = stormArchives.authors | authorArchiveFor(sidebar_archive_acct) %}
     <div class="page">
       <div class="with-sidebar">
         <div>
@@ -19,6 +20,34 @@
                 <div>
                   {% include "components/navigation.njk" %}
                 </div>
+                {% if storms and storms.authors and storms.authors.length %}
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Identities</p>
+                  <ul class="sidebar-links">
+                    {% for author in storms.authors %}
+                    {% set authorUrl = '/authors/' + (author.acct | lower) + '/' %}
+                    <li class="{% if sidebar_archive_acct and author.acct == sidebar_archive_acct %}current{% endif %}">
+                      <a href="{{ authorUrl | relativeUrl(page.url) }}">@{{ author.acct }}</a>
+                    </li>
+                    {% endfor %}
+                  </ul>
+                </section>
+                {% endif %}
+                {% if sidebarArchive and sidebarArchive.months.length %}
+                <section class="sidebar-section">
+                  <p class="sidebar-title">Archive</p>
+                  <ul class="sidebar-links">
+                    <li class="{% if sidebarArchive.author.path == page.url %}current{% endif %}">
+                      <a href="{{ sidebarArchive.author.path | relativeUrl(page.url) }}">Latest</a>
+                    </li>
+                    {% for month in sidebarArchive.months %}
+                    <li class="{% if month.path == page.url or (sidebar_archive_month_path and month.path == sidebar_archive_month_path) %}current{% endif %}">
+                      <a href="{{ month.path | relativeUrl(page.url) }}">{{ month.shortLabel }}</a>
+                    </li>
+                    {% endfor %}
+                  </ul>
+                </section>
+                {% endif %}
               </div>
             </header>
           </div>
