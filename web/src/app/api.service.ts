@@ -10,6 +10,11 @@ export interface Storm {
   branches: RawContentPost[];
 }
 
+export interface FeedPage<T> {
+  items: T[];
+  next_cursor: string | null;
+}
+
 @Injectable({providedIn: 'root'})
 export class ApiService {
   private http = inject(HttpClient);
@@ -118,35 +123,65 @@ export class ApiService {
 
   // --- PUBLIC READ (Context Aware) ---
 
-  getPublicPosts(identityId: number, filter = 'all', user?: string): Observable<RawContentPost[]> {
+  getPublicPosts(
+    identityId: number,
+    filter = 'all',
+    user?: string,
+    before?: string | null,
+    limit = 30,
+  ): Observable<FeedPage<RawContentPost>> {
     let params = new HttpParams()
       .set('identity_id', identityId.toString())
-      .set('filter_type', filter);
+      .set('filter_type', filter)
+      .set('limit', limit.toString());
     if (user) {
       params = params.set('user', user);
     }
+    if (before) {
+      params = params.set('before', before);
+    }
     return this.http
-      .get<RawContentPost[]>(`${this.base}/api/posts`, {params, headers: this.headers})
+      .get<FeedPage<RawContentPost>>(`${this.base}/api/posts`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  getStorms(identityId: number, user?: string): Observable<Storm[]> {
-    let params = new HttpParams().set('identity_id', identityId.toString());
+  getStorms(
+    identityId: number,
+    user?: string,
+    before?: string | null,
+    limit = 30,
+  ): Observable<FeedPage<Storm>> {
+    let params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('limit', limit.toString());
     if (user) {
       params = params.set('user', user);
     }
+    if (before) {
+      params = params.set('before', before);
+    }
     return this.http
-      .get<Storm[]>(`${this.base}/api/posts/storms`, {params, headers: this.headers})
+      .get<FeedPage<Storm>>(`${this.base}/api/posts/storms`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  getShorts(identityId: number, user?: string): Observable<RawContentPost[]> {
-    let params = new HttpParams().set('identity_id', identityId.toString());
+  getShorts(
+    identityId: number,
+    user?: string,
+    before?: string | null,
+    limit = 30,
+  ): Observable<FeedPage<RawContentPost>> {
+    let params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('limit', limit.toString());
     if (user) {
       params = params.set('user', user);
     }
+    if (before) {
+      params = params.set('before', before);
+    }
     return this.http
-      .get<RawContentPost[]>(`${this.base}/api/posts/shorts`, {params, headers: this.headers})
+      .get<FeedPage<RawContentPost>>(`${this.base}/api/posts/shorts`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
   }
 

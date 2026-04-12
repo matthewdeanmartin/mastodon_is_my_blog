@@ -12,7 +12,7 @@
 
   @if (isStormView && !loading) {
     <div>
-      @for (storm of stormFeedItems; track storm; let i = $index) {
+      @for (storm of stormFeedItems; track storm.root.id; let i = $index) {
         <div>
           @if (i > 0) {
             <hr />
@@ -21,7 +21,7 @@
             *ngTemplateOutlet="postTemplate; context: { $implicit: storm.root }"
           ></ng-container>
           <div style="margin-left: 20px; border-left: 2px solid #eee; padding-left: 15px">
-            @for (branch of storm.branches; track branch) {
+            @for (branch of storm.branches; track branch.id) {
               <div>
                 <ng-container
                   *ngTemplateOutlet="postTemplate; context: { $implicit: branch }"
@@ -36,7 +36,7 @@
 
   @if (!isStormView && !loading) {
     <div>
-      @for (p of flatFeedItems; track p; let i = $index) {
+      @for (p of flatFeedItems; track p.id; let i = $index) {
         <div>
           @if (i > 0) {
             <hr />
@@ -49,6 +49,16 @@
 
   @if (!loading && items.length === 0) {
     <div class="muted">No posts found for this filter.</div>
+  }
+
+  @if (!loading && nextCursor) {
+    <div #loadMoreSentinel style="padding: 20px 0; text-align: center;">
+      @if (loadingMore) {
+        <span class="muted">Loading more…</span>
+      } @else {
+        <button (click)="loadMore()" class="secondary">Load more</button>
+      }
+    </div>
   }
 </div>
 
@@ -105,10 +115,10 @@
           <span [innerHTML]="stripHtml(p.content)"></span>
         </div>
 
-        <!-- Link Previews -->
-        @for (url of getPostUrls(p); track url) {
+        <!-- Link Previews: only the first URL gets a rich card in the feed -->
+        @if (getFirstPostUrl(p); as firstUrl) {
           <div>
-            <app-link-preview [url]="url"></app-link-preview>
+            <app-link-preview [url]="firstUrl"></app-link-preview>
           </div>
         }
 

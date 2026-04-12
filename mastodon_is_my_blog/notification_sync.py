@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from sqlalchemy import and_, select
 
 from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
-from mastodon_is_my_blog.queries import _upsert_account, sync_user_timeline_for_identity
+from mastodon_is_my_blog.queries import bulk_upsert_accounts, sync_user_timeline_for_identity
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedNotification,
@@ -56,6 +56,7 @@ async def sync_notifications_for_identity(
             }
 
             synced_account_ids: set[str] = set()
+            account_rows: list[dict] = []
             new_notif_count = 0
 
             async with async_session() as session:
@@ -108,11 +109,14 @@ async def sync_notifications_for_identity(
                         session.add(new_notif)
                         new_notif_count += 1
 
-                    # Upsert the account (for blog roll display)
+                    # Collect account data for one bulk upsert below
                     if account_id not in synced_account_ids:
-                        await _upsert_account(session, meta_id, identity.id, account_data)
+                        account_rows.append({"account_data": account_data})
                         synced_account_ids.add(account_id)
                         stats["accounts_synced"] += 1
+
+                if account_rows:
+                    await bulk_upsert_accounts(session, meta_id, identity.id, account_rows)
 
                 await session.commit()
                 t.rows_written = new_notif_count

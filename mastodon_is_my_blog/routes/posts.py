@@ -1,10 +1,12 @@
 # mastodon_is_my_blog/routes/posts.py
+import base64
 import json
 import logging
 import re
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import and_, desc, func, or_, select
 
 from mastodon_is_my_blog.link_previews import CardResponse, fetch_card
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
@@ -31,6 +33,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
 STORM_MIN_TEXT_LEN = 500
+DEFAULT_PAGE_LIMIT = 30
+MAX_PAGE_LIMIT = 100
+
+
+def encode_cursor(created_at: datetime, post_id: str) -> str:
+    """Encode (created_at, id) as a stable base64 cursor."""
+    raw = f"{created_at.isoformat()}|{post_id}"
+    return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("ascii")
+
+
+def decode_cursor(cursor: str) -> tuple[datetime, str]:
+    """Decode a base64 cursor into (created_at, id)."""
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8")
+        iso, post_id = raw.split("|", 1)
+        return datetime.fromisoformat(iso), post_id
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise HTTPException(400, "Invalid cursor") from exc
 
 
 def html_text_len(html: str) -> int:
@@ -107,10 +127,13 @@ async def get_public_posts(
             "everyone",
         ],
     ),
+    limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
+    before: str | None = Query(None, description="Opaque cursor from a previous page"),
     meta: MetaAccount = Depends(get_current_meta_account),
-) -> list[dict]:
+) -> dict:
     """
     Get posts with filters. Scoped to a specific identity.
+    Returns a cursor-paginated page: {items, next_cursor}.
     """
     async with async_session() as session:
         # Base Scoping: Meta Account AND Identity
@@ -130,8 +153,21 @@ async def get_public_posts(
                     CachedPost.fetched_by_identity_id == identity_id,
                 )
             )
-            .order_by(desc(CachedPost.created_at))
+            .order_by(desc(CachedPost.created_at), desc(CachedPost.id))
         )
+
+        # Apply cursor filter
+        if before:
+            cursor_created_at, cursor_id = decode_cursor(before)
+            query = query.where(
+                or_(
+                    CachedPost.created_at < cursor_created_at,
+                    and_(
+                        CachedPost.created_at == cursor_created_at,
+                        CachedPost.id < cursor_id,
+                    ),
+                )
+            )
 
         # Handle user filtering
         if user == "everyone" or filter_type == "everyone":
@@ -195,10 +231,15 @@ async def get_public_posts(
             # No additional filters, show all posts
             pass
 
+        # Fetch limit+1 to detect whether a next page exists
+        query = query.limit(limit + 1)
         result = await session.execute(query)
         rows = result.all()
 
-        return [
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+
+        items = [
             {
                 "id": p.id,
                 "content": p.content,
@@ -221,15 +262,29 @@ async def get_public_posts(
             for p, is_seen in rows
         ]
 
+        next_cursor = None
+        if has_more and rows:
+            last_post, _ = rows[-1]
+            next_cursor = encode_cursor(last_post.created_at, last_post.id)
+
+        return {"items": items, "next_cursor": next_cursor}
+
 
 @router.get("/shorts")
 async def get_shorts(
     identity_id: int = Query(...),
     user: str | None = None,
+    limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
+    before: str | None = Query(None),
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     return await get_public_posts(
-        identity_id=identity_id, user=user, filter_type="shorts", meta=meta
+        identity_id=identity_id,
+        user=user,
+        filter_type="shorts",
+        limit=limit,
+        before=before,
+        meta=meta,
     )
 
 
@@ -238,6 +293,8 @@ async def get_shorts(
 async def get_storms(
     identity_id: int = Query(...),
     user: str | None = None,
+    limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
+    before: str | None = Query(None, description="Opaque cursor from a previous page"),
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     """
@@ -294,12 +351,30 @@ async def get_storms(
                     ),
                 )
             )
-            .order_by(desc(CachedPost.created_at))
+            .order_by(desc(CachedPost.created_at), desc(CachedPost.id))
         )
-        roots = (await session.execute(roots_query)).scalars().all()
+
+        # Cursor filter — paginate on roots only
+        if before:
+            cursor_created_at, cursor_id = decode_cursor(before)
+            roots_query = roots_query.where(
+                or_(
+                    CachedPost.created_at < cursor_created_at,
+                    and_(
+                        CachedPost.created_at == cursor_created_at,
+                        CachedPost.id < cursor_id,
+                    ),
+                )
+            )
+
+        roots_query = roots_query.limit(limit + 1)
+        roots = list((await session.execute(roots_query)).scalars().all())
+
+        has_more = len(roots) > limit
+        roots = roots[:limit]
 
         if not roots:
-            return []
+            return {"items": [], "next_cursor": None}
 
         root_ids = [r.id for r in roots]
 
@@ -357,7 +432,7 @@ async def get_storms(
                 )
         return results
 
-    return [
+    storm_items = [
         {
             "root": {
                 "id": p.id,
@@ -374,6 +449,13 @@ async def get_storms(
         }
         for p in roots
     ]
+
+    next_cursor = None
+    if has_more and roots:
+        last_root = roots[-1]
+        next_cursor = encode_cursor(last_root.created_at, last_root.id)
+
+    return {"items": storm_items, "next_cursor": next_cursor}
 
 
 # --- Hashtag Aggregation ---

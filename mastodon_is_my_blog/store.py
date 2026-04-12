@@ -491,13 +491,13 @@ async def mark_post_seen(meta_account_id: int, post_id: str) -> None:
 async def mark_posts_seen(meta_account_id: int, post_ids: list[str]) -> None:
     if not post_ids:
         return
+    # Deduplicate to avoid redundant rows inside one statement
+    unique_ids = list(dict.fromkeys(post_ids))
+    rows = [{"meta_account_id": meta_account_id, "post_id": pid} for pid in unique_ids]
     async with async_session() as session:
-        for post_id in post_ids:
-            await session.execute(
-                insert(SeenPost)
-                .values(meta_account_id=meta_account_id, post_id=post_id)
-                .prefix_with("OR IGNORE")
-            )
+        await session.execute(
+            insert(SeenPost).values(rows).prefix_with("OR IGNORE")
+        )
         await session.commit()
 
 

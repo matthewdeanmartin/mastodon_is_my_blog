@@ -162,9 +162,9 @@ export class SoftwareFeedComponent implements OnInit {
     const userFilter = getContentUserFilter(this.currentFilter);
 
     this.api.getPublicPosts(identityId, 'software', userFilter).subscribe({
-      next: (posts) => {
+      next: (page) => {
         this.posts = sortContentPosts(
-          posts.map((post) => normalizeContentPost(post)),
+          page.items.map((post) => normalizeContentPost(post)),
           this.currentFilter,
         );
         this.loading = false;
@@ -338,9 +338,9 @@ export class LinksFeedComponent implements OnInit {
     const userFilter = getContentUserFilter(this.currentFilter);
 
     this.api.getPublicPosts(identityId, 'links', userFilter).subscribe({
-      next: (posts) => {
+      next: (page) => {
         const sortedPosts = sortContentPosts(
-          posts.map((post) => normalizeContentPost(post)),
+          page.items.map((post) => normalizeContentPost(post)),
           this.currentFilter,
         );
         this.groups = groupLinkPosts(sortedPosts, this.currentFilter);
@@ -513,9 +513,9 @@ export class NewsFeedComponent implements OnInit {
     const userFilter = getContentUserFilter(this.currentFilter);
 
     this.api.getPublicPosts(identityId, 'news', userFilter).subscribe({
-      next: (posts) => {
+      next: (page) => {
         this.posts = sortContentPosts(
-          posts.map((post) => normalizeContentPost(post)),
+          page.items.map((post) => normalizeContentPost(post)),
           this.currentFilter,
         );
         this.loading = false;

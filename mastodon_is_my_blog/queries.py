@@ -2,10 +2,12 @@
 import json
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import dotenv
 from fastapi import HTTPException, Request
 from sqlalchemy import Integer, and_, func, outerjoin, select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mastodon_is_my_blog.inspect_post import analyze_content_domains
@@ -67,35 +69,9 @@ def to_naive_utc(dt: datetime | None) -> datetime | None:
 # --- Sync Engines ---
 
 
-async def _upsert_account(
-    session: AsyncSession,
-    meta_id: int,
-    identity_id: int,
-    account_data: dict,
-    **overrides,
-) -> CachedAccount:
-    """
-    Helper to create or update a CachedAccount from Mastodon API data.
-
-    IMPORTANT: Uses composite primary key (id, meta_account_id, mastodon_identity_id)
-    """
-    acc_id = str(account_data["id"])
-
-    # Check for existing account with THIS meta_account AND identity
-    stmt = select(CachedAccount).where(
-        and_(
-            CachedAccount.id == acc_id,
-            CachedAccount.meta_account_id == meta_id,
-            CachedAccount.mastodon_identity_id == identity_id,
-        )
-    )
-    existing = (await session.execute(stmt)).scalar_one_or_none()
-
-    # Prepare common fields
-    fields_json = json.dumps(account_data.get("fields", []))
-    created_at = to_naive_utc(account_data.get("created_at"))
-
-    data = {
+def build_account_payload(account_data: dict, **overrides: Any) -> dict:
+    """Build a row payload for CachedAccount from a Mastodon API account dict."""
+    payload = {
         "acct": account_data["acct"],
         "display_name": account_data["display_name"],
         "avatar": account_data["avatar"],
@@ -104,26 +80,251 @@ async def _upsert_account(
         "bot": account_data.get("bot", False),
         "locked": account_data.get("locked", False),
         "header": account_data.get("header", ""),
-        "created_at": created_at,
-        "fields": fields_json,
+        "created_at": to_naive_utc(account_data.get("created_at")),
+        "fields": json.dumps(account_data.get("fields", [])),
         "followers_count": account_data.get("followers_count", 0),
         "following_count": account_data.get("following_count", 0),
         "statuses_count": account_data.get("statuses_count", 0),
     }
+    payload.update(overrides)
+    return payload
 
-    # Apply overrides (e.g. is_following=True)
-    data.update(overrides)
 
-    if not existing:
-        new_acc = CachedAccount(
-            id=acc_id, meta_account_id=meta_id, mastodon_identity_id=identity_id, **data
+async def bulk_upsert_accounts(
+    session: AsyncSession,
+    meta_id: int,
+    identity_id: int,
+    rows: list[dict],
+) -> None:
+    """
+    Bulk upsert CachedAccount rows.
+
+    Each row in `rows` must be a dict with:
+      - "account_data": the raw Mastodon API account dict
+      - optional "overrides": dict of field overrides (e.g. is_following=True)
+      - optional "last_status_at": datetime from an observed status
+        (will be max-merged against the existing row)
+
+    Uses sqlite ON CONFLICT DO UPDATE to perform inserts and updates in a
+    single round-trip per identity.  Does NOT commit.
+    """
+    if not rows:
+        return
+
+    # Resolve duplicates within the incoming batch: keep the last payload per id,
+    # but max-merge any last_status_at values. This avoids the sqlite error
+    # "ON CONFLICT DO UPDATE command cannot affect row a second time".
+    merged: dict[str, dict] = {}
+    merged_last_status: dict[str, datetime | None] = {}
+    for row in rows:
+        account_data = row["account_data"]
+        overrides = row.get("overrides") or {}
+        last_status_at = to_naive_utc(row.get("last_status_at"))
+
+        acc_id = str(account_data["id"])
+        merged[acc_id] = build_account_payload(account_data, **overrides)
+
+        prev_last = merged_last_status.get(acc_id)
+        if last_status_at and (prev_last is None or last_status_at > prev_last):
+            merged_last_status[acc_id] = last_status_at
+        elif acc_id not in merged_last_status:
+            merged_last_status[acc_id] = prev_last
+
+    if not merged:
+        return
+
+    # For last_status_at max-merge against existing DB rows, pre-fetch existing values
+    # for any ids that carry a last_status_at in this batch.
+    ids_with_last = [aid for aid, ts in merged_last_status.items() if ts is not None]
+    existing_last: dict[str, datetime | None] = {}
+    if ids_with_last:
+        stmt = select(CachedAccount.id, CachedAccount.last_status_at).where(
+            and_(
+                CachedAccount.meta_account_id == meta_id,
+                CachedAccount.mastodon_identity_id == identity_id,
+                CachedAccount.id.in_(ids_with_last),
+            )
         )
-        session.add(new_acc)
-        return new_acc
+        for row_id, prev in (await session.execute(stmt)).all():
+            existing_last[row_id] = prev
 
-    for k, v in data.items():
-        setattr(existing, k, v)
-    return existing
+    # Build final value list with last_status_at max-merged
+    values = []
+    for acc_id, payload in merged.items():
+        row_values = {
+            "id": acc_id,
+            "meta_account_id": meta_id,
+            "mastodon_identity_id": identity_id,
+            **payload,
+        }
+        batch_last = merged_last_status.get(acc_id)
+        if batch_last is not None:
+            prev_last = existing_last.get(acc_id)
+            row_values["last_status_at"] = (
+                batch_last if (prev_last is None or batch_last > prev_last) else prev_last
+            )
+        values.append(row_values)
+
+    # Build the ON CONFLICT DO UPDATE statement.  The update set must exclude the
+    # primary key columns; everything else is taken from excluded.*.
+    stmt = sqlite_insert(CachedAccount).values(values)
+    non_pk_cols = [
+        c.name
+        for c in CachedAccount.__table__.columns
+        if c.name not in ("id", "meta_account_id", "mastodon_identity_id")
+    ]
+    # Only update columns that were actually present in the incoming payload
+    # (e.g. last_status_at may only appear for some callers).
+    present_cols = set()
+    for v in values:
+        present_cols.update(v.keys())
+    update_cols = {c: stmt.excluded[c] for c in non_pk_cols if c in present_cols}
+
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["id", "meta_account_id", "mastodon_identity_id"],
+        set_=update_cols,
+    )
+    await session.execute(stmt)
+
+
+def build_post_payload(
+    meta_id: int,
+    identity_id: int,
+    status: dict,
+) -> dict:
+    """Build a row payload dict for CachedPost from a Mastodon API status dict."""
+    is_reblog = status["reblog"] is not None
+    actual = status["reblog"] if is_reblog else status
+
+    in_reply_to_id = actual.get("in_reply_to_id")
+    in_reply_to_account = actual.get("in_reply_to_account_id")
+    is_reply_to_other = in_reply_to_id is not None and str(
+        in_reply_to_account
+    ) != str(actual["account"]["id"])
+
+    flags = analyze_content_domains(
+        actual["content"], actual["media_attachments"], is_reply_to_other
+    )
+    media_json = (
+        json.dumps(actual["media_attachments"])
+        if actual["media_attachments"]
+        else None
+    )
+    tags_json = json.dumps([t_tag["name"] for t_tag in status.get("tags", [])])
+
+    return {
+        "id": str(status["id"]),
+        "meta_account_id": meta_id,
+        "fetched_by_identity_id": identity_id,
+        "content": actual["content"],
+        "created_at": to_naive_utc(status["created_at"]),
+        "visibility": status["visibility"],
+        "author_acct": actual["account"]["acct"],
+        "author_id": str(actual["account"]["id"]),
+        "is_reblog": is_reblog,
+        "is_reply": is_reply_to_other,
+        "in_reply_to_id": str(in_reply_to_id) if in_reply_to_id else None,
+        "in_reply_to_account_id": (
+            str(in_reply_to_account) if in_reply_to_account else None
+        ),
+        "has_media": flags["has_media"],
+        "has_video": flags["has_video"],
+        "has_news": flags["has_news"],
+        "has_tech": flags["has_tech"],
+        "has_link": flags["has_link"],
+        "has_question": flags["has_question"],
+        "tags": tags_json,
+        "replies_count": status["replies_count"],
+        "reblogs_count": status["reblogs_count"],
+        "favourites_count": status["favourites_count"],
+        "media_attachments": media_json,
+    }
+
+
+async def bulk_upsert_posts(
+    session: AsyncSession,
+    meta_id: int,
+    identity_id: int,
+    statuses: list[dict],
+) -> tuple[int, int]:
+    """
+    Bulk upsert CachedPost rows from raw Mastodon API status dicts.
+
+    Returns (new_count, updated_count).  Does NOT commit.
+    """
+    if not statuses:
+        return (0, 0)
+
+    # Deduplicate within the batch — keep the last payload per id
+    payloads: dict[str, dict] = {}
+    for status in statuses:
+        payload = build_post_payload(meta_id, identity_id, status)
+        payloads[payload["id"]] = payload
+
+    if not payloads:
+        return (0, 0)
+
+    # Pre-fetch existing ids to produce accurate (new, updated) counts
+    ids = list(payloads.keys())
+    existing_ids = set(
+        (
+            await session.execute(
+                select(CachedPost.id).where(
+                    and_(
+                        CachedPost.meta_account_id == meta_id,
+                        CachedPost.fetched_by_identity_id == identity_id,
+                        CachedPost.id.in_(ids),
+                    )
+                )
+            )
+        ).scalars()
+    )
+
+    stmt = sqlite_insert(CachedPost).values(list(payloads.values()))
+    non_pk_cols = [
+        c.name
+        for c in CachedPost.__table__.columns
+        if c.name not in ("id", "meta_account_id", "fetched_by_identity_id")
+    ]
+    update_cols = {c: stmt.excluded[c] for c in non_pk_cols}
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["id", "meta_account_id", "fetched_by_identity_id"],
+        set_=update_cols,
+    )
+    await session.execute(stmt)
+
+    updated_count = len(existing_ids)
+    new_count = len(payloads) - updated_count
+    return (new_count, updated_count)
+
+
+async def _upsert_account(
+    session: AsyncSession,
+    meta_id: int,
+    identity_id: int,
+    account_data: dict,
+    **overrides,
+) -> CachedAccount:
+    """
+    Single-row wrapper that delegates to bulk_upsert_accounts and returns the
+    resulting CachedAccount instance (re-fetched).  Kept for legacy callers
+    that need the ORM object back (e.g. to mutate last_status_at).
+    """
+    await bulk_upsert_accounts(
+        session,
+        meta_id,
+        identity_id,
+        [{"account_data": account_data, "overrides": overrides}],
+    )
+
+    stmt = select(CachedAccount).where(
+        and_(
+            CachedAccount.id == str(account_data["id"]),
+            CachedAccount.meta_account_id == meta_id,
+            CachedAccount.mastodon_identity_id == identity_id,
+        )
+    )
+    return (await session.execute(stmt)).scalar_one()
 
 
 async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[dict]:
@@ -176,20 +377,18 @@ async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity) ->
             followers = m.account_followers(me["id"], limit=80)
             t.rows_fetched = len(following) + len(followers)
 
+            rows = [
+                {"account_data": acc, "overrides": {"is_following": True}}
+                for acc in following
+            ] + [
+                {"account_data": acc, "overrides": {"is_followed_by": True}}
+                for acc in followers
+            ]
+
             async with async_session() as session:
-                written = 0
-                for acc in following:
-                    await _upsert_account(
-                        session, meta_id, identity.id, acc, is_following=True
-                    )
-                    written += 1
-                for acc in followers:
-                    await _upsert_account(
-                        session, meta_id, identity.id, acc, is_followed_by=True
-                    )
-                    written += 1
+                await bulk_upsert_accounts(session, meta_id, identity.id, rows)
                 await session.commit()
-                t.rows_written = written
+                t.rows_written = len(rows)
         except Exception as e:
             logger.error(e)
             logger.error("Failed to sync friends for %s: %s", identity.acct, e)
@@ -205,25 +404,18 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
             home_statuses = m.timeline_home(limit=100)
             t.rows_fetched = len(home_statuses)
 
+            rows = [
+                {
+                    "account_data": s["account"],
+                    "last_status_at": to_naive_utc(s["created_at"]),
+                }
+                for s in home_statuses
+            ]
+
             async with async_session() as session:
-                written = 0
-                for s in home_statuses:
-                    account_data = s["account"]
-                    last_status_time = to_naive_utc(s["created_at"])
-
-                    existing = await _upsert_account(
-                        session, meta_id, identity.id, account_data
-                    )
-
-                    if (
-                        not existing.last_status_at
-                        or last_status_time > existing.last_status_at
-                    ):
-                        existing.last_status_at = last_status_time
-                    written += 1
-
+                await bulk_upsert_accounts(session, meta_id, identity.id, rows)
                 await session.commit()
-                t.rows_written = written
+                t.rows_written = len(rows)
 
             # Recompute post stats for all accounts seen in this identity's cached posts.
             # Single GROUP BY query; results written back to cached_accounts.
@@ -310,81 +502,16 @@ async def sync_user_timeline_for_identity(
 
             async with async_session() as session:
                 # Upsert Author
-                await _upsert_account(session, meta_id, identity.id, target_account)
+                await bulk_upsert_accounts(
+                    session,
+                    meta_id,
+                    identity.id,
+                    [{"account_data": target_account}],
+                )
 
-                new_count = 0
-                updated_count = 0
-                for s in statuses:
-                    is_reblog = s["reblog"] is not None
-                    actual = s["reblog"] if is_reblog else s
-
-                    # Check Reply Status
-                    in_reply_to_id = actual.get("in_reply_to_id")
-                    in_reply_to_account = actual.get("in_reply_to_account_id")
-                    is_reply_to_other = in_reply_to_id is not None and str(
-                        in_reply_to_account
-                    ) != str(actual["account"]["id"])
-
-                    flags = analyze_content_domains(
-                        actual["content"], actual["media_attachments"], is_reply_to_other
-                    )
-                    media_json = (
-                        json.dumps(actual["media_attachments"])
-                        if actual["media_attachments"]
-                        else None
-                    )
-                    created_at = to_naive_utc(s["created_at"])
-                    tags_json = json.dumps([t_tag["name"] for t_tag in s.get("tags", [])])
-
-                    # Check if post exists FOR THIS META ACCOUNT
-                    stmt = select(CachedPost).where(
-                        and_(
-                            CachedPost.id == str(s["id"]),
-                            CachedPost.meta_account_id == meta_id,
-                            CachedPost.fetched_by_identity_id == identity.id,
-                        )
-                    )
-                    existing = (await session.execute(stmt)).scalar_one_or_none()
-
-                    post_data = {
-                        "content": actual["content"],
-                        "created_at": created_at,
-                        "visibility": s["visibility"],
-                        "author_acct": actual["account"]["acct"],
-                        "author_id": str(actual["account"]["id"]),
-                        "is_reblog": is_reblog,
-                        "is_reply": is_reply_to_other,
-                        "in_reply_to_id": str(in_reply_to_id) if in_reply_to_id else None,
-                        "in_reply_to_account_id": (
-                            str(in_reply_to_account) if in_reply_to_account else None
-                        ),
-                        "has_media": flags["has_media"],
-                        "has_video": flags["has_video"],
-                        "has_news": flags["has_news"],
-                        "has_tech": flags["has_tech"],
-                        "has_link": flags["has_link"],
-                        "has_question": flags["has_question"],
-                        "tags": tags_json,
-                        "replies_count": s["replies_count"],
-                        "reblogs_count": s["reblogs_count"],
-                        "favourites_count": s["favourites_count"],
-                        "media_attachments": media_json,
-                        "fetched_by_identity_id": identity.id,
-                    }
-
-                    if not existing:
-                        new_post = CachedPost(
-                            id=str(s["id"]),
-                            meta_account_id=meta_id,
-                            # fetched_by_identity_id is already inside **post_data
-                            **post_data,
-                        )
-                        session.add(new_post)
-                        new_count += 1
-                    else:
-                        for k, v in post_data.items():
-                            setattr(existing, k, v)
-                        updated_count += 1
+                new_count, updated_count = await bulk_upsert_posts(
+                    session, meta_id, identity.id, statuses
+                )
 
                 await session.commit()
                 await update_last_sync(sync_key)

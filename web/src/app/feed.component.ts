@@ -1,8 +1,8 @@
 // web/src/app/feed.component.ts
 
-import { Component, OnInit, OnDestroy, ElementRef, ViewChildren, QueryList, AfterViewInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, ViewChildren, ViewChild, QueryList, AfterViewInit, inject } from '@angular/core';
 import {ActivatedRoute, RouterLink} from '@angular/router';
-import {ApiService} from './api.service';
+import {ApiService, FeedPage} from './api.service';
 import {CommonModule} from '@angular/common';
 import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {LinkPreviewComponent} from './link.component';
@@ -26,9 +26,12 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
   private linkPreviewService = inject(LinkPreviewService);
 
   @ViewChildren('postItem') postItems!: QueryList<ElementRef>;
-  
+  @ViewChild('loadMoreSentinel') loadMoreSentinel?: ElementRef<HTMLElement>;
+
   items: (RawContentPost | Storm)[] = [];
   loading = true;
+  loadingMore = false;
+  nextCursor: string | null = null;
   isStormView = false;
   currentFilter = 'storms';
   currentUser: string | undefined;
@@ -37,9 +40,10 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
 
   currentIdentityId: number | null = null;
   seenPostIds = new Set<string>();
-  
+
   private scrollSubscription?: Subscription;
   private observer?: IntersectionObserver;
+  private loadMoreObserver?: IntersectionObserver;
 
   private pendingSeenPosts = new Set<string>();
   private batchTimer: number | null = null;
@@ -69,6 +73,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     // Combine Route Params with Identity State
     combineLatest([this.route.queryParams, this.api.identityId$])
       .subscribe(([params, identityId]) => {
+          const prevIdentityId = this.currentIdentityId;
           this.currentIdentityId = identityId;
 
           if (!identityId) {
@@ -79,8 +84,12 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
           const newFilter = params['filter'] || 'storms';
           const newUser = params['user'] || undefined; // "everyone" passes through as string here
 
-          // Reload if parameters changed or just initialized
-          if (newFilter !== this.currentFilter || newUser !== this.currentUser || identityId) {
+          // Reload only if filter/user changed or identity actually changed
+          const identityChanged = prevIdentityId !== identityId;
+          const filterChanged = newFilter !== this.currentFilter;
+          const userChanged = newUser !== this.currentUser;
+
+          if (filterChanged || userChanged || identityChanged) {
               this.currentFilter = newFilter;
               this.currentUser = newUser;
               this.syncingUser = false;
@@ -92,17 +101,24 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
   load(filter: string, user: string | undefined, identityId: number): void {
     this.loading = true;
     this.items = [];
+    this.nextCursor = null;
+    this.loadingMore = false;
 
     // Define the success handler to reuse
-    const handleSuccess = (data: (RawContentPost | Storm)[]) => {
+    const handleSuccess = (page: FeedPage<RawContentPost | Storm>) => {
       this.loading = false;
+      const data = page.items;
       // If we got an empty list for a specific user, try syncing ONCE to see if they exist remotely
       if (data.length === 0 && user && user !== 'everyone' && filter !== 'everyone' && !this.syncingUser) {
         this.attemptUserSync(user, identityId);
       } else {
         this.items = data;
+        this.nextCursor = page.next_cursor;
         this.trackSeenPosts(data);
         this.updateUnreadCount();
+        // Observe the load-more sentinel after the first page lands.
+        // Defer so the DOM has rendered the sentinel.
+        setTimeout(() => this.setupLoadMoreObserver(), 0);
       }
     };
 
@@ -119,18 +135,97 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     // If 'storms' (or legacy 'all'), use the Storms endpoint for the threaded view
     if (filter === 'storms' || filter === 'all') {
       this.isStormView = true;
-      this.api.getStorms(identityId, user).subscribe({ next: handleSuccess as (data: Storm[]) => void, error: handleError });
+      this.api.getStorms(identityId, user).subscribe({
+        next: (page) => handleSuccess(page as FeedPage<RawContentPost | Storm>),
+        error: handleError,
+      });
     }
     // If 'shorts', use the new Shorts endpoint for flat view
     else if (filter === 'shorts') {
       this.isStormView = false;
-      this.api.getShorts(identityId, user).subscribe({ next: handleSuccess as (data: RawContentPost[]) => void, error: handleError });
+      this.api.getShorts(identityId, user).subscribe({
+        next: (page) => handleSuccess(page as FeedPage<RawContentPost | Storm>),
+        error: handleError,
+      });
     }
     else {
       // Otherwise use the standard flat list with the specific filter
       this.isStormView = false;
-      this.api.getPublicPosts(identityId, filter, user).subscribe({ next: handleSuccess as (data: RawContentPost[]) => void, error: handleError });
+      this.api.getPublicPosts(identityId, filter, user).subscribe({
+        next: (page) => handleSuccess(page as FeedPage<RawContentPost | Storm>),
+        error: handleError,
+      });
     }
+  }
+
+  loadMore(): void {
+    if (this.loadingMore || !this.nextCursor || !this.currentIdentityId) return;
+    this.loadingMore = true;
+    const identityId = this.currentIdentityId;
+    const filter = this.currentFilter;
+    const user = this.currentUser;
+    const cursor = this.nextCursor;
+
+    const handleMore = (page: FeedPage<RawContentPost | Storm>) => {
+      this.items = [...this.items, ...page.items];
+      this.nextCursor = page.next_cursor;
+      this.loadingMore = false;
+      this.trackSeenPosts(page.items);
+      this.updateUnreadCount();
+      if (this.nextCursor) {
+        setTimeout(() => this.setupLoadMoreObserver(), 0);
+      } else {
+        this.loadMoreObserver?.disconnect();
+      }
+    };
+
+    const handleErr = (err: HttpErrorResponse) => {
+      console.error('Load more failed:', err);
+      this.loadingMore = false;
+    };
+
+    if (filter === 'storms' || filter === 'all') {
+      this.api.getStorms(identityId, user, cursor).subscribe({
+        next: (page) => handleMore(page as FeedPage<RawContentPost | Storm>),
+        error: handleErr,
+      });
+    } else if (filter === 'shorts') {
+      this.api.getShorts(identityId, user, cursor).subscribe({
+        next: (page) => handleMore(page as FeedPage<RawContentPost | Storm>),
+        error: handleErr,
+      });
+    } else {
+      this.api.getPublicPosts(identityId, filter, user, cursor).subscribe({
+        next: (page) => handleMore(page as FeedPage<RawContentPost | Storm>),
+        error: handleErr,
+      });
+    }
+  }
+
+  private setupLoadMoreObserver(): void {
+    if (typeof IntersectionObserver === 'undefined') return;
+    if (!this.loadMoreSentinel || !this.nextCursor) return;
+
+    this.loadMoreObserver?.disconnect();
+    this.loadMoreObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting) {
+          this.loadMore();
+        }
+      },
+      { rootMargin: '400px' },
+    );
+    this.loadMoreObserver.observe(this.loadMoreSentinel.nativeElement);
+  }
+
+  trackById(_index: number, item: RawContentPost | Storm): string {
+    if ('root' in item) return item.root.id;
+    return item.id;
+  }
+
+  trackByBranchId(_index: number, item: RawContentPost): string {
+    return item.id;
   }
 
   attemptUserSync(acct: string, identityId: number): void {
@@ -182,6 +277,11 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.linkPreviewService.extractUrls(post.content || '');
   }
 
+  getFirstPostUrl(post: RawContentPost): string | null {
+    const urls = this.getPostUrls(post);
+    return urls.length > 0 ? urls[0] : null;
+  }
+
   ngAfterViewInit(): void {
     this.setupScrollTracking();
   }
@@ -189,6 +289,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnDestroy(): void {
     this.scrollSubscription?.unsubscribe();
     this.observer?.disconnect();
+    this.loadMoreObserver?.disconnect();
     this.flushPendingPosts();
     this.clearAllTimers();
   }

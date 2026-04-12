@@ -286,9 +286,9 @@ export class ForumComponent implements OnInit {
     // For now, we'll fetch discussions posts and simulate the grouping
     // In production, you'd have a dedicated API endpoint for this
     this.api.getPublicPosts(identityId, 'discussions', undefined).subscribe({
-      next: (posts) => {
+      next: (page) => {
         // Simulate discussion threads (in reality, your backend would do this)
-        this.discussions = posts.map(post => ({
+        this.discussions = page.items.map(post => ({
           id: post.id,
           root_post: post,
           participant_count: Math.floor(Math.random() * 10) + 2,

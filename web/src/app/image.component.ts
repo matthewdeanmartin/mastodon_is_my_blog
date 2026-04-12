@@ -291,8 +291,8 @@ export class ImageFeedComponent implements OnInit {
     const userFilter = this.currentFilter === 'everyone' ? 'everyone' : undefined;
 
     this.api.getPublicPosts(identityId, 'pictures', userFilter).subscribe({
-      next: (posts) => {
-        this.images = posts
+      next: (page) => {
+        this.images = page.items
           .filter(p => p.media_attachments && p.media_attachments.length > 0)
           .map(p => ({
             id: p.id,

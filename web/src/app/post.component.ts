@@ -152,19 +152,17 @@ export class PublicPostComponent implements OnInit {
     };
 
     if (isStorms) {
-      // UPDATED: Pass identityId as first argument
       this.api.getStorms(identityId, this.blogUserAcct || undefined).subscribe({
-        next: storms => {
-          this.allPosts = storms.map(storm => ({id: storm.root.id, created_at: storm.root.created_at}));
+        next: page => {
+          this.allPosts = page.items.map(storm => ({id: storm.root.id, created_at: storm.root.created_at}));
           onDone();
         },
         error: () => onDone(),
       });
     } else {
-      // UPDATED: Pass identityId as first argument
       this.api.getPublicPosts(identityId, this.currentFilter, this.blogUserAcct || undefined).subscribe({
-        next: posts => {
-          this.allPosts = posts.map(p => ({id: p.id, created_at: p.created_at}));
+        next: page => {
+          this.allPosts = page.items.map(p => ({id: p.id, created_at: p.created_at}));
           onDone();
         },
         error: () => onDone(),

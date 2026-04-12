@@ -370,21 +370,24 @@ def test_public_posts_endpoint_returns_serialized_posts(
     response = api_client.get("/api/posts?identity_id=5&filter_type=all")
 
     assert response.status_code == 200
-    assert response.json() == [
-        {
-            "id": "p1",
-            "content": "<p>Hello</p>",
-            "author_acct": "alice@example.com",
-            "created_at": "2024-01-02T12:00:00",
-            "is_read": True,
-            "media_attachments": [{"type": "image"}],
-            "counts": {"replies": 1, "reblogs": 2, "likes": 3},
-            "is_reblog": False,
-            "is_reply": False,
-            "has_link": True,
-            "tags": ["Intro"],
-        }
-    ]
+    assert response.json() == {
+        "items": [
+            {
+                "id": "p1",
+                "content": "<p>Hello</p>",
+                "author_acct": "alice@example.com",
+                "created_at": "2024-01-02T12:00:00",
+                "is_read": True,
+                "media_attachments": [{"type": "image"}],
+                "counts": {"replies": 1, "reblogs": 2, "likes": 3},
+                "is_reblog": False,
+                "is_reply": False,
+                "has_link": True,
+                "tags": ["Intro"],
+            }
+        ],
+        "next_cursor": None,
+    }
 
 
 def test_shorts_endpoint_uses_shorts_filter(
@@ -393,24 +396,34 @@ def test_shorts_endpoint_uses_shorts_filter(
     captured: dict[str, Any] = {}
 
     async def fake_get_public_posts(
-        *, identity_id: int, user: str | None, filter_type: str, meta: Any
-    ) -> list[dict[str, str]]:
+        *,
+        identity_id: int,
+        user: str | None,
+        filter_type: str,
+        limit: int,
+        before: str | None,
+        meta: Any,
+    ) -> dict[str, Any]:
         captured["identity_id"] = identity_id
         captured["user"] = user
         captured["filter_type"] = filter_type
+        captured["limit"] = limit
+        captured["before"] = before
         captured["meta_id"] = meta.id
-        return [{"id": "short-1"}]
+        return {"items": [{"id": "short-1"}], "next_cursor": None}
 
     monkeypatch.setattr(posts, "get_public_posts", fake_get_public_posts)
 
     response = api_client.get("/api/posts/shorts?identity_id=5&user=alice")
 
     assert response.status_code == 200
-    assert response.json() == [{"id": "short-1"}]
+    assert response.json() == {"items": [{"id": "short-1"}], "next_cursor": None}
     assert captured == {
         "identity_id": 5,
         "user": "alice",
         "filter_type": "shorts",
+        "limit": 30,
+        "before": None,
         "meta_id": 7,
     }
 
@@ -459,29 +472,32 @@ def test_storms_endpoint_returns_root_and_branch_posts(
     response = api_client.get("/api/posts/storms?identity_id=5")
 
     assert response.status_code == 200
-    assert response.json() == [
-        {
-            "root": {
-                "id": "root-1",
-                "content": "storm root",
-                "created_at": "2024-01-02T12:00:00",
-                "media": [],
-                "counts": {"replies": 5, "likes": 6},
-                "author_acct": "alice@example.com",
-                "is_read": False,
-            },
-            "branches": [
-                {
-                    "id": "reply-1",
-                    "content": "storm reply",
+    assert response.json() == {
+        "items": [
+            {
+                "root": {
+                    "id": "root-1",
+                    "content": "storm root",
+                    "created_at": "2024-01-02T12:00:00",
                     "media": [],
-                    "counts": {"replies": 0, "likes": 1},
-                    "is_read": True,
-                    "children": [],
-                }
-            ],
-        }
-    ]
+                    "counts": {"replies": 5, "likes": 6},
+                    "author_acct": "alice@example.com",
+                    "is_read": False,
+                },
+                "branches": [
+                    {
+                        "id": "reply-1",
+                        "content": "storm reply",
+                        "media": [],
+                        "counts": {"replies": 0, "likes": 1},
+                        "is_read": True,
+                        "children": [],
+                    }
+                ],
+            }
+        ],
+        "next_cursor": None,
+    }
 
 
 def test_hashtags_endpoint_aggregates_and_sorts_tags(
