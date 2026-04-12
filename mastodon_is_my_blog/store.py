@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    func,
     insert,
     select,
 )
@@ -515,12 +516,9 @@ async def get_seen_posts(meta_account_id: int, post_ids: list[str]) -> set[str]:
 
 async def get_unread_count(meta_account_id: int, since: datetime | None = None) -> int:
     async with async_session() as session:
+        stmt = select(func.count(SeenPost.post_id)).where(
+            SeenPost.meta_account_id == meta_account_id
+        )
         if since:
-            stmt = select(SeenPost).where(
-                SeenPost.meta_account_id == meta_account_id,
-                SeenPost.seen_at >= since,
-            )
-        else:
-            stmt = select(SeenPost).where(SeenPost.meta_account_id == meta_account_id)
-        result = await session.execute(stmt)
-        return len(result.fetchall())
+            stmt = stmt.where(SeenPost.seen_at >= since)
+        return (await session.execute(stmt)).scalar_one()

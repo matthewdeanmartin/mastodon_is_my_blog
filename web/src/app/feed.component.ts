@@ -4,14 +4,12 @@ import { Component, OnInit, OnDestroy, ElementRef, ViewChildren, ViewChild, Quer
 import {ActivatedRoute, RouterLink} from '@angular/router';
 import {ApiService, FeedPage} from './api.service';
 import {CommonModule} from '@angular/common';
-import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
+import {DomSanitizer} from '@angular/platform-browser';
 import {LinkPreviewComponent} from './link.component';
-import {LinkPreviewService} from './link.service';
 import {combineLatest, Subscription} from 'rxjs';
 import {HttpErrorResponse} from '@angular/common/http';
-import {RawContentPost} from './content-feed.utils';
+import {FeedViewModel, RawContentPost, toFeedViewModel} from './content-feed.utils';
 import {Storm} from './api.service';
-import {MastodonMediaAttachment} from './mastodon';
 
 @Component({
   selector: 'app-public-feed',
@@ -23,12 +21,12 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
   private route = inject(ActivatedRoute);
   private api = inject(ApiService);
   private sanitizer = inject(DomSanitizer);
-  private linkPreviewService = inject(LinkPreviewService);
 
   @ViewChildren('postItem') postItems!: QueryList<ElementRef>;
   @ViewChild('loadMoreSentinel') loadMoreSentinel?: ElementRef<HTMLElement>;
 
   items: (RawContentPost | Storm)[] = [];
+  viewModels = new Map<string, FeedViewModel>();
   loading = true;
   loadingMore = false;
   nextCursor: string | null = null;
@@ -101,6 +99,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
   load(filter: string, user: string | undefined, identityId: number): void {
     this.loading = true;
     this.items = [];
+    this.viewModels = new Map();
     this.nextCursor = null;
     this.loadingMore = false;
 
@@ -245,17 +244,10 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  stripHtml(html?: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(html ?? '');
-    // return (html || '').replace(/<[^>]+>/g, '').trim();
+  vm(postId: string): FeedViewModel | undefined {
+    return this.viewModels.get(postId);
   }
 
-  getImages(post: RawContentPost): MastodonMediaAttachment[] {
-    // Handle storm root vs regular post structure if needed,
-    // but the API ensures 'media' or 'media_attachments' exists.
-    const media = post.media_attachments || [];
-    return media.filter((m) => m.type === 'image');
-  }
   getQueryParams() {
     const params: Record<string, string> = { filter: this.currentFilter };
     if (this.currentUser) {
@@ -264,22 +256,26 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     return params;
   }
 
-   getOriginalPostUrl(post: RawContentPost): string {
-    const acct = post.author_acct;
-    if (!acct) return '#';
-
-    const parts = acct.split('@');
-    return `https://${parts[1] || 'mastodon.social'}/@${parts[0]}/${post.id}`;
+  private buildViewModels(data: (RawContentPost | Storm)[]): void {
+    const sanitize = (html: string) => this.sanitizer.bypassSecurityTrustHtml(html);
+    for (const item of data) {
+      if ('root' in item) {
+        this.viewModels.set(item.root.id, toFeedViewModel(item.root, sanitize, this.seenPostIds));
+        for (const branch of item.branches ?? []) {
+          this.viewModels.set(branch.id, toFeedViewModel(branch, sanitize, this.seenPostIds));
+        }
+      } else {
+        this.viewModels.set(item.id, toFeedViewModel(item, sanitize, this.seenPostIds));
+      }
+    }
   }
 
-  getPostUrls(post: RawContentPost): string[] {
-    // Extract URLs from post content for link previews
-    return this.linkPreviewService.extractUrls(post.content || '');
-  }
-
-  getFirstPostUrl(post: RawContentPost): string | null {
-    const urls = this.getPostUrls(post);
-    return urls.length > 0 ? urls[0] : null;
+  private rebuildReadState(): void {
+    for (const [id, model] of this.viewModels) {
+      if (!model.isRead && this.seenPostIds.has(id)) {
+        this.viewModels.set(id, {...model, isRead: true});
+      }
+    }
   }
 
   ngAfterViewInit(): void {
@@ -417,7 +413,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private trackSeenPosts(data: (RawContentPost | Storm)[]): void {
     const postIds: string[] = [];
-    
+
     for (const item of data) {
       if (this.isStormView && 'root' in item) {
         postIds.push(item.root.id);
@@ -429,9 +425,13 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
       }
     }
 
+    // Build view models now (before seen state arrives, isRead = false for new items).
+    this.buildViewModels(data);
+
     this.api.getSeenPosts(postIds).subscribe({
       next: (res) => {
         this.seenPostIds = new Set<string>(res.seen);
+        this.rebuildReadState();
         this.updateUnreadCount();
       },
       error: (err: unknown) => {

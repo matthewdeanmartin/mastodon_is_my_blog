@@ -3,9 +3,9 @@ Syncs notifications and stores them in the database for flexible querying.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 
 from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
 from mastodon_is_my_blog.queries import bulk_upsert_accounts, sync_user_timeline_for_identity
@@ -121,33 +121,52 @@ async def sync_notifications_for_identity(
                 await session.commit()
                 t.rows_written = new_notif_count
 
-            # Now sync timelines for mutual followers who interacted
-            async with async_session() as session:
-                for account_id in synced_account_ids:
-                    stmt = select(CachedAccount).where(
-                        and_(
-                            CachedAccount.id == account_id,
-                            CachedAccount.meta_account_id == meta_id,
-                            CachedAccount.mastodon_identity_id == identity.id,
-                            CachedAccount.is_following is True,
-                            CachedAccount.is_followed_by is True,
-                        )
-                    )
-                    mutual = (await session.execute(stmt)).scalar_one_or_none()
+            # Second-hop: sync timelines for top-5 mutuals by recent notification count.
+            # 60-min cooldown keeps notification sync from amplifying into many API calls.
+            SECOND_HOP_LIMIT = 5
+            SECOND_HOP_COOLDOWN = 60
+            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
 
-                    if mutual:
-                        try:
-                            await sync_user_timeline_for_identity(
-                                meta_id=meta_id,
-                                identity=identity,
-                                acct=mutual.acct,
-                                force=False,
-                            )
-                            stats["timelines_synced"] += 1
-                        except Exception as e:
-                            logger.warning(
-                                "Failed to sync timeline for %s: %s", mutual.acct, e
-                            )
+            async with async_session() as session:
+                # Rank mutuals among the accounts we just saw by recent notification count.
+                top_mutuals_stmt = (
+                    select(CachedAccount)
+                    .join(
+                        CachedNotification,
+                        and_(
+                            CachedNotification.account_id == CachedAccount.id,
+                            CachedNotification.meta_account_id == meta_id,
+                            CachedNotification.identity_id == identity.id,
+                            CachedNotification.created_at >= cutoff,
+                        ),
+                    )
+                    .where(
+                        CachedAccount.id.in_(synced_account_ids),
+                        CachedAccount.meta_account_id == meta_id,
+                        CachedAccount.mastodon_identity_id == identity.id,
+                        CachedAccount.is_following.is_(True),
+                        CachedAccount.is_followed_by.is_(True),
+                    )
+                    .group_by(CachedAccount.id)
+                    .order_by(func.count(CachedNotification.id).desc())
+                    .limit(SECOND_HOP_LIMIT)
+                )
+                top_mutuals = (await session.execute(top_mutuals_stmt)).scalars().all()
+
+            for mutual in top_mutuals:
+                try:
+                    await sync_user_timeline_for_identity(
+                        meta_id=meta_id,
+                        identity=identity,
+                        acct=mutual.acct,
+                        force=False,
+                        cooldown_minutes=SECOND_HOP_COOLDOWN,
+                    )
+                    stats["timelines_synced"] += 1
+                except Exception as e:
+                    logger.warning(
+                        "Failed to sync timeline for %s: %s", mutual.acct, e
+                    )
 
             t.extra = {k: v for k, v in stats.items()}
 

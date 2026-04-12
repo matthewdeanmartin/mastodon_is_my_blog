@@ -469,6 +469,7 @@ async def sync_user_timeline_for_identity(
     identity: MastodonIdentity,
     acct: str | None = None,
     force: bool = False,
+    cooldown_minutes: int = 15,
 ) -> dict:
     """Syncs posts for a specific identity and optional target account."""
     target_acct_desc = acct if acct else "self"
@@ -478,7 +479,7 @@ async def sync_user_timeline_for_identity(
     if (
         not force
         and last_run
-        and (datetime.utcnow() - last_run) < timedelta(minutes=15)
+        and (datetime.utcnow() - last_run) < timedelta(minutes=cooldown_minutes)
     ):
         return {"status": "skipped"}
 

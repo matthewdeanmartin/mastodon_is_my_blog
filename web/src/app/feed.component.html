@@ -63,92 +63,92 @@
 </div>
 
 <ng-template #postTemplate let-p>
-  <div #postItem [attr.data-post-id]="p.id" [class.read-post]="isPostRead(p.id)" class="post-item" (mouseenter)="onPostMouseEnter(p.id)" (mouseleave)="onPostMouseLeave(p.id)">
-    <div class="row" style="margin-bottom: 5px">
-      <a
-        [routerLink]="['/p', p.id]"
-        [queryParams]="getQueryParams()"
-        class="muted"
-        style="font-size: 0.85rem"
-        >
-        @if (p.created_at) {
-          <span>{{ p.created_at | date: 'mediumDate' }}</span>
-        }
-        @if (!p.created_at) {
-          <span>Just now</span>
-        }
-      </a>
-      <div>
-        @if (p.is_reblog) {
-          <span
-        style="
-          background: #e3f2fd;
-          color: #1976d2;
-          padding: 2px 8px;
-          border-radius: 3px;
-          font-size: 0.75rem;
-          font-weight: 600;
-        "
-            >REBLOG</span
-            >
+  @if (vm(p.id); as v) {
+    <div #postItem [attr.data-post-id]="p.id" [class.read-post]="v.isRead" class="post-item" (mouseenter)="onPostMouseEnter(p.id)" (mouseleave)="onPostMouseLeave(p.id)">
+      <div class="row" style="margin-bottom: 5px">
+        <a
+          [routerLink]="['/p', p.id]"
+          [queryParams]="getQueryParams()"
+          class="muted"
+          style="font-size: 0.85rem"
+          >
+          @if (p.created_at) {
+            <span>{{ p.created_at | date: 'mediumDate' }}</span>
           }
-          @if (p.is_reply) {
+          @if (!p.created_at) {
+            <span>Just now</span>
+          }
+        </a>
+        <div>
+          @if (v.is_reblog) {
             <span
-        style="
-          background: #f3e5f5;
-          color: #7b1fa2;
-          padding: 2px 8px;
-          border-radius: 3px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          margin-left: 4px;
-        "
-              >REPLY</span
+          style="
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: 600;
+          "
+              >REBLOG</span
               >
             }
+            @if (v.is_reply) {
+              <span
+          style="
+            background: #f3e5f5;
+            color: #7b1fa2;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 4px;
+          "
+                >REPLY</span
+                >
+              }
+            </div>
           </div>
-        </div>
 
-        <div class="post-body">
-          <!-- First show a plain text preview, then link to full post -->
-          <!--    <span>{{ stripHtml(p.content).slice(0, 2000) }}{{ p.content.length > 2000 ? '...' : '' }}</span>-->
-          <span [innerHTML]="stripHtml(p.content)"></span>
-        </div>
-
-        <!-- Link Previews: only the first URL gets a rich card in the feed -->
-        @if (getFirstPostUrl(p); as firstUrl) {
-          <div>
-            <app-link-preview [url]="firstUrl"></app-link-preview>
+          <div class="post-body">
+            <span [innerHTML]="v.safeContentHtml"></span>
           </div>
-        }
 
-        @if (getImages(p).length > 0) {
-          <div
-            style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;"
-            >
-            @for (img of getImages(p); track img) {
-              <img
-                [src]="img.preview_url || img.url"
-                alt=""
-                style="width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee"
-                />
-            }
-          </div>
-        }
-
-        <div style="margin-top: 6px; margin-bottom: 15px">
-          <a [routerLink]="['/p', p.id]"><small>Read more</small></a>
-          @if (p.counts) {
-            <span class="muted" style="margin-left: 10px; font-size: 0.8rem">
-              {{ p.counts.replies }} replies &bull; {{ p.counts.likes }} likes
-            </span>
+          <!-- Link Previews: only the first URL gets a rich card in the feed -->
+          @if (v.firstLinkUrl) {
+            <div>
+              <app-link-preview [url]="v.firstLinkUrl"></app-link-preview>
+            </div>
           }
-          <span style="margin-left: 10px;">
-            <a [href]="getOriginalPostUrl(p)" target="_blank" rel="noopener noreferrer"
-              style="font-size: 0.8rem; color: #6366f1; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-              <span style="font-size: 1rem;">🔗</span> View on Mastodon
-            </a>
-          </span>
+
+          @if (v.images.length > 0) {
+            <div
+              style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;"
+              >
+              @for (img of v.images; track img) {
+                <img
+                  [src]="img.preview_url || img.url"
+                  alt=""
+                  style="width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee"
+                  />
+              }
+            </div>
+          }
+
+          <div style="margin-top: 6px; margin-bottom: 15px">
+            <a [routerLink]="['/p', p.id]"><small>Read more</small></a>
+            @if (v.counts) {
+              <span class="muted" style="margin-left: 10px; font-size: 0.8rem">
+                {{ v.counts.replies }} replies &bull; {{ v.counts.likes }} likes
+              </span>
+            }
+            <span style="margin-left: 10px;">
+              <a [href]="v.originalUrl" target="_blank" rel="noopener noreferrer"
+                style="font-size: 0.8rem; color: #6366f1; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                <span style="font-size: 1rem;">🔗</span> View on Mastodon
+              </a>
+            </span>
+          </div>
         </div>
-      </div>
-    </ng-template>
+  }
+</ng-template>

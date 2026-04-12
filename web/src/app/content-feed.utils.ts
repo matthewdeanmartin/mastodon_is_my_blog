@@ -1,4 +1,5 @@
 import {MastodonMediaAttachment} from './mastodon';
+import {SafeHtml} from '@angular/platform-browser';
 
 export type ContentFeedFilter = 'recent' | 'popular' | 'following' | 'everyone';
 
@@ -34,6 +35,68 @@ export interface RawContentPost {
   author_avatar?: string;
   counts?: Partial<ContentCounts>;
   media_attachments?: MastodonMediaAttachment[];
+  is_reblog?: boolean;
+  is_reply?: boolean;
+}
+
+/**
+ * Precomputed view model for a feed post.
+ * Computed once when data arrives; templates read fields directly.
+ */
+export interface FeedViewModel {
+  id: string;
+  created_at: string;
+  safeContentHtml: SafeHtml;
+  firstLinkUrl: string | null;
+  images: MastodonMediaAttachment[];
+  originalUrl: string;
+  isRead: boolean;
+  counts?: Partial<ContentCounts>;
+  is_reblog?: boolean;
+  is_reply?: boolean;
+}
+
+const IGNORED_LINK_DOMAINS = ['mastodon.social', 'appdot.net'];
+
+function extractFirstLinkUrl(html: string): string | null {
+  if (typeof DOMParser === 'undefined') return null;
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const anchors = Array.from(doc.querySelectorAll('a[href]')) as HTMLAnchorElement[];
+  for (const anchor of anchors) {
+    if (anchor.classList.contains('hashtag') || anchor.classList.contains('mention')) continue;
+    const href = anchor.getAttribute('href');
+    if (!href || (!href.startsWith('http://') && !href.startsWith('https://'))) continue;
+    if (IGNORED_LINK_DOMAINS.some(d => href.includes(d))) continue;
+    return href;
+  }
+  return null;
+}
+
+function buildOriginalUrl(acct: string, postId: string): string {
+  if (!acct) return '#';
+  const parts = acct.split('@');
+  return `https://${parts[1] || 'mastodon.social'}/@${parts[0]}/${postId}`;
+}
+
+export function toFeedViewModel(
+  post: RawContentPost,
+  sanitize: (html: string) => SafeHtml,
+  seenIds: ReadonlySet<string>,
+): FeedViewModel {
+  const html = post.content ?? '';
+  const media = post.media_attachments ?? [];
+  return {
+    id: post.id,
+    created_at: post.created_at,
+    safeContentHtml: sanitize(html),
+    firstLinkUrl: extractFirstLinkUrl(html),
+    images: media.filter(m => m.type === 'image'),
+    originalUrl: buildOriginalUrl(post.author_acct, post.id),
+    isRead: seenIds.has(post.id),
+    counts: post.counts,
+    is_reblog: post.is_reblog,
+    is_reply: post.is_reply,
+  };
 }
 
 export const contentFeedFilters: { value: ContentFeedFilter; label: string }[] = [
