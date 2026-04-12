@@ -7,7 +7,7 @@ from mastodon_is_my_blog.link_previews import (
     CardRequest,
     _clean,
     _ensure_public_destination,
-    fetch_card,
+    fetch_card_from_network,
 )
 
 
@@ -40,7 +40,7 @@ async def test_ensure_public_destination_rejects_private_ips(monkeypatch: pytest
 
 
 @pytest.mark.asyncio
-async def test_fetch_card_parses_metadata_and_normalizes_urls(
+async def test_fetch_card_from_network_parses_metadata_and_normalizes_urls(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     html = b"""
@@ -63,16 +63,7 @@ async def test_fetch_card_parses_metadata_and_normalizes_urls(
             self.content = html
             self.url = "https://example.com/final"
 
-    class DummyAsyncClient:
-        def __init__(self, **kwargs) -> None:
-            self.kwargs = kwargs
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb) -> None:
-            return None
-
+    class DummySharedClient:
         async def get(self, url: str) -> DummyResponse:
             assert url == "https://example.com/start"
             return DummyResponse()
@@ -85,10 +76,11 @@ async def test_fetch_card_parses_metadata_and_normalizes_urls(
         allow_public_destination,
     )
     monkeypatch.setattr(
-        "mastodon_is_my_blog.link_previews.httpx.AsyncClient", DummyAsyncClient
+        "mastodon_is_my_blog.link_previews.get_http_client",
+        lambda: DummySharedClient(),
     )
 
-    card = await fetch_card("https://example.com/start")
+    card = await fetch_card_from_network("https://example.com/start")
 
     assert card.url == "https://example.com/final"
     assert card.title == "Example title"
@@ -99,7 +91,7 @@ async def test_fetch_card_parses_metadata_and_normalizes_urls(
 
 
 @pytest.mark.asyncio
-async def test_fetch_card_rejects_non_html_responses(
+async def test_fetch_card_from_network_rejects_non_html_responses(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class DummyResponse:
@@ -108,16 +100,7 @@ async def test_fetch_card_rejects_non_html_responses(
             self.content = b'{"ok": true}'
             self.url = "https://example.com/api"
 
-    class DummyAsyncClient:
-        def __init__(self, **kwargs) -> None:
-            self.kwargs = kwargs
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb) -> None:
-            return None
-
+    class DummySharedClient:
         async def get(self, url: str) -> DummyResponse:
             assert url == "https://example.com/api"
             return DummyResponse()
@@ -130,28 +113,20 @@ async def test_fetch_card_rejects_non_html_responses(
         allow_public_destination,
     )
     monkeypatch.setattr(
-        "mastodon_is_my_blog.link_previews.httpx.AsyncClient", DummyAsyncClient
+        "mastodon_is_my_blog.link_previews.get_http_client",
+        lambda: DummySharedClient(),
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        await fetch_card("https://example.com/api")
+        await fetch_card_from_network("https://example.com/api")
 
     assert exc_info.value.status_code == 415
     assert exc_info.value.detail == "Unsupported content-type: application/json"
 
 
 @pytest.mark.asyncio
-async def test_fetch_card_wraps_request_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    class DummyAsyncClient:
-        def __init__(self, **kwargs) -> None:
-            self.kwargs = kwargs
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc_type, exc, tb) -> None:
-            return None
-
+async def test_fetch_card_from_network_wraps_request_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    class DummySharedClient:
         async def get(self, url: str):
             raise httpx.ConnectError("boom")
 
@@ -163,11 +138,12 @@ async def test_fetch_card_wraps_request_errors(monkeypatch: pytest.MonkeyPatch) 
         allow_public_destination,
     )
     monkeypatch.setattr(
-        "mastodon_is_my_blog.link_previews.httpx.AsyncClient", DummyAsyncClient
+        "mastodon_is_my_blog.link_previews.get_http_client",
+        lambda: DummySharedClient(),
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        await fetch_card("https://example.com")
+        await fetch_card_from_network("https://example.com")
 
     assert exc_info.value.status_code == 502
     assert exc_info.value.detail == "Upstream fetch failed."

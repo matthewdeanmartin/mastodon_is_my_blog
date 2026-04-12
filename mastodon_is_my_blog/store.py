@@ -279,6 +279,31 @@ class CachedNotification(Base):
     )
 
 
+class CachedLinkPreview(Base):
+    """
+    Persistent link-preview cache.  One row per canonicalized URL.
+    TTLs:  ok → 7d fresh / 30d stale-while-revalidate
+           error → 30 min negative cache
+           blocked → 24 h negative cache
+    """
+
+    __tablename__ = "cached_link_previews"
+
+    url_key: Mapped[str] = mapped_column(String, primary_key=True)
+    final_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    site_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image: Mapped[str | None] = mapped_column(String, nullable=True)
+    favicon: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="ok")  # ok | error | blocked
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    error_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (Index("ix_card_expires", "expires_at"),)
+
+
 class AppState(Base):
     """
     Sync state. Key needs to be composite now to track sync per identity.

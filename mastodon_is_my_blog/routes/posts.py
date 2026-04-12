@@ -24,7 +24,7 @@ from mastodon_is_my_blog.store import (
     mark_post_seen,
     mark_posts_seen,
 )
-from mastodon_is_my_blog.utils.perf import record_card_timing, record_preview_miss, time_async_function
+from mastodon_is_my_blog.utils.perf import time_async_function
 
 logger = logging.getLogger(__name__)
 
@@ -470,18 +470,7 @@ async def get_counts(
 
 @router.get("/card", response_model=CardResponse)
 async def fetch_card_endpoint(url: str = Query(..., min_length=8, max_length=2048)):
-    import time as _time
-    start = _time.perf_counter()
-    try:
-        result = await fetch_card(url)
-        elapsed = _time.perf_counter() - start
-        record_preview_miss()
-        record_card_timing(url, elapsed, cache_status="miss")
-        return result
-    except Exception:
-        elapsed = _time.perf_counter() - start
-        record_card_timing(url, elapsed, cache_status="error")
-        raise
+    return await fetch_card(url)
 
 
 # --- Context Crawler ---

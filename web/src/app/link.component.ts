@@ -1,4 +1,13 @@
-import { Component, Input, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  Input,
+  OnDestroy,
+  OnInit,
+  inject,
+} from '@angular/core';
 
 import { LinkPreviewService, LinkPreview } from './link.service';
 
@@ -8,7 +17,15 @@ import { LinkPreviewService, LinkPreview } from './link.service';
   imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (preview) {
+    @if (loading) {
+      <div class="link-preview-skeleton" aria-label="Loading preview…">
+        <div class="skeleton-image"></div>
+        <div class="skeleton-text">
+          <div class="skeleton-line wide"></div>
+          <div class="skeleton-line narrow"></div>
+        </div>
+      </div>
+    } @else if (preview) {
       <div class="link-preview-card">
         <a [href]="preview.url" target="_blank" rel="noopener noreferrer" class="preview-link">
           <div class="preview-content">
@@ -17,6 +34,8 @@ import { LinkPreviewService, LinkPreview } from './link.service';
                 [src]="preview.image"
                 [alt]="preview.title || 'Preview image'"
                 class="preview-image"
+                loading="lazy"
+                decoding="async"
                 (error)="onImageError($event)">
             }
             <div class="preview-text">
@@ -26,6 +45,8 @@ import { LinkPreviewService, LinkPreview } from './link.service';
                     [src]="preview.favicon"
                     alt="Site icon"
                     class="preview-favicon"
+                    loading="lazy"
+                    decoding="async"
                     (error)="onFaviconError()">
                 }
                 @if (preview.site_name) {
@@ -134,6 +155,46 @@ import { LinkPreviewService, LinkPreview } from './link.service';
       white-space: nowrap;
     }
 
+    /* Skeleton */
+    .link-preview-skeleton {
+      margin: 12px 0;
+      border: 1px solid #e1e8ed;
+      border-radius: 8px;
+      overflow: hidden;
+      background: white;
+    }
+
+    .skeleton-image {
+      width: 100%;
+      height: 80px;
+      background: linear-gradient(90deg, #f3f4f6 25%, #e9ebee 50%, #f3f4f6 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+    }
+
+    .skeleton-text {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .skeleton-line {
+      height: 12px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #f3f4f6 25%, #e9ebee 50%, #f3f4f6 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+    }
+
+    .skeleton-line.wide { width: 80%; }
+    .skeleton-line.narrow { width: 50%; }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
     @media (max-width: 768px) {
       .preview-image {
         height: 150px;
@@ -149,25 +210,58 @@ import { LinkPreviewService, LinkPreview } from './link.service';
     }
   `]
 })
-export class LinkPreviewComponent implements OnInit {
+export class LinkPreviewComponent implements OnInit, OnDestroy {
   private previewService = inject(LinkPreviewService);
+  private elRef = inject(ElementRef);
+  private cdr = inject(ChangeDetectorRef);
 
   @Input() url = '';
 
   preview: LinkPreview | null = null;
+  loading = false;
   faviconError = false;
 
+  private observer: IntersectionObserver | null = null;
+  private fetched = false;
+
   ngOnInit(): void {
-    if (this.url) {
-      this.previewService.getPreview(this.url).subscribe({
-        next: (preview) => {
-          this.preview = preview;
-        },
-        error: (err) => {
-          console.error('Preview fetch error:', err);
+    if (!this.url) return;
+
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && !this.fetched) {
+          this.fetched = true;
+          this.observer?.disconnect();
+          this.loadPreview();
         }
-      });
-    }
+      },
+      { rootMargin: '200px' }  // start loading 200px before entering viewport
+    );
+
+    this.observer.observe(this.elRef.nativeElement);
+  }
+
+  ngOnDestroy(): void {
+    this.observer?.disconnect();
+  }
+
+  private loadPreview(): void {
+    this.loading = true;
+    this.cdr.markForCheck();
+
+    this.previewService.getPreview(this.url).subscribe({
+      next: (preview) => {
+        this.preview = preview;
+        this.loading = false;
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.error('Preview fetch error:', err);
+        this.loading = false;
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   getDisplayUrl(url: string): string {

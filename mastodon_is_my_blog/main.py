@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from mastodon_is_my_blog.identity_verifier import verify_all_identities
+from mastodon_is_my_blog.link_previews import close_http_client, init_http_client
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
     client,
     get_default_client,
@@ -45,8 +46,14 @@ async def lifespan(_: FastAPI):
 
     # Verify all identities (updates acct/account_id from API)
     await verify_all_identities()
+
+    # Initialize shared httpx client for link previews
+    init_http_client()
+
     yield
-    # Shutdown: cleanup if needed
+
+    # Shutdown: close shared httpx client
+    await close_http_client()
 
 
 app = FastAPI(lifespan=lifespan)
