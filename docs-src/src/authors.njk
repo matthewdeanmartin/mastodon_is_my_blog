@@ -1,0 +1,20 @@
+---
+layout: layouts/base.njk
+title: Authors
+description: Identities included in the Mastodon storm export.
+---
+{% if storms.authors.length %}
+<section class="author-list">
+  {% for author in storms.authors %}
+  <article class="author-card">
+    <h2><a href="{{ ('/authors/' + (author.acct | lower) + '/') | relativeUrl(page.url) }}">@{{ author.acct }}</a></h2>
+    <p class="author-meta">
+      <span>{{ author.storm_count }} exported storms</span>
+      <a href="{{ author.api_base_url }}/@{{ author.acct }}">View on Mastodon</a>
+    </p>
+  </article>
+  {% endfor %}
+</section>
+{% else %}
+<p class="empty-state">No authors have exported storms yet.</p>
+{% endif %}

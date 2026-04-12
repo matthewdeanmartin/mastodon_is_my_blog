@@ -1,0 +1,8 @@
+{
+  "title": "Mastodon Storms",
+  "description": "A static Eleventy export of long Mastodon posts and self-reply threads.",
+  "nav": [
+    { "label": "Home", "url": "/" },
+    { "label": "Authors", "url": "/authors/" }
+  ]
+}

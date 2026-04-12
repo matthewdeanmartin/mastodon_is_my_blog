@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if title %}{{ title | decodeHtml }} - {% endif %}{{ site.title }}</title>
+    <meta name="description" content="{{ (description or site.description) | decodeHtml }}">
+    <link rel="stylesheet" href="{{ '/assets/site.css' | relativeUrl(page.url) }}">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-shell">
+        <a class="site-title" href="{{ '/' | relativeUrl(page.url) }}">{{ site.title }}</a>
+        <nav class="site-nav">
+          {% for item in site.nav %}
+          <a href="{{ item.url | relativeUrl(page.url) }}">{{ item.label }}</a>
+          {% endfor %}
+        </nav>
+      </div>
+    </header>
+    <main class="site-shell">
+      {{ content | safe }}
+    </main>
+    <footer class="site-footer">
+      <div class="site-shell">
+        <p>Generated from the local Mastodon cache at {{ storms.generated_at or "build time" }}.</p>
+      </div>
+    </footer>
+  </body>
+</html>

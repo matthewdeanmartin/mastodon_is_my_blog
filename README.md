@@ -47,6 +47,15 @@ cd web && ng serve
 
 Open http://localhost:4200 and click "Connect Mastodon"!
 
+## Static Storm Export
+
+Build the Eleventy blog export for your own long posts and self-reply threads into `docs\`:
+
+```bash
+npm --prefix docs-src install
+npm --prefix docs-src run build
+```
+
 ## Architecture
 
 - **Backend**: FastAPI + mastodon.py + SQLAlchemy

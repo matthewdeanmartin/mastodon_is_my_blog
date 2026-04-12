@@ -1,0 +1,34 @@
+---
+layout: layouts/base.njk
+title: Latest storms
+description: Long Mastodon posts and self-reply threads exported from the local cache.
+---
+<section class="site-intro">
+  <h1>{{ site.title }}</h1>
+  <p>{{ site.description }}</p>
+  <p>{{ storms.storm_count }} exported posts across {{ storms.authors.length }} identities. Long single posts use a {{ storms.min_text_length }} character threshold after stripping HTML, links, mentions, and hashtags.</p>
+</section>
+
+{% if storms.storms.length %}
+<section class="storm-list">
+  {% for storm in storms.storms %}
+  <article class="storm-card">
+    <header>
+      <h2><a href="{{ ('/posts/' + storm.slug + '/') | relativeUrl(page.url) }}">{{ storm.title }}</a></h2>
+      <div class="storm-meta">
+        <span>@{{ storm.author.acct }}</span>
+        <time datetime="{{ storm.created_at }}">{{ storm.created_at | formatDate }}</time>
+        <span>{{ storm.cleaned_length }} cleaned characters</span>
+        {% if storm.reply_count %}
+        <span>{{ storm.reply_count }} self-replies</span>
+        {% endif %}
+      </div>
+    </header>
+    <p class="storm-excerpt">{{ storm.excerpt }}</p>
+    <p><a href="{{ ('/posts/' + storm.slug + '/') | relativeUrl(page.url) }}">Read the thread</a></p>
+  </article>
+  {% endfor %}
+</section>
+{% else %}
+<p class="empty-state">No storms matched the export rules yet.</p>
+{% endif %}

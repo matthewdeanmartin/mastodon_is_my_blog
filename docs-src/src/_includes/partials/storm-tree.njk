@@ -1,0 +1,29 @@
+{% macro renderNode(node) %}
+<article class="storm-reply">
+  <header class="storm-meta">
+    <time datetime="{{ node.created_at }}">{{ node.created_at | formatDate }}</time>
+    <a href="{{ node.original_url }}">View on Mastodon</a>
+  </header>
+  <div class="storm-body">{{ node.content_html | safe }}</div>
+  {% if node.media.length %}
+  <div class="storm-media-grid">
+    {% for media in node.media %}
+      {% if media.type == "image" %}
+      <figure class="storm-media-item">
+        <img src="{{ media.preview_url or media.url }}" alt="{{ media.description or '' }}">
+      </figure>
+      {% else %}
+      <p class="storm-media-link"><a href="{{ media.url }}">Open {{ media.type }}</a></p>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if node.children.length %}
+  <div class="storm-children">
+    {% for child in node.children %}
+      {{ renderNode(child) }}
+    {% endfor %}
+  </div>
+  {% endif %}
+</article>
+{% endmacro %}

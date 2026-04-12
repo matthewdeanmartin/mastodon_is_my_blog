@@ -1,0 +1,48 @@
+---
+layout: layouts/base.njk
+pagination:
+  data: storms.storms
+  size: 1
+  alias: storm
+permalink: "/posts/{{ storm.slug }}/index.html"
+eleventyComputed:
+  title: "{{ storm.title }}"
+  description: "{{ storm.excerpt }}"
+---
+{% from "partials/storm-tree.njk" import renderNode %}
+<article class="storm-page">
+  <header>
+    <h1>{{ storm.title }}</h1>
+    <div class="storm-meta">
+      <span><a href="{{ ('/authors/' + (storm.author.acct | lower) + '/') | relativeUrl(page.url) }}">@{{ storm.author.acct }}</a></span>
+      <time datetime="{{ storm.created_at }}">{{ storm.created_at | formatDate }}</time>
+      <span>{{ storm.cleaned_length }} cleaned characters</span>
+      <a href="{{ storm.original_url }}">View on Mastodon</a>
+    </div>
+  </header>
+
+  <div class="storm-body">{{ storm.content_html | safe }}</div>
+
+  {% if storm.media.length %}
+  <div class="storm-media-grid">
+    {% for media in storm.media %}
+      {% if media.type == "image" %}
+      <figure class="storm-media-item">
+        <img src="{{ media.preview_url or media.url }}" alt="{{ media.description or '' }}">
+      </figure>
+      {% else %}
+      <p class="storm-media-link"><a href="{{ media.url }}">Open {{ media.type }}</a></p>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if storm.branches.length %}
+  <section>
+    <h2 class="storm-section-title">Self-replies</h2>
+    {% for branch in storm.branches %}
+      {{ renderNode(branch) }}
+    {% endfor %}
+  </section>
+  {% endif %}
+</article>

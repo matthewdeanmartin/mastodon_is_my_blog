@@ -1,0 +1,14 @@
+{
+  "name": "mastodon-is-my-blog-eleventy",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "clean": "node -e \"const fs=require('node:fs'); const path=require('node:path'); const target=path.resolve(__dirname,'..','docs'); fs.rmSync(target,{recursive:true,force:true}); fs.mkdirSync(target,{recursive:true});\"",
+    "export:data": "uv run --project .. python -m mastodon_is_my_blog.storm_export --output src/_data/storms.json",
+    "build": "npm run export:data && npm run clean && eleventy",
+    "serve": "npm run export:data && eleventy --serve"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.1.5"
+  }
+}

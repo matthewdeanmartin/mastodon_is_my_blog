@@ -1,0 +1,37 @@
+---
+layout: layouts/base.njk
+pagination:
+  data: storms.authors
+  size: 1
+  alias: author
+permalink: "/authors/{{ author.acct | lower }}/index.html"
+eleventyComputed:
+  title: "@{{ author.acct }}"
+  description: "Storms by {{ author.acct }}"
+---
+<section class="site-intro">
+  <h1>@{{ author.acct }}</h1>
+  <p>{{ author.storm_count }} exported storms.</p>
+  <p><a href="{{ author.api_base_url }}/@{{ author.acct }}">Open this account on Mastodon</a></p>
+</section>
+
+{% set authorStorms = storms.storms | stormsByAuthor(author.acct) %}
+{% if authorStorms.length %}
+<section class="storm-list">
+  {% for storm in authorStorms %}
+  <article class="storm-card">
+    <h2><a href="{{ ('/posts/' + storm.slug + '/') | relativeUrl(page.url) }}">{{ storm.title }}</a></h2>
+    <div class="storm-meta">
+      <time datetime="{{ storm.created_at }}">{{ storm.created_at | formatDate }}</time>
+      <span>{{ storm.cleaned_length }} cleaned characters</span>
+      {% if storm.reply_count %}
+      <span>{{ storm.reply_count }} self-replies</span>
+      {% endif %}
+    </div>
+    <p class="storm-excerpt">{{ storm.excerpt }}</p>
+  </article>
+  {% endfor %}
+</section>
+{% else %}
+<p class="empty-state">No exported storms for this identity yet.</p>
+{% endif %}

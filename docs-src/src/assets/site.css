@@ -1,0 +1,166 @@
+:root {
+  color-scheme: light;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #e2e8f0;
+  --text: #0f172a;
+  --text-soft: #475569;
+  --link: #0369a1;
+  --border: #cbd5e1;
+  --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  border-radius: 0.75rem;
+}
+
+.site-shell {
+  width: min(72rem, calc(100vw - 2rem));
+  margin: 0 auto;
+}
+
+.site-header,
+.site-footer {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+  margin-top: 4rem;
+}
+
+.site-header .site-shell,
+.site-footer .site-shell {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.site-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.site-nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.site-intro,
+.storm-card,
+.storm-page,
+.author-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.site-intro {
+  padding: 2rem;
+  margin: 2rem 0;
+}
+
+.storm-list,
+.author-list {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.storm-card,
+.storm-page,
+.author-card {
+  padding: 1.5rem;
+}
+
+.storm-card h2,
+.storm-page h1,
+.author-card h2 {
+  margin-top: 0;
+}
+
+.storm-meta,
+.author-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+}
+
+.storm-excerpt,
+.storm-body,
+.author-card p {
+  color: var(--text);
+}
+
+.storm-body p:first-child {
+  margin-top: 0;
+}
+
+.storm-media-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.storm-section-title {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.storm-reply,
+.storm-children {
+  margin-top: 1rem;
+}
+
+.storm-reply {
+  border-left: 3px solid var(--surface-muted);
+  padding-left: 1rem;
+}
+
+.storm-children {
+  display: grid;
+  gap: 1rem;
+}
+
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-soft);
+}
+
+@media (max-width: 720px) {
+  .site-header .site-shell,
+  .site-footer .site-shell {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

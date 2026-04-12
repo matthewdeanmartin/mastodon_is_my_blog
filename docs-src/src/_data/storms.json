@@ -1,0 +1,324 @@
+{
+  "generated_at": "2026-04-12T03:12:58.247674+00:00",
+  "min_text_length": 495,
+  "storm_count": 9,
+  "authors": [
+    {
+      "acct": "everybodhi",
+      "api_base_url": "https://ohai.social",
+      "account_id": "109338251257741810",
+      "storm_count": 2
+    },
+    {
+      "acct": "matthewmartin",
+      "api_base_url": "https://dmv.community",
+      "account_id": "110379096260145465",
+      "storm_count": 1
+    },
+    {
+      "acct": "mistersql",
+      "api_base_url": "https://mastodon.social",
+      "account_id": "301226",
+      "storm_count": 4
+    },
+    {
+      "acct": "runmattrun",
+      "api_base_url": "https://mastodon.social",
+      "account_id": "110808772955693011",
+      "storm_count": 2
+    }
+  ],
+  "storms": [
+    {
+      "id": "116366777361780701",
+      "slug": "2026-04-08-i-got-22-days-of-trial-left-to-finish-this-duo-client-i-m-up-to-versi-116366777361780701",
+      "title": "I got 22 days of trial left to finish this Duo client. I'm up to version 0.3.0,...",
+      "author": {
+        "acct": "mistersql",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "301226"
+      },
+      "created_at": "2026-04-08T02:41:49.649000",
+      "content_html": "<p>I got 22 days of trial left to finish this <a href=\"https://mastodon.social/tags/Gitlab\" class=\"mention hashtag\" rel=\"tag\">#<span>Gitlab</span></a> Duo client.</p><p>I&#39;m up to version 0.3.0, which if you are following proper cool down procedures means you can try it out in two weeks.</p><p>Has oauth support and a hot dog stand color theme option. That&#39;s really all anyone wants.</p><p><a href=\"https://pypi.org/project/tuochat/0.3.0/\" target=\"_blank\" rel=\"nofollow noopener\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"\">pypi.org/project/tuochat/0.3.0/</span><span class=\"invisible\"></span></a></p>",
+      "content_text": "I got 22 days of trial left to finish this Duo client. I'm up to version 0.3.0, which if you are following proper cool down procedures means you can try it out in two weeks. Has oauth support and a hot dog stand color theme option. That's really all anyone wants.",
+      "cleaned_length": 263,
+      "excerpt": "I got 22 days of trial left to finish this Duo client. I'm up to version 0.3.0, which if you are following proper cool down procedures means you can try it out in two weeks. Has...",
+      "media": [],
+      "original_url": "https://mastodon.social/@mistersql/116366777361780701",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "116366777384804866",
+          "created_at": "2026-04-08T02:41:49.996000",
+          "content_html": "<p>My take on an alternative to SBOM. Ask an LLM to do the web searching to see who it thinks is the maintainer for all the dependencies.</p><p><a href=\"https://tuochat.readthedocs.io/en/latest/dependency-provenance/\" target=\"_blank\" rel=\"nofollow noopener\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">tuochat.readthedocs.io/en/late</span><span class=\"invisible\">st/dependency-provenance/</span></a></p>",
+          "content_text": "My take on an alternative to SBOM. Ask an LLM to do the web searching to see who it thinks is the maintainer for all the dependencies.",
+          "cleaned_length": 134,
+          "excerpt": "My take on an alternative to SBOM. Ask an LLM to do the web searching to see who it thinks is the maintainer for all the dependencies.",
+          "media": [],
+          "original_url": "https://mastodon.social/@mistersql/116366777384804866",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "116053216900310654",
+      "slug": "2026-02-11-i-m-reading-a-scifi-book-bear-head-that-has-an-fictional-trump-polit-116053216900310654",
+      "title": "I'm reading a scifi book (Bear Head) that has an fictional Trump politician....",
+      "author": {
+        "acct": "mistersql",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "301226"
+      },
+      "created_at": "2026-02-11T17:39:16.810000",
+      "content_html": "<p>I&#39;m reading a scifi book (Bear Head) that has an fictional Trump politician. Good authors have a hard time writing gish gallop dialog. At first I thought it was futuristic English, but no one else was using the same peculiar grammar.</p>",
+      "content_text": "I'm reading a scifi book (Bear Head) that has an fictional Trump politician. Good authors have a hard time writing gish gallop dialog. At first I thought it was futuristic English, but no one else was using the same peculiar grammar.",
+      "cleaned_length": 233,
+      "excerpt": "I'm reading a scifi book (Bear Head) that has an fictional Trump politician. Good authors have a hard time writing gish gallop dialog. At first I thought it was futuristic...",
+      "media": [],
+      "original_url": "https://mastodon.social/@mistersql/116053216900310654",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "116057873537042911",
+          "created_at": "2026-02-12T13:23:31.343000",
+          "content_html": "<p>Author is burning pages explaining why one character in the book is a turbo bullshit gish gallop spewer, when no other character in the book is. If all the characters in a book were spewing bullshit, it would be impossible to follow the story. In a well written story the dialog is superhuman clean and understandable.</p>",
+          "content_text": "Author is burning pages explaining why one character in the book is a turbo bullshit gish gallop spewer, when no other character in the book is. If all the characters in a book were spewing bullshit, it would be impossible to follow the story. In a well written story the dialog is superhuman clean and understandable.",
+          "cleaned_length": 318,
+          "excerpt": "Author is burning pages explaining why one character in the book is a turbo bullshit gish gallop spewer, when no other character in the...",
+          "media": [],
+          "original_url": "https://mastodon.social/@mistersql/116057873537042911",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "116052459702717866",
+      "slug": "2026-02-11-hot-take-no-rds-instance-should-ever-be-part-of-a-stack-the-technolo-116052459702717866",
+      "title": "Hot take: No RDS instance should ever be part of a stack. The technology is so...",
+      "author": {
+        "acct": "mistersql",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "301226"
+      },
+      "created_at": "2026-02-11T14:26:42.795000",
+      "content_html": "<p>Hot take: No RDS instance should ever be part of a <a href=\"https://mastodon.social/tags/cloudformation\" class=\"mention hashtag\" rel=\"tag\">#<span>cloudformation</span></a> stack.</p><p>The technology is so immature that it is just a matter of time before the stack gets in an unrecoverable state.</p><p>Everyone knows this, this is why they suggest splitting stacks into persistent and ephemeral, but really listen to yourself. If it is too dangerous to put RDS into a stack that could need to be dropped, it shouldn&#39;t be in *any* stack.</p>",
+      "content_text": "Hot take: No RDS instance should ever be part of a stack. The technology is so immature that it is just a matter of time before the stack gets in an unrecoverable state. Everyone knows this, this is why they suggest splitting stacks into persistent and ephemeral, but really listen to yourself. If it is too dangerous to put RDS into a stack that could need to be dropped, it shouldn't be in *any* stack.",
+      "cleaned_length": 404,
+      "excerpt": "Hot take: No RDS instance should ever be part of a stack. The technology is so immature that it is just a matter of time before the stack gets in an unrecoverable state. Everyone...",
+      "media": [],
+      "original_url": "https://mastodon.social/@mistersql/116052459702717866",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "116052459738720043",
+          "created_at": "2026-02-11T14:26:43.336000",
+          "content_html": "<p>This is a low-availability pattern by using a technology that has configuration complexity raise to the point that failure is guaranteed if you just wait long enough.</p>",
+          "content_text": "This is a low-availability pattern by using a technology that has configuration complexity raise to the point that failure is guaranteed if you just wait long enough.",
+          "cleaned_length": 166,
+          "excerpt": "This is a low-availability pattern by using a technology that has configuration complexity raise to the point that failure is guaranteed if...",
+          "media": [],
+          "original_url": "https://mastodon.social/@mistersql/116052459738720043",
+          "children": [
+            {
+              "id": "116052464447049030",
+              "created_at": "2026-02-11T14:27:55.180000",
+              "content_html": "<p>This is a replay of SQL Server 2000 High availability clusters where the config was so complex and error prone it was just asking for downtime, except the vendor could blame it on the customer.</p>",
+              "content_text": "This is a replay of SQL Server 2000 High availability clusters where the config was so complex and error prone it was just asking for downtime, except the vendor could blame it on the customer.",
+              "cleaned_length": 193,
+              "excerpt": "This is a replay of SQL Server 2000 High availability clusters where the config was so complex and error prone it was just asking for...",
+              "media": [],
+              "original_url": "https://mastodon.social/@mistersql/116052464447049030",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "116047727706449381",
+      "slug": "2026-02-10-infrastructure-as-code-deskilled-the-only-part-of-the-problem-that-was-116047727706449381",
+      "title": "Infrastructure-as-code deskilled the only part of the problem that wasn't a...",
+      "author": {
+        "acct": "mistersql",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "301226"
+      },
+      "created_at": "2026-02-10T18:23:18.260000",
+      "content_html": "<p>Infrastructure-as-code deskilled the only part of the problem that wasn&#39;t a problem:</p><p>removing if-blocks, loops and all programming constructs other than property assignment on nested objects.</p><p>CDK and the like aren&#39;t really an improvement because now you have imperative code writing yaml, which wasn&#39;t the problem (except the massive verbosity of raw-yaml)</p>",
+      "content_text": "Infrastructure-as-code deskilled the only part of the problem that wasn't a problem: removing if-blocks, loops and all programming constructs other than property assignment on nested objects. CDK and the like aren't really an improvement because now you have imperative code writing yaml, which wasn't the problem (except the massive verbosity of raw-yaml)",
+      "cleaned_length": 356,
+      "excerpt": "Infrastructure-as-code deskilled the only part of the problem that wasn't a problem: removing if-blocks, loops and all programming constructs other than property assignment on...",
+      "media": [],
+      "original_url": "https://mastodon.social/@mistersql/116047727706449381",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "116047729475690571",
+          "created_at": "2026-02-10T18:23:45.251000",
+          "content_html": "<p>The problem is the great galloping complexity of dealing with things when they don&#39;t work as advertised.</p>",
+          "content_text": "The problem is the great galloping complexity of dealing with things when they don't work as advertised.",
+          "cleaned_length": 104,
+          "excerpt": "The problem is the great galloping complexity of dealing with things when they don't work as advertised.",
+          "media": [],
+          "original_url": "https://mastodon.social/@mistersql/116047729475690571",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "114192244213368294",
+      "slug": "2025-03-20-ok-i-think-i-know-what-happened-i-got-nasty-extensor-tendonitis-at-t-114192244213368294",
+      "title": "Ok, I think I know what happened. I got nasty extensor tendonitis at the . And...",
+      "author": {
+        "acct": "runmattrun",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "110808772955693011"
+      },
+      "created_at": "2025-03-20T01:49:27.028000",
+      "content_html": "<p>Ok, I think I know what happened. I got nasty extensor tendonitis at the <a href=\"https://mastodon.social/tags/marathon\" class=\"mention hashtag\" rel=\"tag\">#<span>marathon</span></a>. And I have been getting it every time I go <a href=\"https://mastodon.social/tags/running\" class=\"mention hashtag\" rel=\"tag\">#<span>running</span></a> that is about 10 miles long. The shoe laces are loose. The feet swell up by the end of the race. What is going on?! Well, lots of googling and I think it is... <a href=\"https://mastodon.social/tags/hyponatremia\" class=\"mention hashtag\" rel=\"tag\">#<span>hyponatremia</span></a>. It is one of the most common long distance <a href=\"https://mastodon.social/tags/runner\" class=\"mention hashtag\" rel=\"tag\">#<span>runner</span></a> problems and a symptom is hands and feet swelling up. Which in turn makes my shoes too small and I get extensor tendonitis.</p>",
+      "content_text": "Ok, I think I know what happened. I got nasty extensor tendonitis at the . And I have been getting it every time I go that is about 10 miles long. The shoe laces are loose. The feet swell up by the end of the race. What is going on?! Well, lots of googling and I think it is... . It is one of the most common long distance problems and a symptom is hands and feet swelling up. Which in turn makes my shoes too small and I get extensor tendonitis.",
+      "cleaned_length": 446,
+      "excerpt": "Ok, I think I know what happened. I got nasty extensor tendonitis at the . And I have been getting it every time I go that is about 10 miles long. The shoe laces are loose. The...",
+      "media": [],
+      "original_url": "https://mastodon.social/@runmattrun/114192244213368294",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "114192250315099539",
+          "created_at": "2025-03-20T01:51:00.129000",
+          "content_html": "<p>Next time I&#39;m going to do 2+ tabs of salt, maybe a tab of salt every hour. Also in retrospect, I remember the gritty feeling of salt on my face. I thought it was because I was close to the beach. Nope, it must have been enough sweat to get crusty.</p>",
+          "content_text": "Next time I'm going to do 2+ tabs of salt, maybe a tab of salt every hour. Also in retrospect, I remember the gritty feeling of salt on my face. I thought it was because I was close to the beach. Nope, it must have been enough sweat to get crusty.",
+          "cleaned_length": 247,
+          "excerpt": "Next time I'm going to do 2+ tabs of salt, maybe a tab of salt every hour. Also in retrospect, I remember the gritty feeling of salt on my...",
+          "media": [],
+          "original_url": "https://mastodon.social/@runmattrun/114192250315099539",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "114169690541867017",
+      "slug": "2025-03-16-marathon-in-the-am-why-did-i-sign-up-for-this-i-hate-getting-up-earl-114169690541867017",
+      "title": "Marathon in the AM. Why did I sign up for this. I hate getting up early",
+      "author": {
+        "acct": "runmattrun",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "110808772955693011"
+      },
+      "created_at": "2025-03-16T02:13:45.313000",
+      "content_html": "<p>Marathon in the AM. Why did I sign up for this. I hate getting up early</p>",
+      "content_text": "Marathon in the AM. Why did I sign up for this. I hate getting up early",
+      "cleaned_length": 71,
+      "excerpt": "Marathon in the AM. Why did I sign up for this. I hate getting up early",
+      "media": [],
+      "original_url": "https://mastodon.social/@runmattrun/114169690541867017",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "114174260329585439",
+          "created_at": "2025-03-16T21:35:54.736000",
+          "content_html": "<p>Run done, time to plan the next. Reston Half Marathon</p>",
+          "content_text": "Run done, time to plan the next. Reston Half Marathon",
+          "cleaned_length": 53,
+          "excerpt": "Run done, time to plan the next. Reston Half Marathon",
+          "media": [],
+          "original_url": "https://mastodon.social/@runmattrun/114174260329585439",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "113994400093335681",
+      "slug": "2025-02-13-idea-restate-the-5th-precept-on-alcohol-as-a-prohibition-on-addictive-113994400093335681",
+      "title": "IDEA: Restate the 5th precept on alcohol as a prohibition on addictive...",
+      "author": {
+        "acct": "everybodhi",
+        "api_base_url": "https://ohai.social",
+        "account_id": "109338251257741810"
+      },
+      "created_at": "2025-02-13T03:15:05.330000",
+      "content_html": "<p>IDEA: Restate the 5th precept on alcohol as a prohibition on addictive behaviors. Alcohol was just the most common problematic addictive behavior.</p><p>Recently, I&#39;ve been trying to do something about technological addictive behaviors- social media, youtube, or in my family- gaming (which nowadays often is full of gambling &amp; addictive behavior features)</p>",
+      "content_text": "IDEA: Restate the 5th precept on alcohol as a prohibition on addictive behaviors. Alcohol was just the most common problematic addictive behavior. Recently, I've been trying to do something about technological addictive behaviors- social media, youtube, or in my family- gaming (which nowadays often is full of gambling & addictive behavior features)",
+      "cleaned_length": 350,
+      "excerpt": "IDEA: Restate the 5th precept on alcohol as a prohibition on addictive behaviors. Alcohol was just the most common problematic addictive behavior. Recently, I've been trying to do...",
+      "media": [],
+      "original_url": "https://ohai.social/@everybodhi/113994400093335681",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "113994400105477757",
+          "created_at": "2025-02-13T03:15:05.515000",
+          "content_html": "<p>But I&#39;m using social media now! Yeah, unlike alcohol, some addictive behaviors you have to engage in them a little, but not so much that they spiral out of control.</p><p>For better or worse, at the moment, I can&#39;t get rid of my cell phone altogether, nor my computer, nor stop watching all video. Too many work related things that call for each of those.</p>",
+          "content_text": "But I'm using social media now! Yeah, unlike alcohol, some addictive behaviors you have to engage in them a little, but not so much that they spiral out of control. For better or worse, at the moment, I can't get rid of my cell phone altogether, nor my computer, nor stop watching all video. Too many work related things that call for each of those.",
+          "cleaned_length": 349,
+          "excerpt": "But I'm using social media now! Yeah, unlike alcohol, some addictive behaviors you have to engage in them a little, but not so much that...",
+          "media": [],
+          "original_url": "https://ohai.social/@everybodhi/113994400105477757",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "113863201250312681",
+      "slug": "2025-01-20-there-is-no-activity-on-mastodon-as-far-as-i-can-tell-anyhow-i-m-goi-113863201250312681",
+      "title": "There is no activity on Mastodon as far as I can tell. Anyhow, I'm going thru a...",
+      "author": {
+        "acct": "everybodhi",
+        "api_base_url": "https://ohai.social",
+        "account_id": "109338251257741810"
+      },
+      "created_at": "2025-01-20T23:09:29.860000",
+      "content_html": "<p>There is no <a href=\"https://ohai.social/tags/NMHRK\" class=\"mention hashtag\" rel=\"tag\">#<span>NMHRK</span></a> activity on Mastodon as far as I can tell. Anyhow, I&#39;m going thru a bit of anxiety and I think I understand how chanting works:</p><p>It fights intrusive thoughts. Repeating words w/o any particular semantic meaning is useful for getting to sleep and calming down when intrusive thoughts are setting off your anxiety.</p><p><a href=\"https://ohai.social/tags/Buddhism\" class=\"mention hashtag\" rel=\"tag\">#<span>Buddhism</span></a></p>",
+      "content_text": "There is no activity on Mastodon as far as I can tell. Anyhow, I'm going thru a bit of anxiety and I think I understand how chanting works: It fights intrusive thoughts. Repeating words w/o any particular semantic meaning is useful for getting to sleep and calming down when intrusive thoughts are setting off your anxiety.",
+      "cleaned_length": 323,
+      "excerpt": "There is no activity on Mastodon as far as I can tell. Anyhow, I'm going thru a bit of anxiety and I think I understand how chanting works: It fights intrusive thoughts. Repeating...",
+      "media": [],
+      "original_url": "https://ohai.social/@everybodhi/113863201250312681",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "113863206390574385",
+          "created_at": "2025-01-20T23:10:48.292000",
+          "content_html": "<p>Is this avoidance? Well, maybe, but sometime you need to get to sleep, you need to get on with the day and the anxiety is getting in the way.</p><p>Deal with your emotional dysregulation&#39;s roots on your schedule, not every time it pops up.</p>",
+          "content_text": "Is this avoidance? Well, maybe, but sometime you need to get to sleep, you need to get on with the day and the anxiety is getting in the way. Deal with your emotional dysregulation's roots on your schedule, not every time it pops up.",
+          "cleaned_length": 233,
+          "excerpt": "Is this avoidance? Well, maybe, but sometime you need to get to sleep, you need to get on with the day and the anxiety is getting in the...",
+          "media": [],
+          "original_url": "https://ohai.social/@everybodhi/113863206390574385",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "111183357800578804",
+      "slug": "2023-10-05-don-t-forget-to-vote-if-you-in-fairfax-county-i-m-getting-mail-from-q-111183357800578804",
+      "title": "Don't forget to vote if you in Fairfax County. I'm getting mail from Q-Anon...",
+      "author": {
+        "acct": "matthewmartin",
+        "api_base_url": "https://dmv.community",
+        "account_id": "110379096260145465"
+      },
+      "created_at": "2023-10-05T16:30:03.941000",
+      "content_html": "<p>Don&#39;t forget to vote if you in Fairfax County. I&#39;m getting mail from Q-Anon nutters who want to replace the school board because they think everyone is a pedophile.</p>",
+      "content_text": "Don't forget to vote if you in Fairfax County. I'm getting mail from Q-Anon nutters who want to replace the school board because they think everyone is a pedophile.",
+      "cleaned_length": 164,
+      "excerpt": "Don't forget to vote if you in Fairfax County. I'm getting mail from Q-Anon nutters who want to replace the school board because they think everyone is a pedophile.",
+      "media": [],
+      "original_url": "https://dmv.community/@matthewmartin/111183357800578804",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "111202734862697802",
+          "created_at": "2023-10-09T02:37:54.445000",
+          "content_html": "<p><a href=\"https://dmv.community/tags/WaPo\" class=\"mention hashtag\" rel=\"tag\">#<span>WaPo</span></a> article on <a href=\"https://dmv.community/tags/FairfaxVA\" class=\"mention hashtag\" rel=\"tag\">#<span>FairfaxVA</span></a> <a href=\"https://dmv.community/tags/SchoolBoard\" class=\"mention hashtag\" rel=\"tag\">#<span>SchoolBoard</span></a> election - who the candidates are and who endorsed them.</p><p>Keep the nutters out, let the professionals do their jobs instead of banning books, religious indoctrination &amp; qanon nuttery.</p><p><a href=\"https://wapo.st/3rNMuX5\" target=\"_blank\" rel=\"nofollow noopener\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"\">wapo.st/3rNMuX5</span><span class=\"invisible\"></span></a></p><p><a href=\"https://dmv.community/tags/Virginia\" class=\"mention hashtag\" rel=\"tag\">#<span>Virginia</span></a> <a href=\"https://dmv.community/tags/Fairfax\" class=\"mention hashtag\" rel=\"tag\">#<span>Fairfax</span></a> <a href=\"https://dmv.community/tags/uspol\" class=\"mention hashtag\" rel=\"tag\">#<span>uspol</span></a></p>",
+          "content_text": "article on election - who the candidates are and who endorsed them. Keep the nutters out, let the professionals do their jobs instead of banning books, religious indoctrination & qanon nuttery.",
+          "cleaned_length": 193,
+          "excerpt": "article on election - who the candidates are and who endorsed them. Keep the nutters out, let the professionals do their jobs instead of...",
+          "media": [],
+          "original_url": "https://dmv.community/@matthewmartin/111202734862697802",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

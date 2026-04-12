@@ -9,7 +9,7 @@ application_derive_data:
 application_detach:
 	echo
 
-.PHONY: help install install-backend install-frontend dev dev-backend dev-frontend build test clean setup db-reset
+.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-frontend build test clean setup db-reset
 
 # Default target
 help:
@@ -20,6 +20,7 @@ help:
 	@echo "  make install            - Install all dependencies (backend + frontend)"
 	@echo "  make install-backend    - Install Python dependencies"
 	@echo "  make install-frontend   - Install Node dependencies"
+	@echo "  make install-blog       - Install Eleventy blog dependencies"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev                - Run both backend and frontend (in parallel)"
@@ -31,6 +32,8 @@ help:
 	@echo ""
 	@echo "Build:"
 	@echo "  make build              - Build frontend for production"
+	@echo "  make build-blog         - Build the Eleventy blog into docs/"
+	@echo "  make serve-blog         - Serve the Eleventy blog locally"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test               - Run all tests"
@@ -69,6 +72,12 @@ install-frontend:
 	cd web && npm install
 	@echo "✓ Frontend dependencies installed"
 
+# Install blog dependencies
+install-blog:
+	@echo "Installing Eleventy blog dependencies..."
+	npm --prefix docs-src install
+	@echo "✓ Blog dependencies installed"
+
 # Run both servers (requires GNU parallel or similar)
 dev:
 	@echo "Starting backend and frontend servers..."
@@ -99,6 +108,15 @@ build:
 	@echo "Building frontend for production..."
 	cd web && ng build --configuration production
 	@echo "✓ Build complete: web/dist/"
+
+build-blog: install-blog
+	@echo "Building Eleventy blog into docs/..."
+	npm --prefix docs-src run build
+	@echo "✓ Blog build complete: docs/"
+
+serve-blog: install-blog
+	@echo "Serving Eleventy blog on http://localhost:8080"
+	npm --prefix docs-src run serve -- --port 8080
 
 # Run all tests
 test: test-backend test-frontend
