@@ -52,7 +52,7 @@ export class AppComponent implements OnInit, OnDestroy {
   // Navigation State
   currentUser: string | null = null; // The acct string of the user being VIEWED
   viewingEveryone = false;
-  currentPage: 'people' | 'content' | 'forum' = 'people';
+  currentPage: 'people' | 'content' | 'forum' | 'other' = 'people';
 
   blogRoll: MastodonAccount[] = [];
   mainUser: MastodonAccount | null = null; // The "Profile" of the currently connected user
@@ -85,12 +85,18 @@ export class AppComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(() => {
       const url = this.router.url;
-      if (url.startsWith('/content')) {
+      const path = url.split('?')[0];
+      if (path.startsWith('/content')) {
         this.currentPage = 'content';
-      } else if (url.startsWith('/forum')) {
+      } else if (path.startsWith('/forum')) {
         this.currentPage = 'forum';
-      } else {
+      } else if (
+        path === '/' || path === ''
+      ) {
         this.currentPage = 'people';
+      } else {
+        // /p/:id, /write, /admin, /login — no sidebar
+        this.currentPage = 'other';
       }
     });
 
@@ -205,6 +211,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   isPeoplePage(): boolean {
     return this.currentPage === 'people';
+  }
+
+  isOtherPage(): boolean {
+    return this.currentPage === 'other';
   }
 
   setContextIdentity(id: number, baseUrl?: string) {

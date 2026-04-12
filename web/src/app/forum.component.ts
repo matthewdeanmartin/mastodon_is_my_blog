@@ -121,6 +121,7 @@ interface Discussion {
     .filter-btn {
       padding: 8px 16px;
       background: white;
+      color: #374151;
       border: 1px solid #d1d5db;
       border-radius: 20px;
       font-size: 0.9rem;

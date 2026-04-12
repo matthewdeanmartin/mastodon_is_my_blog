@@ -220,12 +220,12 @@ async def get_public_posts(
             # should match get_storms method
             pass
         elif filter_type == "shorts":
-            # NEW: Short text posts, no media, no links, not a reply
+            # Short text posts: no links, not a reply, not a reblog, no video, short text
+            # Images are allowed — a short post can have a picture; Pictures filter handles media-heavy posts
             query = query.where(
                 and_(
                     CachedPost.is_reply.is_(False),
                     CachedPost.is_reblog.is_(False),
-                    CachedPost.has_media.is_(False),
                     CachedPost.has_video.is_(False),
                     CachedPost.has_link.is_(False),
                     func.length(CachedPost.content) < 500,
