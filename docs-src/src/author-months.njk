@@ -1,0 +1,55 @@
+---
+layout: base
+pagination:
+  data: stormArchives.authorMonths
+  size: 1
+  alias: authorMonth
+permalink: "/authors/{{ authorMonth.author.acct | lower }}/{{ authorMonth.month.year }}/{{ authorMonth.month.month }}/index.html"
+eleventyComputed:
+  title: "{{ authorMonth.month.label }} - @{{ authorMonth.author.acct }}"
+  description: "Storms from {{ authorMonth.month.label }} by {{ authorMonth.author.acct }}"
+---
+{% set authorMonths = stormArchives.authorMonths | monthsByAuthor(authorMonth.author.acct) %}
+<article class="page-content">
+  <h1>@{{ authorMonth.author.acct }} in {{ authorMonth.month.label }}</h1>
+  <p class="archive-parent-link">
+    <a href="{{ authorMonth.author.path | relativeUrl(page.url) }}">Back to @{{ authorMonth.author.acct }}</a>
+    ·
+    <a href="{{ authorMonth.author.api_base_url }}/@{{ authorMonth.author.acct }}">Open this account on Mastodon</a>
+  </p>
+
+  {% if authorMonths.length > 1 %}
+  <section class="archive-section">
+    <h2>Browse by month</h2>
+    <div class="archive-month-list">
+      {% for monthEntry in authorMonths %}
+      <a class="archive-month-link{% if monthEntry.month.key == authorMonth.month.key %} current{% endif %}" href="{{ monthEntry.month.path | relativeUrl(page.url) }}">
+        <span>{{ monthEntry.month.label }}</span>
+        <span class="archive-month-count">{{ monthEntry.month.count }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if authorMonth.storms.length %}
+  <section class="storm-list">
+    {% for storm in authorMonth.storms %}
+    <article class="storm-card">
+      <h2><a href="{{ ('/posts/' + storm.slug + '/') | relativeUrl(page.url) }}">{{ storm.title }}</a></h2>
+      <div class="storm-meta">
+        <time datetime="{{ storm.created_at }}">{{ storm.created_at | formatDate }}</time>
+        <span>{{ storm.cleaned_length }} cleaned characters</span>
+        {% if storm.reply_count %}
+        <span>{{ storm.reply_count }} self-replies</span>
+        {% endif %}
+      </div>
+      <p class="storm-excerpt">{{ storm.excerpt }}</p>
+      <p><a href="{{ ('/posts/' + storm.slug + '/') | relativeUrl(page.url) }}">Read the thread</a></p>
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+  <p class="empty-state">No exported storms for this month yet.</p>
+  {% endif %}
+</article>

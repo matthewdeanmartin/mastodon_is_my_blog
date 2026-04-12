@@ -9,15 +9,33 @@ eleventyComputed:
   title: "@{{ author.acct }}"
   description: "Storms by {{ author.acct }}"
 ---
+{% set authorArchive = stormArchives.authors | authorArchiveFor(author.acct) %}
+{% set recentStorms = authorArchive.recentStorms if authorArchive else (storms.storms | stormsByAuthor(author.acct)) %}
 <section class="site-intro">
-  <p>{{ author.storm_count }} exported storms.</p>
+  <p>{{ author.storm_count }} exported storms{% if authorArchive %} across {{ authorArchive.months.length }} archive months{% endif %}.</p>
   <p><a href="{{ author.api_base_url }}/@{{ author.acct }}">Open this account on Mastodon</a></p>
 </section>
 
-{% set authorStorms = storms.storms | stormsByAuthor(author.acct) %}
-{% if authorStorms.length %}
+{% if authorArchive and authorArchive.months.length %}
+<section class="archive-section">
+  <h2>Browse by month</h2>
+  <div class="archive-month-list">
+    {% for month in authorArchive.months %}
+    <a class="archive-month-link" href="{{ month.path | relativeUrl(page.url) }}">
+      <span>{{ month.label }}</span>
+      <span class="archive-month-count">{{ month.count }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if recentStorms.length %}
+<section class="archive-section">
+  <h2>Latest storms</h2>
+</section>
 <section class="storm-list">
-  {% for storm in authorStorms %}
+  {% for storm in recentStorms %}
   <article class="storm-card">
     <h2><a href="{{ ('/posts/' + storm.slug + '/') | relativeUrl(page.url) }}">{{ storm.title }}</a></h2>
     <div class="storm-meta">
@@ -28,6 +46,7 @@ eleventyComputed:
       {% endif %}
     </div>
     <p class="storm-excerpt">{{ storm.excerpt }}</p>
+    <p><a href="{{ ('/posts/' + storm.slug + '/') | relativeUrl(page.url) }}">Read the thread</a></p>
   </article>
   {% endfor %}
 </section>

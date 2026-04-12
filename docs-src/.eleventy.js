@@ -35,6 +35,14 @@ module.exports = function (eleventyConfig) {
     (storms || []).filter((storm) => storm.author && storm.author.acct === acct)
   );
 
+  eleventyConfig.addFilter("authorArchiveFor", (archives, acct) =>
+    (archives || []).find((archive) => archive.author && archive.author.acct === acct)
+  );
+
+  eleventyConfig.addFilter("monthsByAuthor", (authorMonths, acct) =>
+    (authorMonths || []).filter((entry) => entry.author && entry.author.acct === acct)
+  );
+
   eleventyConfig.addFilter("relativeUrl", (targetUrl, pageUrl = "/") => {
     const normalizedTarget = (targetUrl || "/").replace(/\\/g, "/");
     const normalizedPage = (pageUrl || "/").replace(/\\/g, "/");

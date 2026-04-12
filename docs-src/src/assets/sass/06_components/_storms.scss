@@ -83,3 +83,66 @@
   border: 1px dashed #ddd;
   color: var(--color-meta);
 }
+
+.archive-section + .archive-section,
+.archive-section + .storm-list,
+.storm-list + .archive-section {
+  margin-top: var(--gap);
+}
+
+.archive-parent-link,
+.blogroll-handle,
+.blogroll-warning {
+  color: var(--color-meta);
+}
+
+.archive-month-list,
+.blogroll-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.archive-month-list {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.archive-month-link,
+.blogroll-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-left: 0.3rem solid #a886e7;
+}
+
+.archive-month-link {
+  justify-content: space-between;
+}
+
+.archive-month-link.current {
+  font-weight: bold;
+  border-left-color: var(--theme-color);
+}
+
+.archive-month-count {
+  color: var(--color-meta);
+}
+
+.blogroll-list {
+  list-style: none;
+  padding: 0;
+}
+
+.blogroll-avatar {
+  width: 3rem;
+  height: 3rem;
+  object-fit: cover;
+  border-radius: 999px;
+}
+
+.blogroll-name,
+.blogroll-handle {
+  margin: 0;
+}

@@ -1,0 +1,31 @@
+---
+layout: pages
+title: Blogroll
+description: People I read on Mastodon.
+nav:
+  order: 3
+---
+<p class="blogroll-warning"><strong>Note:</strong> {{ blogroll.warning }}</p>
+
+{% for category in blogroll.categories %}
+<section class="archive-section">
+  <h2>{{ category.title }}</h2>
+  {% if category.accounts.length %}
+  <ul class="blogroll-list">
+    {% for account in category.accounts %}
+    <li class="blogroll-item">
+      <a class="blogroll-avatar-link" href="{{ account.mastodon_social_url }}">
+        <img class="blogroll-avatar" src="{{ account.avatar }}" alt="">
+      </a>
+      <div>
+        <p class="blogroll-name"><a href="{{ account.mastodon_social_url }}">{{ account.display_name }}</a></p>
+        <p class="blogroll-handle">@{{ account.acct }}</p>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty-state">No accounts have been exported in this category yet.</p>
+  {% endif %}
+</section>
+{% endfor %}

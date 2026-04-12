@@ -1,0 +1,795 @@
+{
+  "generated_at": "2026-04-12T20:58:14.111048+00:00",
+  "warning": "This is anonymous access so I don't know your base Mastodon instance; all links go to mastodon.social.",
+  "categories": [
+    {
+      "id": "top_friends",
+      "title": "Top Friends",
+      "count": 18,
+      "accounts": [
+        {
+          "acct": "jkirkendall@wandering.shop",
+          "display_name": "Jon",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/339/013/466/584/957/original/dd224a1dca1531db.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@jkirkendall@wandering.shop",
+          "note": "Grew up in Beirut and Tehran. Knitter, potter, meditator. Severe hearing loss and making friends with silence. Living with . Trauma therapist. Married to the lovely \ud83c\udff3\ufe0f\u200d\ud83c\udf08",
+          "last_status_at": "2026-04-11T12:49:46"
+        },
+        {
+          "acct": "m750@better.boston",
+          "display_name": "Aaron O",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/407/813/012/569/874/original/e0e80771a9b9d174.jpg",
+          "mastodon_social_url": "https://mastodon.social/@m750@better.boston",
+          "note": "Runner, dad, problem solver, sass performance, tech geek, set and prop maker, some times gamer, occasional cyclist. Life long New Englander. PWHL fan",
+          "last_status_at": "2026-04-11T12:28:46"
+        },
+        {
+          "acct": "Hawaii@mastodon.world",
+          "display_name": "Tofu Musubi",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/110/312/192/709/053/655/original/c0737e741ec0f103.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@Hawaii@mastodon.world",
+          "note": "Hello Mastodon, my name is Rob. I'm a relatively normal person but with a weird accent. I've lived in four countries, at least as many alternative universes, and countless alternative realities. I'm fascinated with all sorts of cultures, languages, music, and foods. Some folks know me as a , a lay , a adopter, a , or a . I'm a of childhood abuse, so support children's issues and . Nice to meet you!",
+          "last_status_at": "2026-04-11T09:05:13"
+        },
+        {
+          "acct": "abnv@fantastic.earth",
+          "display_name": "Abhinav \ud83c\udf0f",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/393/818/011/056/660/original/b278d3cbc608ef23.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@abnv@fantastic.earth",
+          "note": "Programming languages aficionado, occasional runner, quantified-self enthusiast, and fervent napper. Works as senior software engineer at Google. If you want to follow me, please make sure your profile has some info that helps me learn about you.",
+          "last_status_at": "2026-04-11T06:19:47"
+        },
+        {
+          "acct": "obu@digipres.club",
+          "display_name": "The Open Buddhist University",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/358/753/513/657/532/original/4615b6e1e834f6b8.png",
+          "mastodon_social_url": "https://mastodon.social/@obu@digipres.club",
+          "note": "Free courses, books, talks, and more on Buddhist Studies and our shared, human world from a historical and religious perspective. New content every day. \ud83e\udd16",
+          "last_status_at": "2026-04-11T04:46:39"
+        },
+        {
+          "acct": "thedansimonson@lingo.lol",
+          "display_name": "Listerine Lavender Mint",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/cache/accounts/avatars/109/542/616/610/653/964/original/5db740365e67b2a2.png",
+          "mastodon_social_url": "https://mastodon.social/@thedansimonson@lingo.lol",
+          "note": "phd. computational linguiost. disaster artist. computer wizard. bike commuter. opinion haver. under construction. he/him \ud83c\udf39",
+          "last_status_at": "2026-04-10T20:21:17"
+        },
+        {
+          "acct": "ubuntourist@mastodon.social",
+          "display_name": "Tadonic the Flautulent",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/cache/accounts/avatars/109/442/920/111/815/934/original/79ec9764d6d37b6f.jpg",
+          "mastodon_social_url": "https://mastodon.social/@ubuntourist@mastodon.social",
+          "note": "Breaker of Wind \ud83d\ude09 Former mild-mannered programmer by day. By nights (and weekends and weekdays) he battled the forces of proprietary closed source as \"The Ubuntourist\" .\ud83d\ude09#musician searchable",
+          "last_status_at": "2026-04-10T17:22:41"
+        },
+        {
+          "acct": "dchud@mastodon.online",
+          "display_name": "dchud",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/001/332/588/original/6feb4fab494b5447.png",
+          "mastodon_social_url": "https://mastodon.social/@dchud@mastodon.online",
+          "note": "data+software person in the Washington, DC, USA area; many years in software development in research libraries and medical informatics. likely to blather on about (#piano) or (#cycling).",
+          "last_status_at": null
+        },
+        {
+          "acct": "gregatron5@vmst.io",
+          "display_name": "Gregatron5",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/110/712/781/731/944/046/original/2b6e7ef80931969b.png",
+          "mastodon_social_url": "https://mastodon.social/@gregatron5@vmst.io",
+          "note": "Father, Java-er, kettlebeller, DCer, BEVer. Not great at following up on follow requests. If you really want to get in here, LMK.",
+          "last_status_at": null
+        },
+        {
+          "acct": "mubergapps",
+          "display_name": "Hani M",
+          "avatar": "https://files.mastodon.social/accounts/avatars/115/849/916/660/595/502/original/93902856e907a994.jpg",
+          "mastodon_social_url": "https://mastodon.social/@mubergapps",
+          "note": "After 35 yrs as a technical writer, a pivot towards micro-apps. My first two apps: 1. **Good Deeds Tracker** - reinforce your kindness habits and track your good deeds 2. **Event Weather Planner** - Its tough to make plans more than a few weeks in advance, because, weather. you know? But statistical analysis of 30+ years of weather data is actually pretty accurate. Get probability based weather reports for any location in the next year. Plan your events or travel with peace of mind.",
+          "last_status_at": null
+        },
+        {
+          "acct": "gausby@mastodon.xyz",
+          "display_name": "Martin Gausby",
+          "avatar": "https://files.mastodon.social/accounts/avatars/000/047/454/original/68994eb8865eaef8.png",
+          "mastodon_social_url": "https://mastodon.social/@gausby@mastodon.xyz",
+          "note": "",
+          "last_status_at": null
+        },
+        {
+          "acct": "londonerabroad@mastodon.social",
+          "display_name": "Michael John Smith",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/111/589/669/063/079/613/original/d23e79dcf7ae88de.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@londonerabroad@mastodon.social",
+          "note": "Happily married 70 y/o English Buddhist vegan and eco-socialist living in Slovenia trying to be kind to every kind. ally",
+          "last_status_at": null
+        },
+        {
+          "acct": "londonerabroad@veganism.social",
+          "display_name": "Michael John Smith",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/110/533/782/127/486/025/original/a00ef56bb93e169c.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@londonerabroad@veganism.social",
+          "note": "Happily married 70 y/o English Buddhist vegan and eco-socialist living in Slovenia trying to be kind to every kind. + ally",
+          "last_status_at": null
+        },
+        {
+          "acct": "AppleCiderDonut@theforkiverse.com",
+          "display_name": "Mike",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/115/874/414/530/865/882/original/66ed7cb6631cc10d.jpg",
+          "mastodon_social_url": "https://mastodon.social/@AppleCiderDonut@theforkiverse.com",
+          "note": "",
+          "last_status_at": null
+        },
+        {
+          "acct": "robert42@mastodon.social",
+          "display_name": "robert",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/cache/accounts/avatars/111/207/193/817/930/827/original/a230e6955c277453.png",
+          "mastodon_social_url": "https://mastodon.social/@robert42@mastodon.social",
+          "note": "Software engineer; located in the Northern Virginia / DC area. Reads and may or may not post about: technology, open source, linux, privacy, beer, coffee, aviation, Esperanto (mi estas eterna komencanto), old tech, progressive/left politics.",
+          "last_status_at": null
+        },
+        {
+          "acct": "sbfclt@mamot.fr",
+          "display_name": "sbfclt",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/000/148/838/original/79938d3053eff745.png",
+          "mastodon_social_url": "https://mastodon.social/@sbfclt@mamot.fr",
+          "note": "Ordinary dabbler in Paris, FR A bit of software engineering, running, hiking, sourdough, bicycle commuting and touring, and many other things. \"Celui qui court sait lequel des deux pieds est pass\u00e9 dans la flaque\" My posts are deleted after some time.",
+          "last_status_at": null
+        },
+        {
+          "acct": "sirosen",
+          "display_name": "Stephen Rosen",
+          "avatar": "https://files.mastodon.social/accounts/avatars/114/513/795/646/195/020/original/668b1f6e0eecaa60.jpg",
+          "mastodon_social_url": "https://mastodon.social/@sirosen",
+          "note": "Programmer, Amateur Gardener & Woodworker Likes: learning new stuff, cooking, vim Dislikes: people who judge other people's choice of text editor, emacs",
+          "last_status_at": null
+        },
+        {
+          "acct": "heyzen@mastodon.online",
+          "display_name": "Zen",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/110/895/057/866/922/810/original/fe1e18197c9e076a.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@heyzen@mastodon.online",
+          "note": "My dog\u2019s name is Evie. Perpetually half marathon training.",
+          "last_status_at": null
+        }
+      ]
+    },
+    {
+      "id": "mutuals",
+      "title": "Mutuals",
+      "count": 75,
+      "accounts": [
+        {
+          "acct": "dyckron@cosocial.ca",
+          "display_name": "Ron Dyck",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/116/280/760/523/901/986/original/f34429d8519f9312.png",
+          "mastodon_social_url": "https://mastodon.social/@dyckron@cosocial.ca",
+          "note": "Western Canadian Select human. Prairie boy (he/him) with an unfortunate dislike of toxic masculinity and rugged individuality. Grim as that may sound, humour keeps me alive. Tech and/or tech adjacent. Politics matter. Inveterate liker of toots. Toots do not necessarily constitute strong endorsement. Migrated from mstdn dot ca The power of accurate observation is frequently called cynicism.",
+          "last_status_at": "2026-04-11T18:27:37"
+        },
+        {
+          "acct": "linc@phpc.social",
+          "display_name": "Lincoln Russell",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/298/141/726/128/955/original/482bced602e4fcff.jpg",
+          "mastodon_social_url": "https://mastodon.social/@linc@phpc.social",
+          "note": "He/him. Web engineering leader deep in community building & education who thinks PHP-backed hypermedia is \ud83d\udcaf\ud83d\ude80. \"Deal with evil through strength. But affirm the good in man through trust. In this way, we are prepared for evil, but we encourage good.\" \u2014 Master Kahn",
+          "last_status_at": "2026-04-11T18:26:38"
+        },
+        {
+          "acct": "joost@social.joostagterhoek.nl",
+          "display_name": "joost",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/112/965/414/254/858/923/original/138adbfb1b51abcf.png",
+          "mastodon_social_url": "https://mastodon.social/@joost@social.joostagterhoek.nl",
+          "note": "Hi there! \ud83d\udc4b \ud83d\ude3a Nice to meet you. I am a security operations center (#soc) \ud83d\udc40 , I like (learning) programming \ud83d\udcbb (mainly \ud83d\udc0d , soon ) and love my wife, beautiful daughter and my friends and family \u2665\ufe0f . Interests include , \ud83e\uddd1\u200d\ud83d\udcbb and in general, as well as making and listening to music (avoiding any streaming services) and exercising (some fitness, kickboxing \ud83e\udd4a ). Feel free to reach out! \ud83e\udd1d Other places you can find me are: My website => My Gitea-instance => LinkedIn \ud83e\uddd1\u200d\ud83d\udcbc =>",
+          "last_status_at": "2026-04-11T18:16:06.905000"
+        },
+        {
+          "acct": "MichalBryxi@mastodon.world",
+          "display_name": "Michal Bryx\u00ed",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/114/449/630/597/550/848/original/c012361e76738913.png",
+          "mastodon_social_url": "https://mastodon.social/@MichalBryxi@mastodon.world",
+          "note": "\ud83c\udfc3\ud83c\udffb\u200d\u2642\ufe0f + \ud83e\ude82 + \ud83e\uddd7\u200d\u2642\ufe0f + \u26f7\ufe0f + \ud83c\udf31 - Won't lose my time with anti-vaxers. - AI user AND critic.",
+          "last_status_at": "2026-04-11T15:19:23"
+        },
+        {
+          "acct": "milkman",
+          "display_name": "milkman",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/accounts/avatars/111/694/901/337/663/763/original/1248f4d5ba554ada.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@milkman",
+          "note": "Steve Loudermilk, Dad, Husband, Army Veteran, Retired IT Professional, Idealist, and Unitarian Universalist. Interests: \"The arc of the moral universe is long, but it bends toward justice.\" -- Dr. Martin Luther King Jr. (IF we make it so)",
+          "last_status_at": "2026-04-11T14:48:09.889000"
+        },
+        {
+          "acct": "maffknight@metalhead.club",
+          "display_name": "Matt Knight \ud83c\udf31",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/332/777/504/994/166/original/801cc283eb33fabb.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@maffknight@metalhead.club",
+          "note": "Walking, running, cycling, plant-based, ale drinking, metal head.",
+          "last_status_at": "2026-04-11T13:46:36"
+        },
+        {
+          "acct": "dode@mastodonapp.uk",
+          "display_name": "dode",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/603/562/929/886/256/original/6a6deaa821478cf3.jpg",
+          "mastodon_social_url": "https://mastodon.social/@dode@mastodonapp.uk",
+          "note": "Human being, enginerd, rower, cyclist, runner, kept by cats. A Scot lost in the north of England.",
+          "last_status_at": "2026-04-11T08:52:07"
+        },
+        {
+          "acct": "jdschroeder@mstdn.ca",
+          "display_name": "Josh Schroeder",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/115/175/244/107/335/873/original/c02577f36b7b3505.jpg",
+          "mastodon_social_url": "https://mastodon.social/@jdschroeder@mstdn.ca",
+          "note": "Web developer, cyclist, photographer, writer, and actor in northern Canada.",
+          "last_status_at": "2026-04-10T23:32:15"
+        },
+        {
+          "acct": "gmc@social.lol",
+          "display_name": "Graham McIntire",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/113/114/390/357/078/821/original/3453fa9876977e34.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@gmc@social.lol",
+          "note": "Plain text & dvorak enthusiast. Amateur photographer. Amateur radio operator since 1996, W5ISP. Run my own WISP. Neurodiverse. Buddhist. FFL/SOT. Not your typical Texan.",
+          "last_status_at": "2026-04-10T20:50:06"
+        },
+        {
+          "acct": "mlawton@mstdn.social",
+          "display_name": "Mike Lawton",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/289/523/398/958/446/original/866aa59147146e2c.png",
+          "mastodon_social_url": "https://mastodon.social/@mlawton@mstdn.social",
+          "note": "& developer, runner, ex-pat Hoosier now living in the mountains of VA, supporter of \u26bd\ufe0f \ud83c\udfc0 \u26bd\ufe0f \u26bd\ufe0f Hashtag disciplined: you should, but you don't have to like EVERYTHING I do, so go on ahead and mute a hashtag. Searchable via Tootfinder",
+          "last_status_at": "2026-04-10T20:17:59"
+        },
+        {
+          "acct": "avuko@infosec.exchange",
+          "display_name": "\u2820\u2835 avuko",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/332/690/093/652/503/original/fe8f87dd4df3906a.png",
+          "mastodon_social_url": "https://mastodon.social/@avuko@infosec.exchange",
+          "note": "I just wanna go slow, sit still, and come undone. Everybody wants to be a warrior, nobody wants to be a nurse. Move slow and make things. : nothing of value is lost. \u221e \u2638 (I am here as citizen) he/him :donor: \u2820\u2835 Header image: Moorlands at Lemele. Avatar image: screenshot of the braille Unicode for \u201cAs\u201d (\u2820\u2835) which looks like a glider from the Game of Life, an unofficial hacker logo. auto-delete ~ 7 days",
+          "last_status_at": "2026-04-10T19:38:19"
+        },
+        {
+          "acct": "Lyle@cville.online",
+          "display_name": "Lyle Solla-Yates",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/cache/accounts/avatars/109/531/620/853/766/122/original/f2cd7a9682926562.jpg",
+          "mastodon_social_url": "https://mastodon.social/@Lyle@cville.online",
+          "note": ", , , , . Planning Commission member, teacher, all opinions are my own fault. Bi. contributor. Searchable",
+          "last_status_at": "2026-04-10T15:42:55"
+        },
+        {
+          "acct": "tallison@mastodon.social",
+          "display_name": "Tim Allison",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/cache/accounts/avatars/111/233/544/139/547/208/original/c9c02f5e29d0c662.jpg",
+          "mastodon_social_url": "https://mastodon.social/@tallison@mastodon.social",
+          "note": "Files and search. Founder Rhapsode Consulting LLC. Chair/VP Apache Tika, committer Apache PDFBox, Apache POI, Apache Lucene/Solr, Apache Nutch, Apache OpenNLP. Philologist emeritus. #\ud83c\udff3\ufe0f\u200d\ud83c\udf08\ud83c\udff3\ufe0f\u200d\u26a7\ufe0fAlly",
+          "last_status_at": "2026-04-09T17:18:47"
+        },
+        {
+          "acct": "shojiwax@mastodon.online",
+          "display_name": "Ian",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/313/098/942/287/782/original/aabac6de761702aa.png",
+          "mastodon_social_url": "https://mastodon.social/@shojiwax@mastodon.online",
+          "note": "Retired nurse. Zen Life. Less wired. More weird. Zen | Consciousness | Philosophy of mind | Jazz | Poetry | Meditation | Photography | Science | DeGrowth | Climate Emergency",
+          "last_status_at": "2026-02-14T20:02:33"
+        },
+        {
+          "acct": "officehippy@mas.to",
+          "display_name": "Colin",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/367/752/961/783/641/original/b2f89c1e06ad87a0.png",
+          "mastodon_social_url": "https://mastodon.social/@officehippy@mas.to",
+          "note": "Runner, environmentalist, energy expert, heat pumps, renewables, Colin. Next races: So\u010da 50k Slovenia (Jun 2026) . Profile pic is me, a bald guy with a grey beard.",
+          "last_status_at": "2026-02-14T17:29:04"
+        },
+        {
+          "acct": "cmccullough@polymaths.social",
+          "display_name": "Chad McCullough",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/114/569/104/718/251/386/original/b70f547eb8d516c4.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@cmccullough@polymaths.social",
+          "note": "Bikes, Safe Streets, and Public Transport advocate | Green Party Socialist | Small Web advocate | Linux and Unix user of 30+ years | Emacs user | Privacy and Security advocate | Vegan | Cars ruin everything | AI is ruining everything",
+          "last_status_at": "2026-02-14T15:28:41"
+        },
+        {
+          "acct": "NigelNotNeil",
+          "display_name": "Mr Kneale",
+          "avatar": "https://files.mastodon.social/accounts/avatars/110/640/376/131/074/127/original/1450ff43743121f4.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@NigelNotNeil",
+          "note": "Just here to spout on running, Leeds Utd, music, TV, politics, and life in general.",
+          "last_status_at": "2026-02-14T12:23:31.111000"
+        },
+        {
+          "acct": "nicephoros",
+          "display_name": "A Nice Jason :maryland_badge:",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/accounts/avatars/109/968/162/146/515/594/original/c3a3d6a7f29c2ace.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@nicephoros",
+          "note": "I'm Jason Coleman. I'm a he/him, and dad to a they/them. I was a stay-home dad of three kids until they all got big! Now I volunteer at my church's food kitchen and spend my leisure time pursuing interesting projects.",
+          "last_status_at": null
+        },
+        {
+          "acct": "bitcoaxer@mastodon.ie",
+          "display_name": "Aidan Whyte",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/110/913/250/303/855/243/original/f452b4a7b044fc03.jpg",
+          "mastodon_social_url": "https://mastodon.social/@bitcoaxer@mastodon.ie",
+          "note": "Sisyphus, but for Networks/Systems.",
+          "last_status_at": null
+        },
+        {
+          "acct": "annedraya@zirk.us",
+          "display_name": "andrea patrice",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/364/229/572/499/259/original/421e83cc4092d250.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@annedraya@zirk.us",
+          "note": "a mahayana practitioner-philosopher interested in ecological worldviews & ways of knowing beyond the usual binary that divides into \u2018us vs. them\u2019 and fuels oppressive power structures. neurodivergent ( ), socially anxious, chronically ill ( ), disabled + housebound. eternally energy depleted. committed to building one step at a time.",
+          "last_status_at": null
+        },
+        {
+          "acct": "annmust@mastodon.green",
+          "display_name": "Ann Must",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/347/781/610/829/580/original/ffb5410110a09e08.png",
+          "mastodon_social_url": "https://mastodon.social/@annmust@mastodon.green",
+          "note": "green, vegan, art and philosophy lover",
+          "last_status_at": null
+        },
+        {
+          "acct": "hndrcks@dmv.community",
+          "display_name": "Benjamin Hendricks",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/110/458/990/541/103/489/original/aed7bcafd55f2c06.png",
+          "mastodon_social_url": "https://mastodon.social/@hndrcks@dmv.community",
+          "note": "he/him - IT Director for a medium sized nonprofit in the DC area. I run - more than most people, but not enough to be really good at it. I like to travel and run with new friends wherever I go (the group photo is from the Parkrun Pineto in Rome.)",
+          "last_status_at": null
+        },
+        {
+          "acct": "wdeal@pkm.social",
+          "display_name": "Bill Deal",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/468/245/665/927/597/original/a0bb7e3d0376d87a.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@wdeal@pkm.social",
+          "note": "professor seeking civility; posts on cognition and culture, personal knowledge management (PKM); Buddhism; Japan; science fiction",
+          "last_status_at": null
+        },
+        {
+          "acct": "grobmeier@mastodon.social",
+          "display_name": "Christian Grobmeier",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/337/674/582/689/853/original/b845701b325defb4.jpg",
+          "mastodon_social_url": "https://mastodon.social/@grobmeier@mastodon.social",
+          "note": "Java Champion & ASF VP Data Privacy. I write and speak about code, ethics, and what it means to build systems that last.",
+          "last_status_at": null
+        },
+        {
+          "acct": "christin@me.dm",
+          "display_name": "christin@me.dm",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/110/210/862/817/498/650/original/0294e47abca57c5b.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@christin@me.dm",
+          "note": "",
+          "last_status_at": null
+        },
+        {
+          "acct": "ck@swiss.social",
+          "display_name": "ck \ud83d\udc68\u200d\ud83d\udcbb",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/116/306/113/366/199/831/original/44a5a7b51c2390ae.png",
+          "mastodon_social_url": "https://mastodon.social/@ck@swiss.social",
+          "note": "Geek, father, blogging on www.claudiokuenzler.com",
+          "last_status_at": null
+        },
+        {
+          "acct": "CloudwalkingOwl@mindly.social",
+          "display_name": "Cloudwalking Owl",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/350/848/729/529/616/original/c96b989cd4eca2d2.png",
+          "mastodon_social_url": "https://mastodon.social/@CloudwalkingOwl@mindly.social",
+          "note": "I've jam packed my life with activism while working full time and renovating a slum house. In addition to my work as an environmentalist, I'm also a Daoist who was initiated into a Temple in Toronto by a couple of immigrants from Hong Kong. I write too. Long form journalism: Hulet's Backgrounder on Substack. Philosophy: -Walking the Talk: Engaging the Public to Build a Sustainable Society -Digging Your Own Well: Daoism as a Practical Philosophy Fiction: -The Climate Trials",
+          "last_status_at": null
+        },
+        {
+          "acct": "coolitsdave",
+          "display_name": "coolitsdave",
+          "avatar": "https://files.mastodon.social/accounts/avatars/110/704/322/507/903/161/original/34f6bfd39be86e85.jpg",
+          "mastodon_social_url": "https://mastodon.social/@coolitsdave",
+          "note": "A former fitness pro and gym owner turned IT nerd. Mostly here to talk fitness and sports (NFL, NHL, MMA) with some occasional tech talk",
+          "last_status_at": null
+        },
+        {
+          "acct": "coopdotcom",
+          "display_name": "Coop",
+          "avatar": "https://ohai.social/avatars/original/missing.png",
+          "mastodon_social_url": "https://mastodon.social/@coopdotcom",
+          "note": "",
+          "last_status_at": null
+        },
+        {
+          "acct": "daviddack",
+          "display_name": "David Dack",
+          "avatar": "https://files.mastodon.social/accounts/avatars/114/363/222/200/376/349/original/25d938460361150c.jpg",
+          "mastodon_social_url": "https://mastodon.social/@daviddack",
+          "note": "\ud83c\udfc3\u200d\u2642\ufe0f Running Coach | \ud83c\udf04 Trail Runner | \ud83c\udf0d Endurance Athlete living in Bali. Inspiring athletes to push their limits one step at a time.",
+          "last_status_at": null
+        },
+        {
+          "acct": "david@saff.dev",
+          "display_name": "David Saff",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/116/021/643/957/833/997/original/146c5f4a47e827b4.jpg",
+          "mastodon_social_url": "https://mastodon.social/@david@saff.dev",
+          "note": "",
+          "last_status_at": null
+        },
+        {
+          "acct": "denisfl",
+          "display_name": "denisfl",
+          "avatar": "https://files.mastodon.social/accounts/avatars/110/175/626/279/224/615/original/6bd545251b928b91.jpg",
+          "mastodon_social_url": "https://mastodon.social/@denisfl",
+          "note": "Good things lover. Runner. Software engineer. Building \u2014 a visual timeline for remote teams. Shows when everyone's working or sleeping. No sign-ups, no tracking. \u041f\u0438\u0448\u0443 \u043d\u0430 \u0440\u0443\u0441\u0441\u043a\u043e\u043c \u0432 \u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c",
+          "last_status_at": null
+        },
+        {
+          "acct": "DharmaDog@mastodon.social",
+          "display_name": "Dennis A",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/543/323/472/350/559/original/11fbcb4638b7d5c2.png",
+          "mastodon_social_url": "https://mastodon.social/@DharmaDog@mastodon.social",
+          "note": "BuddhistNoBody from Twitter Just some Buddhist who happens to appreciate Pete Buttigieg Software Systems Engineer(ret), Counselor, Dog dad, Sailor, RVer, Gay Trained at HHDL's North American seat Drepung Loseling at Emory University DharmaDog on Post.News and Spoutible",
+          "last_status_at": null
+        },
+        {
+          "acct": "dennisdiclaudio@mas.to",
+          "display_name": "Dennis DiClaudio",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/311/075/409/252/251/original/bda9ee40c3530630.jpg",
+          "mastodon_social_url": "https://mastodon.social/@dennisdiclaudio@mas.to",
+          "note": "Former professional writer. Current non-professional random thing doer. He/him.",
+          "last_status_at": null
+        },
+        {
+          "acct": "DistrictDharmaCollective",
+          "display_name": "District Dharma",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/accounts/avatars/113/458/872/911/241/610/original/4066b5dbbb35f105.jpg",
+          "mastodon_social_url": "https://mastodon.social/@DistrictDharmaCollective",
+          "note": "A community of meditation practitioners dedicated to the Dharma, social justice, and uplifting LGBTQ+ and BIPOC voices. We gather on the 1st and 3rd Sundays of each month for practice and study in downtown Washington D.C. Profile pic: logo with lotus and stars in a circle that could be the moon. It reads District Dharma Collective, Sit Down, Rise Up Header: D.C. row houses at sunset",
+          "last_status_at": null
+        },
+        {
+          "acct": "DistrictDharmaCollective@dmv.community",
+          "display_name": "District Dharma",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/113/458/880/753/695/209/original/1f2228fdc57a52b8.jpg",
+          "mastodon_social_url": "https://mastodon.social/@DistrictDharmaCollective@dmv.community",
+          "note": "A community of meditation practitioners dedicated to the Dharma, social justice, and uplifting LGBTQ+ and BIPOC voices. We gather on the 1st and 3rd Sundays of each month for practice and study in downtown Washington D.C. Profile pic: logo with lotus and stars in a circle that could be the moon. It reads District Dharma Collective, Sit Down, Rise Up Header: D.C. row houses at sunset",
+          "last_status_at": null
+        },
+        {
+          "acct": "DomSathanas@ravenation.club",
+          "display_name": "Dom_Sathanas",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/411/832/719/525/552/original/999a6973cb6c9fc5.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@DomSathanas@ravenation.club",
+          "note": "are a few of my favourite things!",
+          "last_status_at": null
+        },
+        {
+          "acct": "dusk@todon.eu",
+          "display_name": "Dusk to Don :raccoon:",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/113/465/213/794/035/830/original/9cb312143fec15a9.png",
+          "mastodon_social_url": "https://mastodon.social/@dusk@todon.eu",
+          "note": "dad. musician. software engineer for fun and sustenance at heart. Profile pic alt text: Racoon sitting in front of a computer. Built with Header alt text: Chaotic vaporwave imagery, with colorful retro Word Art that reads \"catch me on Mastodon\"",
+          "last_status_at": null
+        },
+        {
+          "acct": "ellyxir@humanwords.party",
+          "display_name": "Ellyse",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/116/351/711/057/204/103/original/b5b0d72bfe8465fb.jpg",
+          "mastodon_social_url": "https://mastodon.social/@ellyxir@humanwords.party",
+          "note": "migrated from Programming languages enthusiast, choir, classical singing, video game creation, retro computers, languages",
+          "last_status_at": null
+        },
+        {
+          "acct": "ebelo",
+          "display_name": "Emmanuel Belo",
+          "avatar": "https://files.mastodon.social/accounts/avatars/116/132/718/318/416/026/original/0e90b1793d71505f.jpg",
+          "mastodon_social_url": "https://mastodon.social/@ebelo",
+          "note": "Digital Excellence & Open Source Solutions | AI, Bespoke Software Development, GIS, Infrastructure, Odoo | Technical Product Manager At Camptocamp, I manage the Geospatial Solutions Business Unit and serve on the executive board, focusing on business growth, innovation, and operational excellence. Let\u2019s connect and explore the possibilities together!\ud83c\udf1f",
+          "last_status_at": null
+        },
+        {
+          "acct": "Enso108@veganism.social",
+          "display_name": "Enso108",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/410/315/414/863/398/original/4bcd9f478cdc28b2.png",
+          "mastodon_social_url": "https://mastodon.social/@Enso108@veganism.social",
+          "note": "runner and cyclist powered by plants and a mechanical heart valve. Incompetent and driver of old stuff.",
+          "last_status_at": null
+        },
+        {
+          "acct": "fo@thecanadian.social",
+          "display_name": "Fran\u00e7ois-Olivier",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/724/533/561/238/041/original/ec11ec7eaf929ce4.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@fo@thecanadian.social",
+          "note": "iOS dev",
+          "last_status_at": null
+        },
+        {
+          "acct": "graham@qth.social",
+          "display_name": "Graham McIntire W5ISP",
+          "avatar": "https://ohai.social/avatars/original/missing.png",
+          "mastodon_social_url": "https://mastodon.social/@graham@qth.social",
+          "note": "Interested in ham radio? Migrate your mastodon profile to my server qth.social Plain text & dvorak enthusiast. Amateur photographer. Amateur radio operator since 1996, W5ISP. Run my own WISP. Neurodiverse. Buddhist. FFL/SOT. Not your typical Texan.",
+          "last_status_at": null
+        },
+        {
+          "acct": "groby@social.tchncs.de",
+          "display_name": "Gr\u00f8by",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/108/292/645/170/510/327/original/7b2abbbecc509617.gif",
+          "mastodon_social_url": "https://mastodon.social/@groby@social.tchncs.de",
+          "note": "Hiking, running, metal Punk \ud83e\udd18 \u26f0\ufe0f\ud83c\udfc3\ud83d\udca8 open-minded, freedom loving \u270c\ufe0f IT-Guy from Germany-> No borders\u270a FCKNZS Music-Series-Movie-enthusiast\ud83c\udfac\ud83c\udfb8 Gamer, analog \ud83c\udfb2and digital \ud83c\udfae Nature lover \ud83c\udf41\ud83c\udf42 Plant Fueled \ud83c\udf43 No gods. No masters. Question everything. Worship nothing.",
+          "last_status_at": null
+        },
+        {
+          "acct": "gus",
+          "display_name": "Gus",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/accounts/avatars/110/351/147/985/792/610/original/3fecb9d8ddcd4043.png",
+          "mastodon_social_url": "https://mastodon.social/@gus",
+          "note": "(he, him) Kingman Park, Originally from Denver, CO. Materials scientist & artist I run a local group called Creatives Club DC! We meet every Thursday on the National Mall. Artists of all types & skill levels welcome! I think art in the sciences is important & I'm on a journey to join these two things through , , , & !",
+          "last_status_at": null
+        },
+        {
+          "acct": "Harmless_panda@techhub.social",
+          "display_name": "Harmless_panda",
+          "avatar": "https://ohai.social/avatars/original/missing.png",
+          "mastodon_social_url": "https://mastodon.social/@Harmless_panda@techhub.social",
+          "note": "",
+          "last_status_at": null
+        },
+        {
+          "acct": "hubert@social.uhoreg.ca",
+          "display_name": "Hubert Chathi",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/000/326/047/original/b844d76395dd6f5d.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@hubert@social.uhoreg.ca",
+          "note": "",
+          "last_status_at": null
+        },
+        {
+          "acct": "Ironmanda@dmv.community",
+          "display_name": "Ironmanda",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/113/815/489/489/337/682/original/a46aec7bfec46374.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@Ironmanda@dmv.community",
+          "note": "Running and biking across the DMV SW Athletic Club (SWAC)",
+          "last_status_at": null
+        },
+        {
+          "acct": "jcrabapple@phediverse.social",
+          "display_name": "jcrabapple",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/cache/accounts/avatars/111/655/501/071/519/840/original/34485f95e4db93b8.jpg",
+          "mastodon_social_url": "https://mastodon.social/@jcrabapple@phediverse.social",
+          "note": "Alt for jcrabapple@dmv.community",
+          "last_status_at": null
+        },
+        {
+          "acct": "jeffhorton@mstdn.social",
+          "display_name": "Jeff Horton \ud83c\udde8\ud83c\udde6",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/116/269/679/492/484/489/original/6726fe126c8021e6.jpg",
+          "mastodon_social_url": "https://mastodon.social/@jeffhorton@mstdn.social",
+          "note": "I went out west, and came back. Sometimes a CTO, Developer, SysAdmin, Founder, Teacher, Coach. Tech itself is the least interesting thing to me. Dig stories, wood, metal, art, history, science, writing, reading & humanity. Profile cred my artist daughter. 4 cats!! Yes, I do political posting, can't be silent to hate. Near Red Deer AB? Look for my meetups 'Red Deer Tech & Code' and 'Red Deer Start Here' Previously SK, AB, BC. Canadian not \"Albertan\" Support the \ud83c\udf08, Fuck genocides.",
+          "last_status_at": null
+        },
+        {
+          "acct": "NoOrdinaryJeff",
+          "display_name": "jeffrey d johnson",
+          "avatar": "https://files.mastodon.social/accounts/avatars/115/881/596/585/207/589/original/717993e4c45528e2.jpg",
+          "mastodon_social_url": "https://mastodon.social/@NoOrdinaryJeff",
+          "note": "I am this much wasted potential.",
+          "last_status_at": null
+        },
+        {
+          "acct": "jolyonbt@mastodon.social",
+          "display_name": "Jolyon Thomas",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/338/477/554/457/961/original/9a353a0398e195fd.png",
+          "mastodon_social_url": "https://mastodon.social/@jolyonbt@mastodon.social",
+          "note": "Associate Professor of Religious Studies, University of Pennsylvania. Author of Drawing on Tradition (2012) and Faking Liberties (2019). New book on religion and public ed coming soon-ish. Website: jolyon.thomasresearch.org",
+          "last_status_at": null
+        },
+        {
+          "acct": "kanishkanaik",
+          "display_name": "Kanishka Naik",
+          "avatar": "https://files.mastodon.social/accounts/avatars/114/710/382/789/882/408/original/a021cb4ab323e606.png",
+          "mastodon_social_url": "https://mastodon.social/@kanishkanaik",
+          "note": "Software Engineer & Open-Source Maintainer JS/TS \u2022 Elixir \u2022 Go \u2022 Solidity Exploring payments, ledgers, and distributed systems Astrophile \ud83d\udd2d | Tech Blogger \u270d\ufe0f",
+          "last_status_at": null
+        },
+        {
+          "acct": "lpryszcz@genomic.social",
+          "display_name": "Leszek",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/337/563/186/990/788/original/25659276fd55f05c.jpg",
+          "mastodon_social_url": "https://mastodon.social/@lpryszcz@genomic.social",
+          "note": "Father. Computational biologist. Working on RNA modifications. Passionate about nature, music and IT. searchable",
+          "last_status_at": null
+        },
+        {
+          "acct": "lisadalemiller@mstdn.social",
+          "display_name": "Lisa Dale Miller",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/538/009/480/143/544/original/720c706bed6d3e5d.png",
+          "mastodon_social_url": "https://mastodon.social/@lisadalemiller@mstdn.social",
+          "note": "Integrative psychotherapist (LMFT in CA, WA, NY, OR) and a Somatic Experiencing Practitioner specializing in trauma resolution. My office is in Silicon Valley. I authored a highly regarded textbook on Buddhist psychology for mental health professionals and I am a dharma teacher. Groundless Ground Podcast creator. I was lucky to spend a couple of decades as an internationally exhibited visual artist.",
+          "last_status_at": null
+        },
+        {
+          "acct": "Liv@aus.social",
+          "display_name": "Liv mmechomski",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/506/026/611/183/229/original/aa1cf3723384e584.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@Liv@aus.social",
+          "note": "~part goddess, part mountain goat~ Australian ex NYC. Grounded gypsy, bolshie Buddhist, recovering journalist.",
+          "last_status_at": null
+        },
+        {
+          "acct": "liz_roemer@spore.social",
+          "display_name": "Liz Roemer",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/503/015/391/312/339/original/9e16aa2be0bb33c2.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@liz_roemer@spore.social",
+          "note": "Professor at U Mass Boston, Clinical Psychologist, Co-Author (with Sue Orsillo) of Mindful Way Through Anxiety and Worry Less, Live More. She/her. Opinions my own.",
+          "last_status_at": null
+        },
+        {
+          "acct": "MarandaDFL@toot.community",
+          "display_name": "Maranda is not DFL \ud83c\udff3\ufe0f\u200d\ud83c\udf08 \ud83d\udc5f",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/110/933/626/340/389/639/original/b7beccda9d3131bc.jpg",
+          "mastodon_social_url": "https://mastodon.social/@MarandaDFL@toot.community",
+          "note": "IT industry by day, gamer by night, avid runner the rest of the time. Lesbian and happy about it, thank you very much. Sometimes I write blog posts about relationships and my frustrations in the tech industry, but usually I write about running. In spite of all that, I am a really fun person. Really. Honest. Profile is how I wish I looked when running instead of like a bag of wet laundry.",
+          "last_status_at": null
+        },
+        {
+          "acct": "londonerabroad@mstdn.social",
+          "display_name": "Michael John Smith",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/110/655/407/332/607/936/original/3429ca92754ba4bd.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@londonerabroad@mstdn.social",
+          "note": "Happily married 70 y/o English Buddhist vegan and eco-socialist living in Slovenia trying to be kind to every kind. ally",
+          "last_status_at": null
+        },
+        {
+          "acct": "chris_@c.im",
+          "display_name": "Mr Cheesequake",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/548/728/851/355/461/original/852c2756e06979dc.jpg",
+          "mastodon_social_url": "https://mastodon.social/@chris_@c.im",
+          "note": "TV & Film \ud83c\udfa5 | Food Wanker \ud83c\udf7d\ufe0f | Geriatric millennial | he/him | \ud83c\uddec\ud83c\udde7 | \ud83e\udde0 Haemorrhage Survivor \u267f | Stage 4\ufe0f\u20e3 Melanoma | Shine through fear | Terrible Buddhist \u2638\ufe0f",
+          "last_status_at": null
+        },
+        {
+          "acct": "mxbleau@mastodon.social",
+          "display_name": "Mx. Bleau",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/110/300/524/741/052/070/original/0ac1194098c3d213.jpg",
+          "mastodon_social_url": "https://mastodon.social/@mxbleau@mastodon.social",
+          "note": "GCS/E/IT d- s+:+ C+++ L+ M+ PS++ t+ b++ e+ r++ \ud83d\ude80 Sr. Software Engineer | Building the future one line of code at a time \ud83d\udc7e Gamer | \ud83d\udcda Manga Enthusiast | Programming Nerd | Trekker \u2764\ufe0f Happily married to my husband & dog parent \ud83d\udc36 \ud83d\udc68\u200d\ud83d\udcbb When I'm not coding, I\u2019m exploring new universes in books and games \"Live long and code!\" \ud83d\ude80 Opinions are my own and not the views of my employer",
+          "last_status_at": null
+        },
+        {
+          "acct": "n0body@hachyderm.io",
+          "display_name": "n0body",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/520/988/207/500/690/original/a6bc0dbb1aa45002.png",
+          "mastodon_social_url": "https://mastodon.social/@n0body@hachyderm.io",
+          "note": "Secular Buddhism, information theory, language.",
+          "last_status_at": null
+        },
+        {
+          "acct": "NerdRunner@social.tchncs.de",
+          "display_name": "NerdRunner",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/389/112/433/916/722/original/3ae641f99152ed5d.png",
+          "mastodon_social_url": "https://mastodon.social/@NerdRunner@social.tchncs.de",
+          "note": "Nerdish by nature, addicted to ultra running ... good combination :) TheNerdRunnerProject @ github Opensource fit file analysis",
+          "last_status_at": null
+        },
+        {
+          "acct": "nickistre@floss.social",
+          "display_name": "Nick Istre",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/114/435/408/402/272/644/original/35408c060351a0db.jpg",
+          "mastodon_social_url": "https://mastodon.social/@nickistre@floss.social",
+          "note": "Linux fan, hockey fan, amateur photographer, biking addict, video gamer, and web programmer. Him/He. Located in WA, USA.",
+          "last_status_at": null
+        },
+        {
+          "acct": "ninokadic@mastodon.social",
+          "display_name": "Nino Kadic",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/110/778/935/204/381/901/original/67424aed4e228ed6.png",
+          "mastodon_social_url": "https://mastodon.social/@ninokadic@mastodon.social",
+          "note": "Postdoc at the Institute of Philosophy, Zagreb | PhD, King\u2019s College London | Primarily working on mind and metaphysics \ud83d\udcad",
+          "last_status_at": null
+        },
+        {
+          "acct": "olluig",
+          "display_name": "Olluig",
+          "avatar": "https://files.mastodon.social/accounts/avatars/112/022/490/798/134/392/original/18dd813491108dfd.png",
+          "mastodon_social_url": "https://mastodon.social/@olluig",
+          "note": "French and english for more diversity.",
+          "last_status_at": null
+        },
+        {
+          "acct": "16DBatteries@mastodon.gamedev.place",
+          "display_name": "Ross K",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/cache/accounts/avatars/115/844/722/189/377/872/original/72f6f3a36e4698d4.png",
+          "mastodon_social_url": "https://mastodon.social/@16DBatteries@mastodon.gamedev.place",
+          "note": "DevOps professional / publisher / amateur gamedev",
+          "last_status_at": null
+        },
+        {
+          "acct": "ScottStonehouse@hachyderm.io",
+          "display_name": "ScottStonehouse",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/393/361/542/991/623/original/12ee76ac84840ba1.jpg",
+          "mastodon_social_url": "https://mastodon.social/@ScottStonehouse@hachyderm.io",
+          "note": "Data, SQL Server, Business Intelligence, Security & Privacy \ud83c\udde8\ud83c\udde6",
+          "last_status_at": null
+        },
+        {
+          "acct": "simonpayn@newsie.social",
+          "display_name": "Simon Payn",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/383/314/705/299/885/original/c63a8d7aa3c16e23.jpg",
+          "mastodon_social_url": "https://mastodon.social/@simonpayn@newsie.social",
+          "note": "Writer and illustrator living at the intersection of art, nature and wisdom. Creator of Snubsta. Creator of naturalized gardens at Grounded. Interested in our relationship with nature/biophilia, native plant gardening, Taoism and non-duality, circular economy and degrowth, town and community building. Co-owner and former publisher of The Highlander newspaper in Haliburton, Ontario, Canada. Noticing + Awe = Love = Action.",
+          "last_status_at": null
+        },
+        {
+          "acct": "siona@spore.social",
+          "display_name": "Siona",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/501/593/632/646/489/original/4b012d6a3c9cff3c.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@siona@spore.social",
+          "note": "Siona Francesca van Dijk (she \u2022 her) \u2022 Plural. Fluid. Human. Friend. I practice slow living, appreciate deep listening, and aspire always to be a good animal. \u221e Founder & Guide \u2022 siona francesca, llc \u2022 MA, Transpersonal Psychology. MA, Jungian & Archetypal Studies. \u221e",
+          "last_status_at": null
+        },
+        {
+          "acct": "tkn777",
+          "display_name": "Thomas Kuhlmann",
+          "avatar": "https://files.mastodon.social/accounts/avatars/115/532/120/891/784/451/original/5689581d5ef630c3.jpg",
+          "mastodon_social_url": "https://mastodon.social/@tkn777",
+          "note": "Softwareentwickler (Freelancer) mit \u00fcber 30 Jahren Erfahrung in Coding, Systemdesign, Automatisierung und Backend-Entwicklung (Java, Kotlin, Python, Go, Linux).",
+          "last_status_at": null
+        },
+        {
+          "acct": "toni@pancake.place",
+          "display_name": "Toni Lampela \ud83c\uddeb\ud83c\uddee\ud83c\uddfa\ud83c\udde6",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/270/598/648/401/301/original/89b6200ec2747b48.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@toni@pancake.place",
+          "note": "EN/FI Tooting from Helsinki, Finland. Tinkers with & occasionally (mainly servers). , asian food, and electronic music are all on my radar. Not a designer but appreciates care and craftsmanship in both digital and physical world. Pronouns: He/him.",
+          "last_status_at": null
+        },
+        {
+          "acct": "Chimneyswift@aleph.land",
+          "display_name": "what the duck",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/327/410/275/580/319/original/227df78689c250c2.jpg",
+          "mastodon_social_url": "https://mastodon.social/@Chimneyswift@aleph.land",
+          "note": "Gen X cancer survivor. I see you through the cosmos. Too weird for the nerds, too nerdy for the weirdos, and nowhere near cool enough to be punk. Bearing witness to the incipient doom of the anthropocene from deep in the belly of the capitalist food supply chain. Nature lover, birder, cyclist. Buddhist/Dzogchen practitioner, but in an anarchistic kind of way. Very anti-racist, anti-sexist and anti-fascist. Patron of the arts, high and low. If it bothers you when people talk about systemic problems, you're probably habitually numbing yourself to avoid seeing the ways that your life is built upon and contributes to those problems. Seattle now, with roots in Colorado, Minnesota and Ohio -- but yeah I love this whole messed up world. CW: radical politics, normie politics, occasional creative words, also some NBA, soccer",
+          "last_status_at": null
+        },
+        {
+          "acct": "jpthuot03@mstdn.ca",
+          "display_name": "Yet Water Was :mstdnca:",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/395/863/967/649/633/original/755887315267cbd8.jpg",
+          "mastodon_social_url": "https://mastodon.social/@jpthuot03@mstdn.ca",
+          "note": "Resist despair, foster joy. No boosts without Alt-text. Safe space for queer/trans/enby/auti. Community acupuncturist, bleeding heart lefty, poet. Check to read some stuff I wrote, or find me on Insta: Header: golden orange sunrise over the ocean at Taylor Beach, Metchosin BC. Avatar: Me as an acupuncture super hero.",
+          "last_status_at": null
+        },
+        {
+          "acct": "Yudron@norcal.social",
+          "display_name": "Yudron",
+          "avatar": "https://files.ohai.social/cache/accounts/avatars/109/957/417/848/985/544/original/2488520f6b4dcf00.png",
+          "mastodon_social_url": "https://mastodon.social/@Yudron@norcal.social",
+          "note": "Sierra Foothills, California. Love nature and bobbing around in lakes like a cork. Author and educator about Tibetan Buddhism, after decades of immersion. Latest Book: Clearing the Way to Awakening. (available everywhere) Audiobook out soon.",
+          "last_status_at": null
+        }
+      ]
+    },
+    {
+      "id": "bots",
+      "title": "Bots",
+      "count": 3,
+      "accounts": [
+        {
+          "acct": "techevents",
+          "display_name": "DC Tech Events",
+          "avatar": "https://dmvcommunitymedia.b-cdn.net/accounts/avatars/115/842/787/182/436/935/original/2b1cd3050ca47b2f.png",
+          "mastodon_social_url": "https://mastodon.social/@techevents",
+          "note": "The most complete calendar of technical meetups and conferences in and around DC. Is something missing? Add it!",
+          "last_status_at": "2026-04-11T13:30:18.670000"
+        },
+        {
+          "acct": "fastlydevs",
+          "display_name": "Fastly Devs",
+          "avatar": "https://files.mastodon.social/accounts/avatars/113/289/612/399/158/937/original/94151f31767435f0.jpeg",
+          "mastodon_social_url": "https://mastodon.social/@fastlydevs",
+          "note": "Posting what the devs are up to and enjoying at Fastly. You know - docs, code, potions, etc. \ud83d\udcdd \ud83d\udcbe \u2697\ufe0f",
+          "last_status_at": null
+        },
+        {
+          "acct": "goland@techhub.social",
+          "display_name": "GoLand Blog",
+          "avatar": "https://files.mastodon.social/cache/accounts/avatars/111/523/947/396/891/806/original/0081180c6b472a5c.png",
+          "mastodon_social_url": "https://mastodon.social/@goland@techhub.social",
+          "note": "Regular updates from blog. The complete IDE crafted for Gophers. GoLand and the GoLand logo are registered trademarks of JetBrains s.r.o. The developers of this unofficial non-profit bot are not affiliated with the company. Account created by",
+          "last_status_at": null
+        }
+      ]
+    }
+  ]
+}

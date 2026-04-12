@@ -2,10 +2,16 @@ from datetime import datetime
 
 from mastodon_is_my_blog.storm_export import (
     DEFAULT_MIN_TEXT_LENGTH,
+    build_blogroll_export,
     build_storm_exports,
     clean_mastodon_text,
 )
-from mastodon_is_my_blog.store import CachedPost, MastodonIdentity
+from mastodon_is_my_blog.store import (
+    CachedAccount,
+    CachedNotification,
+    CachedPost,
+    MastodonIdentity,
+)
 
 
 def make_identity(
@@ -58,6 +64,65 @@ def make_post(
         replies_count=0,
         reblogs_count=0,
         favourites_count=0,
+    )
+
+
+def make_account(
+    *,
+    account_id: str,
+    acct: str,
+    display_name: str,
+    mastodon_identity_id: int = 1,
+    avatar: str = "https://img.example.com/avatar.png",
+    note: str = "",
+    bot: bool = False,
+    is_following: bool = True,
+    is_followed_by: bool = False,
+    last_status_at: datetime | None = None,
+) -> CachedAccount:
+    return CachedAccount(
+        id=account_id,
+        meta_account_id=1,
+        mastodon_identity_id=mastodon_identity_id,
+        acct=acct,
+        display_name=display_name,
+        avatar=avatar,
+        url=f"https://example.com/@{acct}",
+        note=note,
+        bot=bot,
+        locked=False,
+        created_at=None,
+        header="",
+        fields="[]",
+        followers_count=0,
+        following_count=0,
+        statuses_count=0,
+        is_following=is_following,
+        is_followed_by=is_followed_by,
+        last_status_at=last_status_at,
+        cached_post_count=0,
+        cached_reply_count=0,
+    )
+
+
+def make_notification(
+    *,
+    notification_id: str,
+    identity_id: int,
+    account_id: str,
+    account_acct: str,
+    notification_type: str = "mention",
+    created_at: datetime,
+) -> CachedNotification:
+    return CachedNotification(
+        id=notification_id,
+        meta_account_id=1,
+        identity_id=identity_id,
+        type=notification_type,
+        created_at=created_at,
+        account_id=account_id,
+        account_acct=account_acct,
+        status_id=None,
     )
 
 
@@ -179,5 +244,89 @@ def test_build_storm_exports_ignores_replies_from_other_authors() -> None:
             "media": [],
             "original_url": "https://mastodon.social/@runmattrun/run-2",
             "children": [],
+        }
+    ]
+
+
+def test_build_blogroll_export_groups_top_friends_mutuals_and_bots() -> None:
+    accounts = [
+        make_account(
+            account_id="friend-1",
+            acct="friend@example.com",
+            display_name="Friend",
+            is_followed_by=True,
+            last_status_at=datetime(2026, 4, 10, 12, 0, 0),
+            note="<p>Writes about software.</p>",
+        ),
+        make_account(
+            account_id="mutual-1",
+            acct="mutual@example.com",
+            display_name="Mutual",
+            is_followed_by=True,
+            last_status_at=datetime(2026, 4, 9, 8, 0, 0),
+        ),
+        make_account(
+            account_id="bot-1",
+            acct="helperbot@example.com",
+            display_name="Helper Bot",
+            bot=True,
+            last_status_at=datetime(2026, 4, 8, 8, 0, 0),
+        ),
+        make_account(
+            account_id="following-1",
+            acct="following@example.com",
+            display_name="Following Only",
+            last_status_at=datetime(2026, 4, 7, 8, 0, 0),
+        ),
+    ]
+    notifications = [
+        make_notification(
+            notification_id="notif-1",
+            identity_id=1,
+            account_id="friend-1",
+            account_acct="friend@example.com",
+            created_at=datetime(2026, 4, 10, 12, 5, 0),
+        )
+    ]
+
+    payload = build_blogroll_export(accounts=accounts, notifications=notifications)
+
+    assert payload["warning"] == (
+        "This is anonymous access so I don't know your base Mastodon instance; "
+        "all links go to mastodon.social."
+    )
+    assert [category["id"] for category in payload["categories"]] == [
+        "top_friends",
+        "mutuals",
+        "bots",
+    ]
+    assert payload["categories"][0]["accounts"] == [
+        {
+            "acct": "friend@example.com",
+            "display_name": "Friend",
+            "avatar": "https://img.example.com/avatar.png",
+            "mastodon_social_url": "https://mastodon.social/@friend@example.com",
+            "note": "Writes about software.",
+            "last_status_at": "2026-04-10T12:00:00",
+        }
+    ]
+    assert payload["categories"][1]["accounts"] == [
+        {
+            "acct": "mutual@example.com",
+            "display_name": "Mutual",
+            "avatar": "https://img.example.com/avatar.png",
+            "mastodon_social_url": "https://mastodon.social/@mutual@example.com",
+            "note": "",
+            "last_status_at": "2026-04-09T08:00:00",
+        }
+    ]
+    assert payload["categories"][2]["accounts"] == [
+        {
+            "acct": "helperbot@example.com",
+            "display_name": "Helper Bot",
+            "avatar": "https://img.example.com/avatar.png",
+            "mastodon_social_url": "https://mastodon.social/@helperbot@example.com",
+            "note": "",
+            "last_status_at": "2026-04-08T08:00:00",
         }
     ]

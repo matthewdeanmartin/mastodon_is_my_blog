@@ -8,12 +8,17 @@ nav:
 {% if storms.authors.length %}
 <section class="author-list">
   {% for author in storms.authors %}
+  {% set authorArchive = stormArchives.authors | authorArchiveFor(author.acct) %}
   <article class="author-card">
     <h2><a href="{{ ('/authors/' + (author.acct | lower) + '/') | relativeUrl(page.url) }}">@{{ author.acct }}</a></h2>
     <p class="author-meta">
       <span>{{ author.storm_count }} exported storms</span>
+      {% if authorArchive %}
+      <span>{{ authorArchive.months.length }} archive months</span>
+      {% endif %}
       <a href="{{ author.api_base_url }}/@{{ author.acct }}">View on Mastodon</a>
     </p>
+    <p><a href="{{ ('/authors/' + (author.acct | lower) + '/') | relativeUrl(page.url) }}">Browse monthly archive</a></p>
   </article>
   {% endfor %}
 </section>
