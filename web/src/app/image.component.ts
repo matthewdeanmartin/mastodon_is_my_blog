@@ -1,9 +1,11 @@
 // src/app/image-feed.component.ts
-import { Component, OnInit, inject } from '@angular/core';
-
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { ApiService } from './api.service';
 import { Router } from '@angular/router';
-import { combineLatest } from 'rxjs';
+import { ContentHubStateService } from './content-hub-state.service';
+import { combineLatest, Subscription } from 'rxjs';
+import { ContentHubPost } from './mastodon';
+import { RawContentPost } from './content-feed.utils';
 
 interface ImagePost {
   id: string;
@@ -32,7 +34,9 @@ interface ImagePost {
   template: `
     <div class="image-feed-container">
       <div class="filter-bar">
-        <h2 style="margin: 0;">Photo Gallery</h2>
+        <h2 style="margin: 0;">
+          {{ groupName ? groupName + ' — ' : '' }}Photo Gallery
+        </h2>
         <div class="filter-buttons">
           @for (f of filters; track f) {
             <button
@@ -44,20 +48,20 @@ interface ImagePost {
           }
         </div>
       </div>
-    
+
       @if (loading) {
         <div class="loading-state">
           <div class="loading-spinner"></div>
           <p>Loading images...</p>
         </div>
       }
-    
+
       @if (!loading && images.length === 0) {
         <div class="empty-state">
           <p style="color: #9ca3af; font-size: 1.1rem;">No images found</p>
         </div>
       }
-    
+
       @if (!loading && images.length > 0) {
         <div class="image-grid">
           @for (post of images; track post) {
@@ -129,22 +133,10 @@ interface ImagePost {
       color: #374151;
     }
 
-    .filter-btn:hover {
-      background: #f9fafb;
-      border-color: #6366f1;
-    }
+    .filter-btn:hover { background: #f9fafb; border-color: #6366f1; }
+    .filter-btn.active { background: #6366f1; color: white; border-color: #6366f1; }
 
-    .filter-btn.active {
-      background: #6366f1;
-      color: white;
-      border-color: #6366f1;
-    }
-
-    .loading-state, .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: #9ca3af;
-    }
+    .loading-state, .empty-state { text-align: center; padding: 60px 20px; color: #9ca3af; }
 
     .image-grid {
       display: grid;
@@ -161,33 +153,25 @@ interface ImagePost {
       transition: all 0.3s ease;
     }
 
-    .image-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-    }
+    .image-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
 
     .image-wrapper {
       position: relative;
-      padding-bottom: 100%; /* 1:1 Aspect Ratio */
+      padding-bottom: 100%;
       overflow: hidden;
       background: #f3f4f6;
     }
 
     .image-wrapper img {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       object-fit: cover;
     }
 
     .image-overlay {
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.7));
       opacity: 0;
       transition: opacity 0.3s;
@@ -196,40 +180,15 @@ interface ImagePost {
       padding: 15px;
     }
 
-    .image-card:hover .image-overlay {
-      opacity: 1;
-    }
+    .image-card:hover .image-overlay { opacity: 1; }
 
-    .overlay-stats {
-      display: flex;
-      gap: 15px;
-      color: white;
-      font-size: 0.9rem;
-      font-weight: 500;
-    }
+    .overlay-stats { display: flex; gap: 15px; color: white; font-size: 0.9rem; font-weight: 500; }
 
-    .image-meta {
-      padding: 12px;
-    }
+    .image-meta { padding: 12px; }
 
-    .author-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .author-avatar {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-    }
-
-    .author-name {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #374151;
-    }
+    .author-info { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .author-avatar { width: 24px; height: 24px; border-radius: 50%; }
+    .author-name { font-size: 0.85rem; font-weight: 600; color: #374151; }
 
     .image-caption {
       font-size: 0.85rem;
@@ -242,95 +201,79 @@ interface ImagePost {
     }
 
     @media (max-width: 768px) {
-      .image-grid {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 10px;
-      }
-
-      .filter-bar {
-        flex-direction: column;
-        align-items: flex-start;
-      }
+      .image-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+      .filter-bar { flex-direction: column; align-items: flex-start; }
     }
   `]
 })
-export class ImageFeedComponent implements OnInit {
+export class ImageFeedComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private router = inject(Router);
+  private hubState = inject(ContentHubStateService);
 
   images: ImagePost[] = [];
   loading = true;
   currentFilter = 'recent';
+  groupName: string | null = null;
 
   filters = [
     { value: 'recent', label: 'Recent' },
     { value: 'popular', label: 'Popular' },
     { value: 'following', label: 'Following' },
-    { value: 'everyone', label: 'Everyone' }
+    { value: 'everyone', label: 'Everyone' },
   ];
 
+  private sub?: Subscription;
+
   ngOnInit(): void {
-    // Wait for identity to be ready
-    combineLatest([this.api.identityId$]).subscribe(([identityId]) => {
-      if (identityId) {
-        this.loadImages();
-      }
-    });
+    this.sub = combineLatest([this.api.identityId$, this.hubState.activeGroup$]).subscribe(
+      ([identityId, group]) => {
+        if (identityId) this.loadImages(identityId, group?.id ?? null, group?.name ?? null);
+      },
+    );
   }
 
-  loadImages(): void {
+  ngOnDestroy(): void {
+    this.sub?.unsubscribe();
+  }
+
+  private loadImages(identityId: number, groupId: number | null, groupName: string | null): void {
     this.loading = true;
-    const identityId = this.api.getCurrentIdentityId();
+    this.groupName = groupName;
 
-    if (!identityId) {
-      this.loading = false;
-      return;
+    if (groupId !== null) {
+      // Hashtag group mode: fetch group posts, keep only those with images
+      this.api.getContentHubGroupPosts(groupId, identityId, 'text', null, 100).subscribe({
+        next: (res) => {
+          this.images = res.items
+            .filter((p) => this.hasImage(p))
+            .map((p) => this.hubPostToImage(p));
+          this.applySort();
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
+    } else {
+      // Follows mode: existing behaviour
+      const userFilter = this.currentFilter === 'everyone' ? 'everyone' : undefined;
+      this.api.getPublicPosts(identityId, 'pictures', userFilter).subscribe({
+        next: (page) => {
+          this.images = page.items
+            .filter((p) => p.media_attachments && p.media_attachments.length > 0)
+            .map((p) => this.rawToImage(p));
+          this.applySort();
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
     }
-
-    // Determine user filter based on current filter
-    const userFilter = this.currentFilter === 'everyone' ? 'everyone' : undefined;
-
-    this.api.getPublicPosts(identityId, 'pictures', userFilter).subscribe({
-      next: (page) => {
-        this.images = page.items
-          .filter(p => p.media_attachments && p.media_attachments.length > 0)
-          .map(p => ({
-            id: p.id,
-            content: p.content ?? '',
-            created_at: p.created_at,
-            author_acct: p.author_acct,
-            author_display_name: p.author_display_name || p.author_acct,
-            author_avatar: p.author_avatar || '',
-            media_attachments: p.media_attachments ?? [],
-            counts: {
-              likes: p.counts?.likes ?? 0,
-              replies: p.counts?.replies ?? 0,
-              reposts: p.counts?.reposts ?? 0,
-            }
-          }));
-
-        // Sort based on filter
-        if (this.currentFilter === 'popular') {
-          this.images.sort((a, b) => b.counts.likes - a.counts.likes);
-        } else {
-          // Recent by default
-          this.images.sort((a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-        }
-
-        this.loading = false;
-      },
-      error: (err: unknown) => {
-        console.error('Error loading images:', err);
-        this.loading = false;
-      }
-    });
   }
 
   setFilter(filter: string): void {
     this.currentFilter = filter;
-    this.loadImages();
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (identityId) this.loadImages(identityId, group?.id ?? null, group?.name ?? null);
   }
 
   viewPost(post: ImagePost): void {
@@ -339,5 +282,49 @@ export class ImageFeedComponent implements OnInit {
 
   stripHtml(html: string): string {
     return (html || '').replace(/<[^>]+>/g, '').trim();
+  }
+
+  private hasImage(p: ContentHubPost): boolean {
+    const attachments = p.media_attachments as {type?: string; url?: string}[];
+    return attachments.some((m) => m.type === 'image' || (!m.type && !!m.url));
+  }
+
+  private applySort(): void {
+    if (this.currentFilter === 'popular') {
+      this.images.sort((a, b) => b.counts.likes - a.counts.likes);
+    } else {
+      this.images.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    }
+  }
+
+  private rawToImage(p: RawContentPost): ImagePost {
+    return {
+      id: p.id,
+      content: p.content ?? '',
+      created_at: p.created_at,
+      author_acct: p.author_acct,
+      author_display_name: p.author_display_name || p.author_acct,
+      author_avatar: p.author_avatar || '',
+      media_attachments: (p.media_attachments ?? []) as ImagePost['media_attachments'],
+      counts: { likes: p.counts?.likes ?? 0, replies: p.counts?.replies ?? 0, reposts: p.counts?.reposts ?? 0 },
+    };
+  }
+
+  private hubPostToImage(p: ContentHubPost): ImagePost {
+    const attachments = (p.media_attachments as ImagePost['media_attachments']).filter(
+      (m) => m.type === 'image' || (!m.type && !!m.url),
+    );
+    return {
+      id: p.id,
+      content: p.content,
+      created_at: p.created_at,
+      author_acct: p.author_acct,
+      author_display_name: p.author_display_name,
+      author_avatar: p.author_avatar,
+      media_attachments: attachments,
+      counts: { likes: p.counts.likes, replies: p.counts.replies, reposts: p.counts.reblogs },
+    };
   }
 }

@@ -1,7 +1,10 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService } from './api.service';
 import { Router } from '@angular/router';
+import { ContentHubStateService } from './content-hub-state.service';
+import { ContentHubPost } from './mastodon';
+import { combineLatest, Subscription } from 'rxjs';
 import {
   ContentFeedFilter,
   ContentFeedPost,
@@ -14,6 +17,66 @@ import {
   ContentFeedGroup,
 } from './content-feed.utils';
 
+// ---------------------------------------------------------------------------
+// Shared styles (must be declared before any @Component that references it)
+// ---------------------------------------------------------------------------
+
+const SHARED_STYLES = `
+  .filter-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+    flex-wrap: wrap;
+  }
+  .filter-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+  .filter-btn {
+    padding: 6px 14px;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: #374151;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover { background: #f9fafb; border-color: #6366f1; }
+  .filter-btn.active { background: #6366f1; color: white; border-color: #6366f1; }
+  .content-card { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+  .signal-row { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+  .signal-pill {
+    background: #eef2ff;
+    color: #4338ca;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+`;
+
+// ---------------------------------------------------------------------------
+// Shared helper: convert a ContentHubPost to ContentFeedPost
+// ---------------------------------------------------------------------------
+function hubToFeedPost(p: ContentHubPost): ContentFeedPost {
+  return {
+    id: p.id,
+    content: p.content,
+    created_at: p.created_at,
+    author_acct: p.author_acct,
+    author_display_name: p.author_display_name,
+    author_avatar: p.author_avatar,
+    counts: { likes: p.counts.likes, replies: p.counts.replies, reposts: p.counts.reblogs },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Software
+// ---------------------------------------------------------------------------
+
 @Component({
   selector: 'app-software-feed',
   standalone: true,
@@ -22,7 +85,9 @@ import {
     <div class="card">
       <div class="filter-bar">
         <div>
-          <h2 style="margin: 0;">Cool Software Recommendations</h2>
+          <h2 style="margin: 0;">
+            {{ groupName ? groupName + ' — ' : '' }}Cool Software Recommendations
+          </h2>
           <p class="muted" style="margin: 6px 0 0;">
             Rank recommendations by community engagement or switch between your follows and the wider network.
           </p>
@@ -38,20 +103,15 @@ import {
           }
         </div>
       </div>
-    
-      @if (loading) {
-        <div class="muted">Loading software posts...</div>
-      }
-    
+
+      @if (loading) { <div class="muted">Loading software posts...</div> }
+
       @if (!loading && posts.length === 0) {
-        <div class="muted">
-          No software recommendations found.
-        </div>
+        <div class="muted">No software recommendations found.</div>
       }
-    
+
       @for (post of posts; track post) {
-        <div
-          class="content-card">
+        <div class="content-card">
           <div class="row" style="gap: 12px; align-items: flex-start;">
             <div>
               <strong>{{ post.author_display_name || post.author_acct }}</strong>
@@ -70,124 +130,70 @@ import {
       }
     </div>
     `,
-  styles: [`
-    .filter-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid #e5e7eb;
-      flex-wrap: wrap;
-    }
-
-    .filter-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .filter-btn {
-      padding: 6px 14px;
-      background: white;
-      border: 1px solid #d1d5db;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      color: #374151;
-      transition: all 0.2s;
-    }
-
-    .filter-btn:hover {
-      background: #f9fafb;
-      border-color: #6366f1;
-    }
-
-    .filter-btn.active {
-      background: #6366f1;
-      color: white;
-      border-color: #6366f1;
-    }
-
-    .content-card {
-      margin-bottom: 24px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid #eee;
-    }
-
-    .signal-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-left: auto;
-    }
-
-    .signal-pill {
-      background: #eef2ff;
-      color: #4338ca;
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-  `]
+  styles: [SHARED_STYLES]
 })
-export class SoftwareFeedComponent implements OnInit {
+export class SoftwareFeedComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private router = inject(Router);
+  private hubState = inject(ContentHubStateService);
 
   posts: ContentFeedPost[] = [];
   loading = true;
   currentFilter: ContentFeedFilter = 'recent';
+  groupName: string | null = null;
   readonly filters = contentFeedFilters;
 
+  private sub?: Subscription;
+
   ngOnInit(): void {
-    this.api.identityId$.subscribe((identityId) => {
-      if (identityId) {
-        this.loadPosts();
-      }
-    });
+    this.sub = combineLatest([this.api.identityId$, this.hubState.activeGroup$]).subscribe(
+      ([identityId, group]) => {
+        if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
+      },
+    );
   }
 
-  loadPosts(): void {
-    const identityId = this.api.getCurrentIdentityId();
-    if (!identityId) {
-      this.loading = false;
-      return;
-    }
+  ngOnDestroy(): void { this.sub?.unsubscribe(); }
 
+  private load(identityId: number, groupId: number | null, groupName: string | null): void {
     this.loading = true;
-    const userFilter = getContentUserFilter(this.currentFilter);
+    this.groupName = groupName;
 
-    this.api.getPublicPosts(identityId, 'software', userFilter).subscribe({
-      next: (page) => {
-        this.posts = sortContentPosts(
-          page.items.map((post) => normalizeContentPost(post)),
-          this.currentFilter,
-        );
-        this.loading = false;
-      },
-      error: () => (this.loading = false),
-    });
+    if (groupId !== null) {
+      this.api.getContentHubGroupPosts(groupId, identityId, 'text', null, 100).subscribe({
+        next: (res) => {
+          this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
+    } else {
+      const userFilter = getContentUserFilter(this.currentFilter);
+      this.api.getPublicPosts(identityId, 'software', userFilter).subscribe({
+        next: (page) => {
+          this.posts = sortContentPosts(page.items.map(normalizeContentPost), this.currentFilter);
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
+    }
   }
 
   setFilter(filter: ContentFeedFilter): void {
     this.currentFilter = filter;
-    this.loadPosts();
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
   }
 
-  getPopularityScore(post: ContentFeedPost): number {
-    return getPopularityScore(post);
-  }
-
-  viewPost(id: string): void {
-    this.router.navigate(['/p', id]);
-  }
+  getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }
+  viewPost(id: string): void { this.router.navigate(['/p', id]); }
 }
 
-// src/app/links-feed.component.ts
+// ---------------------------------------------------------------------------
+// Links
+// ---------------------------------------------------------------------------
+
 @Component({
   selector: 'app-links-feed',
   standalone: true,
@@ -196,7 +202,7 @@ export class SoftwareFeedComponent implements OnInit {
     <div class="card">
       <div class="filter-bar">
         <div>
-          <h2 style="margin: 0;">Shared Links</h2>
+          <h2 style="margin: 0;">{{ groupName ? groupName + ' — ' : '' }}Shared Links</h2>
           <p class="muted" style="margin: 6px 0 0;">
             Spot the domains your network keeps endorsing, or flip back to the freshest shares.
           </p>
@@ -212,17 +218,13 @@ export class SoftwareFeedComponent implements OnInit {
           }
         </div>
       </div>
-    
-      @if (loading) {
-        <div class="muted">Loading links...</div>
-      }
-    
+
+      @if (loading) { <div class="muted">Loading links...</div> }
+
       @if (!loading && groups.length === 0) {
-        <div class="muted">
-          No links found.
-        </div>
+        <div class="muted">No links found.</div>
       }
-    
+
       @for (group of groups; track group) {
         <div style="margin-bottom: 30px;">
           <div class="row" style="align-items: center; gap: 12px; margin-bottom: 12px;">
@@ -231,8 +233,7 @@ export class SoftwareFeedComponent implements OnInit {
             <span class="signal-pill">Score {{ group.totalScore }}</span>
           </div>
           @for (post of group.posts; track post) {
-            <div
-              style="margin: 15px 0; padding-left: 15px; border-left: 3px solid #e5e7eb;">
+            <div style="margin: 15px 0; padding-left: 15px; border-left: 3px solid #e5e7eb;">
               <div class="row" style="gap: 10px; align-items: center;">
                 <div class="muted">
                   {{ post.author_display_name || post.author_acct }} • {{ post.created_at | date: 'short' }}
@@ -252,119 +253,75 @@ export class SoftwareFeedComponent implements OnInit {
       }
     </div>
     `,
-  styles: [`
-    .filter-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid #e5e7eb;
-      flex-wrap: wrap;
-    }
-
-    .filter-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .filter-btn {
-      padding: 6px 14px;
-      background: white;
-      border: 1px solid #d1d5db;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      color: #374151;
-      transition: all 0.2s;
-    }
-
-    .filter-btn:hover {
-      background: #f9fafb;
-      border-color: #6366f1;
-    }
-
-    .filter-btn.active {
-      background: #6366f1;
-      color: white;
-      border-color: #6366f1;
-    }
-
-    .signal-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-left: auto;
-    }
-
-    .signal-pill {
-      background: #eef2ff;
-      color: #4338ca;
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-  `]
+  styles: [SHARED_STYLES]
 })
-export class LinksFeedComponent implements OnInit {
+export class LinksFeedComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private router = inject(Router);
+  private hubState = inject(ContentHubStateService);
 
   groups: ContentFeedGroup[] = [];
   loading = true;
   currentFilter: ContentFeedFilter = 'recent';
+  groupName: string | null = null;
   readonly filters = contentFeedFilters;
 
+  private sub?: Subscription;
+
   ngOnInit(): void {
-    this.api.identityId$.subscribe((identityId) => {
-      if (identityId) {
-        this.loadPosts();
-      }
-    });
+    this.sub = combineLatest([this.api.identityId$, this.hubState.activeGroup$]).subscribe(
+      ([identityId, group]) => {
+        if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
+      },
+    );
   }
 
-  loadPosts(): void {
-    const identityId = this.api.getCurrentIdentityId();
-    if (!identityId) {
-      this.loading = false;
-      return;
-    }
+  ngOnDestroy(): void { this.sub?.unsubscribe(); }
 
+  private load(identityId: number, groupId: number | null, groupName: string | null): void {
     this.loading = true;
-    const userFilter = getContentUserFilter(this.currentFilter);
+    this.groupName = groupName;
 
-    this.api.getPublicPosts(identityId, 'links', userFilter).subscribe({
-      next: (page) => {
-        const sortedPosts = sortContentPosts(
-          page.items.map((post) => normalizeContentPost(post)),
-          this.currentFilter,
-        );
-        this.groups = groupLinkPosts(sortedPosts, this.currentFilter);
-        this.loading = false;
-      },
-      error: () => (this.loading = false),
-    });
+    if (groupId !== null) {
+      this.api.getContentHubGroupPosts(groupId, identityId, 'text', null, 100).subscribe({
+        next: (res) => {
+          const posts = sortContentPosts(
+            res.items.filter((p) => p.has_link).map(hubToFeedPost),
+            this.currentFilter,
+          );
+          this.groups = groupLinkPosts(posts, this.currentFilter);
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
+    } else {
+      const userFilter = getContentUserFilter(this.currentFilter);
+      this.api.getPublicPosts(identityId, 'links', userFilter).subscribe({
+        next: (page) => {
+          const posts = sortContentPosts(page.items.map(normalizeContentPost), this.currentFilter);
+          this.groups = groupLinkPosts(posts, this.currentFilter);
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
+    }
   }
 
   setFilter(filter: ContentFeedFilter): void {
     this.currentFilter = filter;
-    this.loadPosts();
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
   }
 
-  getPopularityScore(post: ContentFeedPost): number {
-    return getPopularityScore(post);
-  }
-
-  viewPost(id: string): void {
-    this.router.navigate(['/p', id]);
-  }
+  getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }
+  viewPost(id: string): void { this.router.navigate(['/p', id]); }
 }
 
-// src/app/news-feed.component.ts
+// ---------------------------------------------------------------------------
+// News
+// ---------------------------------------------------------------------------
+
 @Component({
   selector: 'app-news-feed',
   standalone: true,
@@ -373,7 +330,7 @@ export class LinksFeedComponent implements OnInit {
     <div class="card">
       <div class="filter-bar">
         <div>
-          <h2 style="margin: 0;">News Feed</h2>
+          <h2 style="margin: 0;">{{ groupName ? groupName + ' — ' : '' }}News Feed</h2>
           <p class="muted" style="margin: 6px 0 0;">
             Browse breaking stories by freshness or let engagement surface the articles your network found worthwhile.
           </p>
@@ -389,26 +346,19 @@ export class LinksFeedComponent implements OnInit {
           }
         </div>
       </div>
-    
-      @if (loading) {
-        <div class="muted">Loading news...</div>
-      }
-    
+
+      @if (loading) { <div class="muted">Loading news...</div> }
+
       @if (!loading && posts.length === 0) {
-        <div class="muted">
-          No news articles found.
-        </div>
+        <div class="muted">No news articles found.</div>
       }
-    
+
       @for (post of posts; track post) {
         <div style="margin-bottom: 25px; padding: 15px; background: #f9fafb; border-radius: 8px;">
           <div class="row" style="margin-bottom: 10px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               @if (post.author_avatar) {
-                <img
-                  [src]="post.author_avatar"
-                  alt=""
-                  style="width: 32px; height: 32px; border-radius: 50%;">
+                <img [src]="post.author_avatar" alt="" style="width: 32px; height: 32px; border-radius: 50%;">
               }
               <strong>{{ post.author_display_name || post.author_acct }}</strong>
             </div>
@@ -426,114 +376,63 @@ export class LinksFeedComponent implements OnInit {
       }
     </div>
     `,
-  styles: [`
-    .filter-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid #e5e7eb;
-      flex-wrap: wrap;
-    }
-
-    .filter-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .filter-btn {
-      padding: 6px 14px;
-      background: white;
-      border: 1px solid #d1d5db;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      color: #374151;
-      transition: all 0.2s;
-    }
-
-    .filter-btn:hover {
-      background: #f9fafb;
-      border-color: #6366f1;
-    }
-
-    .filter-btn.active {
-      background: #6366f1;
-      color: white;
-      border-color: #6366f1;
-    }
-
-    .signal-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: flex-end;
-      margin-left: auto;
-    }
-
-    .signal-pill {
-      background: #eef2ff;
-      color: #4338ca;
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-  `]
+  styles: [SHARED_STYLES]
 })
-export class NewsFeedComponent implements OnInit {
+export class NewsFeedComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private router = inject(Router);
+  private hubState = inject(ContentHubStateService);
 
   posts: ContentFeedPost[] = [];
   loading = true;
   currentFilter: ContentFeedFilter = 'recent';
+  groupName: string | null = null;
   readonly filters = contentFeedFilters;
 
+  private sub?: Subscription;
+
   ngOnInit(): void {
-    this.api.identityId$.subscribe((identityId) => {
-      if (identityId) {
-        this.loadPosts();
-      }
-    });
+    this.sub = combineLatest([this.api.identityId$, this.hubState.activeGroup$]).subscribe(
+      ([identityId, group]) => {
+        if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
+      },
+    );
   }
 
-  loadPosts(): void {
-    const identityId = this.api.getCurrentIdentityId();
-    if (!identityId) {
-      this.loading = false;
-      return;
-    }
+  ngOnDestroy(): void { this.sub?.unsubscribe(); }
 
+  private load(identityId: number, groupId: number | null, groupName: string | null): void {
     this.loading = true;
-    const userFilter = getContentUserFilter(this.currentFilter);
+    this.groupName = groupName;
 
-    this.api.getPublicPosts(identityId, 'news', userFilter).subscribe({
-      next: (page) => {
-        this.posts = sortContentPosts(
-          page.items.map((post) => normalizeContentPost(post)),
-          this.currentFilter,
-        );
-        this.loading = false;
-      },
-      error: () => (this.loading = false),
-    });
+    if (groupId !== null) {
+      this.api.getContentHubGroupPosts(groupId, identityId, 'text', null, 100).subscribe({
+        next: (res) => {
+          this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
+    } else {
+      const userFilter = getContentUserFilter(this.currentFilter);
+      this.api.getPublicPosts(identityId, 'news', userFilter).subscribe({
+        next: (page) => {
+          this.posts = sortContentPosts(page.items.map(normalizeContentPost), this.currentFilter);
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
+    }
   }
 
   setFilter(filter: ContentFeedFilter): void {
     this.currentFilter = filter;
-    this.loadPosts();
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
   }
 
-  getPopularityScore(post: ContentFeedPost): number {
-    return getPopularityScore(post);
-  }
-
-  viewPost(id: string): void {
-    this.router.navigate(['/p', id]);
-  }
+  getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }
+  viewPost(id: string): void { this.router.navigate(['/p', id]); }
 }
+

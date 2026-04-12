@@ -4,11 +4,11 @@ import { AdminComponent } from './admin.component';
 import { WriteComponent } from './write.component';
 import { PublicPostComponent } from './post.component';
 import { LoginComponent } from './login.component';
-import {ContentComponent} from './content.component';
-import {ImageFeedComponent} from './image.component';
-import {LinksFeedComponent, NewsFeedComponent, SoftwareFeedComponent} from './software.component';
-import {ForumComponent} from './forum.component';
-import {ContentHubGroupComponent} from './content-hub-group.component';
+import { ContentComponent } from './content.component';
+import { ImageFeedComponent } from './image.component';
+import { LinksFeedComponent, NewsFeedComponent, SoftwareFeedComponent } from './software.component';
+import { ContentHubTextComponent, ContentHubJobsComponent } from './content-hub-tabs.component';
+import { ForumComponent } from './forum.component';
 
 export const routes: Routes = [
   { path: '', component: PublicFeedComponent },
@@ -23,13 +23,14 @@ export const routes: Routes = [
     component: ContentComponent,
     children: [
       { path: '', redirectTo: 'images', pathMatch: 'full' },
-      // Fixed content-type filters (cached posts from follows)
-      { path: 'images', component: ImageFeedComponent },
+      // Tab views — each works in both "my follows" mode and "hashtag group" mode
+      { path: 'images',   component: ImageFeedComponent },
       { path: 'software', component: SoftwareFeedComponent },
-      { path: 'links', component: LinksFeedComponent },
-      { path: 'news', component: NewsFeedComponent },
-      // Dynamic hashtag groups
-      { path: 'group/:groupId', component: ContentHubGroupComponent },
+      { path: 'links',    component: LinksFeedComponent },
+      { path: 'news',     component: NewsFeedComponent },
+      // Group-only tab views (also work in follows mode — just show a prompt)
+      { path: 'text',     component: ContentHubTextComponent },
+      { path: 'jobs',     component: ContentHubJobsComponent },
     ]
   },
 
