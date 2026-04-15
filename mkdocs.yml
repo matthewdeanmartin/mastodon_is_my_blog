@@ -1,0 +1,41 @@
+site_name: "Mastodon is My Blog"
+site_description: "User documentation for Mastodon is My Blog (MIMB), a blog-style Mastodon reader, writer, and archive tool."
+site_author: "Matthew Dean Martin"
+repo_url: "https://github.com/matthewmartin/mastodon_is_my_blog"
+edit_uri: "edit/main/rtd/"
+docs_dir: "rtd"
+theme:
+  name: readthedocs
+
+markdown_extensions:
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Overview:
+      - What is MIMB?: overview/what-is-mimb.md
+      - Who it is for: overview/who-is-this-for.md
+  - Installation:
+      - Install with pipx: installation/pipx.md
+      - Install with uv: installation/uv.md
+      - Clone and run locally: installation/clone-and-run.md
+  - Getting started:
+      - Quickstart: getting-started/quickstart.md
+      - Core concepts: getting-started/core-concepts.md
+  - Using MIMB:
+      - People: using-mimb/people.md
+      - Content: using-mimb/content.md
+      - Forum: using-mimb/forum.md
+      - Write: using-mimb/write.md
+      - Admin: using-mimb/admin.md
+      - Queries and filters: using-mimb/queries-and-filters.md
+  - Reference:
+      - Roadmap: reference/roadmap.md
+      - Security: reference/security.md
+      - Component provenance: reference/component-provenance.md
+      - Troubleshooting: reference/troubleshooting.md
