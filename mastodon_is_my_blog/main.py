@@ -6,7 +6,8 @@ from contextlib import asynccontextmanager
 import dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from mastodon_is_my_blog.identity_verifier import verify_all_identities
 from mastodon_is_my_blog.link_previews import close_http_client, init_http_client
@@ -19,6 +20,7 @@ from mastodon_is_my_blog.queries import (
     sync_user_timeline,
 )
 from mastodon_is_my_blog.routes import accounts, admin, content_hub, posts, writing
+from mastodon_is_my_blog.static_files import get_static_dir
 from mastodon_is_my_blog.utils.perf import performance_middleware
 from mastodon_is_my_blog.store import (
     bootstrap_identities_from_env,
@@ -121,3 +123,13 @@ async def me():
         raise HTTPException(401, "Not connected")
     m = await get_default_client()
     return m.account_verify_credentials()
+
+
+# Serve compiled Angular SPA — must come after all API/auth routes
+static_dir = get_static_dir()
+if static_dir.exists():
+    app.mount("/assets", StaticFiles(directory=static_dir), name="static-assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str) -> FileResponse:
+        return FileResponse(str(static_dir / "index.html"))

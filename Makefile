@@ -9,7 +9,7 @@ application_derive_data:
 application_detach:
 	echo
 
-.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-frontend build test clean setup db-reset
+.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test clean setup db-reset
 
 # Default target
 help:
@@ -42,6 +42,13 @@ help:
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean              - Remove build artifacts and caches"
+	@echo ""
+	@echo "Distribution:"
+	@echo "  make build-wheel        - Build Angular + Python wheel (full)"
+	@echo "  make build-wheel-skip-ng - Build wheel reusing existing Angular dist"
+	@echo "  make publish-test       - Upload wheel to TestPyPI"
+	@echo "  make publish            - Upload wheel to PyPI"
+	@echo "  make install-from-wheel - Install local wheel and smoke-test"
 
 # First-time setup
 setup: install
@@ -103,11 +110,40 @@ dev-frontend:
 	@echo "Starting Angular dev server on http://localhost:4200"
 	cd web && ng serve --port 4200 --open
 
-# Build frontend for production
+# Build Angular frontend for production only (no Python wheel)
 build:
-	@echo "Building frontend for production..."
+	@echo "Building Angular frontend for production..."
 	cd web && ng build --configuration production
 	@echo "✓ Build complete: web/dist/"
+
+# Build Angular + Python wheel (full distribution build)
+build-wheel:
+	@echo "Building Angular + Python wheel..."
+	./script/build
+	@echo "✓ Wheel built in dist/"
+
+# Build Python wheel reusing existing Angular dist
+build-wheel-skip-ng:
+	@echo "Building Python wheel (reusing existing Angular dist)..."
+	./script/build --skip-ng
+	@echo "✓ Wheel built in dist/"
+
+# Publish to TestPyPI
+publish-test:
+	@echo "Publishing to TestPyPI..."
+	uv run twine upload --repository testpypi dist/*.whl
+
+# Publish to PyPI
+publish:
+	@echo "Publishing to PyPI..."
+	uv run twine upload dist/*.whl
+
+# Install local wheel and smoke-test the CLI
+install-from-wheel:
+	@echo "Installing from local wheel..."
+	pip install --force-reinstall dist/*.whl
+	mastodon_is_my_blog version
+	mastodon_is_my_blog db-info
 
 build-blog: install-blog
 	@echo "Building Eleventy blog into docs/..."
@@ -170,6 +206,8 @@ clean:
 	rm -rf web/dist/
 	rm -rf web/.angular/
 	rm -rf web/node_modules/.cache/
+	rm -rf mastodon_is_my_blog/static/browser/
+	rm -rf dist/
 	rm -rf **/__pycache__/
 	rm -rf **/*.pyc
 	rm -rf .pytest_cache/

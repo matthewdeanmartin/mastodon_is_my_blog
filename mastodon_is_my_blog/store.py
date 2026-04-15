@@ -28,7 +28,8 @@ logging.basicConfig()
 
 dotenv.load_dotenv()
 
-DB_URL = os.environ.get("DB_URL", "sqlite+aiosqlite:///./app.db")
+from mastodon_is_my_blog.db_path import get_default_db_url
+DB_URL = get_default_db_url()
 # Database setup
 engine = create_async_engine(
     DB_URL,
