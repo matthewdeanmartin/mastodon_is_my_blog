@@ -24,6 +24,7 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
+            "outputPath": "../mastodon_is_my_blog/static",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",

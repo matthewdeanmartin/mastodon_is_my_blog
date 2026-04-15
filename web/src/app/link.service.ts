@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, shareReplay } from 'rxjs/operators';
+import { getApiBaseUrl } from './api-base';
 
 export interface LinkPreview {
   url: string;
@@ -16,7 +17,7 @@ export interface LinkPreview {
 export class LinkPreviewService {
   private http = inject(HttpClient);
 
-  private base = 'http://localhost:8000';
+  private base = getApiBaseUrl();
   private cache = new Map<string, Observable<LinkPreview | null>>();
 
   /**

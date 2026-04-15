@@ -6,6 +6,10 @@ logger = logging.getLogger(__name__)
 SERVICE = "mastodon_is_my_blog"
 
 
+class KeyringError(RuntimeError):
+    pass
+
+
 def get_credential(name: str, field: str) -> str | None:
     """
     Retrieve a credential. Tries keyring first, then environment variable.
@@ -35,8 +39,7 @@ def set_credential(name: str, field: str, value: str) -> bool:
         keyring.set_password(SERVICE, username, value)
         return True
     except Exception as exc:
-        logger.warning("Could not store credential in keyring: %s", exc)
-        return False
+        raise KeyringError(f"Could not store credential {field} for {name}") from exc
 
 
 def delete_credential(name: str, field: str) -> bool:
@@ -44,8 +47,11 @@ def delete_credential(name: str, field: str) -> bool:
     username = f"{name}:{field}"
     try:
         import keyring
+        from keyring.errors import PasswordDeleteError
+
         keyring.delete_password(SERVICE, username)
         return True
-    except Exception as exc:
-        logger.warning("Could not delete credential from keyring: %s", exc)
+    except PasswordDeleteError:
         return False
+    except Exception as exc:
+        raise KeyringError(f"Could not delete credential {field} for {name}") from exc

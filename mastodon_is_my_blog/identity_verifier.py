@@ -7,7 +7,10 @@ import logging
 
 from sqlalchemy import select
 
-from mastodon_is_my_blog.mastodon_apis.masto_client import client
+from mastodon_is_my_blog.mastodon_apis.masto_client import (
+    client_from_identity,
+    identity_has_access_token,
+)
 from mastodon_is_my_blog.store import MastodonIdentity, async_session
 
 logger = logging.getLogger(__name__)
@@ -26,17 +29,12 @@ async def verify_identity(identity_id: int) -> bool:
             logger.error("Identity %s not found", identity_id)
             return False
 
-        if not identity.access_token:
+        if not identity_has_access_token(identity):
             logger.error("Identity %s has no access token", identity_id)
             return False
 
         try:
-            m = client(
-                base_url=identity.api_base_url,
-                client_id=identity.client_id,
-                client_secret=identity.client_secret,
-                access_token=identity.access_token,
-            )
+            m = client_from_identity(identity)
             me = m.account_verify_credentials()
 
             # Update the identity with real account info

@@ -21,7 +21,12 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from mastodon_is_my_blog.utils.settings_loader import load_identities_from_env
+from mastodon_is_my_blog.account_config import normalize_base_url
+from mastodon_is_my_blog.credentials import set_credential
+from mastodon_is_my_blog.utils.settings_loader import (
+    load_configured_identities,
+    resolve_identity_config,
+)
 
 logging.basicConfig()
 # logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
@@ -79,6 +84,7 @@ class MastodonIdentity(Base):
     meta_account_id: Mapped[int] = mapped_column(
         ForeignKey("meta_accounts.id"), index=True
     )
+    config_name: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
 
     # Credential Details
     api_base_url: Mapped[str] = mapped_column(String)  # e.g. https://mastodon.social
@@ -429,16 +435,11 @@ async def get_or_create_default_meta_account() -> MetaAccount:
         return meta
 
 
-async def bootstrap_identities_from_env() -> None:
+async def sync_configured_identities() -> None:
     """
-    Loads identities from environment variables and ensures they exist in the DB.
-    This runs on startup to sync .env config with the database.
+    Load configured identities and ensure the default meta account matches them.
     """
-    env_identities = load_identities_from_env()
-
-    if not env_identities:
-        logging.info("No MASTODON_ID_* variables found in environment")
-        return
+    configured_identities = load_configured_identities()
 
     async with async_session() as session:
         # Get or create default meta account
@@ -449,38 +450,59 @@ async def bootstrap_identities_from_env() -> None:
             session.add(meta)
             await session.flush()
 
-        for name, config in env_identities.items():
-            # Check if identity already exists by acct
-            stmt = select(MastodonIdentity).where(
-                MastodonIdentity.meta_account_id == meta.id,
-                MastodonIdentity.api_base_url == config.base_url,
-                MastodonIdentity.client_id == config.client_id,
+        existing_identities = (
+            await session.execute(
+                select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id)
             )
-            existing = (await session.execute(stmt)).scalar_one_or_none()
+        ).scalars().all()
+
+        existing_by_name = {
+            identity.config_name: identity
+            for identity in existing_identities
+            if identity.config_name
+        }
+        legacy_by_signature = {
+            (normalize_base_url(identity.api_base_url), identity.client_id): identity
+            for identity in existing_identities
+            if not identity.config_name
+        }
+
+        configured_names = set(configured_identities)
+        for name, config in configured_identities.items():
+            existing = existing_by_name.get(name)
+            if existing is None:
+                existing = legacy_by_signature.get((config.base_url, config.client_id))
 
             if existing:
-                # Update credentials in case they changed
-                existing.client_secret = config.client_secret
-                if config.access_token:
-                    existing.access_token = config.access_token
-                logging.info(f"Updated identity from env: {name}")
+                existing.config_name = name
+                existing.api_base_url = config.base_url
+                existing.client_id = config.client_id
+                existing.client_secret = ""
+                existing.access_token = ""
+                logging.info("Updated configured identity: %s", name)
             else:
-                # Create new identity
-                # We need to fetch the account info to get acct and account_id
-                # For now, we'll use placeholder values that will be updated on first sync
                 new_identity = MastodonIdentity(
                     meta_account_id=meta.id,
+                    config_name=name,
                     api_base_url=config.base_url,
                     client_id=config.client_id,
-                    client_secret=config.client_secret,
-                    access_token=config.access_token or "",
+                    client_secret="",
+                    access_token="",
                     acct=f"{name.lower()}@unknown",  # Placeholder
                     account_id="0",  # Placeholder
                 )
                 session.add(new_identity)
-                logging.info(f"Created new identity from env: {name}")
+                logging.info("Created configured identity: %s", name)
+
+        for identity in existing_identities:
+            if identity.config_name and identity.config_name not in configured_names:
+                await session.delete(identity)
 
         await session.commit()
+
+
+async def bootstrap_identities_from_env() -> None:
+    await sync_configured_identities()
 
 
 async def get_default_identity() -> Optional[MastodonIdentity]:
@@ -523,6 +545,15 @@ async def update_last_sync(key: str) -> None:
 
 # --- Token Helpers ---
 async def get_token(key: str = "mastodon_access_token") -> Optional[str]:
+    identity = await get_default_identity()
+    if identity:
+        config = resolve_identity_config(
+            identity.config_name,
+            base_url=identity.api_base_url,
+        )
+        if config and config.access_token:
+            return config.access_token
+
     async with async_session() as session:
         result = await session.execute(select(Token).where(Token.key == key))
         token = result.scalar_one_or_none()
@@ -535,7 +566,14 @@ async def set_token(value: str) -> None:
     otherwise falls back to old Token table.
     """
     identity = await get_default_identity()
-    if identity:
+    if identity and identity.config_name:
+        set_credential(identity.config_name, "access_token", value)
+        async with async_session() as session:
+            stmt = select(MastodonIdentity).where(MastodonIdentity.id == identity.id)
+            db_identity = (await session.execute(stmt)).scalar_one()
+            db_identity.access_token = ""
+            await session.commit()
+    elif identity:
         async with async_session() as session:
             stmt = select(MastodonIdentity).where(MastodonIdentity.id == identity.id)
             db_identity = (await session.execute(stmt)).scalar_one()

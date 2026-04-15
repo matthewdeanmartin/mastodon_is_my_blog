@@ -1,6 +1,17 @@
+from __future__ import annotations
+
 import os
 import re
 from typing import Dict, NamedTuple
+
+from mastodon_is_my_blog.account_config import (
+    ACCESS_TOKEN_FIELD,
+    CLIENT_ID_FIELD,
+    CLIENT_SECRET_FIELD,
+    load_configured_accounts,
+    normalize_base_url,
+)
+from mastodon_is_my_blog.credentials import get_credential
 
 
 class IdentityConfig(NamedTuple):
@@ -46,10 +57,62 @@ def load_identities_from_env() -> Dict[str, IdentityConfig]:
         if "BASE_URL" in fields and "CLIENT_ID" in fields and "CLIENT_SECRET" in fields:
             results[name] = IdentityConfig(
                 name=name,
-                base_url=fields["BASE_URL"],
+                base_url=normalize_base_url(fields["BASE_URL"]),
                 client_id=fields["CLIENT_ID"],
                 client_secret=fields["CLIENT_SECRET"],
                 access_token=fields.get("ACCESS_TOKEN"),
             )
 
     return results
+
+
+def load_identities_from_keyring() -> Dict[str, IdentityConfig]:
+    results: Dict[str, IdentityConfig] = {}
+
+    for account in load_configured_accounts():
+        client_id = get_credential(account.name, CLIENT_ID_FIELD)
+        client_secret = get_credential(account.name, CLIENT_SECRET_FIELD)
+        access_token = get_credential(account.name, ACCESS_TOKEN_FIELD)
+
+        if not client_id or not client_secret:
+            continue
+
+        results[account.name] = IdentityConfig(
+            name=account.name,
+            base_url=account.base_url,
+            client_id=client_id,
+            client_secret=client_secret,
+            access_token=access_token,
+        )
+
+    return results
+
+
+def load_configured_identities() -> Dict[str, IdentityConfig]:
+    identities = load_identities_from_keyring()
+    identities.update(load_identities_from_env())
+    return identities
+
+
+def has_configured_identities() -> bool:
+    if load_configured_accounts():
+        return True
+    return bool(load_identities_from_env())
+
+
+def resolve_identity_config(
+    config_name: str | None,
+    *,
+    base_url: str | None = None,
+) -> IdentityConfig | None:
+    configured_identities = load_configured_identities()
+    if config_name and config_name in configured_identities:
+        return configured_identities[config_name]
+
+    if base_url:
+        normalized_base_url = normalize_base_url(base_url)
+        for identity in configured_identities.values():
+            if identity.base_url == normalized_base_url:
+                return identity
+
+    return None

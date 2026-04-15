@@ -32,7 +32,6 @@ dependencies = [
   "datasette-vega>=0.6.2",
   "platformdirs>=4.0",
   "keyring>=25.0",
-  "click>=8.1",
 ]
 
 [project.scripts]

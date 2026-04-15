@@ -62,17 +62,20 @@ Some design decisions
 See [SETUP.md](SETUP.md) for detailed setup instructions.
 
 ```bash
-# 1. Configure your .env file with Mastodon credentials
-cp .env.example .env
+# 1. Install the package
+uv sync
 
-# 2. Start the backend
-uvicorn mastodon_is_my_blog.main:app --reload
+# 2. Run interactive account setup
+uv run mastodon_is_my_blog init
 
-# 3. Start the frontend (in another terminal)
+# 3. Start the backend
+uv run mastodon_is_my_blog start --reload
+
+# 4. Start the frontend (in another terminal)
 cd web && ng serve
 ```
 
-Open http://localhost:4200 and click "Connect Mastodon"!
+Open http://localhost:4200. If you skipped the access token during `init`, use the web login flow to finish connecting that account.
 
 ## Static Storm Export
 

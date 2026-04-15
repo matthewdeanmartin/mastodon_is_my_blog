@@ -59,14 +59,14 @@ async def test_get_or_create_default_meta_account_creates_and_reuses(
 
 
 @pytest.mark.asyncio
-async def test_bootstrap_identities_from_env_returns_early_without_identities(
+async def test_sync_configured_identities_returns_early_without_identities(
     db_session_factory,
     patch_async_session,
 ) -> None:
     patch_async_session(store)
 
-    with patch.object(store, "load_identities_from_env", return_value={}):
-        await store.bootstrap_identities_from_env()
+    with patch.object(store, "load_configured_identities", return_value={}):
+        await store.sync_configured_identities()
 
     async with db_session_factory() as session:
         identity_count = (
@@ -79,12 +79,12 @@ async def test_bootstrap_identities_from_env_returns_early_without_identities(
 
 
 @pytest.mark.asyncio
-async def test_bootstrap_identities_from_env_creates_default_meta_and_new_identities(
+async def test_sync_configured_identities_creates_default_meta_and_new_identities(
     db_session_factory,
     patch_async_session,
 ) -> None:
     patch_async_session(store)
-    env_identities = {
+    configured_identities = {
         "MAIN": IdentityConfig(
             name="MAIN",
             base_url="https://mastodon.social",
@@ -101,8 +101,12 @@ async def test_bootstrap_identities_from_env_creates_default_meta_and_new_identi
         ),
     }
 
-    with patch.object(store, "load_identities_from_env", return_value=env_identities):
-        await store.bootstrap_identities_from_env()
+    with patch.object(
+        store,
+        "load_configured_identities",
+        return_value=configured_identities,
+    ):
+        await store.sync_configured_identities()
 
     async with db_session_factory() as session:
         meta = (
@@ -119,13 +123,15 @@ async def test_bootstrap_identities_from_env_creates_default_meta_and_new_identi
     assert meta.username == "default"
     assert [identity.client_id for identity in identities] == ["art-client", "main-client"]
     assert identities[0].acct == "art@unknown"
+    assert identities[0].config_name == "ART"
     assert identities[0].access_token == ""
     assert identities[1].acct == "main@unknown"
-    assert identities[1].access_token == "main-token"
+    assert identities[1].config_name == "MAIN"
+    assert identities[1].access_token == ""
 
 
 @pytest.mark.asyncio
-async def test_bootstrap_identities_from_env_updates_existing_identity(
+async def test_sync_configured_identities_updates_existing_identity(
     db_session,
     db_session_factory,
     patch_async_session,
@@ -140,11 +146,12 @@ async def test_bootstrap_identities_from_env_updates_existing_identity(
             access_token="old-token",
             acct="main@unknown",
             account_id="0",
+            config_name="OLD",
         )
     )
     await db_session.commit()
 
-    env_identities = {
+    configured_identities = {
         "MAIN": IdentityConfig(
             name="MAIN",
             base_url="https://mastodon.social",
@@ -154,16 +161,21 @@ async def test_bootstrap_identities_from_env_updates_existing_identity(
         )
     }
 
-    with patch.object(store, "load_identities_from_env", return_value=env_identities):
-        await store.bootstrap_identities_from_env()
+    with patch.object(
+        store,
+        "load_configured_identities",
+        return_value=configured_identities,
+    ):
+        await store.sync_configured_identities()
 
     async with db_session_factory() as session:
         identity = (
             await session.execute(select(store.MastodonIdentity))
         ).scalar_one()
 
-    assert identity.client_secret == "new-secret"
-    assert identity.access_token == "new-token"
+    assert identity.config_name == "MAIN"
+    assert identity.client_secret == ""
+    assert identity.access_token == ""
 
 
 @pytest.mark.asyncio
@@ -241,6 +253,30 @@ async def test_get_token_prefers_database_value_and_falls_back_to_env(
 
 
 @pytest.mark.asyncio
+async def test_get_token_prefers_configured_identity_token(
+    db_session,
+    patch_async_session,
+) -> None:
+    patch_async_session(store)
+    db_session.add(make_meta_account())
+    db_session.add(make_identity(config_name="MAIN", access_token=""))
+    await db_session.commit()
+
+    with patch.object(
+        store,
+        "resolve_identity_config",
+        return_value=IdentityConfig(
+            name="MAIN",
+            base_url="https://example.social",
+            client_id="client-id",
+            client_secret="client-secret",
+            access_token="keyring-token",
+        ),
+    ):
+        assert await store.get_token() == "keyring-token"
+
+
+@pytest.mark.asyncio
 async def test_set_token_updates_default_identity_when_present(
     db_session,
     db_session_factory,
@@ -263,6 +299,29 @@ async def test_set_token_updates_default_identity_when_present(
 
     assert identity.access_token == "new-token"
     assert token_count == 0
+
+
+@pytest.mark.asyncio
+async def test_set_token_writes_keyring_for_configured_identity(
+    db_session,
+    db_session_factory,
+    patch_async_session,
+) -> None:
+    patch_async_session(store)
+    db_session.add(make_meta_account())
+    db_session.add(make_identity(config_name="MAIN", access_token="old-token"))
+    await db_session.commit()
+
+    with patch.object(store, "set_credential") as set_credential_mock:
+        await store.set_token("new-token")
+
+    async with db_session_factory() as session:
+        identity = (
+            await session.execute(select(store.MastodonIdentity))
+        ).scalar_one()
+
+    set_credential_mock.assert_called_once_with("MAIN", "access_token", "new-token")
+    assert identity.access_token == ""
 
 
 @pytest.mark.asyncio

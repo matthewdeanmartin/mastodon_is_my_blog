@@ -1,6 +1,11 @@
 import os
 
-from mastodon_is_my_blog.utils.settings_loader import IdentityConfig, load_identities_from_env
+from mastodon_is_my_blog.account_config import ConfiguredAccount
+from mastodon_is_my_blog.utils.settings_loader import (
+    IdentityConfig,
+    load_identities_from_env,
+    load_identities_from_keyring,
+)
 
 
 def test_load_identities_from_env_reads_complete_groups(monkeypatch) -> None:
@@ -49,3 +54,35 @@ def test_load_identities_from_env_ignores_invalid_and_incomplete_entries(monkeyp
     identities = load_identities_from_env()
 
     assert identities == {}
+
+
+def test_load_identities_from_keyring_reads_saved_accounts(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "mastodon_is_my_blog.utils.settings_loader.load_configured_accounts",
+        lambda: [ConfiguredAccount(name="MAIN", base_url="https://mastodon.social")],
+    )
+
+    def fake_get_credential(name: str, field: str) -> str | None:
+        values = {
+            ("MAIN", "client_id"): "main-client",
+            ("MAIN", "client_secret"): "main-secret",
+            ("MAIN", "access_token"): "main-token",
+        }
+        return values.get((name, field))
+
+    monkeypatch.setattr(
+        "mastodon_is_my_blog.utils.settings_loader.get_credential",
+        fake_get_credential,
+    )
+
+    identities = load_identities_from_keyring()
+
+    assert identities == {
+        "MAIN": IdentityConfig(
+            name="MAIN",
+            base_url="https://mastodon.social",
+            client_id="main-client",
+            client_secret="main-secret",
+            access_token="main-token",
+        )
+    }

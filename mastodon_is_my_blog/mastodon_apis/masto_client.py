@@ -15,6 +15,7 @@ from mastodon_is_my_blog.store import (
     async_session,
     get_default_identity,
 )
+from mastodon_is_my_blog.utils.settings_loader import resolve_identity_config
 
 dotenv.load_dotenv()
 
@@ -71,12 +72,40 @@ def client_from_identity(
     if not identity:
         raise ValueError("Cannot create client: Identity is None")
 
-    return client(
+    configured_identity = resolve_identity_config(
+        identity.config_name,
         base_url=identity.api_base_url,
-        client_id=identity.client_id,
-        client_secret=identity.client_secret,
-        access_token=identity.access_token,
     )
+
+    client_id = configured_identity.client_id if configured_identity else identity.client_id
+    client_secret = (
+        configured_identity.client_secret
+        if configured_identity
+        else identity.client_secret
+    )
+    access_token = (
+        configured_identity.access_token
+        if configured_identity
+        else identity.access_token
+    )
+    base_url = configured_identity.base_url if configured_identity else identity.api_base_url
+
+    return client(
+        base_url=base_url,
+        client_id=client_id,
+        client_secret=client_secret,
+        access_token=access_token,
+    )
+
+
+def identity_has_access_token(identity: "MastodonIdentity") -> bool:
+    configured_identity = resolve_identity_config(
+        getattr(identity, "config_name", None),
+        base_url=getattr(identity, "api_base_url", None),
+    )
+    if configured_identity and configured_identity.access_token:
+        return True
+    return bool(getattr(identity, "access_token", ""))
 
 
 async def client_from_identity_id(identity_id: int) -> Mastodon | TimedMastodonClient:

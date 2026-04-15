@@ -49,6 +49,7 @@ def make_identity(
     identity_id: int = 1,
     *,
     meta_account_id: int = 1,
+    config_name: str | None = None,
     api_base_url: str = "https://example.social",
     client_id: str = "client-id",
     client_secret: str = "client-secret",
@@ -59,6 +60,7 @@ def make_identity(
     return MastodonIdentity(
         id=identity_id,
         meta_account_id=meta_account_id,
+        config_name=config_name,
         api_base_url=api_base_url,
         client_id=client_id,
         client_secret=client_secret,

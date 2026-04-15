@@ -11,10 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from mastodon_is_my_blog.identity_verifier import verify_all_identities
 from mastodon_is_my_blog.link_previews import close_http_client, init_http_client
-from mastodon_is_my_blog.mastodon_apis.masto_client import (
-    client,
-    get_default_client,
-)
+from mastodon_is_my_blog.mastodon_apis.masto_client import get_default_client
 from mastodon_is_my_blog.queries import (
     sync_accounts_friends_followers,
     sync_user_timeline,
@@ -23,11 +20,11 @@ from mastodon_is_my_blog.routes import accounts, admin, content_hub, posts, writ
 from mastodon_is_my_blog.static_files import get_static_dir
 from mastodon_is_my_blog.utils.perf import performance_middleware
 from mastodon_is_my_blog.store import (
-    bootstrap_identities_from_env,
     get_or_create_default_meta_account,
     get_token,
     init_db,
     set_token,
+    sync_configured_identities,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,8 +40,8 @@ async def lifespan(_: FastAPI):
     await init_db()
     # Ensure default user exists for local dev
     await get_or_create_default_meta_account()
-    # Bootstrap identities from .env
-    await bootstrap_identities_from_env()
+    # Sync configured identities from persistent config and env
+    await sync_configured_identities()
 
     # Verify all identities (updates acct/account_id from API)
     await verify_all_identities()
@@ -62,6 +59,13 @@ app = FastAPI(lifespan=lifespan)
 
 app.middleware("http")(performance_middleware)
 
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
 app.include_router(accounts.router)
 app.include_router(admin.router)
 app.include_router(content_hub.router)
@@ -75,9 +79,11 @@ app.add_middleware(
         "http://localhost:4200",
         "http://localhost:8080",
         "http://localhost:3000",
+        "http://localhost:8000",
         "http://127.0.0.1:4200",
         "http://127.0.0.1:8080",
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -93,7 +99,7 @@ async def status() -> dict:
 @app.get("/auth/login")
 async def login():
     """Initiate OAuth login flow"""
-    m = client()
+    m = await get_default_client()
     redirect_uri = f"{os.environ['APP_BASE_URL']}/auth/callback"
 
     # Generate authorization URL
@@ -104,7 +110,7 @@ async def login():
 
 @app.get("/auth/callback")
 async def callback(code: str):
-    m = client()
+    m = await get_default_client()
     redirect_uri = f"{os.environ['APP_BASE_URL']}/auth/callback"
     access_token = m.log_in(
         code=code, redirect_uri=redirect_uri, scopes=["read", "write"]
@@ -132,4 +138,13 @@ if static_dir.exists():
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str) -> FileResponse:
+        requested_path = (static_dir / full_path).resolve()
+        try:
+            requested_path.relative_to(static_dir.resolve())
+        except ValueError:
+            return FileResponse(str(static_dir / "index.html"))
+
+        if full_path and requested_path.is_file():
+            return FileResponse(str(requested_path))
+
         return FileResponse(str(static_dir / "index.html"))

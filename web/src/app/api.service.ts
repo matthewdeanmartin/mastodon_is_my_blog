@@ -4,6 +4,7 @@ import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext,
 import {RawContentPost} from './content-feed.utils';
 import {Observable, throwError, timer, BehaviorSubject, of, Subject} from 'rxjs';
 import {catchError, shareReplay, switchMap, tap} from 'rxjs/operators';
+import { getApiBaseUrl } from './api-base';
 
 const CACHE_TTL_MS = 30_000;
 const CACHE_MAX = 64;
@@ -58,7 +59,7 @@ export interface FeedPage<T> {
 export class ApiService {
   private http = inject(HttpClient);
 
-  base = 'http://localhost:8000';
+  base = getApiBaseUrl();
   private readonly META_KEY = 'meta_account_id';
   private readonly IDENTITY_KEY = 'mastodon_identity_id';
 

@@ -42,7 +42,7 @@ async def test_verify_identity_updates_verified_account_fields(
     client = MagicMock()
     client.account_verify_credentials.return_value = {"acct": "verified@example.social", "id": 42}
 
-    with patch.object(identity_verifier, "client", return_value=client):
+    with patch.object(identity_verifier, "client_from_identity", return_value=client):
         result = await identity_verifier.verify_identity(1)
 
     assert result is True
@@ -70,7 +70,7 @@ async def test_verify_identity_returns_false_when_client_verification_fails(
     client = MagicMock()
     client.account_verify_credentials.side_effect = RuntimeError("boom")
 
-    with patch.object(identity_verifier, "client", return_value=client):
+    with patch.object(identity_verifier, "client_from_identity", return_value=client):
         result = await identity_verifier.verify_identity(1)
 
     assert result is False

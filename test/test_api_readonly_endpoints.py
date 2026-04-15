@@ -79,7 +79,7 @@ async def async_noop(*args, **kwargs) -> None:
 def api_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(main, "init_db", async_noop)
     monkeypatch.setattr(main, "get_or_create_default_meta_account", async_noop)
-    monkeypatch.setattr(main, "bootstrap_identities_from_env", async_noop)
+    monkeypatch.setattr(main, "sync_configured_identities", async_noop)
     monkeypatch.setattr(main, "verify_all_identities", async_noop)
 
     def override_meta_account():
@@ -98,6 +98,31 @@ def test_status_endpoint_returns_up(api_client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "up"}
+    assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_spa_static_files_are_served_with_file_content_types(
+    api_client: TestClient,
+) -> None:
+    js_name = next(main.static_dir.glob("*.js")).name
+    css_name = next(main.static_dir.glob("*.css")).name
+
+    js_response = api_client.get(f"/{js_name}")
+    css_response = api_client.get(f"/{css_name}")
+
+    assert js_response.status_code == 200
+    assert js_response.headers["content-type"].startswith("application/javascript")
+    assert js_response.headers["x-content-type-options"] == "nosniff"
+    assert css_response.status_code == 200
+    assert css_response.headers["content-type"].startswith("text/css")
+    assert css_response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_spa_unknown_paths_fall_back_to_index_html(api_client: TestClient) -> None:
+    response = api_client.get("/not-a-real-route")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
 
 
 def test_login_endpoint_redirects_to_generated_authorize_url(
@@ -109,8 +134,11 @@ def test_login_endpoint_redirects_to_generated_authorize_url(
             assert scopes == ["read", "write"]
             return "https://mastodon.example.com/oauth/authorize"
 
+    async def fake_get_default_client() -> DummyClient:
+        return DummyClient()
+
     monkeypatch.setenv("APP_BASE_URL", "https://app.example.com")
-    monkeypatch.setattr(main, "client", lambda: DummyClient())
+    monkeypatch.setattr(main, "get_default_client", fake_get_default_client)
 
     response = api_client.get("/auth/login", follow_redirects=False)
 

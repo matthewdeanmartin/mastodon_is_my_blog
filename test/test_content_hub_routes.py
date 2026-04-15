@@ -73,7 +73,7 @@ def api_client(
 ) -> TestClient:
     monkeypatch.setattr(main, "init_db", async_noop)
     monkeypatch.setattr(main, "get_or_create_default_meta_account", async_noop)
-    monkeypatch.setattr(main, "bootstrap_identities_from_env", async_noop)
+    monkeypatch.setattr(main, "sync_configured_identities", async_noop)
     monkeypatch.setattr(main, "verify_all_identities", async_noop)
     monkeypatch.setattr(content_hub, "async_session", db_session_factory)
 

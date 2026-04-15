@@ -6,9 +6,18 @@ from fastapi import Depends, HTTPException
 from fastapi.routing import APIRouter
 from sqlalchemy import select
 
+from mastodon_is_my_blog.account_config import (
+    ConfiguredAccount,
+    build_unique_account_name,
+    list_account_summaries,
+    normalize_account_name,
+    set_account_credentials,
+    upsert_configured_account,
+)
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
     client,
     client_from_identity,
+    identity_has_access_token,
 )
 from mastodon_is_my_blog.queries import (
     get_current_meta_account,
@@ -20,6 +29,7 @@ from mastodon_is_my_blog.store import (
     MetaAccount,
     async_session,
     get_last_sync,
+    sync_configured_identities,
 )
 from mastodon_is_my_blog.utils.perf import (
     card_timings,
@@ -95,18 +105,26 @@ async def add_identity(
     m = client(base_url=base_url, client_id=client_id, client_secret=client_secret)
     access_token = m.log_in(code=code, scopes=["read", "write"])
     me = m.account_verify_credentials()
+    existing_names = {summary.name for summary in list_account_summaries()}
+    preferred_name = normalize_account_name(me["acct"])
+    config_name = build_unique_account_name(preferred_name, existing_names)
+    upsert_configured_account(ConfiguredAccount(name=config_name, base_url=base_url))
+    set_account_credentials(
+        config_name,
+        client_id=client_id,
+        client_secret=client_secret,
+        access_token=access_token,
+    )
+    await sync_configured_identities()
 
     async with async_session() as session:
-        new_id = MastodonIdentity(
-            meta_account_id=meta.id,
-            api_base_url=base_url,
-            client_id=client_id,
-            client_secret=client_secret,
-            access_token=access_token,
-            acct=me["acct"],
-            account_id=str(me["id"]),
+        stmt = select(MastodonIdentity).where(
+            MastodonIdentity.meta_account_id == meta.id,
+            MastodonIdentity.config_name == config_name,
         )
-        session.add(new_id)
+        new_id = (await session.execute(stmt)).scalar_one()
+        new_id.acct = me["acct"]
+        new_id.account_id = str(me["id"])
         await session.commit()
     return {"status": "created", "acct": me["acct"]}
 
@@ -131,7 +149,7 @@ async def admin_status() -> dict:
             )
             identity = (await session.execute(stmt)).scalar_one_or_none()
 
-            if identity and identity.access_token:
+            if identity and identity_has_access_token(identity):
                 connected = True
                 try:
                     m = client_from_identity(identity)
