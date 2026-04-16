@@ -21,27 +21,29 @@ jobs:
         with:
           python-version: '3.14'
 
-      - name: Install uv and pipx
-        run: |
-          pip install uv && pip install pipx
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
-      - name: Install global dependencies
-        run: |
-          pipx install uv
+      - name: Install uv
+        run: pip install uv
 
       - name: Install Dependencies
         run: uv sync --all-extras
 
-      - name: Run make check
-        run: chmod +x scripts/*.sh && uv run make check
+      - name: Run backend tests
+        run: make test-backend
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Run make publish
-        run: uv run make publish
+      - name: Build website
+        run: make build-blog
+
+      - name: Build distributions
+        run: make build-wheel
 
       - name: Upload Package
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

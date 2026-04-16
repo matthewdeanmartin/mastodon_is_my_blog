@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog import main
 from mastodon_is_my_blog.queries import get_current_meta_account
 from mastodon_is_my_blog.routes import content_hub
@@ -230,7 +231,7 @@ def test_get_group_posts_filters_jobs_and_builds_cursor(
                     make_identity(identity_id=1, meta_account_id=7),
                     make_group(
                         group_id=1,
-                        last_fetched_at=datetime.utcnow() - timedelta(minutes=10),
+                        last_fetched_at=utc_now() - timedelta(minutes=10),
                     ),
                     make_term(term_id=1, group_id=1, term="#python"),
                     job_one,

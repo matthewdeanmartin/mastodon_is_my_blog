@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# script/build — compile Angular + copy into Python package + build wheel
+# script/build — compile Angular into the Python package + build distributions
 #
 # Usage:
 #   ./script/build              # full build
-#   ./script/build --skip-ng    # skip Angular (use existing web/dist/web/browser/)
+#   ./script/build --skip-ng    # skip Angular (use existing mastodon_is_my_blog/static/browser/)
 #   ./script/build --skip-wheel # compile Angular only, do not build wheel
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ANGULAR_DIST="${REPO_ROOT}/web/dist/web/browser"
 STATIC_DEST="${REPO_ROOT}/mastodon_is_my_blog/static/browser"
 
 SKIP_NG=false
@@ -37,31 +36,27 @@ else
   echo "==> Step 1: Skipping Angular build (--skip-ng)"
 fi
 
-# Step 2: Copy compiled assets into Python package
+# Step 2: Verify compiled assets landed in the Python package
 echo ""
-echo "==> Step 2: Copying Angular output into mastodon_is_my_blog/static/browser/ ..."
-if [ ! -d "${ANGULAR_DIST}" ]; then
-  echo "ERROR: Angular dist not found: ${ANGULAR_DIST}"
+echo "==> Step 2: Verifying Angular output in mastodon_is_my_blog/static/browser/ ..."
+if [ ! -d "${STATIC_DEST}" ]; then
+  echo "ERROR: Angular output not found: ${STATIC_DEST}"
   echo "       Run without --skip-ng, or: cd web && ng build --configuration production"
   exit 1
 fi
 
-rm -rf "${STATIC_DEST}"
-mkdir -p "${STATIC_DEST}"
-cp -r "${ANGULAR_DIST}/." "${STATIC_DEST}/"
-
 FILE_COUNT=$(find "${STATIC_DEST}" -type f | wc -l | tr -d ' ')
-echo "    Copied ${FILE_COUNT} files to ${STATIC_DEST}"
+echo "    Found ${FILE_COUNT} files in ${STATIC_DEST}"
 
 # Step 3: Build the Python wheel
 if [ "$SKIP_WHEEL" = false ]; then
   echo ""
   echo "==> Step 3: Building Python wheel..."
   cd "${REPO_ROOT}"
-  uv run python -m build --wheel --no-isolation
+  uv run python -m build --sdist --wheel --no-isolation
   echo ""
-  echo "    Wheel(s) in dist/:"
-  ls -lh "${REPO_ROOT}/dist/"*.whl 2>/dev/null || true
+  echo "    Distribution files in dist/:"
+  ls -lh "${REPO_ROOT}/dist/"* 2>/dev/null || true
 else
   echo ""
   echo "==> Step 3: Skipping wheel build (--skip-wheel)"

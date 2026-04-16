@@ -23,6 +23,8 @@
    uv sync
    ```
 
+   If you also want the optional Datasette tooling, use `uv sync --extra datasette`.
+
 2. Run the interactive setup:
    ```bash
    uv run mastodon_is_my_blog init

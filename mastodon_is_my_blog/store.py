@@ -23,6 +23,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from mastodon_is_my_blog.account_config import normalize_base_url
 from mastodon_is_my_blog.credentials import set_credential
+from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.utils.settings_loader import (
     load_configured_identities,
     resolve_identity_config,
@@ -64,7 +65,7 @@ class MetaAccount(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(String, unique=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # Relationships
     identities: Mapped[List["MastodonIdentity"]] = relationship(
@@ -351,9 +352,9 @@ class ContentHubGroup(Base):
     source_type: Mapped[str] = mapped_column(String(20))  # client_bundle | server_follow
     is_read_only: Mapped[bool] = mapped_column(Boolean, default=False)
     last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utc_now, onupdate=utc_now
     )
 
     terms: Mapped[List["ContentHubGroupTerm"]] = relationship(
@@ -380,7 +381,7 @@ class ContentHubGroupTerm(Base):
     term: Mapped[str] = mapped_column(String)
     term_type: Mapped[str] = mapped_column(String(20))  # hashtag | search
     normalized_term: Mapped[str] = mapped_column(String, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     group: Mapped["ContentHubGroup"] = relationship(
         "ContentHubGroup", back_populates="terms"
@@ -409,7 +410,7 @@ class ContentHubPostMatch(Base):
         ForeignKey("content_hub_group_terms.id"), nullable=True
     )
     matched_via: Mapped[str] = mapped_column(String(20))  # hashtag | search
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     __table_args__ = (
         Index("ix_hub_matches_group_post", "group_id", "meta_account_id"),
@@ -537,9 +538,9 @@ async def update_last_sync(key: str) -> None:
         res = await session.execute(select(AppState).where(AppState.key == key))
         state = res.scalar_one_or_none()
         if state:
-            state.last_sync = datetime.utcnow()
+            state.last_sync = utc_now()
         else:
-            session.add(AppState(key=key, last_sync=datetime.utcnow()))
+            session.add(AppState(key=key, last_sync=utc_now()))
         await session.commit()
 
 
@@ -605,7 +606,7 @@ class SeenPost(Base):
     meta_account_id: Mapped[int] = mapped_column(
         ForeignKey("meta_accounts.id"), primary_key=True
     )
-    seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    seen_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     __table_args__ = (Index("ix_seen_lookup", "meta_account_id", "post_id"),)
 

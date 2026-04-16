@@ -65,6 +65,9 @@ See [SETUP.md](SETUP.md) for detailed setup instructions.
 # 1. Install the package
 uv sync
 
+# Optional: install Datasette helpers too
+uv sync --extra datasette
+
 # 2. Run interactive account setup
 uv run mastodon_is_my_blog init
 

@@ -6,6 +6,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from mastodon_is_my_blog import store
+from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.utils.settings_loader import IdentityConfig
 from test.conftest import make_identity, make_meta_account
 
@@ -217,7 +218,7 @@ async def test_update_last_sync_inserts_and_updates_state(
 
     assert await store.get_last_sync("timeline:1:1") is None
 
-    before = datetime.utcnow()
+    before = utc_now()
     await store.update_last_sync("timeline:1:1")
     first_value = await store.get_last_sync("timeline:1:1")
     await store.update_last_sync("timeline:1:1")
@@ -349,7 +350,7 @@ async def test_mark_post_seen_mark_posts_seen_and_seen_queries(
     patch_async_session,
 ) -> None:
     patch_async_session(store)
-    now = datetime.utcnow()
+    now = utc_now()
     old_time = now - timedelta(days=2)
     recent_time = now - timedelta(hours=1)
     db_session.add_all(

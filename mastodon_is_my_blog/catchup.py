@@ -23,6 +23,7 @@ from mastodon_is_my_blog.store import (
     MastodonIdentity,
     async_session,
 )
+from mastodon_is_my_blog.datetime_helpers import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +43,13 @@ class RateBudget:
     capacity: int = 300
     refill_seconds: float = 300.0
     tokens: float = field(default=0.0, init=False)
-    last_refill: datetime = field(default_factory=datetime.utcnow, init=False)
+    last_refill: datetime = field(default_factory=utc_now, init=False)
 
     def __post_init__(self) -> None:
         self.tokens = float(self.capacity)
 
     def _refill(self) -> None:
-        now = datetime.utcnow()
+        now = utc_now()
         elapsed = (now - self.last_refill).total_seconds()
         added = elapsed * (self.capacity / self.refill_seconds)
         self.tokens = min(self.capacity, self.tokens + added)
@@ -84,7 +85,7 @@ async def get_catchup_queue(
 
     Only accounts with is_following=True are included (no stranger boosts).
     """
-    cutoff = datetime.utcnow() - timedelta(days=30)
+    cutoff = utc_now() - timedelta(days=30)
 
     async with async_session() as session:
         # Subquery: notification count per account_id in the last 30 days

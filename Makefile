@@ -116,27 +116,27 @@ build:
 	cd web && ng build --configuration production
 	@echo "✓ Build complete: web/dist/"
 
-# Build Angular + Python wheel (full distribution build)
+# Build Angular + Python distributions (full distribution build)
 build-wheel:
-	@echo "Building Angular + Python wheel..."
+	@echo "Building Angular + Python distributions..."
 	./script/build
-	@echo "✓ Wheel built in dist/"
+	@echo "✓ Distributions built in dist/"
 
-# Build Python wheel reusing existing Angular dist
+# Build Python distributions reusing existing compiled Angular assets
 build-wheel-skip-ng:
-	@echo "Building Python wheel (reusing existing Angular dist)..."
+	@echo "Building Python distributions (reusing existing Angular assets)..."
 	./script/build --skip-ng
-	@echo "✓ Wheel built in dist/"
+	@echo "✓ Distributions built in dist/"
 
 # Publish to TestPyPI
-publish-test:
+publish-test: build-wheel
 	@echo "Publishing to TestPyPI..."
-	uv run twine upload --repository testpypi dist/*.whl
+	uv run twine upload --repository testpypi dist/*
 
 # Publish to PyPI
-publish:
+publish: build-wheel
 	@echo "Publishing to PyPI..."
-	uv run twine upload dist/*.whl
+	uv run twine upload dist/*
 
 # Install local wheel and smoke-test the CLI
 install-from-wheel:

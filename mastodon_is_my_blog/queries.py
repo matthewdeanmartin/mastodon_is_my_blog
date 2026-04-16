@@ -11,6 +11,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mastodon_is_my_blog.inspect_post import analyze_content_domains
+from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
     client_from_identity,
 )
@@ -501,7 +502,7 @@ async def sync_user_timeline_for_identity(
     if (
         not force
         and last_run
-        and (datetime.utcnow() - last_run) < timedelta(minutes=cooldown_minutes)
+        and (utc_now() - last_run) < timedelta(minutes=cooldown_minutes)
     ):
         return {"status": "skipped"}
 

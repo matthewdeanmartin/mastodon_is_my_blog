@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +23,7 @@ from mastodon_is_my_blog.content_hub_matching import (
     record_search_matches,
     retro_match_group_hashtag_terms,
 )
+from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
 from mastodon_is_my_blog.queries import bulk_upsert_posts
 from mastodon_is_my_blog.store import (
@@ -96,8 +97,8 @@ async def sync_server_follow_groups(
                     slug=slug,
                     source_type="server_follow",
                     is_read_only=True,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
+                    created_at=utc_now(),
+                    updated_at=utc_now(),
                 )
                 session.add(group)
                 await session.flush()  # get group.id
@@ -107,7 +108,7 @@ async def sync_server_follow_groups(
                     term=tag["name"],
                     term_type="hashtag",
                     normalized_term=tag_name,
-                    created_at=datetime.utcnow(),
+                    created_at=utc_now(),
                 )
                 session.add(term)
                 created += 1
@@ -139,7 +140,7 @@ async def is_group_stale(group: ContentHubGroup) -> bool:
     """Return True if the group needs a refresh."""
     if group.last_fetched_at is None:
         return True
-    cutoff = datetime.utcnow() - timedelta(hours=STALE_AFTER_HOURS)
+    cutoff = utc_now() - timedelta(hours=STALE_AFTER_HOURS)
     return group.last_fetched_at < cutoff
 
 
@@ -214,8 +215,8 @@ async def refresh_group(
     async with async_session() as session:
         group = await session.get(ContentHubGroup, group_id)
         if group:
-            group.last_fetched_at = datetime.utcnow()
-            group.updated_at = datetime.utcnow()
+            group.last_fetched_at = utc_now()
+            group.updated_at = utc_now()
             await session.commit()
 
     return {"fetched": total_fetched, "matched": total_matched}
@@ -258,7 +259,7 @@ async def create_client_bundle(
     Retro-matches hashtag terms immediately.
     """
     slug = make_slug(name)
-    now = datetime.utcnow()
+    now = utc_now()
 
     async with async_session() as session:
         group = ContentHubGroup(
@@ -313,7 +314,7 @@ async def update_client_bundle(
         if name is not None:
             group.name = name
             group.slug = make_slug(name)
-        group.updated_at = datetime.utcnow()
+        group.updated_at = utc_now()
 
         if terms_input is not None:
             # Delete existing terms
@@ -325,7 +326,7 @@ async def update_client_bundle(
                 await session.delete(t)
             await session.flush()
 
-            now = datetime.utcnow()
+            now = utc_now()
             for t in terms_input:
                 term_obj = ContentHubGroupTerm(
                     group_id=group.id,

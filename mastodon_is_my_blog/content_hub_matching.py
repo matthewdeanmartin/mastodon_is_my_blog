@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
 
 from sqlalchemy import and_, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -22,6 +21,7 @@ from mastodon_is_my_blog.store import (
     ContentHubGroupTerm,
     ContentHubPostMatch,
 )
+from mastodon_is_my_blog.datetime_helpers import utc_now
 
 
 def normalize_hashtag(term: str) -> str:
@@ -103,7 +103,7 @@ async def retro_match_hashtag_term(
             "fetched_by_identity_id": identity_id,
             "matched_term_id": term.id,
             "matched_via": "hashtag",
-            "created_at": datetime.utcnow(),
+            "created_at": utc_now(),
         }
         for pid in new_ids
     ]
@@ -157,7 +157,7 @@ async def record_search_matches(
             "fetched_by_identity_id": identity_id,
             "matched_term_id": term.id,
             "matched_via": "search",
-            "created_at": datetime.utcnow(),
+            "created_at": utc_now(),
         }
         for pid in post_ids
     ]

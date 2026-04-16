@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy import select
 
 from mastodon_is_my_blog import content_hub_matching, content_hub_service
+from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.store import ContentHubGroup, ContentHubGroupTerm
 from test.conftest import make_identity, make_meta_account
 
@@ -62,14 +63,14 @@ async def test_is_group_stale_handles_missing_recent_and_old_timestamps() -> Non
     assert await content_hub_service.is_group_stale(make_group(last_fetched_at=None)) is True
     assert (
         await content_hub_service.is_group_stale(
-            make_group(last_fetched_at=datetime.utcnow())
+            make_group(last_fetched_at=utc_now())
         )
         is False
     )
     assert (
         await content_hub_service.is_group_stale(
             make_group(
-                last_fetched_at=datetime.utcnow()
+                last_fetched_at=utc_now()
                 - timedelta(hours=content_hub_service.STALE_AFTER_HOURS + 1)
             )
         )
@@ -150,7 +151,7 @@ async def test_refresh_group_skips_fresh_groups(db_session, patch_async_session)
         [
             make_meta_account(),
             make_identity(),
-            make_group(last_fetched_at=datetime.utcnow()),
+            make_group(last_fetched_at=utc_now()),
         ]
     )
     await db_session.commit()
@@ -169,7 +170,7 @@ async def test_refresh_group_fetches_terms_records_matches_and_updates_timestamp
     patch_async_session(content_hub_service)
     identity = make_identity()
     group = make_group(
-        last_fetched_at=datetime.utcnow()
+        last_fetched_at=utc_now()
         - timedelta(hours=content_hub_service.STALE_AFTER_HOURS + 1)
     )
     hashtag_term = make_term(term_id=1, term="#Python", normalized_term="python")
@@ -232,7 +233,7 @@ async def test_refresh_group_continues_after_term_errors(
     patch_async_session(content_hub_service)
     identity = make_identity()
     group = make_group(
-        last_fetched_at=datetime.utcnow()
+        last_fetched_at=utc_now()
         - timedelta(hours=content_hub_service.STALE_AFTER_HOURS + 1)
     )
     hashtag_term = make_term(term_id=1, term="#Python", normalized_term="python")

@@ -30,4 +30,4 @@ MIMB is opinionated:
 
 - MIMB is still evolving. Some areas are more polished than others.
 - The web app is meant to run locally on your own machine.
-- `docs/` in this repository is already used for the static blog export. The Read the Docs handbook lives in `rtd/` instead.
+

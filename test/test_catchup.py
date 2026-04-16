@@ -12,6 +12,7 @@ import pytest_asyncio
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.store import Base, CachedAccount, CachedNotification, CachedPost
 
 
@@ -108,8 +109,8 @@ async def test_queue_only_includes_following(db) -> None:
 @pytest.mark.asyncio
 async def test_mutual_with_notification_ranks_first(db) -> None:
     """Priority 1 (mutual + notification) beats priority 2 (mutual) and priority 3."""
-    recent = datetime.utcnow() - timedelta(days=5)
-    old = datetime.utcnow() - timedelta(days=60)
+    recent = utc_now() - timedelta(days=5)
+    old = utc_now() - timedelta(days=60)
 
     db.add(make_account("plain-follow", is_following=True, last_status_at=recent))
     db.add(make_account("mutual", is_following=True, is_followed_by=True, last_status_at=recent))

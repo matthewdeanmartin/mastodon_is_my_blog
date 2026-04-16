@@ -22,6 +22,7 @@ from typing import Literal
 from sqlalchemy import select
 
 from mastodon_is_my_blog.catchup import RateBudget, deep_fetch_user_timeline, get_stop_at_id
+from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
 from mastodon_is_my_blog.queries import bulk_upsert_accounts, bulk_upsert_posts
 from mastodon_is_my_blog.store import CachedAccount, MastodonIdentity, MetaAccount, async_session
@@ -40,7 +41,7 @@ class CatchupJob:
     done: int = 0
     current_acct: str | None = None
     errors: int = 0
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=utc_now)
     finished_at: datetime | None = None
     rate_limited: bool = False
     # set by start_job after task is created
@@ -219,7 +220,7 @@ async def _run_loop(
         await asyncio.sleep(inter_account_delay_current)
 
     job.current_acct = None
-    job.finished_at = datetime.utcnow()
+    job.finished_at = utc_now()
     logger.info(
         "catchup [%s] mode=%s finished: %d done, %d errors",
         identity.acct,

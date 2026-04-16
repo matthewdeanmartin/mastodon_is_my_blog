@@ -8,6 +8,7 @@ from sqlalchemy import select
 from starlette.requests import Request
 
 from mastodon_is_my_blog import queries
+from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.store import CachedAccount, CachedPost, SeenPost
 from test.conftest import (
     make_account_data,
@@ -245,7 +246,7 @@ async def test_sync_user_timeline_for_identity_skips_recent_cooldown() -> None:
     with patch.object(
         queries,
         "get_last_sync",
-        AsyncMock(return_value=datetime.utcnow() - timedelta(minutes=5)),
+        AsyncMock(return_value=utc_now() - timedelta(minutes=5)),
     ):
         result = await queries.sync_user_timeline_for_identity(
             1,
