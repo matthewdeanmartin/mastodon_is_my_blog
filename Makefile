@@ -129,14 +129,14 @@ build-wheel-skip-ng:
 	@echo "✓ Distributions built in dist/"
 
 # Publish to TestPyPI
-publish-test: build-wheel
-	@echo "Publishing to TestPyPI..."
-	uv run twine upload --repository testpypi dist/*
+#publish-test: build-wheel
+#	@echo "Publishing to TestPyPI..."
+#	uv run twine upload --repository testpypi dist/*
 
-# Publish to PyPI
-publish: build-wheel
-	@echo "Publishing to PyPI..."
-	uv run twine upload dist/*
+## Publish to PyPI
+#publish: build-wheel
+#	@echo "Publishing to PyPI..."
+#	uv run twine upload dist/*
 
 # Install local wheel and smoke-test the CLI
 install-from-wheel:

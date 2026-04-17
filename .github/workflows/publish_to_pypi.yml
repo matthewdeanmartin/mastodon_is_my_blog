@@ -39,9 +39,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Build website
-        run: make build-blog
-
       - name: Build distributions
         run: make build-wheel
 
