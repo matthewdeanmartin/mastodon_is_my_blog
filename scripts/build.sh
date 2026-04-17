@@ -28,7 +28,8 @@ echo ""
 if [ "$SKIP_NG" = false ]; then
   echo "==> Step 1: Building Angular frontend (production)..."
   cd "${REPO_ROOT}/web"
-  npm ci --prefer-offline
+  pwd
+  npm ci # --prefer-offline
   npx ng build --configuration production
   cd "${REPO_ROOT}"
   echo "    Angular build complete."
