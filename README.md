@@ -7,9 +7,21 @@ My attempt to create an alternative Mastodon client based on a blogging interfac
 - View your special interests in a focused way
 - Write, edit, and manage your Mastodon posts in a clean, blog-style interface. (Kind of still in progress)
 
+## Installation
+
+```bash
+pipx install mastodon-is-my-blog
+# initialize your accounts and API keys
+mimb init
+# launch webserver and website
+mimb start
+```
+
+Documentation found [here](https://mastodon-is-my-blog.readthedocs.io/en/latest/)
+
 ## Why?
 
-Because I want to re-orient my mastodon usage from low value infinite doom scrolling to high value finite activities.
+Because I want to re-orient my mastodon usage from low value infinite doom-scrolling to high value finite activities.
 
 I want the UI to be human centric and encourage seeing people first.
 
@@ -28,7 +40,7 @@ content and replies.
         - Writing Page (primitive, not done)
         - Admin Page
 
-Some design decisions
+### Some design decisions
 
 - Refresh is done by clicking a button. Content doesn't arrive in a stream.
 - Doesn't feel like a mixed feed. All feeds are filtered, either by person or topic.
@@ -57,11 +69,13 @@ Some design decisions
 - Your data stays on your Mastodon instance. Sort of! If you use Github pages, you got a copy of your posts in two
   places now. The rest of your data is local to your machine.
 
-## Quick Start
+## Local Development
 
 See [SETUP.md](SETUP.md) for detailed setup instructions.
 
 ```bash
+git clone https://github.com/matthewdeanmartin/mastodon_is_my_blog.git
+
 # 1. Install the package
 uv sync
 

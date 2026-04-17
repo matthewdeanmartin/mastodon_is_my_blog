@@ -1,5 +1,5 @@
 [project]
-name = "mastodon_is_my_blog"
+name = "mastodon-is-my-blog"
 version = "0.1.0"
 description = "A personal Mastodon reader and blog management tool"
 readme = "README.md"
@@ -23,16 +23,12 @@ dependencies = [
     # database
     "alembic>=1.18.0",
     "sqlalchemy>=2.0",
+    "aiosqlite>=0.20",
     # 3rd party apis
     "mastodon-py>=2.2.1",
-    "aiosqlite>=0.20",
     # Web cards
     "beautifulsoup4>=4.12",
     "httpx>=0.28.1",
-    "requests>=2.33.1",
-    "tldextract",
-    # what?
-    # "pandas",
     # secure config
     "platformdirs>=4.0",
     "keyring>=25.0",
@@ -47,9 +43,11 @@ datasette = [
 
 [project.scripts]
 mastodon_is_my_blog = "mastodon_is_my_blog.cli:main"
+mimb = "mastodon_is_my_blog.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/matthewmartin/mastodon_is_my_blog"
+Documentation  = "https://mastodon-is-my-blog.readthedocs.io/en/latest/"
 Repository = "https://github.com/matthewmartin/mastodon_is_my_blog"
 Issues = "https://github.com/matthewmartin/mastodon_is_my_blog/issues"
 
