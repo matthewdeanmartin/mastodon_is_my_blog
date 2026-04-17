@@ -69,7 +69,7 @@ include = [
     "alembic/**",
     "alembic.ini",
     "README.md",
-    "script/build",
+    "scripts/build.sh",
     "web/**",
 ]
 

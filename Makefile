@@ -119,13 +119,13 @@ build:
 # Build Angular + Python distributions (full distribution build)
 build-wheel:
 	@echo "Building Angular + Python distributions..."
-	./script/build
+	./scripts/build.sh
 	@echo "✓ Distributions built in dist/"
 
 # Build Python distributions reusing existing compiled Angular assets
 build-wheel-skip-ng:
 	@echo "Building Python distributions (reusing existing Angular assets)..."
-	./script/build --skip-ng
+	./scripts/build.sh --skip-ng
 	@echo "✓ Distributions built in dist/"
 
 # Publish to TestPyPI

@@ -216,5 +216,5 @@ SOURCE_UI.md
 /scripts/tranco_X462N-1m.csv.zip
 /app_backup.db
 
-# Angular build output copied into Python package (populated by script/build)
+# Angular build output copied into Python package (populated by scripts/build.sh)
 mastodon_is_my_blog/static/browser/
