@@ -409,6 +409,89 @@ async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity) ->
             raise
 
 
+async def sync_all_following_for_identity(
+    meta_id: int,
+    identity: MastodonIdentity,
+    on_progress=None,
+    cancelled=None,
+    inter_page_delay: float = 0.3,
+) -> dict:
+    """
+    Paginated backfill of the identity's full following + followers lists.
+
+    Walks Mastodon.py fetch_next() until exhausted. Upserts each page into
+    cached_accounts with is_following/is_followed_by overrides. Idempotent.
+
+    on_progress: optional callable(done: int, total: int | None, stage: str)
+    cancelled: optional callable() -> bool; checked between pages
+    """
+    import asyncio
+
+    async with sync_stage(f"sync_all_following:{identity.acct}") as t:
+        m = client_from_identity(identity)
+        total_following = 0
+        total_followers = 0
+
+        try:
+            me = await asyncio.to_thread(m.account_verify_credentials)
+            est_following = int(me.get("following_count") or 0)
+            est_followers = int(me.get("followers_count") or 0)
+            grand_total = est_following + est_followers
+
+            # ----- following -----
+            page = await asyncio.to_thread(m.account_following, me["id"], limit=80)
+            while page:
+                if cancelled is not None and cancelled():
+                    break
+                rows = [
+                    {"account_data": acc, "overrides": {"is_following": True}}
+                    for acc in page
+                ]
+                async with async_session() as session:
+                    await bulk_upsert_accounts(session, meta_id, identity.id, rows)
+                    await session.commit()
+                total_following += len(page)
+                if on_progress is not None:
+                    on_progress(total_following + total_followers, grand_total, "following")
+                next_page = await asyncio.to_thread(m.fetch_next, page)
+                if not next_page:
+                    break
+                page = next_page
+                await asyncio.sleep(inter_page_delay)
+
+            # ----- followers -----
+            page = await asyncio.to_thread(m.account_followers, me["id"], limit=80)
+            while page:
+                if cancelled is not None and cancelled():
+                    break
+                rows = [
+                    {"account_data": acc, "overrides": {"is_followed_by": True}}
+                    for acc in page
+                ]
+                async with async_session() as session:
+                    await bulk_upsert_accounts(session, meta_id, identity.id, rows)
+                    await session.commit()
+                total_followers += len(page)
+                if on_progress is not None:
+                    on_progress(total_following + total_followers, grand_total, "followers")
+                next_page = await asyncio.to_thread(m.fetch_next, page)
+                if not next_page:
+                    break
+                page = next_page
+                await asyncio.sleep(inter_page_delay)
+
+            t.rows_fetched = total_following + total_followers
+            t.rows_written = total_following + total_followers
+            return {
+                "following": total_following,
+                "followers": total_followers,
+                "estimated_total": grand_total,
+            }
+        except Exception as e:
+            logger.error("sync_all_following failed for %s: %s", identity.acct, e)
+            raise
+
+
 async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) -> None:
     """Syncs home timeline activity for blog roll."""
     async with sync_stage(f"sync_blog_roll:{identity.acct}") as t:

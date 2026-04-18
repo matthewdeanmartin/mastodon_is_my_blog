@@ -83,6 +83,9 @@ const TAB_STYLES = `
                 {{ filter.label }}
               </button>
             }
+            <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
+              {{ refreshing ? 'Fetching...' : 'Fetch New' }}
+            </button>
           </div>
         </div>
 
@@ -118,6 +121,7 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
 
   posts: ContentFeedPost[] = [];
   loading = false;
+  refreshing = false;
   groupName: string | null = null;
   currentFilter: ContentFeedFilter = 'recent';
   readonly filters = contentFeedFilters;
@@ -154,6 +158,20 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
     if (identityId && group) this.load(identityId, group.id);
   }
 
+  fetchNew(): void {
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (!identityId || !group) return;
+    this.refreshing = true;
+    this.api.refreshContentHubGroup(group.id, identityId).subscribe({
+      next: () => {
+        this.refreshing = false;
+        this.load(identityId, group.id);
+      },
+      error: () => (this.refreshing = false),
+    });
+  }
+
   viewPost(id: string): void { this.router.navigate(['/p', id]); }
   getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }
 }
@@ -184,6 +202,9 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
                 {{ filter.label }}
               </button>
             }
+            <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
+              {{ refreshing ? 'Fetching...' : 'Fetch New' }}
+            </button>
           </div>
         </div>
 
@@ -221,6 +242,7 @@ export class ContentHubJobsComponent implements OnInit, OnDestroy {
 
   posts: ContentFeedPost[] = [];
   loading = false;
+  refreshing = false;
   groupName: string | null = null;
   currentFilter: ContentFeedFilter = 'recent';
   readonly filters = contentFeedFilters;
@@ -255,6 +277,20 @@ export class ContentHubJobsComponent implements OnInit, OnDestroy {
     const identityId = this.api.getCurrentIdentityId();
     const group = this.hubState.getActiveGroup();
     if (identityId && group) this.load(identityId, group.id);
+  }
+
+  fetchNew(): void {
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (!identityId || !group) return;
+    this.refreshing = true;
+    this.api.refreshContentHubGroup(group.id, identityId).subscribe({
+      next: () => {
+        this.refreshing = false;
+        this.load(identityId, group.id);
+      },
+      error: () => (this.refreshing = false),
+    });
   }
 
   viewPost(id: string): void { this.router.navigate(['/p', id]); }

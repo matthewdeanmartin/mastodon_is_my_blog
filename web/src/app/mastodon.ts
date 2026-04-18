@@ -104,6 +104,20 @@ export interface OwnAccountCatchupResult {
   msg?: string;
 }
 
+export interface BulkSyncJobStatus {
+  kind: string;
+  identity_id: number;
+  started_at: number;
+  done: number;
+  total: number | null;
+  stage: string;
+  finished: boolean;
+  ok: boolean;
+  error: string | null;
+  result: Record<string, number> | null;
+  cancel_requested: boolean;
+}
+
 // Content Hub
 
 export interface ContentHubTerm {
@@ -164,4 +178,48 @@ export interface AdminBundle {
   created_at: string;
   updated_at: string;
   terms: AdminBundleTerm[];
+}
+
+// Analytics (DuckDB-backed)
+
+export interface HashtagTrendRow {
+  bucket_start: string;
+  tag: string;
+  count: number;
+}
+
+export interface ContentSearchRow {
+  id: string;
+  author_acct: string;
+  created_at: string;
+  content: string;
+}
+
+export interface HeatmapCell {
+  dow: number;
+  hour: number;
+  count: number;
+}
+
+export interface ReposterRow {
+  account_acct: string;
+  current: number;
+  prior: number;
+  delta: number;
+}
+
+export interface NotificationTrendBucket {
+  bucket_start: string;
+  type: string;
+  count: number;
+}
+
+export interface NotificationTrendActor {
+  account_acct: string;
+  count: number;
+}
+
+export interface NotificationTrendsResponse {
+  by_type: NotificationTrendBucket[];
+  by_actor: NotificationTrendActor[];
 }

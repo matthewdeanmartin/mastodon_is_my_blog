@@ -50,6 +50,7 @@ async def get_blog_roll(
 
         # Base Query: STRICTLY people I follow
         # This removes the "weirdos" (boost-only strangers) from all views.
+        # NOTE: the 'readers' branch overrides this below to include non-followed reposters.
         query = select(CachedAccount).where(
             and_(
                 CachedAccount.meta_account_id == meta.id,
@@ -59,7 +60,32 @@ async def get_blog_roll(
         )
 
         # Apply specific filters
-        if filter_type == "top_friends":
+        if filter_type == "readers":
+            # Anyone who has ever reposted me — follow or not.
+            # This drops the is_following gate so we surface fans we don't follow back.
+            has_reblog = exists(
+                select(1).where(
+                    and_(
+                        CachedNotification.account_id == CachedAccount.id,
+                        CachedNotification.meta_account_id == meta.id,
+                        CachedNotification.identity_id == identity_id,
+                        CachedNotification.type == "reblog",
+                    )
+                )
+            )
+            query = (
+                select(CachedAccount)
+                .where(
+                    and_(
+                        CachedAccount.meta_account_id == meta.id,
+                        CachedAccount.mastodon_identity_id == identity_id,
+                        has_reblog,
+                    )
+                )
+                .order_by(desc(CachedAccount.last_status_at))
+            )
+
+        elif filter_type == "top_friends":
             if filter_type == "top_friends":
                 # Mutuals who have interacted via notifications
                 # This includes: mentions, replies, favorites, reblogs

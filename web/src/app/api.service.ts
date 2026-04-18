@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
-import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext, CatchupStatus, CatchupQueue, ContentHubGroup, ContentHubGroupPostsResponse, AdminBundle, OwnAccountCatchupResult} from './mastodon';
+import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext, CatchupStatus, CatchupQueue, ContentHubGroup, ContentHubGroupPostsResponse, AdminBundle, OwnAccountCatchupResult, BulkSyncJobStatus, HashtagTrendRow, ContentSearchRow, HeatmapCell, ReposterRow, NotificationTrendsResponse} from './mastodon';
 import {RawContentPost} from './content-feed.utils';
 import {Observable, throwError, timer, BehaviorSubject, of, Subject} from 'rxjs';
 import {catchError, shareReplay, switchMap, tap} from 'rxjs/operators';
@@ -407,6 +407,54 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
+  startSyncAllFollowing(identityId?: number | null): Observable<BulkSyncJobStatus & {started: boolean}> {
+    let params = new HttpParams();
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .post<BulkSyncJobStatus & {started: boolean}>(`${this.base}/api/admin/sync-all-following`, {}, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getSyncAllFollowingStatus(identityId?: number | null): Observable<BulkSyncJobStatus> {
+    let params = new HttpParams();
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .get<BulkSyncJobStatus>(`${this.base}/api/admin/sync-all-following/status`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  cancelSyncAllFollowing(identityId?: number | null): Observable<{cancelled: boolean}> {
+    let params = new HttpParams();
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .delete<{cancelled: boolean}>(`${this.base}/api/admin/sync-all-following`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  startSyncAllNotifications(identityId?: number | null): Observable<BulkSyncJobStatus & {started: boolean}> {
+    let params = new HttpParams();
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .post<BulkSyncJobStatus & {started: boolean}>(`${this.base}/api/admin/sync-all-notifications`, {}, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getSyncAllNotificationsStatus(identityId?: number | null): Observable<BulkSyncJobStatus> {
+    let params = new HttpParams();
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .get<BulkSyncJobStatus>(`${this.base}/api/admin/sync-all-notifications/status`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  cancelSyncAllNotifications(identityId?: number | null): Observable<{cancelled: boolean}> {
+    let params = new HttpParams();
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .delete<{cancelled: boolean}>(`${this.base}/api/admin/sync-all-notifications`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
   cancelCatchup(identityId?: number | null): Observable<unknown> {
     let params = new HttpParams();
     if (identityId != null) params = params.set('identity_id', identityId.toString());
@@ -525,5 +573,78 @@ export class ApiService {
     return this.http
       .delete<unknown>(`${this.base}/api/admin/content-hub/bundles/${bundleId}`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  // --- Analytics (DuckDB) ---
+
+  getHashtagTrends(
+    identityId: number,
+    bucket: 'day' | 'week' | 'month',
+    top = 20,
+  ): Observable<HashtagTrendRow[]> {
+    const params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('bucket', bucket)
+      .set('top', top.toString());
+    const key = `analytics:hashtag-trends:${params.toString()}`;
+    return this.cached(key, this.http
+      .get<HashtagTrendRow[]>(`${this.base}/api/analytics/hashtag-trends`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err))));
+  }
+
+  searchContent(
+    identityId: number,
+    q: string,
+    limit = 50,
+  ): Observable<ContentSearchRow[]> {
+    const params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('q', q)
+      .set('limit', limit.toString());
+    return this.http
+      .get<ContentSearchRow[]>(`${this.base}/api/analytics/content-search`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getPostingHeatmap(
+    identityId: number,
+    authorAcct?: string,
+  ): Observable<HeatmapCell[]> {
+    let params = new HttpParams().set('identity_id', identityId.toString());
+    if (authorAcct) params = params.set('author_acct', authorAcct);
+    const key = `analytics:heatmap:${params.toString()}`;
+    return this.cached(key, this.http
+      .get<HeatmapCell[]>(`${this.base}/api/analytics/posting-heatmap`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err))));
+  }
+
+  getTopReposters(
+    identityId: number,
+    windowDays = 30,
+    limit = 20,
+  ): Observable<ReposterRow[]> {
+    const params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('window_days', windowDays.toString())
+      .set('limit', limit.toString());
+    const key = `analytics:top-reposters:${params.toString()}`;
+    return this.cached(key, this.http
+      .get<ReposterRow[]>(`${this.base}/api/analytics/top-reposters`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err))));
+  }
+
+  getNotificationTrends(
+    identityId: number,
+    type?: string,
+    bucket: 'day' | 'week' | 'month' = 'day',
+  ): Observable<NotificationTrendsResponse> {
+    let params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('bucket', bucket);
+    if (type) params = params.set('type', type);
+    const key = `analytics:notification-trends:${params.toString()}`;
+    return this.cached(key, this.http
+      .get<NotificationTrendsResponse>(`${this.base}/api/analytics/notification-trends`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err))));
   }
 }

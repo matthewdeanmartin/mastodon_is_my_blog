@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    event,
     func,
     insert,
     select,
@@ -41,6 +42,19 @@ engine = create_async_engine(
     DB_URL,
     echo=False,
 )
+
+
+@event.listens_for(engine.sync_engine, "connect")
+def set_sqlite_pragmas(dbapi_conn, _):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA temp_store=MEMORY")
+    cursor.execute("PRAGMA mmap_size=268435456")
+    cursor.execute("PRAGMA cache_size=-64000")
+    cursor.close()
+
+
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 

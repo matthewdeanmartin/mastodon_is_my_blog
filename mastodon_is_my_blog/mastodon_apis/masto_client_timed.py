@@ -56,6 +56,10 @@ class TimedMastodonClient:
     def account_followers(self, account_id: str, limit: int = 40):
         return self._timed_call("account_followers", account_id, limit=limit)
 
+    def fetch_next(self, previous_page):
+        """Fetch the next page following a paginated response. Returns None if no next page."""
+        return self._timed_call("fetch_next", previous_page)
+
     def timeline_home(self, limit: int = 40):
         return self._timed_call("timeline_home", limit=limit)
 

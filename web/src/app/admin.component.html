@@ -47,6 +47,91 @@
       </button>
     </div>
 
+    <div style="margin-bottom: 24px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 1rem;">Download All Friends</h3>
+      <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px;">
+        The regular sync only captures the most recent 80 followers/following and accounts that posted recently. Use this to pull your entire following + follower lists once, so every person you follow shows up in the blog roll — not just the chatty ones.
+      </div>
+
+      @if (followingJobError) {
+        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem;">{{ followingJobError }}</div>
+      }
+
+      @if (followingJob && !followingJob.finished) {
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; margin-bottom: 10px;">
+          <div class="row" style="margin-bottom: 8px;">
+            <span style="font-weight: 600;">Running — {{ followingJob.stage }}</span>
+            <span class="muted" style="font-size: 0.85rem;">
+              {{ followingJob.done }}<ng-container *ngIf="followingJob.total"> / {{ followingJob.total }}</ng-container>
+            </span>
+          </div>
+          <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden;">
+            <div [style.width.%]="followingProgressPct" style="height: 100%; background: #6366f1; transition: width 0.4s;"></div>
+          </div>
+        </div>
+      }
+
+      @if (followingJob && followingJob.finished && followingJob.ok && followingJob.result) {
+        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem;">
+          Done. Imported {{ followingJob.result['following'] }} following + {{ followingJob.result['followers'] }} followers.
+        </div>
+      }
+
+      @if (followingJob && followingJob.finished && !followingJob.ok) {
+        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem;">
+          Failed: {{ followingJob.error }}
+        </div>
+      }
+
+      <div class="row" style="gap: 8px;">
+        <button (click)="startSyncAllFollowing()" [disabled]="followingJobLoading || (followingJob && !followingJob.finished) || undefined">
+          {{ (followingJob && !followingJob.finished) ? 'Running...' : 'Download All Friends' }}
+        </button>
+        @if (followingJob && !followingJob.finished) {
+          <button class="secondary" (click)="cancelSyncAllFollowing()">Stop</button>
+        }
+      </div>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 1rem;">Download All Notifications</h3>
+      <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px;">
+        The regular sync only keeps the last 80 notifications. Pull your entire notification history so the <strong>Readers</strong> blogroll filter can surface every person who has ever reposted your content.
+      </div>
+
+      @if (notificationsJobError) {
+        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem;">{{ notificationsJobError }}</div>
+      }
+
+      @if (notificationsJob && !notificationsJob.finished) {
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; margin-bottom: 10px;">
+          <div class="row" style="margin-bottom: 4px;">
+            <span style="font-weight: 600;">Running — {{ notificationsJob.stage }}</span>
+            <span class="muted" style="font-size: 0.85rem;">{{ notificationsJob.done }} notifications</span>
+          </div>
+        </div>
+      }
+
+      @if (notificationsJob && notificationsJob.finished && notificationsJob.ok) {
+        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem;">
+          Done. Imported {{ notificationsJob.done }} notifications total.
+        </div>
+      }
+
+      @if (notificationsJob && notificationsJob.finished && !notificationsJob.ok) {
+        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem;">Failed: {{ notificationsJob.error }}</div>
+      }
+
+      <div class="row" style="gap: 8px;">
+        <button (click)="startSyncAllNotifications()" [disabled]="notificationsJobLoading || (notificationsJob && !notificationsJob.finished) || undefined">
+          {{ (notificationsJob && !notificationsJob.finished) ? 'Running...' : 'Download All Notifications' }}
+        </button>
+        @if (notificationsJob && !notificationsJob.finished) {
+          <button class="secondary" (click)="cancelSyncAllNotifications()">Stop</button>
+        }
+      </div>
+    </div>
+
     <hr />
 
     <!-- Catch-up section -->

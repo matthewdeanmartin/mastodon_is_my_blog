@@ -16,7 +16,15 @@ from mastodon_is_my_blog.queries import (
     sync_accounts_friends_followers,
     sync_user_timeline,
 )
-from mastodon_is_my_blog.routes import accounts, admin, content_hub, posts, writing
+from mastodon_is_my_blog import duck
+from mastodon_is_my_blog.routes import (
+    accounts,
+    admin,
+    analytics,
+    content_hub,
+    posts,
+    writing,
+)
 from mastodon_is_my_blog.static_files import get_static_dir
 from mastodon_is_my_blog.utils.perf import performance_middleware
 from mastodon_is_my_blog.store import (
@@ -49,10 +57,14 @@ async def lifespan(_: FastAPI):
     # Initialize shared httpx client for link previews
     init_http_client()
 
+    # Open DuckDB analytics connection, attached read-only to the SQLite file
+    duck.startup()
+
     yield
 
     # Shutdown: close shared httpx client
     await close_http_client()
+    duck.shutdown()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -68,6 +80,7 @@ async def add_security_headers(request, call_next):
 
 app.include_router(accounts.router)
 app.include_router(admin.router)
+app.include_router(analytics.router)
 app.include_router(content_hub.router)
 app.include_router(posts.router)
 app.include_router(writing.router)

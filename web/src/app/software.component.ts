@@ -101,6 +101,11 @@ function hubToFeedPost(p: ContentHubPost): ContentFeedPost {
               {{ filter.label }}
             </button>
           }
+          @if (groupId !== null) {
+            <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
+              {{ refreshing ? 'Fetching...' : 'Fetch New' }}
+            </button>
+          }
         </div>
       </div>
 
@@ -139,8 +144,10 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
 
   posts: ContentFeedPost[] = [];
   loading = true;
+  refreshing = false;
   currentFilter: ContentFeedFilter = 'recent';
   groupName: string | null = null;
+  groupId: number | null = null;
   readonly filters = contentFeedFilters;
 
   private sub?: Subscription;
@@ -148,6 +155,7 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.sub = combineLatest([this.api.identityId$, this.hubState.activeGroup$]).subscribe(
       ([identityId, group]) => {
+        this.groupId = group?.id ?? null;
         if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
       },
     );
@@ -186,6 +194,17 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
     if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
   }
 
+  fetchNew(): void {
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (!identityId || !group) return;
+    this.refreshing = true;
+    this.api.refreshContentHubGroup(group.id, identityId).subscribe({
+      next: () => { this.refreshing = false; this.load(identityId, group.id, group.name); },
+      error: () => (this.refreshing = false),
+    });
+  }
+
   getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }
   viewPost(id: string): void { this.router.navigate(['/p', id]); }
 }
@@ -214,6 +233,11 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
               (click)="setFilter(filter.value)"
               class="filter-btn">
               {{ filter.label }}
+            </button>
+          }
+          @if (groupId !== null) {
+            <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
+              {{ refreshing ? 'Fetching...' : 'Fetch New' }}
             </button>
           }
         </div>
@@ -262,8 +286,10 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
 
   groups: ContentFeedGroup[] = [];
   loading = true;
+  refreshing = false;
   currentFilter: ContentFeedFilter = 'recent';
   groupName: string | null = null;
+  groupId: number | null = null;
   readonly filters = contentFeedFilters;
 
   private sub?: Subscription;
@@ -271,6 +297,7 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.sub = combineLatest([this.api.identityId$, this.hubState.activeGroup$]).subscribe(
       ([identityId, group]) => {
+        this.groupId = group?.id ?? null;
         if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
       },
     );
@@ -314,6 +341,17 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
     if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
   }
 
+  fetchNew(): void {
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (!identityId || !group) return;
+    this.refreshing = true;
+    this.api.refreshContentHubGroup(group.id, identityId).subscribe({
+      next: () => { this.refreshing = false; this.load(identityId, group.id, group.name); },
+      error: () => (this.refreshing = false),
+    });
+  }
+
   getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }
   viewPost(id: string): void { this.router.navigate(['/p', id]); }
 }
@@ -342,6 +380,11 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
               (click)="setFilter(filter.value)"
               class="filter-btn">
               {{ filter.label }}
+            </button>
+          }
+          @if (groupId !== null) {
+            <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
+              {{ refreshing ? 'Fetching...' : 'Fetch New' }}
             </button>
           }
         </div>
@@ -385,8 +428,10 @@ export class NewsFeedComponent implements OnInit, OnDestroy {
 
   posts: ContentFeedPost[] = [];
   loading = true;
+  refreshing = false;
   currentFilter: ContentFeedFilter = 'recent';
   groupName: string | null = null;
+  groupId: number | null = null;
   readonly filters = contentFeedFilters;
 
   private sub?: Subscription;
@@ -394,6 +439,7 @@ export class NewsFeedComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.sub = combineLatest([this.api.identityId$, this.hubState.activeGroup$]).subscribe(
       ([identityId, group]) => {
+        this.groupId = group?.id ?? null;
         if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
       },
     );
@@ -430,6 +476,17 @@ export class NewsFeedComponent implements OnInit, OnDestroy {
     const identityId = this.api.getCurrentIdentityId();
     const group = this.hubState.getActiveGroup();
     if (identityId) this.load(identityId, group?.id ?? null, group?.name ?? null);
+  }
+
+  fetchNew(): void {
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (!identityId || !group) return;
+    this.refreshing = true;
+    this.api.refreshContentHubGroup(group.id, identityId).subscribe({
+      next: () => { this.refreshing = false; this.load(identityId, group.id, group.name); },
+      error: () => (this.refreshing = false),
+    });
   }
 
   getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }

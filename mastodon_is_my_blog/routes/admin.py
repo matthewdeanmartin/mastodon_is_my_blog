@@ -21,8 +21,15 @@ from mastodon_is_my_blog.mastodon_apis.masto_client import (
 )
 from mastodon_is_my_blog.queries import (
     get_current_meta_account,
+    sync_all_following_for_identity,
     sync_all_identities,
     sync_user_timeline_for_identity,
+)
+from mastodon_is_my_blog.bulk_sync_jobs import (
+    cancel_job,
+    get_job,
+    job_status,
+    start_bulk_job,
 )
 from mastodon_is_my_blog.store import (
     MastodonIdentity,
@@ -51,6 +58,108 @@ async def trigger_sync(
 ) -> dict:
     res = await sync_all_identities(meta, force=force)
     return {"results": res}
+
+
+@router.post("/sync-all-following")
+async def start_sync_all_following(
+    identity_id: int | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """
+    One-shot paginated download of the full following + followers lists for
+    an identity. Populates cached_accounts so the blogroll and per-person
+    views work for every followed account, not just recent posters.
+    """
+    identity = await _get_identity(meta, identity_id)
+
+    async def runner(on_progress, cancelled):
+        return await sync_all_following_for_identity(
+            meta.id, identity, on_progress=on_progress, cancelled=cancelled
+        )
+
+    try:
+        job = await start_bulk_job("following", meta.id, identity.id, runner)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+
+    return {"started": True, **job_status(job)}
+
+
+@router.get("/sync-all-following/status")
+async def sync_all_following_status(
+    identity_id: int | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    identity = await _get_identity(meta, identity_id)
+    job = get_job("following", meta.id, identity.id)
+    if job is None:
+        raise HTTPException(404, "No following-sync job found for this identity")
+    return job_status(job)
+
+
+@router.delete("/sync-all-following")
+async def cancel_sync_all_following(
+    identity_id: int | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    identity = await _get_identity(meta, identity_id)
+    cancelled = cancel_job("following", meta.id, identity.id)
+    if not cancelled:
+        raise HTTPException(404, "No running following-sync job for this identity")
+    return {"cancelled": True}
+
+
+@router.post("/sync-all-notifications")
+async def start_sync_all_notifications(
+    identity_id: int | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """
+    One-shot paginated download of the identity's full notification history.
+    Required so the Readers blogroll filter surfaces every historical
+    reposter, not just the last 80 interactions.
+    """
+    from mastodon_is_my_blog.notification_sync import (
+        sync_all_notifications_for_identity,
+    )
+
+    identity = await _get_identity(meta, identity_id)
+
+    async def runner(on_progress, cancelled):
+        return await sync_all_notifications_for_identity(
+            meta.id, identity, on_progress=on_progress, cancelled=cancelled
+        )
+
+    try:
+        job = await start_bulk_job("notifications", meta.id, identity.id, runner)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+
+    return {"started": True, **job_status(job)}
+
+
+@router.get("/sync-all-notifications/status")
+async def sync_all_notifications_status(
+    identity_id: int | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    identity = await _get_identity(meta, identity_id)
+    job = get_job("notifications", meta.id, identity.id)
+    if job is None:
+        raise HTTPException(404, "No notifications-sync job found for this identity")
+    return job_status(job)
+
+
+@router.delete("/sync-all-notifications")
+async def cancel_sync_all_notifications(
+    identity_id: int | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    identity = await _get_identity(meta, identity_id)
+    cancelled = cancel_job("notifications", meta.id, identity.id)
+    if not cancelled:
+        raise HTTPException(404, "No running notifications-sync job for this identity")
+    return {"cancelled": True}
 
 
 @router.post("/own-account/catchup")

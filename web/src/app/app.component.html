@@ -35,6 +35,7 @@
       <a routerLink="/content" routerLinkActive="active-nav">📦 Content</a>
       <a routerLink="/forum" routerLinkActive="active-nav">💬 Forum</a>
       <a routerLink="/write" routerLinkActive="active-nav">✏️ Write</a>
+      <a routerLink="/analytics" routerLinkActive="active-nav">📊 Analytics</a>
       <a routerLink="/admin" routerLinkActive="active-nav">⚙️ Admin</a>
     </nav>
   </div>
@@ -86,6 +87,7 @@
         <hr>
           <div class="muted" style="margin-bottom:10px;">BLOG ROLL FILTERS</div>
           <button class="nav-btn" [class.active]="currentBlogFilter==='top_friends'" (click)="setBlogFilter('top_friends')">Top Friends</button>
+          <button class="nav-btn" [class.active]="currentBlogFilter==='readers'" (click)="setBlogFilter('readers')">Readers</button>
           <button class="nav-btn" [class.active]="currentBlogFilter==='mutuals'" (click)="setBlogFilter('mutuals')">Mutuals</button>
           <button class="nav-btn" [class.active]="currentBlogFilter==='chatty'" (click)="setBlogFilter('chatty')">Chatty</button>
           <button class="nav-btn" [class.active]="currentBlogFilter==='broadcasters'" (click)="setBlogFilter('broadcasters')">Broadcasters</button>

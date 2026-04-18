@@ -46,6 +46,11 @@ interface ImagePost {
               {{ f.label }}
             </button>
           }
+          @if (groupId !== null) {
+            <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
+              {{ refreshing ? 'Fetching...' : 'Fetch New' }}
+            </button>
+          }
         </div>
       </div>
 
@@ -213,8 +218,10 @@ export class ImageFeedComponent implements OnInit, OnDestroy {
 
   images: ImagePost[] = [];
   loading = true;
+  refreshing = false;
   currentFilter = 'recent';
   groupName: string | null = null;
+  groupId: number | null = null;
 
   filters = [
     { value: 'recent', label: 'Recent' },
@@ -228,6 +235,7 @@ export class ImageFeedComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.sub = combineLatest([this.api.identityId$, this.hubState.activeGroup$]).subscribe(
       ([identityId, group]) => {
+        this.groupId = group?.id ?? null;
         if (identityId) this.loadImages(identityId, group?.id ?? null, group?.name ?? null);
       },
     );
@@ -274,6 +282,17 @@ export class ImageFeedComponent implements OnInit, OnDestroy {
     const identityId = this.api.getCurrentIdentityId();
     const group = this.hubState.getActiveGroup();
     if (identityId) this.loadImages(identityId, group?.id ?? null, group?.name ?? null);
+  }
+
+  fetchNew(): void {
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (!identityId || !group) return;
+    this.refreshing = true;
+    this.api.refreshContentHubGroup(group.id, identityId).subscribe({
+      next: () => { this.refreshing = false; this.loadImages(identityId, group.id, group.name); },
+      error: () => (this.refreshing = false),
+    });
   }
 
   viewPost(post: ImagePost): void {

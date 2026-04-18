@@ -426,6 +426,9 @@ async def get_storms(
 
         replies = (await session.execute(replies_query)).scalars().all()
 
+        root_accts = {p.author_acct for p in roots}
+        account_info = await fetch_account_info(session, meta.id, identity_id, root_accts)
+
     # Build children map from the small reply set only
     children_map: dict[str, list] = {}
     for p in replies:
@@ -458,9 +461,6 @@ async def get_storms(
                     }
                 )
         return results
-
-    root_accts = {p.author_acct for p in roots}
-    account_info = await fetch_account_info(session, meta.id, identity_id, root_accts)
 
     storm_items = [
         {
@@ -498,40 +498,8 @@ async def get_hashtags(
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     """Aggregates all hashtags used by the user."""
-    async with async_session() as session:
-        query = select(CachedPost.tags).where(
-            and_(
-                CachedPost.meta_account_id == meta.id,
-                CachedPost.fetched_by_identity_id == identity_id,
-                CachedPost.content_hub_only.is_(False),
-            )
-        )
-
-        if user and user != "everyone":
-            query = query.where(CachedPost.author_acct == user)
-
-        result = await session.execute(query)
-        # Result is a list of JSON strings (["['tag1', 'tag2']", "['tag3']"])
-        all_tags_raw = result.scalars().all()
-
-    tag_counts = {}
-    for raw in all_tags_raw:
-        if not raw:
-            continue
-        try:
-            tags = json.loads(raw)
-            for t in tags:
-                lower_t = t.lower()
-                tag_counts[lower_t] = tag_counts.get(lower_t, 0) + 1
-        except (json.JSONDecodeError, TypeError):
-            continue
-
-    # Return sorted by count
-    return sorted(
-        [{"name": k, "count": v} for k, v in tag_counts.items()],
-        key=lambda x: x["count"],
-        reverse=True,
-    )
+    from mastodon_is_my_blog import duck
+    return await duck.hashtag_counts(meta.id, identity_id, user=user)
 
 
 # @router.get("/analytics")

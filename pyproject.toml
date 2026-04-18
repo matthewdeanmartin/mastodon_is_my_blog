@@ -26,6 +26,7 @@ dependencies = [
     "aiosqlite>=0.20",
     # 3rd party apis
     "mastodon-py>=2.2.1",
+    "pip-system-certs>=5.3",
     # Web cards
     "beautifulsoup4>=4.12",
     "httpx>=0.28.1",
@@ -33,6 +34,8 @@ dependencies = [
     "platformdirs>=4.0",
     "keyring>=25.0",
     "python-dotenv>=1.0",
+    # analytics
+    "duckdb>=1.1",
 ]
 
 [project.optional-dependencies]

@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { ApiService } from './api.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminStatus, CatchupStatus, CatchupQueue, AdminBundle, AdminBundleTerm, OwnAccountCatchupResult } from './mastodon';
+import { AdminStatus, CatchupStatus, CatchupQueue, AdminBundle, AdminBundleTerm, OwnAccountCatchupResult, BulkSyncJobStatus } from './mastodon';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 
@@ -39,6 +39,18 @@ export class AdminComponent implements OnInit, OnDestroy {
   catchupLoading = false;
   catchupError: string | null = null;
 
+  // Download-all-friends (paginated following/followers backfill)
+  followingJob: BulkSyncJobStatus | null = null;
+  followingJobError: string | null = null;
+  followingJobLoading = false;
+  private followingPollSub?: Subscription;
+
+  // Download-all-notifications (paginated notification backfill)
+  notificationsJob: BulkSyncJobStatus | null = null;
+  notificationsJobError: string | null = null;
+  notificationsJobLoading = false;
+  private notificationsPollSub?: Subscription;
+
   // Bundle management
   bundles: AdminBundle[] = [];
   bundlesLoading = false;
@@ -53,11 +65,15 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.refreshStatus();
     this.loadCatchupQueue();
     this.checkCatchupStatus();
+    this.checkFollowingJob();
+    this.checkNotificationsJob();
     this.loadBundles();
   }
 
   ngOnDestroy() {
     this.stopPolling();
+    this.stopFollowingPolling();
+    this.stopNotificationsPolling();
   }
 
   refreshStatus() {
@@ -165,6 +181,152 @@ export class AdminComponent implements OnInit, OnDestroy {
   private stopPolling() {
     this.pollSub?.unsubscribe();
     this.pollSub = undefined;
+  }
+
+  // --- Download all friends (paginated backfill) ---
+
+  checkFollowingJob() {
+    const identityId = this.currentIdentityId();
+    if (!identityId) return;
+    this.api.getSyncAllFollowingStatus(identityId).subscribe({
+      next: (s) => {
+        this.followingJob = s;
+        if (!s.finished) this.startFollowingPolling();
+      },
+      error: (err) => {
+        if (err?.status !== 404) {
+          this.followingJobError = err?.error?.detail ?? 'Failed to load friends-sync status';
+        }
+      },
+    });
+  }
+
+  startSyncAllFollowing() {
+    const identityId = this.currentIdentityId();
+    if (!identityId || this.followingJobLoading) return;
+    this.followingJobLoading = true;
+    this.followingJobError = null;
+    this.api.startSyncAllFollowing(identityId).subscribe({
+      next: (s) => {
+        this.followingJob = s;
+        this.followingJobLoading = false;
+        this.startFollowingPolling();
+      },
+      error: (err) => {
+        this.followingJobLoading = false;
+        this.followingJobError = err?.error?.detail ?? 'Failed to start friends backfill';
+      },
+    });
+  }
+
+  cancelSyncAllFollowing() {
+    const identityId = this.currentIdentityId();
+    if (!identityId) return;
+    this.api.cancelSyncAllFollowing(identityId).subscribe({
+      next: () => this.checkFollowingJob(),
+      error: (err) => {
+        this.followingJobError = err?.error?.detail ?? 'Failed to cancel';
+      },
+    });
+  }
+
+  private startFollowingPolling() {
+    this.stopFollowingPolling();
+    const identityId = this.currentIdentityId();
+    if (!identityId) return;
+    this.followingPollSub = interval(2000)
+      .pipe(switchMap(() => this.api.getSyncAllFollowingStatus(identityId)))
+      .subscribe({
+        next: (s) => {
+          this.followingJob = s;
+          if (s.finished) {
+            this.stopFollowingPolling();
+            this.api.refreshNeeded$.next();
+          }
+        },
+        error: () => this.stopFollowingPolling(),
+      });
+  }
+
+  private stopFollowingPolling() {
+    this.followingPollSub?.unsubscribe();
+    this.followingPollSub = undefined;
+  }
+
+  get followingProgressPct(): number {
+    const j = this.followingJob;
+    if (!j || !j.total || j.total === 0) return 0;
+    return Math.min(100, Math.round((j.done / j.total) * 100));
+  }
+
+  // --- Download all notifications (paginated backfill) ---
+
+  checkNotificationsJob() {
+    const identityId = this.currentIdentityId();
+    if (!identityId) return;
+    this.api.getSyncAllNotificationsStatus(identityId).subscribe({
+      next: (s) => {
+        this.notificationsJob = s;
+        if (!s.finished) this.startNotificationsPolling();
+      },
+      error: (err) => {
+        if (err?.status !== 404) {
+          this.notificationsJobError = err?.error?.detail ?? 'Failed to load notifications-sync status';
+        }
+      },
+    });
+  }
+
+  startSyncAllNotifications() {
+    const identityId = this.currentIdentityId();
+    if (!identityId || this.notificationsJobLoading) return;
+    this.notificationsJobLoading = true;
+    this.notificationsJobError = null;
+    this.api.startSyncAllNotifications(identityId).subscribe({
+      next: (s) => {
+        this.notificationsJob = s;
+        this.notificationsJobLoading = false;
+        this.startNotificationsPolling();
+      },
+      error: (err) => {
+        this.notificationsJobLoading = false;
+        this.notificationsJobError = err?.error?.detail ?? 'Failed to start notifications backfill';
+      },
+    });
+  }
+
+  cancelSyncAllNotifications() {
+    const identityId = this.currentIdentityId();
+    if (!identityId) return;
+    this.api.cancelSyncAllNotifications(identityId).subscribe({
+      next: () => this.checkNotificationsJob(),
+      error: (err) => {
+        this.notificationsJobError = err?.error?.detail ?? 'Failed to cancel';
+      },
+    });
+  }
+
+  private startNotificationsPolling() {
+    this.stopNotificationsPolling();
+    const identityId = this.currentIdentityId();
+    if (!identityId) return;
+    this.notificationsPollSub = interval(2000)
+      .pipe(switchMap(() => this.api.getSyncAllNotificationsStatus(identityId)))
+      .subscribe({
+        next: (s) => {
+          this.notificationsJob = s;
+          if (s.finished) {
+            this.stopNotificationsPolling();
+            this.api.refreshNeeded$.next();
+          }
+        },
+        error: () => this.stopNotificationsPolling(),
+      });
+  }
+
+  private stopNotificationsPolling() {
+    this.notificationsPollSub?.unsubscribe();
+    this.notificationsPollSub = undefined;
   }
 
   get progressPct(): number {

@@ -4,7 +4,7 @@ import {Component, OnDestroy, OnInit, inject} from '@angular/core';
 import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
 
 import {ApiService} from './api.service';
-import {distinctUntilChanged, map, shareReplay, switchMap, takeUntil, catchError, filter} from 'rxjs/operators';
+import {debounceTime, distinctUntilChanged, map, shareReplay, switchMap, takeUntil, catchError, filter} from 'rxjs/operators';
 import {of, Subject, combineLatest} from 'rxjs';
 import {Identity, MastodonAccount} from './mastodon';
 
@@ -185,8 +185,11 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     // Active User Info Pipeline
+    // Debounce rapid click-through in the blog roll so we don't stack
+    // /api/accounts/{acct} + /api/posts/counts calls per intermediate user.
     combineLatest([selection$, this.api.identityId$]).pipe(
       takeUntil(this.destroy$),
+      debounceTime(150),
       switchMap(([sel, identityId]) => {
         if (!identityId) return of(null);
 

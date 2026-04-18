@@ -610,22 +610,19 @@ def test_storms_endpoint_returns_root_and_branch_posts(
 def test_hashtags_endpoint_aggregates_and_sorts_tags(
     api_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        posts,
-        "async_session",
-        FakeSessionFactory(
-            [
-                FakeResult(
-                    scalars_values=[
-                        '["Tag", "tag"]',
-                        '["Other"]',
-                        None,
-                        "not-json",
-                    ]
-                )
-            ]
-        ),
-    )
+    captured: dict[str, object] = {}
+
+    async def fake_hashtag_counts(meta_id, identity_id, user=None):
+        captured["meta_id"] = meta_id
+        captured["identity_id"] = identity_id
+        captured["user"] = user
+        return [
+            {"name": "tag", "count": 2},
+            {"name": "other", "count": 1},
+        ]
+
+    from mastodon_is_my_blog import duck
+    monkeypatch.setattr(duck, "hashtag_counts", fake_hashtag_counts)
 
     response = api_client.get("/api/posts/hashtags?identity_id=5")
 
@@ -634,6 +631,8 @@ def test_hashtags_endpoint_aggregates_and_sorts_tags(
         {"name": "tag", "count": 2},
         {"name": "other", "count": 1},
     ]
+    assert captured["identity_id"] == 5
+    assert captured["user"] is None
 
 
 def test_counts_endpoint_returns_sidebar_counts(

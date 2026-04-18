@@ -9,6 +9,7 @@ import { ImageFeedComponent } from './image.component';
 import { LinksFeedComponent, NewsFeedComponent, SoftwareFeedComponent } from './software.component';
 import { ContentHubTextComponent, ContentHubJobsComponent } from './content-hub-tabs.component';
 import { ForumComponent } from './forum.component';
+import { AnalyticsComponent } from './analytics.component';
 
 export const routes: Routes = [
   { path: '', component: PublicFeedComponent },
@@ -36,6 +37,9 @@ export const routes: Routes = [
 
   // Forum App
   { path: 'forum', component: ForumComponent },
+
+  // Analytics
+  { path: 'analytics', component: AnalyticsComponent },
 
   { path: '**', redirectTo: '' },
 ];
