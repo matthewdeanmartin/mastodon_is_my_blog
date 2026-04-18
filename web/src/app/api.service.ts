@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
-import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext, CatchupStatus, CatchupQueue, ContentHubGroup, ContentHubGroupPostsResponse, AdminBundle, OwnAccountCatchupResult, BulkSyncJobStatus, HashtagTrendRow, ContentSearchRow, HeatmapCell, ReposterRow, NotificationTrendsResponse} from './mastodon';
+import {MastodonStatus, MastodonAccount, Identity, AdminStatus, MastodonContext, CatchupStatus, CatchupQueue, ContentHubGroup, ContentHubGroupPostsResponse, AdminBundle, OwnAccountCatchupResult, BulkSyncJobStatus, HashtagTrendRow, ContentSearchRow, HeatmapCell, ReposterRow, NotificationTrendsResponse, EngagementMatrix, Dossier, GroupPerson, AccountCatchupStatus} from './mastodon';
 import {RawContentPost} from './content-feed.utils';
 import {Observable, throwError, timer, BehaviorSubject, of, Subject} from 'rxjs';
 import {catchError, shareReplay, switchMap, tap} from 'rxjs/operators';
@@ -300,6 +300,29 @@ export class ApiService {
     return req$;
   }
 
+  startAccountCatchup(acct: string, identityId: number, mode: 'recent' | 'deep'): Observable<AccountCatchupStatus> {
+    const params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('mode', mode);
+    return this.http
+      .post<AccountCatchupStatus>(`${this.base}/api/accounts/${acct}/catchup`, {}, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getAccountCatchupStatus(acct: string, identityId: number): Observable<AccountCatchupStatus> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .get<AccountCatchupStatus>(`${this.base}/api/accounts/${acct}/catchup/status`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  cancelAccountCatchup(acct: string, identityId: number): Observable<unknown> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .delete<unknown>(`${this.base}/api/accounts/${acct}/catchup`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
   // --- Single Item Reads (Less Context Sensitive) ---
 
   getPublicPost(id: string): Observable<MastodonStatus> {
@@ -517,7 +540,7 @@ export class ApiService {
   getContentHubGroupPosts(
     groupId: number,
     identityId: number,
-    tab: 'text' | 'videos' | 'jobs' = 'text',
+    tab: 'text' | 'videos' | 'jobs' | 'software' | 'news' | 'links' = 'text',
     before?: string | null,
     limit = 30,
   ): Observable<ContentHubGroupPostsResponse> {
@@ -646,5 +669,65 @@ export class ApiService {
     return this.cached(key, this.http
       .get<NotificationTrendsResponse>(`${this.base}/api/analytics/notification-trends`, {params, headers: this.headers})
       .pipe(catchError((err) => this.handleError(err))));
+  }
+
+  // --- Peeps Finder ---
+
+  getEngagementMatrix(identityId: number, windowDays = 180): Observable<EngagementMatrix> {
+    const params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('window_days', windowDays.toString());
+    return this.http
+      .get<EngagementMatrix>(`${this.base}/api/peeps/matrix`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getDossier(acct: string, identityId: number): Observable<Dossier> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .get<Dossier>(`${this.base}/api/peeps/dossier/${acct}`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  deepFetchDossier(acct: string, identityId: number): Observable<AccountCatchupStatus> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .post<AccountCatchupStatus>(`${this.base}/api/peeps/dossier/${acct}/deep-fetch`, {}, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  followAccount(acct: string, identityId: number): Observable<unknown> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .post<unknown>(`${this.base}/api/peeps/dossier/${acct}/follow`, {}, {params, headers: this.headers})
+      .pipe(
+        tap(() => this.refreshNeeded$.next()),
+        catchError((err) => this.handleError(err)),
+      );
+  }
+
+  unfollowAccount(acct: string, identityId: number): Observable<unknown> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .post<unknown>(`${this.base}/api/peeps/dossier/${acct}/unfollow`, {}, {params, headers: this.headers})
+      .pipe(
+        tap(() => this.refreshNeeded$.next()),
+        catchError((err) => this.handleError(err)),
+      );
+  }
+
+  getContentHubGroupPeople(
+    groupId: number,
+    identityId: number,
+    opts: {sort?: string; excludeFollowed?: boolean; limit?: number} = {},
+  ): Observable<GroupPerson[]> {
+    let params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('limit', (opts.limit ?? 50).toString());
+    if (opts.sort) params = params.set('sort', opts.sort);
+    if (opts.excludeFollowed) params = params.set('exclude_followed', 'true');
+    return this.http
+      .get<GroupPerson[]>(`${this.base}/api/content-hub/groups/${groupId}/people`, {params, headers: this.headers})
+      .pipe(catchError((err) => this.handleError(err)));
   }
 }

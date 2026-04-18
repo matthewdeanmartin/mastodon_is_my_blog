@@ -7,7 +7,7 @@ import { ApiService } from './api.service';
 import { ContentHubStateService } from './content-hub-state.service';
 import { ContentHubPost } from './mastodon';
 import { combineLatest, Subscription } from 'rxjs';
-import { ContentFeedPost, contentFeedFilters, ContentFeedFilter, getPopularityScore, sortContentPosts } from './content-feed.utils';
+import { ContentFeedPost, contentFeedFilters, ContentFeedFilter, getPopularityScore, sortContentPosts, normalizeContentPost, getContentUserFilter } from './content-feed.utils';
 
 function hubToFeedPost(p: ContentHubPost): ContentFeedPost {
   return {
@@ -186,50 +186,46 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
   imports: [CommonModule],
   template: `
     <div class="card">
-      @if (!groupName) {
-        <div class="no-group">
-          <p>Select a hashtag group from the sidebar to see jobs here.</p>
+      <div class="filter-bar">
+        <div>
+          <h2 style="margin: 0;">{{ groupName ? groupName + ' — ' : '' }}Jobs</h2>
+          <p class="muted" style="margin: 6px 0 0;">Job-related posts.</p>
         </div>
-      } @else {
-        <div class="filter-bar">
-          <div>
-            <h2 style="margin: 0;">{{ groupName }} — Jobs</h2>
-            <p class="muted" style="margin: 6px 0 0;">Job-related posts in this group.</p>
-          </div>
-          <div class="filter-buttons">
-            @for (filter of filters; track filter) {
-              <button [class.active]="currentFilter === filter.value" (click)="setFilter(filter.value)" class="filter-btn">
-                {{ filter.label }}
-              </button>
-            }
+        <div class="filter-buttons">
+          @for (filter of filters; track filter) {
+            <button [class.active]="currentFilter === filter.value" (click)="setFilter(filter.value)" class="filter-btn">
+              {{ filter.label }}
+            </button>
+          }
+          @if (groupId !== null) {
             <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
               {{ refreshing ? 'Fetching...' : 'Fetch New' }}
             </button>
-          </div>
+          }
         </div>
+      </div>
 
-        @if (loading) { <div class="muted">Loading...</div> }
-        @if (!loading && posts.length === 0) {
-          <div class="muted">No job-related posts found in this group.</div>
-        }
+      @if (loading) { <div class="muted">Loading...</div> }
+      @if (!loading && posts.length === 0) {
+        <div class="muted">No job-related posts found.</div>
+      }
 
-        @for (post of posts; track post.id) {
-          <div class="post-card">
-            <div class="row" style="gap: 8px; align-items: center; margin-bottom: 6px;">
-              @if (post.author_avatar) {
-                <img [src]="post.author_avatar" alt="" style="width: 26px; height: 26px; border-radius: 50%;">
-              }
-              <strong style="font-size: 0.9rem;">{{ post.author_display_name || post.author_acct }}</strong>
-              <span class="muted" style="font-size: 0.8rem; margin-left: auto;">{{ post.created_at | date: 'short' }}</span>
-              <div class="signal-row" style="margin-left: 0;">
-                <span class="signal-pill">❤️ {{ post.counts.likes }}</span>
-                <span class="signal-pill">💬 {{ post.counts.replies }}</span>
-              </div>
+      @for (post of posts; track post.id) {
+        <div class="post-card">
+          <div class="row" style="gap: 8px; align-items: center; margin-bottom: 6px;">
+            @if (post.author_avatar) {
+              <img [src]="post.author_avatar" alt="" style="width: 26px; height: 26px; border-radius: 50%;">
+            }
+            <strong style="font-size: 0.9rem;">{{ post.author_display_name || post.author_acct }}</strong>
+            <span class="muted" style="font-size: 0.8rem; margin-left: auto;">{{ post.created_at | date: 'short' }}</span>
+            <div class="signal-row" style="margin-left: 0;">
+              <span class="signal-pill">❤️ {{ post.counts.likes }}</span>
+              <span class="signal-pill">💬 {{ post.counts.replies }}</span>
             </div>
-            <div [innerHTML]="post.content" style="margin: 8px 0; font-size: 0.92rem;"></div>
-            <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">View</button>
           </div>
-        }
+          <div [innerHTML]="post.content" style="margin: 8px 0; font-size: 0.92rem;"></div>
+          <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">View</button>
+        </div>
       }
     </div>
   `,
@@ -244,6 +240,7 @@ export class ContentHubJobsComponent implements OnInit, OnDestroy {
   loading = false;
   refreshing = false;
   groupName: string | null = null;
+  groupId: number | null = null;
   currentFilter: ContentFeedFilter = 'recent';
   readonly filters = contentFeedFilters;
 
@@ -253,30 +250,41 @@ export class ContentHubJobsComponent implements OnInit, OnDestroy {
     this.sub = combineLatest([this.api.identityId$, this.hubState.activeGroup$]).subscribe(
       ([identityId, group]) => {
         this.groupName = group?.name ?? null;
-        if (identityId && group) this.load(identityId, group.id);
-        else this.posts = [];
+        this.groupId = group?.id ?? null;
+        if (identityId) this.load(identityId, group?.id ?? null);
       },
     );
   }
 
   ngOnDestroy(): void { this.sub?.unsubscribe(); }
 
-  private load(identityId: number, groupId: number): void {
+  private load(identityId: number, groupId: number | null): void {
     this.loading = true;
-    this.api.getContentHubGroupPosts(groupId, identityId, 'jobs', null, 100).subscribe({
-      next: (res) => {
-        this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
-        this.loading = false;
-      },
-      error: () => (this.loading = false),
-    });
+    if (groupId !== null) {
+      this.api.getContentHubGroupPosts(groupId, identityId, 'jobs', null, 100).subscribe({
+        next: (res) => {
+          this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
+    } else {
+      const userFilter = getContentUserFilter(this.currentFilter);
+      this.api.getPublicPosts(identityId, 'jobs', userFilter).subscribe({
+        next: (page) => {
+          this.posts = sortContentPosts(page.items.map(normalizeContentPost), this.currentFilter);
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
+    }
   }
 
   setFilter(filter: ContentFeedFilter): void {
     this.currentFilter = filter;
     const identityId = this.api.getCurrentIdentityId();
     const group = this.hubState.getActiveGroup();
-    if (identityId && group) this.load(identityId, group.id);
+    if (identityId) this.load(identityId, group?.id ?? null);
   }
 
   fetchNew(): void {

@@ -19,6 +19,7 @@ from mastodon_is_my_blog.store import SeenPost  # ADDED
 from mastodon_is_my_blog.utils.perf import sync_stage
 from mastodon_is_my_blog.store import (
     CachedAccount,
+    CachedMyFavourite,
     CachedPost,
     MastodonIdentity,
     MetaAccount,
@@ -196,6 +197,7 @@ def build_post_payload(
     """Build a row payload dict for CachedPost from a Mastodon API status dict."""
     is_reblog = status["reblog"] is not None
     actual = status["reblog"] if is_reblog else status
+    actor = status["account"]
 
     in_reply_to_id = actual.get("in_reply_to_id")
     in_reply_to_account = actual.get("in_reply_to_account_id")
@@ -203,15 +205,17 @@ def build_post_payload(
         in_reply_to_account
     ) != str(actual["account"]["id"])
 
+    raw_tags = [t_tag["name"] for t_tag in status.get("tags", [])]
+    tags_json = json.dumps(raw_tags)
     flags = analyze_content_domains(
-        actual["content"], actual["media_attachments"], is_reply_to_other
+        actual["content"], actual["media_attachments"], is_reply_to_other,
+        tags=raw_tags,
     )
     media_json = (
         json.dumps(actual["media_attachments"])
         if actual["media_attachments"]
         else None
     )
-    tags_json = json.dumps([t_tag["name"] for t_tag in status.get("tags", [])])
 
     return {
         "id": str(status["id"]),
@@ -222,6 +226,8 @@ def build_post_payload(
         "visibility": status["visibility"],
         "author_acct": actual["account"]["acct"],
         "author_id": str(actual["account"]["id"]),
+        "actor_acct": actor["acct"],
+        "actor_id": str(actor["id"]),
         "is_reblog": is_reblog,
         "is_reply": is_reply_to_other,
         "in_reply_to_id": str(in_reply_to_id) if in_reply_to_id else None,
@@ -233,6 +239,7 @@ def build_post_payload(
         "has_news": flags["has_news"],
         "has_tech": flags["has_tech"],
         "has_link": flags["has_link"],
+        "has_job": flags["has_job"],
         "has_question": flags["has_question"],
         "tags": tags_json,
         "replies_count": status["replies_count"],
@@ -369,16 +376,92 @@ async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[di
             meta.id, identity, force=force
         )
 
+        # Sync outbound favourites for Engagement Matrix
+        fav_stats = await sync_my_favourites_for_identity(meta.id, identity)
+
         results.append(
             {
                 identity.acct: {
                     "timeline": timeline_res,
                     "notifications": notif_stats,
+                    "favourites": fav_stats,
                 }
             }
         )
 
     return results
+
+
+async def sync_my_favourites_for_identity(
+    meta_id: int,
+    identity: MastodonIdentity,
+    full: bool = False,
+    inter_page_delay: float = 0.3,
+    max_pages: int | None = None,
+) -> dict[str, int]:
+    """Paginate client.favourites() and upsert into cached_my_favourites.
+
+    Mirrors the shape of sync_all_notifications_for_identity.
+    """
+    import asyncio
+
+    async with sync_stage(f"sync_my_favourites:{identity.acct}") as t:
+        m = client_from_identity(identity)
+        stats = {"total": 0, "new": 0}
+        pages = 0
+
+        try:
+            page = await asyncio.to_thread(m.favourites, limit=40)
+            while page:
+                rows = []
+                for status in page:
+                    stats["total"] += 1
+                    account = status.get("account", {})
+                    rows.append(
+                        {
+                            "status_id": str(status["id"]),
+                            "meta_account_id": meta_id,
+                            "identity_id": identity.id,
+                            "target_account_id": str(account.get("id", "")),
+                            "target_acct": account.get("acct", ""),
+                            "favourited_at": to_naive_utc(status.get("created_at")),
+                        }
+                    )
+
+                if rows:
+                    async with async_session() as session:
+                        stmt = sqlite_insert(CachedMyFavourite).values(rows)
+                        stmt = stmt.on_conflict_do_update(
+                            index_elements=[
+                                "status_id",
+                                "meta_account_id",
+                                "identity_id",
+                            ],
+                            set_={
+                                "target_account_id": stmt.excluded.target_account_id,
+                                "target_acct": stmt.excluded.target_acct,
+                                "favourited_at": stmt.excluded.favourited_at,
+                            },
+                        )
+                        await session.execute(stmt)
+                        await session.commit()
+                    stats["new"] += len(rows)
+
+                pages += 1
+                if not full or (max_pages is not None and pages >= max_pages):
+                    break
+                next_page = await asyncio.to_thread(m.fetch_next, page)
+                if not next_page:
+                    break
+                page = next_page
+                await asyncio.sleep(inter_page_delay)
+
+            t.rows_fetched = stats["total"]
+            t.rows_written = stats["new"]
+            return stats
+        except Exception as e:
+            logger.error("sync_my_favourites failed for %s: %s", identity.acct, e)
+            raise
 
 
 async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity) -> None:
@@ -765,7 +848,9 @@ async def get_counts_optimized(
     ]
 
     if user:
-        base_conditions.append(CachedPost.author_acct == user)
+        base_conditions.append(
+            func.coalesce(CachedPost.actor_acct, CachedPost.author_acct) == user
+        )
 
     # Helper for conditional aggregation
     def filter_count(condition, label: str):
@@ -791,12 +876,16 @@ async def get_counts_optimized(
         CachedPost.has_link.is_(False),
         func.length(CachedPost.content) >= 500,
     )
-    f_news = CachedPost.has_news.is_(True)
-    f_software = CachedPost.has_tech.is_(True)
-    f_links = CachedPost.has_link.is_(True)
-    f_pics = CachedPost.has_media.is_(True)
-    f_vids = CachedPost.has_video.is_(True)
-    f_discussions = CachedPost.is_reply.is_(True)
+    f_news = and_(CachedPost.is_reblog.is_(False), CachedPost.has_news.is_(True))
+    f_software = and_(CachedPost.is_reblog.is_(False), CachedPost.has_tech.is_(True))
+    f_links = and_(CachedPost.is_reblog.is_(False), CachedPost.has_link.is_(True))
+    f_pics = and_(CachedPost.is_reblog.is_(False), CachedPost.has_media.is_(True))
+    f_vids = and_(CachedPost.is_reblog.is_(False), CachedPost.has_video.is_(True))
+    f_discussions = and_(
+        CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(True)
+    )
+    f_jobs = and_(CachedPost.is_reblog.is_(False), CachedPost.has_job.is_(True))
+    f_reposts = CachedPost.is_reblog.is_(True)
 
     # Build the massive select
     sel_args = []
@@ -810,6 +899,8 @@ async def get_counts_optimized(
         (f_pics, "pictures"),
         (f_vids, "videos"),
         (f_discussions, "discussions"),
+        (f_jobs, "jobs"),
+        (f_reposts, "reposts"),
     ]:
         sel_args.extend(filter_count(cond, name))
 
@@ -842,6 +933,8 @@ async def get_counts_optimized(
         "pictures",
         "videos",
         "discussions",
+        "jobs",
+        "reposts",
     ]
     stats = {"user": user or "all"}
 

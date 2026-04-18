@@ -217,6 +217,36 @@ describe('ApiService', () => {
     });
   });
 
+  describe('Account Catch Up', () => {
+    it('should start recent catch-up for an account', () => {
+      service.startAccountCatchup('user@domain', 42, 'recent').subscribe();
+
+      const req = httpMock.expectOne((r) => r.url.includes('/api/accounts/user@domain/catchup'));
+      expect(req.request.method).toBe('POST');
+      expect(req.request.params.get('identity_id')).toBe('42');
+      expect(req.request.params.get('mode')).toBe('recent');
+      req.flush({});
+    });
+
+    it('should get account catch-up status', () => {
+      service.getAccountCatchupStatus('user@domain', 42).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url.includes('/api/accounts/user@domain/catchup/status'));
+      expect(req.request.method).toBe('GET');
+      expect(req.request.params.get('identity_id')).toBe('42');
+      req.flush({});
+    });
+
+    it('should cancel account catch-up', () => {
+      service.cancelAccountCatchup('user@domain', 42).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url.includes('/api/accounts/user@domain/catchup'));
+      expect(req.request.method).toBe('DELETE');
+      expect(req.request.params.get('identity_id')).toBe('42');
+      req.flush({});
+    });
+  });
+
   describe('Admin / Write Methods', () => {
     it('should trigger sync with force param', () => {
       service.triggerSync(true).subscribe();

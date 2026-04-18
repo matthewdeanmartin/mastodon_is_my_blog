@@ -128,15 +128,6 @@ build-wheel-skip-ng:
 	./scripts/build.sh --skip-ng
 	@echo "✓ Distributions built in dist/"
 
-# Publish to TestPyPI
-#publish-test: build-wheel
-#	@echo "Publishing to TestPyPI..."
-#	uv run twine upload --repository testpypi dist/*
-
-## Publish to PyPI
-#publish: build-wheel
-#	@echo "Publishing to PyPI..."
-#	uv run twine upload dist/*
 
 # Install local wheel and smoke-test the CLI
 install-from-wheel:
@@ -188,33 +179,15 @@ format: format-backend format-frontend
 
 format-backend:
 	@echo "Formatting Python code..."
-	-ruff format mastodon_is_my_blog/
+	uv run ruff format mastodon_is_my_blog/
 
 format-frontend:
 	@echo "Formatting TypeScript code..."
 	cd web && npx prettier --write "src/**/*.{ts,html,scss}"
 
-# Reset database
-db-reset:
-	@echo "Resetting database..."
-	rm -f app.db
-	@echo "✓ Database deleted. It will be recreated on next backend start."
-
 # Clean build artifacts
 clean:
-	@echo "Cleaning build artifacts and caches..."
-	rm -rf web/dist/
-	rm -rf web/.angular/
-	rm -rf web/node_modules/.cache/
-	rm -rf mastodon_is_my_blog/static/browser/
-	rm -rf dist/
-	rm -rf **/__pycache__/
-	rm -rf **/*.pyc
-	rm -rf .pytest_cache/
-	rm -rf .mypy_cache/
-	rm -rf .ruff_cache/
-	rm -rf *.egg-info/
-	@echo "✓ Cleaned"
+	@echo "nope"
 
 # Development utilities
 logs-backend:
@@ -237,7 +210,6 @@ kill:
 # Check environment
 check-env:
 	@echo "Checking environment..."
-	@command -v python3 >/dev/null 2>&1 || (echo "❌ Python 3 not found"; exit 1)
 	@command -v node >/dev/null 2>&1 || (echo "❌ Node.js not found"; exit 1)
 	@command -v npm >/dev/null 2>&1 || (echo "❌ npm not found"; exit 1)
 	@python3 --version
@@ -250,14 +222,9 @@ update: update-backend update-frontend
 
 update-backend:
 	@echo "Updating Python dependencies..."
-	pip install --upgrade -e .
+	uv sync --all-extras
 
 update-frontend:
 	@echo "Updating Node dependencies..."
 	cd web && npm update
 
-# Generate static site (future feature)
-generate-static:
-	@echo "Generating static site..."
-	@echo "⚠️  This feature is not yet implemented"
-	@echo "TODO: Add static site generation"

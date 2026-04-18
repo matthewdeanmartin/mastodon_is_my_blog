@@ -34,23 +34,54 @@ export interface MastodonStatus {
 
 export interface MastodonAccount {
   id: string;
-  username: string;
+  username?: string;
   acct: string;
   display_name: string;
   avatar: string;
-  avatar_static: string;
-  header: string;
-  header_static: string;
-  locked: boolean;
+  avatar_static?: string;
+  header?: string;
+  header_static?: string;
+  locked?: boolean;
   bot: boolean;
-  created_at: string;
+  created_at?: string | null;
   note: string;
   url: string;
-  followers_count: number;
-  following_count: number;
-  statuses_count: number;
-  last_status_at: string;
-  fields: unknown[];
+  followers_count?: number;
+  following_count?: number;
+  statuses_count?: number;
+  last_status_at?: string | null;
+  fields?: unknown[];
+  counts?: {
+    followers: number;
+    following: number;
+    statuses: number;
+  };
+  is_following?: boolean;
+  is_followed_by?: boolean;
+  cache_state?: AccountCacheState;
+}
+
+export interface AccountCacheState {
+  cached_posts: number;
+  latest_cached_post_at: string | null;
+  is_stale: boolean;
+  stale_reason: string;
+}
+
+export interface AccountCatchupStatus {
+  running: boolean;
+  finished: boolean;
+  acct: string;
+  mode: 'recent' | 'deep';
+  stage: string;
+  pages_fetched: number;
+  posts_fetched: number;
+  new_posts: number;
+  updated_posts: number;
+  started_at: string;
+  finished_at: string | null;
+  error: string | null;
+  cancel_requested: boolean;
 }
 
 export interface AdminStatus {
@@ -222,4 +253,77 @@ export interface NotificationTrendActor {
 export interface NotificationTrendsResponse {
   by_type: NotificationTrendBucket[];
   by_actor: NotificationTrendActor[];
+}
+
+// Peeps Finder
+
+export interface PeepsEntry {
+  account_id: string;
+  acct: string;
+  display_name: string;
+  avatar: string;
+  is_following: boolean;
+  is_followed_by: boolean;
+  statuses_count: number;
+  in_score: number;
+  out_score: number;
+  combined_score: number;
+}
+
+export interface EngagementMatrix {
+  inner_circle: PeepsEntry[];
+  fans: PeepsEntry[];
+  idols: PeepsEntry[];
+  broadcasters: PeepsEntry[];
+}
+
+export interface DossierHashtag {
+  tag: string;
+  count: number;
+}
+
+export interface DossierInteractionWindow {
+  them_to_me: number;
+  me_to_them: number;
+}
+
+export interface DossierMediaProfile {
+  total: number;
+  has_media: number;
+  has_video: number;
+  has_link: number;
+}
+
+export interface Dossier {
+  id: string;
+  acct: string;
+  display_name: string;
+  avatar: string;
+  header: string;
+  url: string;
+  note: string;
+  fields: unknown[];
+  bot: boolean;
+  followers_count: number;
+  following_count: number;
+  statuses_count: number;
+  is_following: boolean;
+  is_followed_by: boolean;
+  post_reply_ratio: number | null;
+  top_hashtags: DossierHashtag[];
+  interaction_history: Record<string, DossierInteractionWindow>;
+  media_profile: DossierMediaProfile;
+  is_stale: boolean;
+}
+
+export interface GroupPerson {
+  acct: string;
+  display_name: string;
+  avatar: string;
+  note: string;
+  is_following: boolean;
+  is_followed_by: boolean;
+  post_count_in_group: number;
+  last_in_group: string | null;
+  total_engagement_in_group: number;
 }

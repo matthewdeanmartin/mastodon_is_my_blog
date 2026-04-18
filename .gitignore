@@ -218,3 +218,5 @@ SOURCE_UI.md
 
 # Angular build output copied into Python package (populated by scripts/build.sh)
 mastodon_is_my_blog/static/browser/
+/app.db-wal
+/app.db-shm

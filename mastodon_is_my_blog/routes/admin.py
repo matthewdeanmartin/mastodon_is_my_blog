@@ -23,6 +23,7 @@ from mastodon_is_my_blog.queries import (
     get_current_meta_account,
     sync_all_following_for_identity,
     sync_all_identities,
+    sync_my_favourites_for_identity,
     sync_user_timeline_for_identity,
 )
 from mastodon_is_my_blog.bulk_sync_jobs import (
@@ -160,6 +161,18 @@ async def cancel_sync_all_notifications(
     if not cancelled:
         raise HTTPException(404, "No running notifications-sync job for this identity")
     return {"cancelled": True}
+
+
+@router.post("/sync-my-favourites")
+async def start_sync_my_favourites(
+    identity_id: int | None = None,
+    full: bool = False,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """Paginated download of the identity's outbound favourites into cached_my_favourites."""
+    identity = await _get_identity(meta, identity_id)
+    stats = await sync_my_favourites_for_identity(meta.id, identity, full=full)
+    return {"synced": True, **stats}
 
 
 @router.post("/own-account/catchup")

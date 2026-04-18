@@ -11,12 +11,14 @@ the filter and causing `scope = and_(..., False)` to match 0 rows.
 """
 
 from datetime import datetime
+from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
 from sqlalchemy import and_, desc, func, select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from mastodon_is_my_blog.routes import posts
 from mastodon_is_my_blog.store import Base, CachedPost
 
 
@@ -45,11 +47,14 @@ def make_post(
     has_video: bool = False,
     has_news: bool = False,
     has_tech: bool = False,
+    has_job: bool = False,
     has_question: bool = False,
     in_reply_to_id: str | None = None,
     content: str = "<p>Test post</p>",
     author_acct: str = "alice@example.com",
     author_id: str = "author-1",
+    actor_acct: str | None = None,
+    actor_id: str | None = None,
     created_at: datetime | None = None,
 ) -> CachedPost:
     return CachedPost(
@@ -63,11 +68,14 @@ def make_post(
         has_video=has_video,
         has_news=has_news,
         has_tech=has_tech,
+        has_job=has_job,
         has_question=has_question,
         in_reply_to_id=in_reply_to_id,
         content=content,
         author_acct=author_acct,
         author_id=author_id,
+        actor_acct=actor_acct or author_acct,
+        actor_id=actor_id or author_id,
         visibility="public",
         created_at=created_at or datetime(2024, 1, 1, 12, 0, 0),
         replies_count=0,
@@ -276,3 +284,97 @@ async def test_storms_scope_returns_nonzero_results(in_memory_session) -> None:
     roots = result.scalars().all()
 
     assert len(roots) == 3
+
+
+@pytest.mark.asyncio
+async def test_get_public_posts_reposts_filter_uses_actor_acct(
+    in_memory_session, monkeypatch
+) -> None:
+    in_memory_session.add_all(
+        [
+            make_post(
+                "original-1",
+                author_acct="alice@example.com",
+                actor_acct="alice@example.com",
+                is_reblog=False,
+            ),
+            make_post(
+                "reblog-1",
+                author_acct="charlie@example.com",
+                author_id="charlie-1",
+                actor_acct="alice@example.com",
+                actor_id="alice-1",
+                is_reblog=True,
+            ),
+            make_post(
+                "reblog-2",
+                author_acct="alice@example.com",
+                actor_acct="bob@example.com",
+                actor_id="bob-1",
+                is_reblog=True,
+            ),
+        ]
+    )
+    await in_memory_session.commit()
+
+    session_factory = async_sessionmaker(in_memory_session.bind, expire_on_commit=False)
+    monkeypatch.setattr(posts, "async_session", session_factory)
+
+    result = await posts.get_public_posts(
+        identity_id=1,
+        user="alice@example.com",
+        filter_type="reposts",
+        limit=10,
+        before=None,
+        meta=SimpleNamespace(id=1),
+    )
+
+    assert [item["id"] for item in result["items"]] == ["reblog-1"]
+    assert result["items"][0]["author_acct"] == "charlie@example.com"
+    assert result["items"][0]["is_reblog"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("filter_type", "post_id", "post_kwargs"),
+    [
+        ("links", "original-link", {"has_link": True}),
+        ("pictures", "original-picture", {"has_media": True}),
+        ("videos", "original-video", {"has_video": True}),
+        ("news", "original-news", {"has_news": True}),
+        ("software", "original-software", {"has_tech": True}),
+        (
+            "discussions",
+            "original-discussion",
+            {"is_reply": True, "in_reply_to_id": "root-1"},
+        ),
+        ("questions", "original-question", {"has_question": True}),
+        ("jobs", "original-job", {"has_job": True}),
+    ],
+)
+async def test_content_filters_exclude_reposts(
+    in_memory_session, monkeypatch, filter_type, post_id, post_kwargs
+) -> None:
+    original = make_post(post_id, **post_kwargs)
+    repost = make_post(
+        f"{post_id}-repost",
+        is_reblog=True,
+        **post_kwargs,
+    )
+    in_memory_session.add_all([original, repost])
+    await in_memory_session.commit()
+
+    session_factory = async_sessionmaker(in_memory_session.bind, expire_on_commit=False)
+    monkeypatch.setattr(posts, "async_session", session_factory)
+
+    result = await posts.get_public_posts(
+        identity_id=1,
+        user=None,
+        filter_type=filter_type,
+        limit=10,
+        before=None,
+        meta=SimpleNamespace(id=1),
+    )
+
+    assert [item["id"] for item in result["items"]] == [post_id]
+    assert result["items"][0]["is_reblog"] is False

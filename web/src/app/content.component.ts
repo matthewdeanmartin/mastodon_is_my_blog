@@ -23,6 +23,7 @@ import { Subscription } from 'rxjs';
           <a routerLink="software" routerLinkActive="active" (click)="clearGroup()">💻 Software</a>
           <a routerLink="links"    routerLinkActive="active" (click)="clearGroup()">🔗 Links</a>
           <a routerLink="news"     routerLinkActive="active" (click)="clearGroup()">📰 News</a>
+          <a routerLink="jobs"     routerLinkActive="active" (click)="clearGroup()">💼 Jobs</a>
         </nav>
 
         <!-- Hashtag groups section -->
@@ -61,6 +62,7 @@ import { Subscription } from 'rxjs';
                 <a routerLink="news"     routerLinkActive="tab-active">📰 News</a>
                 <a routerLink="text"     routerLinkActive="tab-active">📝 Text</a>
                 <a routerLink="jobs"     routerLinkActive="tab-active">💼 Jobs</a>
+                <a routerLink="people"   routerLinkActive="tab-active">👥 People</a>
               </nav>
             }
           </div>

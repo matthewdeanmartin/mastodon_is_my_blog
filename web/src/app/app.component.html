@@ -36,6 +36,7 @@
       <a routerLink="/forum" routerLinkActive="active-nav">💬 Forum</a>
       <a routerLink="/write" routerLinkActive="active-nav">✏️ Write</a>
       <a routerLink="/analytics" routerLinkActive="active-nav">📊 Analytics</a>
+      <a routerLink="/peeps" routerLinkActive="active-nav">🫂 Peeps</a>
       <a routerLink="/admin" routerLinkActive="active-nav">⚙️ Admin</a>
     </nav>
   </div>
@@ -55,6 +56,41 @@
           <div
             [innerHTML]="activeUserInfo.note"
             style="font-size: 0.9rem; color: #555; line-height: 1.5;">
+          </div>
+        }
+        @if (showPeopleCatchupControls()) {
+          <div style="margin-top: 14px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
+            <div style="font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px;">
+              Cached view
+            </div>
+            <div style="font-size: 0.92rem; color: #334155; line-height: 1.5; margin-bottom: 8px;">
+              {{ activeUserCacheMessage() }}
+            </div>
+            <div style="font-size: 0.82rem; color: #64748b; line-height: 1.4; margin-bottom: 10px;">
+              Catch Up fetches the newest page of posts for this account. Deep Catch Up backfills all available history in the background.
+            </div>
+            @if (activeUserCatchupError) {
+              <div style="color: #dc2626; font-size: 0.82rem; margin-bottom: 8px;">{{ activeUserCatchupError }}</div>
+            }
+            @if (activeUserCatchup) {
+              <div style="font-size: 0.82rem; color: #475569; margin-bottom: 8px;">
+                @if (activeUserCatchup.running) {
+                  <span>Running {{ activeUserCatchup.mode }} catch-up — {{ activeUserCatchup.stage }}</span>
+                } @else {
+                  <span>Last {{ activeUserCatchup.mode }} catch-up finished — {{ activeUserCatchup.posts_fetched }} posts fetched across {{ activeUserCatchup.pages_fetched }} page(s).</span>
+                }
+              </div>
+            }
+            <div class="row" style="gap: 8px; justify-content: flex-start; flex-wrap: wrap;">
+              @if (!activeUserCatchup?.running) {
+                <button class="secondary" (click)="startActiveUserCatchup('recent')">Catch Up</button>
+                <button class="secondary" (click)="startActiveUserCatchup('deep')">Deep Catch Up</button>
+              }
+              @if (activeUserCatchup?.running) {
+                <button class="secondary" (click)="stopActiveUserCatchup()">Stop</button>
+              }
+              <a [routerLink]="['/peeps/dossier', activeUserInfo.acct]" class="nav-btn" style="margin: 0; width: auto;">View Dossier</a>
+            </div>
           </div>
         }
       </div>
@@ -105,7 +141,6 @@
                 <!-- was  queryParamsHandling="merge" why not now?-->
                 <a [routerLink]="['/']"
                   [queryParams]="{user: acc.acct, filter: 'storms'}"
-                  (click)="prefetchNextBlogrollUser(acc.acct)"
                   [style.background]="isActiveUser(acc.acct) ? '#e0e7ff' : (isRecentlyViewed(acc.acct) ? '#f3f4f6' : 'transparent')"
                   [style.border-left]="isActiveUser(acc.acct) ? '3px solid #6366f1' : 'none'"
                   [style.padding]="'8px'"

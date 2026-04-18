@@ -35,13 +35,13 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
   isStormView = false;
   currentFilter = 'storms';
   currentUser: string | undefined;
-  syncingUser = false;
   unreadCount = 0;
 
   currentIdentityId: number | null = null;
   seenPostIds = new Set<string>();
 
   private scrollSubscription?: Subscription;
+  private refreshSubscription?: Subscription;
   private observer?: IntersectionObserver;
   private loadMoreObserver?: IntersectionObserver;
 
@@ -92,10 +92,15 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
           if (filterChanged || userChanged || identityChanged) {
               this.currentFilter = newFilter;
               this.currentUser = newUser;
-              this.syncingUser = false;
               this.load(this.currentFilter, this.currentUser, identityId);
           }
       });
+
+    this.refreshSubscription = this.api.refreshNeeded$.subscribe(() => {
+      if (this.currentIdentityId) {
+        this.load(this.currentFilter, this.currentUser, this.currentIdentityId);
+      }
+    });
   }
 
   load(filter: string, user: string | undefined, identityId: number): void {
@@ -109,29 +114,19 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     const handleSuccess = (page: FeedPage<RawContentPost | Storm>) => {
       this.loading = false;
       const data = page.items;
-      // If we got an empty list for a specific user, try syncing ONCE to see if they exist remotely
-      if (data.length === 0 && user && user !== 'everyone' && filter !== 'everyone' && !this.syncingUser) {
-        this.attemptUserSync(user, identityId);
-      } else {
-        this.items = data;
-        this.nextCursor = page.next_cursor;
-        this.trackSeenPosts(data);
-        this.updateUnreadCount();
-        this.cdr.markForCheck();
-        // Observe the load-more sentinel after the first page lands.
-        // Defer so the DOM has rendered the sentinel.
-        setTimeout(() => this.setupLoadMoreObserver(), 0);
-      }
+      this.items = data;
+      this.nextCursor = page.next_cursor;
+      this.trackSeenPosts(data);
+      this.updateUnreadCount();
+      this.cdr.markForCheck();
+      // Observe the load-more sentinel after the first page lands.
+      // Defer so the DOM has rendered the sentinel.
+      setTimeout(() => this.setupLoadMoreObserver(), 0);
     };
 
     const handleError = (error: HttpErrorResponse) => {
-      if (error.status === 404 && user && user !== 'everyone' && !this.syncingUser) {
-          console.log(`Posts not found (404) for ${user}, attempting JIT sync...`);
-          this.attemptUserSync(user, identityId);
-      } else {
-          console.error(`Error loading posts (Status: ${error.status}):`, error);
-          this.loading = false;
-      }
+      console.error(`Error loading posts (Status: ${error.status}):`, error);
+      this.loading = false;
     };
 
     // If 'storms' (or legacy 'all'), use the Storms endpoint for the threaded view
@@ -231,23 +226,6 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     return item.id;
   }
 
-  attemptUserSync(acct: string, identityId: number): void {
-    this.syncingUser = true;
-    this.loading = true;
-
-    // We only try this once per navigation to avoid loops
-    this.api.syncAccount(acct, identityId).subscribe({
-      next: () => {
-        // Retry load exactly once
-        this.load(this.currentFilter, acct, identityId);
-      },
-      error: (err: unknown) => {
-        console.error('Failed to sync user', err);
-        this.loading = false;
-      },
-    });
-  }
-
   vm(postId: string): FeedViewModel | undefined {
     return this.viewModels.get(postId);
   }
@@ -288,6 +266,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnDestroy(): void {
+    this.refreshSubscription?.unsubscribe();
     this.scrollSubscription?.unsubscribe();
     this.observer?.disconnect();
     this.loadMoreObserver?.disconnect();

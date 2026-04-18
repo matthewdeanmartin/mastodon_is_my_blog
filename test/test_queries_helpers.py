@@ -134,6 +134,7 @@ def test_build_post_payload_handles_reblogs_and_reply_flags() -> None:
             "has_news": False,
             "has_tech": True,
             "has_link": True,
+            "has_job": False,
             "has_question": False,
         },
     ):
@@ -164,6 +165,7 @@ async def test_bulk_upsert_posts_returns_new_and_updated_counts(db_session) -> N
             "has_news": False,
             "has_tech": False,
             "has_link": False,
+            "has_job": False,
             "has_question": False,
         },
     ):
@@ -185,6 +187,47 @@ async def test_bulk_upsert_posts_returns_new_and_updated_counts(db_session) -> N
 
     assert result == (1, 1)
     assert stored.content == "<p>newest</p>"
+
+
+@pytest.mark.asyncio
+async def test_bulk_upsert_posts_preserves_reblog_actor_identity(db_session) -> None:
+    reblogged = make_status(
+        "orig-1",
+        account_id="orig-author",
+        acct="author@example.social",
+        content="<p>Original</p>",
+    )
+    boosted = make_status(
+        "boost-1",
+        account_id="booster-1",
+        acct="booster@example.social",
+        reblog=reblogged,
+    )
+
+    with patch.object(
+        queries,
+        "analyze_content_domains",
+        return_value={
+            "has_media": False,
+            "has_video": False,
+            "has_news": False,
+            "has_tech": False,
+            "has_link": False,
+            "has_job": False,
+            "has_question": False,
+        },
+    ):
+        await queries.bulk_upsert_posts(db_session, 1, 1, [boosted])
+    await db_session.commit()
+
+    stored = (
+        await db_session.execute(select(CachedPost).where(CachedPost.id == "boost-1"))
+    ).scalar_one()
+
+    assert stored.author_acct == "author@example.social"
+    assert stored.author_id == "orig-author"
+    assert stored.actor_acct == "booster@example.social"
+    assert stored.actor_id == "booster-1"
 
 
 @pytest.mark.asyncio
@@ -237,7 +280,43 @@ async def test_get_counts_optimized_returns_totals_and_unseen(db_session) -> Non
     assert stats["storms"] == {"total": 1, "unseen": 1}
     assert stats["news"] == {"total": 1, "unseen": 1}
     assert stats["discussions"] == {"total": 1, "unseen": 1}
+    assert stats["reposts"] == {"total": 0, "unseen": 0}
 
+
+@pytest.mark.asyncio
+async def test_get_counts_optimized_excludes_reposts_from_content_filters(
+    db_session,
+) -> None:
+    db_session.add_all(
+        [
+            make_cached_post(post_id="link-original", has_link=True),
+            make_cached_post(post_id="link-repost", has_link=True, is_reblog=True),
+            make_cached_post(post_id="pic-original", has_media=True),
+            make_cached_post(post_id="pic-repost", has_media=True, is_reblog=True),
+            make_cached_post(
+                post_id="discussion-original",
+                is_reply=True,
+                in_reply_to_id="root-1",
+            ),
+            make_cached_post(
+                post_id="discussion-repost",
+                is_reply=True,
+                in_reply_to_id="root-2",
+                is_reblog=True,
+            ),
+            make_cached_post(post_id="software-original", has_tech=True),
+            make_cached_post(post_id="software-repost", has_tech=True, is_reblog=True),
+        ]
+    )
+    await db_session.commit()
+
+    stats = await queries.get_counts_optimized(db_session, 1, 1)
+
+    assert stats["links"] == {"total": 1, "unseen": 1}
+    assert stats["pictures"] == {"total": 1, "unseen": 1}
+    assert stats["discussions"] == {"total": 1, "unseen": 1}
+    assert stats["software"] == {"total": 1, "unseen": 1}
+    assert stats["reposts"] == {"total": 4, "unseen": 4}
 
 @pytest.mark.asyncio
 async def test_sync_user_timeline_for_identity_skips_recent_cooldown() -> None:

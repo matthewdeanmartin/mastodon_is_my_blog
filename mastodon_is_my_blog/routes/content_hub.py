@@ -15,10 +15,10 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, desc, or_, select
+from sqlalchemy import and_, desc, func, label, or_, select
 from sqlalchemy.orm import selectinload
 
-from mastodon_is_my_blog.content_hub_classifier import is_jobs_post, is_videos_post
+from mastodon_is_my_blog.content_hub_classifier import is_videos_post
 from mastodon_is_my_blog.content_hub_service import (
     is_group_stale,
     refresh_group,
@@ -113,7 +113,7 @@ async def list_groups(
 async def get_group_posts(
     group_id: int,
     identity_id: int = Query(...),
-    tab: str = Query("text", enum=["text", "videos", "jobs"]),
+    tab: str = Query("text", enum=["text", "videos", "jobs", "software", "news", "links"]),
     limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     before: str | None = Query(None),
     meta: MetaAccount = Depends(get_current_meta_account),
@@ -171,7 +171,13 @@ async def get_group_posts(
     if tab == "videos":
         posts = [p for p in posts if is_videos_post(p)]
     elif tab == "jobs":
-        posts = [p for p in posts if is_jobs_post(p)]
+        posts = [p for p in posts if p.has_job]
+    elif tab == "software":
+        posts = [p for p in posts if p.has_tech]
+    elif tab == "news":
+        posts = [p for p in posts if p.has_news]
+    elif tab == "links":
+        posts = [p for p in posts if p.has_link]
     # "text" includes all posts
 
     has_more = len(posts) > limit
@@ -250,6 +256,126 @@ async def force_refresh_group(
 
     result = await refresh_group(meta.id, identity, group_id, force=True)
     return {"refreshed": True, **result}
+
+
+@router.get("/groups/{group_id}/people")
+async def get_group_people(
+    group_id: int,
+    identity_id: int = Query(...),
+    limit: int = Query(50, ge=1, le=200),
+    sort: str = Query("posts", enum=["posts", "recent", "engagement"]),
+    exclude_followed: bool = Query(False),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> list[dict]:
+    """Ranked list of distinct authors posting in a Content Hub group."""
+    async with async_session() as session:
+        group = await session.get(ContentHubGroup, group_id)
+        if (
+            group is None
+            or group.meta_account_id != meta.id
+            or group.identity_id != identity_id
+        ):
+            raise HTTPException(404, "Group not found")
+
+        subq = (
+            select(
+                CachedPost.author_id,
+                CachedPost.author_acct,
+            )
+            .join(
+                ContentHubPostMatch,
+                and_(
+                    ContentHubPostMatch.post_id == CachedPost.id,
+                    ContentHubPostMatch.meta_account_id == CachedPost.meta_account_id,
+                    ContentHubPostMatch.fetched_by_identity_id
+                    == CachedPost.fetched_by_identity_id,
+                    ContentHubPostMatch.group_id == group_id,
+                ),
+            )
+            .where(
+                CachedPost.meta_account_id == meta.id,
+                CachedPost.fetched_by_identity_id == identity_id,
+            )
+        )
+
+        aggregated = (
+            select(
+                CachedPost.author_acct,
+                CachedPost.author_id,
+                label("post_count_in_group", func.count(CachedPost.id)),
+                label("last_in_group", func.max(CachedPost.created_at)),
+                label(
+                    "total_engagement_in_group",
+                    func.sum(
+                        CachedPost.favourites_count
+                        + CachedPost.reblogs_count
+                        + CachedPost.replies_count
+                    ),
+                ),
+            )
+            .join(
+                ContentHubPostMatch,
+                and_(
+                    ContentHubPostMatch.post_id == CachedPost.id,
+                    ContentHubPostMatch.meta_account_id == CachedPost.meta_account_id,
+                    ContentHubPostMatch.fetched_by_identity_id
+                    == CachedPost.fetched_by_identity_id,
+                    ContentHubPostMatch.group_id == group_id,
+                ),
+            )
+            .where(
+                CachedPost.meta_account_id == meta.id,
+                CachedPost.fetched_by_identity_id == identity_id,
+            )
+            .group_by(CachedPost.author_acct, CachedPost.author_id)
+        )
+
+        if sort == "recent":
+            aggregated = aggregated.order_by(desc("last_in_group"))
+        elif sort == "engagement":
+            aggregated = aggregated.order_by(desc("total_engagement_in_group"))
+        else:
+            aggregated = aggregated.order_by(
+                desc("post_count_in_group"), desc("last_in_group")
+            )
+
+        aggregated = aggregated.limit(limit * 2)
+        agg_rows = (await session.execute(aggregated)).all()
+
+        author_accts = {row.author_acct for row in agg_rows}
+        accounts_map: dict[str, CachedAccount] = {}
+        if author_accts:
+            acct_stmt = select(CachedAccount).where(
+                CachedAccount.meta_account_id == meta.id,
+                CachedAccount.mastodon_identity_id == identity_id,
+                CachedAccount.acct.in_(author_accts),
+            )
+            for ca in (await session.execute(acct_stmt)).scalars():
+                accounts_map[ca.acct] = ca
+
+    items = []
+    for row in agg_rows:
+        ca = accounts_map.get(row.author_acct)
+        is_following = ca.is_following if ca else False
+        if exclude_followed and is_following:
+            continue
+        items.append(
+            {
+                "acct": row.author_acct,
+                "display_name": ca.display_name if ca else row.author_acct,
+                "avatar": ca.avatar if ca else "",
+                "note": ca.note if ca else "",
+                "is_following": is_following,
+                "is_followed_by": ca.is_followed_by if ca else False,
+                "post_count_in_group": row.post_count_in_group,
+                "last_in_group": row.last_in_group.isoformat() if row.last_in_group else None,
+                "total_engagement_in_group": row.total_engagement_in_group or 0,
+            }
+        )
+        if len(items) >= limit:
+            break
+
+    return items
 
 
 @router.post("/sync-follows")

@@ -144,6 +144,8 @@ async def get_public_posts(
             "software",
             "links",
             "questions",
+            "jobs",
+            "reposts",
             "everyone",
         ],
     ),
@@ -195,8 +197,11 @@ async def get_public_posts(
             # Show all posts fetched by this identity
             pass
         elif user:
-            # Filter by specific author
-            query = query.where(CachedPost.author_acct == user)
+            # Filter by the account that created the top-level timeline event.
+            # For boosts, that is the boosting account rather than the original author.
+            query = query.where(
+                func.coalesce(CachedPost.actor_acct, CachedPost.author_acct) == user
+            )
         else:
             # No user specified: Default to posts AUTHORED by the identity itself
             # We need to look up the acct for this identity_id to be safe
@@ -233,21 +238,44 @@ async def get_public_posts(
             )
         elif filter_type == "discussions":
             # Only replies to others
-            query = query.where(CachedPost.is_reply.is_(True))
+            query = query.where(
+                and_(CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(True))
+            )
         elif filter_type == "pictures":
-            query = query.where(CachedPost.has_media.is_(True))
+            query = query.where(
+                and_(CachedPost.is_reblog.is_(False), CachedPost.has_media.is_(True))
+            )
         elif filter_type == "videos":
-            query = query.where(CachedPost.has_video.is_(True))
+            query = query.where(
+                and_(CachedPost.is_reblog.is_(False), CachedPost.has_video.is_(True))
+            )
         elif filter_type == "news":
-            query = query.where(CachedPost.has_news.is_(True))
+            query = query.where(
+                and_(CachedPost.is_reblog.is_(False), CachedPost.has_news.is_(True))
+            )
         elif filter_type == "software":
-            query = query.where(CachedPost.has_tech.is_(True))
+            query = query.where(
+                and_(CachedPost.is_reblog.is_(False), CachedPost.has_tech.is_(True))
+            )
         elif filter_type == "links":
             # New Filter: Posts with links
-            query = query.where(CachedPost.has_link.is_(True))
+            query = query.where(
+                and_(CachedPost.is_reblog.is_(False), CachedPost.has_link.is_(True))
+            )
         elif filter_type == "questions":
             # Filter for posts with questions
-            query = query.where(CachedPost.has_question.is_(True))
+            query = query.where(
+                and_(
+                    CachedPost.is_reblog.is_(False),
+                    CachedPost.has_question.is_(True),
+                )
+            )
+        elif filter_type == "jobs":
+            query = query.where(
+                and_(CachedPost.is_reblog.is_(False), CachedPost.has_job.is_(True))
+            )
+        elif filter_type == "reposts":
+            query = query.where(CachedPost.is_reblog.is_(True))
         elif filter_type == "everyone":
             # No additional filters, show all posts
             pass

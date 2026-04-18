@@ -22,6 +22,7 @@ from mastodon_is_my_blog.routes import (
     admin,
     analytics,
     content_hub,
+    peeps,
     posts,
     writing,
 )
@@ -82,6 +83,7 @@ app.include_router(accounts.router)
 app.include_router(admin.router)
 app.include_router(analytics.router)
 app.include_router(content_hub.router)
+app.include_router(peeps.router)
 app.include_router(posts.router)
 app.include_router(writing.router)
 

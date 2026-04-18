@@ -7,6 +7,22 @@ from bs4 import BeautifulSoup
 
 from mastodon_is_my_blog.data.domain_categories import DOMAIN_CONFIG
 
+TAG_JOBS_KEYWORDS: frozenset[str] = frozenset([
+    "hiring", "job", "jobs", "jobhunting", "jobsearch",
+    "getfedihired", "fedihired", "career", "careers", "recruitment", "recruiter",
+])
+
+STRONG_JOB_PHRASES: tuple[str, ...] = (
+    "we're hiring", "we are hiring", "now hiring", "join our team",
+    "job listing", "job post", "job opening", "open position",
+    "open role", "apply now", "apply here", "submit your application",
+    "send your cv", "send your resume",
+)
+
+WEAK_JOB_KEYWORDS: tuple[str, ...] = (
+    "hiring", "recruiter", "freelance", "contract", "full-time", "part-time",
+)
+
 logger = logging.getLogger(__name__)
 
 # Mastodon post URLs follow the pattern /@username/numeric_id
@@ -15,7 +31,7 @@ MASTODON_POST_URL_RE = re.compile(r"^/@[\w.]+/\d+$")
 
 # --- Helper: Content Analysis ---
 def analyze_content_domains(
-    html: str, media_attachments: list, is_reply_to_other: bool
+    html: str, media_attachments: list, is_reply_to_other: bool, tags: list | None = None
 ) -> dict:
     """
     Analyzes HTML content and attachments to determine content flags.
@@ -29,6 +45,7 @@ def analyze_content_domains(
         "has_news": False,
         "has_tech": False,
         "has_link": False,
+        "has_job": False,
         "has_question": False,
     }
 
@@ -77,6 +94,10 @@ def analyze_content_domains(
             if any(d in clean_domain for d in DOMAIN_CONFIG["news"]):
                 flags["has_news"] = True
 
+            # Check Jobs (job board domains)
+            if any(d in clean_domain for d in DOMAIN_CONFIG["jobs"]):
+                flags["has_job"] = True
+
         except Exception as e:
             logger.error("Error analyzing content: %s", e)
             continue
@@ -86,6 +107,23 @@ def analyze_content_domains(
 
     if not is_reply_to_other and re.search(r"\w+\?", text_content):
         flags["has_question"] = has_human_question(text_content)
+
+    # Job detection (text-based) — only if not already flagged by domain
+    if not flags["has_job"]:
+        lower_text = text_content.lower()
+        # Tier 1: job hashtags
+        if tags:
+            lower_tags = [t.lower() for t in tags]
+            if any(t in TAG_JOBS_KEYWORDS for t in lower_tags):
+                flags["has_job"] = True
+        # Tier 1: strong phrases
+        if not flags["has_job"] and any(p in lower_text for p in STRONG_JOB_PHRASES):
+            flags["has_job"] = True
+        # Tier 3: two or more weak signals
+        if not flags["has_job"]:
+            weak_hits = sum(1 for kw in WEAK_JOB_KEYWORDS if kw in lower_text)
+            if weak_hits >= 2:
+                flags["has_job"] = True
 
     return flags
 

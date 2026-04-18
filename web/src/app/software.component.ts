@@ -168,7 +168,7 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
     this.groupName = groupName;
 
     if (groupId !== null) {
-      this.api.getContentHubGroupPosts(groupId, identityId, 'text', null, 100).subscribe({
+      this.api.getContentHubGroupPosts(groupId, identityId, 'software', null, 100).subscribe({
         next: (res) => {
           this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
           this.loading = false;
@@ -310,10 +310,10 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
     this.groupName = groupName;
 
     if (groupId !== null) {
-      this.api.getContentHubGroupPosts(groupId, identityId, 'text', null, 100).subscribe({
+      this.api.getContentHubGroupPosts(groupId, identityId, 'links', null, 100).subscribe({
         next: (res) => {
           const posts = sortContentPosts(
-            res.items.filter((p) => p.has_link).map(hubToFeedPost),
+            res.items.map(hubToFeedPost),
             this.currentFilter,
           );
           this.groups = groupLinkPosts(posts, this.currentFilter);
@@ -452,7 +452,7 @@ export class NewsFeedComponent implements OnInit, OnDestroy {
     this.groupName = groupName;
 
     if (groupId !== null) {
-      this.api.getContentHubGroupPosts(groupId, identityId, 'text', null, 100).subscribe({
+      this.api.getContentHubGroupPosts(groupId, identityId, 'news', null, 100).subscribe({
         next: (res) => {
           this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
           this.loading = false;

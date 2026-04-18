@@ -5,8 +5,8 @@ import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, Rou
 
 import {ApiService} from './api.service';
 import {debounceTime, distinctUntilChanged, map, shareReplay, switchMap, takeUntil, catchError, filter} from 'rxjs/operators';
-import {of, Subject, combineLatest} from 'rxjs';
-import {Identity, MastodonAccount} from './mastodon';
+import {of, Subject, Subscription, combineLatest, interval} from 'rxjs';
+import {AccountCatchupStatus, Identity, MastodonAccount} from './mastodon';
 
 interface CountDetail {
   total: number;
@@ -57,8 +57,11 @@ export class AppComponent implements OnInit, OnDestroy {
   blogRoll: MastodonAccount[] = [];
   mainUser: MastodonAccount | null = null; // The "Profile" of the currently connected user
   activeUserInfo: MastodonAccount | null = null; // The "Profile" of the user we are viewing
+  activeUserCatchup: AccountCatchupStatus | null = null;
+  activeUserCatchupError: string | null = null;
   serverDown = false;
   recentlyViewed: Set<string> = new Set<string>();
+  private activeUserCatchupPollSub?: Subscription;
 
 
 
@@ -72,6 +75,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
 
   ngOnDestroy(): void {
+    this.stopActiveUserCatchupPolling();
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -108,6 +112,7 @@ export class AppComponent implements OnInit, OnDestroy {
     // Listen for data refreshes (syncs/writes) to keep counts consistent
     this.api.refreshNeeded$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.refreshCounts();
+      this.refreshActiveUserContext();
     });
 
     // Fetch Identities & Initialize Context
@@ -181,6 +186,13 @@ export class AppComponent implements OnInit, OnDestroy {
 
       if (sel.scope.kind === 'user') {
         this.recentlyViewed.add(sel.scope.acct);
+        this.activeUserCatchup = null;
+        this.activeUserCatchupError = null;
+        this.stopActiveUserCatchupPolling();
+      } else {
+        this.activeUserCatchup = null;
+        this.activeUserCatchupError = null;
+        this.stopActiveUserCatchupPolling();
       }
     });
 
@@ -207,6 +219,9 @@ export class AppComponent implements OnInit, OnDestroy {
     ).subscribe(active => {
       this.activeUserInfo = active;
       this.refreshCounts();
+      if (this.currentUser && this.currentUser !== 'everyone' && this.activeIdentityId) {
+        this.loadActiveUserCatchupStatus(this.currentUser, this.activeIdentityId);
+      }
     });
   }
 
@@ -233,13 +248,17 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private fetchActiveUserInfo$(acct: string, identityId: number) {
     return this.api.getAccountInfo(acct, identityId).pipe(
-      catchError(() =>
-        this.api.syncAccountDedup(acct, identityId).pipe(
-          switchMap(() => this.api.getAccountInfo(acct, identityId)),
-          catchError(() => of(null))
-        )
-      )
+      catchError(() => of(null))
     );
+  }
+
+  private refreshActiveUserContext(): void {
+    if (!this.currentUser || this.currentUser === 'everyone' || !this.activeIdentityId) return;
+
+    this.fetchActiveUserInfo$(this.currentUser, this.activeIdentityId).subscribe((active) => {
+      this.activeUserInfo = active;
+    });
+    this.loadActiveUserCatchupStatus(this.currentUser, this.activeIdentityId);
   }
 
   loadBlogRoll(): void {
@@ -365,9 +384,6 @@ export class AppComponent implements OnInit, OnDestroy {
     const nextIndex = (currentIndex + 1) % this.blogRoll.length;
     const nextUser = this.blogRoll[nextIndex];
 
-    // Trigger prefetch for the user AFTER the one we are about to navigate to
-    this.prefetchNextBlogrollUser(nextUser.acct);
-
     // Navigate to next user
     this.router.navigate(['/'], {
       queryParams: {user: nextUser.acct, filter: this.currentFilter},
@@ -375,27 +391,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Scroll to top
     window.scrollTo({top: 0, behavior: 'smooth'});
-  }
-
-  /**
-   * Finds the user immediately following the 'currentAcct' in the blogroll
-   * and triggers a background sync to populate their posts.
-   */
-  prefetchNextBlogrollUser(currentAcct: string): void {
-    if (this.blogRoll.length === 0 || !this.activeIdentityId) return;
-
-    const currentIndex = this.blogRoll.findIndex(acc => acc.acct === currentAcct);
-    if (currentIndex === -1) return;
-
-    const nextIndex = (currentIndex + 1) % this.blogRoll.length;
-    const userToPrefetch = this.blogRoll[nextIndex];
-
-    if (userToPrefetch) {
-      this.api.syncAccount(userToPrefetch.acct, this.activeIdentityId).subscribe({
-        next: () => console.log(`Prefetch complete for ${userToPrefetch.acct}`),
-        error: (err: unknown) => console.error(`Prefetch failed for ${userToPrefetch.acct}`, err)
-      });
-    }
   }
 
   isViewingMainUser(): boolean {
@@ -410,5 +405,167 @@ export class AppComponent implements OnInit, OnDestroy {
 
   isActiveUser(acct: string): boolean {
     return this.currentUser === acct;
+  }
+
+  showPeopleCatchupControls(): boolean {
+    return this.isPeoplePage() && !!this.currentUser && this.currentUser !== 'everyone' && !!this.activeUserInfo;
+  }
+
+  activeUserCacheMessage(): string {
+    const cacheState = this.activeUserInfo?.cache_state;
+    if (!cacheState) {
+      return 'This page is showing cached data only.';
+    }
+
+    const filterLabel = this.currentFilterLabel();
+    const cachedCount = this.currentFilterCount();
+    const latest = cacheState.latest_cached_post_at
+      ? new Date(cacheState.latest_cached_post_at).toLocaleDateString()
+      : null;
+
+    if (cacheState.stale_reason === 'no_cached_posts') {
+      return `Showing cached data only. There are no cached posts for this account yet, and ${cachedCount} cached ${filterLabel} posts for the current filter.`;
+    }
+
+    if (cacheState.is_stale) {
+      return `Showing ${cachedCount} cached ${filterLabel} posts. Cache looks stale; newest cached post is from ${latest ?? 'an older sync'}.`;
+    }
+
+    return `Showing ${cachedCount} cached ${filterLabel} posts. Newest cached post is from ${latest ?? 'a recent sync'}.`;
+  }
+
+  currentFilterLabel(): string {
+    switch (this.currentFilter) {
+      case 'storms':
+      case 'all':
+        return 'storms';
+      case 'shorts':
+        return 'shorts';
+      case 'news':
+        return 'news posts';
+      case 'software':
+        return 'software posts';
+      case 'pictures':
+        return 'pictures';
+      case 'videos':
+        return 'videos';
+      case 'discussions':
+        return 'discussions';
+      case 'links':
+        return 'links';
+      case 'questions':
+        return 'questions';
+      case 'reposts':
+        return 'reposts';
+      default:
+        return 'posts';
+    }
+  }
+
+  currentFilterCount(): number {
+    switch (this.currentFilter) {
+      case 'storms':
+      case 'all':
+        return this.counts.storms.total;
+      case 'shorts':
+        return this.counts.shorts.total;
+      case 'news':
+        return this.counts.news.total;
+      case 'software':
+        return this.counts.software.total;
+      case 'pictures':
+        return this.counts.pictures.total;
+      case 'videos':
+        return this.counts.videos.total;
+      case 'discussions':
+        return this.counts.discussions.total;
+      case 'links':
+        return this.counts.links.total;
+      case 'questions':
+        return this.counts.questions.total;
+      case 'reposts':
+        return this.counts.reposts.total;
+      default:
+        return 0;
+    }
+  }
+
+  startActiveUserCatchup(mode: 'recent' | 'deep'): void {
+    if (!this.currentUser || !this.activeIdentityId) return;
+
+    this.activeUserCatchupError = null;
+    this.api.startAccountCatchup(this.currentUser, this.activeIdentityId, mode).subscribe({
+      next: (status) => {
+        this.activeUserCatchup = status;
+        if (status.running) {
+          this.startActiveUserCatchupPolling(this.currentUser!, this.activeIdentityId!);
+        }
+      },
+      error: (err) => {
+        this.activeUserCatchupError = err?.error?.detail ?? 'Failed to start catch-up';
+      },
+    });
+  }
+
+  stopActiveUserCatchup(): void {
+    if (!this.currentUser || !this.activeIdentityId) return;
+
+    this.api.cancelAccountCatchup(this.currentUser, this.activeIdentityId).subscribe({
+      next: () => this.loadActiveUserCatchupStatus(this.currentUser!, this.activeIdentityId!),
+      error: (err) => {
+        this.activeUserCatchupError = err?.error?.detail ?? 'Failed to stop catch-up';
+      },
+    });
+  }
+
+  private loadActiveUserCatchupStatus(acct: string, identityId: number): void {
+    this.api.getAccountCatchupStatus(acct, identityId).subscribe({
+      next: (status) => {
+        if (this.currentUser !== acct) return;
+        this.activeUserCatchup = status;
+        this.activeUserCatchupError = status.error;
+        if (status.running) {
+          this.startActiveUserCatchupPolling(acct, identityId);
+        } else {
+          this.stopActiveUserCatchupPolling();
+        }
+      },
+      error: (err) => {
+        if (this.currentUser !== acct) return;
+        if (err?.status === 404) {
+          this.activeUserCatchup = null;
+          this.activeUserCatchupError = null;
+        } else {
+          this.activeUserCatchupError = err?.error?.detail ?? 'Failed to load catch-up status';
+        }
+      },
+    });
+  }
+
+  private startActiveUserCatchupPolling(acct: string, identityId: number): void {
+    this.stopActiveUserCatchupPolling();
+    this.activeUserCatchupPollSub = interval(2000)
+      .pipe(switchMap(() => this.api.getAccountCatchupStatus(acct, identityId)))
+      .subscribe({
+        next: (status) => {
+          if (this.currentUser !== acct) {
+            this.stopActiveUserCatchupPolling();
+            return;
+          }
+
+          this.activeUserCatchup = status;
+          this.activeUserCatchupError = status.error;
+          if (!status.running) {
+            this.stopActiveUserCatchupPolling();
+            this.api.refreshNeeded$.next();
+          }
+        },
+        error: () => this.stopActiveUserCatchupPolling(),
+      });
+  }
+
+  private stopActiveUserCatchupPolling(): void {
+    this.activeUserCatchupPollSub?.unsubscribe();
+    this.activeUserCatchupPollSub = undefined;
   }
 }

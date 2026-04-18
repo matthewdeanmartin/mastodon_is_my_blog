@@ -200,6 +200,7 @@ def test_get_group_posts_filters_jobs_and_builds_cursor(
                 author_acct="alice@example.social",
                 content="<p>We are hiring</p>",
                 has_video=True,
+                has_job=True,
             )
             job_one.tags = '["jobs"]'
             job_one.media_attachments = '[{"type":"video"}]'
@@ -211,6 +212,7 @@ def test_get_group_posts_filters_jobs_and_builds_cursor(
                 identity_id=1,
                 author_acct="bob@example.social",
                 content="<p>Remote job opening</p>",
+                has_job=True,
             )
             job_two.tags = '["python"]'
             job_two.created_at = datetime(2024, 1, 2, 12, 0, 0)
@@ -402,6 +404,191 @@ def test_force_refresh_group_calls_service(
     assert response.json() == {"refreshed": True, "fetched": 3, "matched": 2}
     assert refresh_mock.await_args.args[:3] == (7, ANY, 1)
     assert refresh_mock.await_args.kwargs == {"force": True}
+
+
+def test_get_group_people_returns_ranked_authors(
+    api_client: TestClient,
+    db_session_factory,
+) -> None:
+    async def seed_data() -> None:
+        async with db_session_factory() as session:
+            alice_post = make_cached_post(
+                post_id="p-alice-1",
+                meta_account_id=7,
+                identity_id=1,
+                author_acct="alice@example.social",
+                author_id="acct-a",
+            )
+            alice_post.created_at = datetime(2024, 2, 1, 12, 0, 0)
+            bob_post = make_cached_post(
+                post_id="p-bob-1",
+                meta_account_id=7,
+                identity_id=1,
+                author_acct="bob@example.social",
+                author_id="acct-b",
+            )
+            bob_post.created_at = datetime(2024, 2, 2, 12, 0, 0)
+
+            session.add_all(
+                [
+                    make_meta_account(meta_id=7),
+                    make_identity(identity_id=1, meta_account_id=7),
+                    make_group(group_id=10),
+                    make_term(term_id=10, group_id=10, term="python"),
+                    alice_post,
+                    bob_post,
+                    CachedAccount(
+                        id="acct-a",
+                        meta_account_id=7,
+                        mastodon_identity_id=1,
+                        acct="alice@example.social",
+                        display_name="Alice",
+                        avatar="https://example.social/alice.png",
+                        url="https://example.social/@alice",
+                        note="",
+                        bot=False,
+                        locked=False,
+                        created_at=None,
+                        header="",
+                        fields="[]",
+                        followers_count=1,
+                        following_count=1,
+                        statuses_count=5,
+                        is_following=True,
+                        is_followed_by=True,
+                        last_status_at=None,
+                        cached_post_count=1,
+                        cached_reply_count=0,
+                    ),
+                    CachedAccount(
+                        id="acct-b",
+                        meta_account_id=7,
+                        mastodon_identity_id=1,
+                        acct="bob@example.social",
+                        display_name="Bob",
+                        avatar="https://example.social/bob.png",
+                        url="https://example.social/@bob",
+                        note="",
+                        bot=False,
+                        locked=False,
+                        created_at=None,
+                        header="",
+                        fields="[]",
+                        followers_count=2,
+                        following_count=1,
+                        statuses_count=10,
+                        is_following=False,
+                        is_followed_by=False,
+                        last_status_at=None,
+                        cached_post_count=1,
+                        cached_reply_count=0,
+                    ),
+                    ContentHubPostMatch(
+                        group_id=10,
+                        post_id="p-alice-1",
+                        meta_account_id=7,
+                        fetched_by_identity_id=1,
+                        matched_term_id=10,
+                        matched_via="hashtag",
+                        created_at=datetime(2024, 2, 1),
+                    ),
+                    ContentHubPostMatch(
+                        group_id=10,
+                        post_id="p-bob-1",
+                        meta_account_id=7,
+                        fetched_by_identity_id=1,
+                        matched_term_id=10,
+                        matched_via="hashtag",
+                        created_at=datetime(2024, 2, 2),
+                    ),
+                ]
+            )
+            await session.commit()
+
+    import anyio
+
+    anyio.run(seed_data)
+
+    response = api_client.get("/api/content-hub/groups/10/people?identity_id=1")
+
+    assert response.status_code == 200
+    people = response.json()
+    assert len(people) == 2
+    accts = [p["acct"] for p in people]
+    assert "alice@example.social" in accts
+    assert "bob@example.social" in accts
+    for p in people:
+        assert "post_count_in_group" in p
+        assert "is_following" in p
+
+
+def test_get_group_people_exclude_followed(
+    api_client: TestClient,
+    db_session_factory,
+) -> None:
+    async def seed_data() -> None:
+        async with db_session_factory() as session:
+            post = make_cached_post(
+                post_id="p-carol-1",
+                meta_account_id=7,
+                identity_id=1,
+                author_acct="carol@example.social",
+                author_id="acct-c",
+            )
+            post.created_at = datetime(2024, 2, 3, 12, 0, 0)
+            session.add_all(
+                [
+                    make_meta_account(meta_id=7),
+                    make_identity(identity_id=1, meta_account_id=7),
+                    make_group(group_id=20),
+                    make_term(term_id=20, group_id=20, term="rust"),
+                    post,
+                    CachedAccount(
+                        id="acct-c",
+                        meta_account_id=7,
+                        mastodon_identity_id=1,
+                        acct="carol@example.social",
+                        display_name="Carol",
+                        avatar="",
+                        url="",
+                        note="",
+                        bot=False,
+                        locked=False,
+                        created_at=None,
+                        header="",
+                        fields="[]",
+                        followers_count=0,
+                        following_count=0,
+                        statuses_count=5,
+                        is_following=True,
+                        is_followed_by=False,
+                        last_status_at=None,
+                        cached_post_count=1,
+                        cached_reply_count=0,
+                    ),
+                    ContentHubPostMatch(
+                        group_id=20,
+                        post_id="p-carol-1",
+                        meta_account_id=7,
+                        fetched_by_identity_id=1,
+                        matched_term_id=20,
+                        matched_via="hashtag",
+                        created_at=datetime(2024, 2, 3),
+                    ),
+                ]
+            )
+            await session.commit()
+
+    import anyio
+
+    anyio.run(seed_data)
+
+    response = api_client.get(
+        "/api/content-hub/groups/20/people?identity_id=1&exclude_followed=true"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 def test_sync_follows_calls_service(

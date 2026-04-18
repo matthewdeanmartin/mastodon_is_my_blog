@@ -46,6 +46,9 @@ class FakeResult:
     def all(self) -> list[Any]:
         return self.all_rows
 
+    def one(self) -> Any:
+        return self.scalar_value
+
 
 class FakeSession:
     def __init__(self, results: list[FakeResult]):
@@ -385,13 +388,19 @@ def test_account_info_endpoint_returns_cached_account(
         followers_count=10,
         following_count=20,
         statuses_count=30,
+        last_status_at=datetime(2024, 1, 3, 12, 0, 0),
         is_following=True,
         is_followed_by=False,
     )
     monkeypatch.setattr(
         accounts,
         "async_session",
-        FakeSessionFactory([FakeResult(scalar_value=account)]),
+        FakeSessionFactory(
+            [
+                FakeResult(scalar_value=account),
+                FakeResult(scalar_value=(12, datetime(2024, 1, 9, 12, 0, 0))),
+            ]
+        ),
     )
 
     response = api_client.get("/api/accounts/friend@example.com?identity_id=5")
@@ -401,6 +410,107 @@ def test_account_info_endpoint_returns_cached_account(
     assert response.json()["fields"] == [
         {"name": "site", "value": "https://example.com"}
     ]
+    assert response.json()["cache_state"] == {
+        "cached_posts": 12,
+        "latest_cached_post_at": "2024-01-09T12:00:00",
+        "is_stale": True,
+        "stale_reason": "last_cached_post_older_than_7d",
+    }
+
+
+def test_account_catchup_endpoint_starts_job(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    identity = SimpleNamespace(id=5, acct="me@example.com")
+    captured: dict[str, Any] = {}
+
+    async def fake_get_identity(meta, identity_id):
+        captured["identity_id"] = identity_id
+        return identity
+
+    async def fake_start_job(meta, selected_identity, acct, mode):
+        captured["meta_id"] = meta.id
+        captured["acct"] = acct
+        captured["mode"] = mode
+        captured["identity"] = selected_identity
+        return SimpleNamespace()
+
+    monkeypatch.setattr(accounts, "_get_identity", fake_get_identity)
+    monkeypatch.setattr(accounts, "start_account_catchup_job", fake_start_job)
+    monkeypatch.setattr(
+        accounts,
+        "account_catchup_job_status",
+        lambda job: {"running": True, "acct": "friend@example.com", "mode": "recent"},
+    )
+
+    response = api_client.post(
+        "/api/accounts/friend@example.com/catchup?identity_id=5&mode=recent"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "running": True,
+        "acct": "friend@example.com",
+        "mode": "recent",
+    }
+    assert captured == {
+        "identity_id": 5,
+        "meta_id": 7,
+        "acct": "friend@example.com",
+        "mode": "recent",
+        "identity": identity,
+    }
+
+
+def test_account_catchup_status_endpoint_returns_existing_job(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_get_identity(meta, identity_id):
+        return SimpleNamespace(id=identity_id, acct="me@example.com")
+
+    monkeypatch.setattr(accounts, "_get_identity", fake_get_identity)
+    monkeypatch.setattr(
+        accounts,
+        "get_account_catchup_job",
+        lambda meta_id, identity_id, acct: SimpleNamespace(
+            meta_id=meta_id, identity_id=identity_id, acct=acct
+        ),
+    )
+    monkeypatch.setattr(
+        accounts,
+        "account_catchup_job_status",
+        lambda job: {"running": False, "acct": job.acct, "mode": "deep"},
+    )
+
+    response = api_client.get("/api/accounts/friend@example.com/catchup/status?identity_id=5")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "running": False,
+        "acct": "friend@example.com",
+        "mode": "deep",
+    }
+
+
+def test_account_catchup_cancel_endpoint_cancels_running_job(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_get_identity(meta, identity_id):
+        return SimpleNamespace(id=identity_id, acct="me@example.com")
+
+    monkeypatch.setattr(accounts, "_get_identity", fake_get_identity)
+    monkeypatch.setattr(
+        accounts,
+        "cancel_account_catchup_job",
+        lambda meta_id, identity_id, acct: meta_id == 7
+        and identity_id == 5
+        and acct == "friend@example.com",
+    )
+
+    response = api_client.delete("/api/accounts/friend@example.com/catchup?identity_id=5")
+
+    assert response.status_code == 200
+    assert response.json() == {"cancelled": True}
 
 
 def test_seen_endpoint_returns_seen_post_ids(

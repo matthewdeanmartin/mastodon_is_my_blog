@@ -1,9 +1,17 @@
 # mastodon_is_my_blog/routes/accounts.py
 import json
 import logging
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, desc, exists, select
+from sqlalchemy import and_, desc, exists, func, select
+
+from mastodon_is_my_blog.account_catchup_runner import (
+    cancel_job as cancel_account_catchup_job,
+    get_job as get_account_catchup_job,
+    job_status as account_catchup_job_status,
+    start_job as start_account_catchup_job,
+)
 
 from mastodon_is_my_blog.queries import (
     get_current_meta_account,
@@ -12,6 +20,7 @@ from mastodon_is_my_blog.queries import (
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedNotification,
+    CachedPost,
     MastodonIdentity,
     MetaAccount,
     async_session,
@@ -20,6 +29,20 @@ from mastodon_is_my_blog.store import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
+
+
+async def _get_identity(meta: MetaAccount, identity_id: int) -> MastodonIdentity:
+    async with async_session() as session:
+        stmt = select(MastodonIdentity).where(
+            and_(
+                MastodonIdentity.id == identity_id,
+                MastodonIdentity.meta_account_id == meta.id,
+            )
+        )
+        identity = (await session.execute(stmt)).scalar_one_or_none()
+        if not identity:
+            raise HTTPException(404, "Identity not found")
+        return identity
 
 
 @router.get("/blogroll")
@@ -188,6 +211,12 @@ async def get_account_info(
             "counts": {"followers": 0, "following": 0, "statuses": 0},
             "is_following": False,
             "is_followed_by": False,
+            "cache_state": {
+                "cached_posts": 0,
+                "latest_cached_post_at": None,
+                "is_stale": False,
+                "stale_reason": "virtual_account",
+            },
         }
 
     async with async_session() as session:
@@ -215,6 +244,41 @@ async def get_account_info(
             except Exception:
                 fields_data = []
 
+        post_cache_stmt = select(
+            func.count(CachedPost.id),
+            func.max(CachedPost.created_at),
+        ).where(
+            and_(
+                CachedPost.meta_account_id == meta.id,
+                CachedPost.fetched_by_identity_id == identity_id,
+                CachedPost.author_acct == acct,
+            )
+        )
+        cached_posts, latest_cached_post_at = (
+            await session.execute(post_cache_stmt)
+        ).one()
+
+        now = datetime.utcnow()
+        latest_cached_post_at_naive = None
+        if latest_cached_post_at is not None:
+            latest_cached_post_at_naive = (
+                latest_cached_post_at.replace(tzinfo=None)
+                if latest_cached_post_at.tzinfo
+                else latest_cached_post_at
+            )
+        is_stale = latest_cached_post_at_naive is None or (
+            now - latest_cached_post_at_naive
+        ) > timedelta(days=7)
+        stale_reason = (
+            "no_cached_posts"
+            if latest_cached_post_at_naive is None
+            else (
+                "last_cached_post_older_than_7d"
+                if is_stale
+                else "fresh"
+            )
+        )
+
         return {
             "id": account.id,
             "acct": account.acct,
@@ -234,8 +298,19 @@ async def get_account_info(
                 "following": account.following_count,
                 "statuses": account.statuses_count,
             },
+            "last_status_at": (
+                account.last_status_at.isoformat() if account.last_status_at else None
+            ),
             "is_following": account.is_following,
             "is_followed_by": account.is_followed_by,
+            "cache_state": {
+                "cached_posts": int(cached_posts or 0),
+                "latest_cached_post_at": (
+                    latest_cached_post_at.isoformat() if latest_cached_post_at else None
+                ),
+                "is_stale": is_stale,
+                "stale_reason": stale_reason,
+            },
         }
 
 
@@ -249,20 +324,60 @@ async def sync_account(
     if acct == "everyone":
         return {"status": "skipped", "message": "Cannot sync virtual user"}
 
-    async with async_session() as session:
-        stmt = select(MastodonIdentity).where(
-            and_(
-                MastodonIdentity.id == identity_id,
-                MastodonIdentity.meta_account_id == meta.id,
-            )
-        )
-        identity = (await session.execute(stmt)).scalar_one_or_none()
-
-        if not identity:
-            raise HTTPException(404, "Identity not found")
+    identity = await _get_identity(meta, identity_id)
 
     # Call the identity-aware sync function
     result = await sync_user_timeline_for_identity(
         meta_id=meta.id, identity=identity, acct=acct, force=True
     )
     return result
+
+
+@router.post("/{acct}/catchup")
+async def start_account_catchup(
+    acct: str,
+    mode: str = Query("recent", pattern="^(recent|deep)$"),
+    identity_id: int = Query(..., description="The context Identity ID"),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    if acct == "everyone":
+        raise HTTPException(400, "Cannot catch up virtual user")
+
+    identity = await _get_identity(meta, identity_id)
+    try:
+        job = await start_account_catchup_job(meta, identity, acct, mode=mode)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+    return account_catchup_job_status(job)
+
+
+@router.get("/{acct}/catchup/status")
+async def account_catchup_status(
+    acct: str,
+    identity_id: int = Query(..., description="The context Identity ID"),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    if acct == "everyone":
+        raise HTTPException(400, "Virtual user has no catch-up job")
+
+    identity = await _get_identity(meta, identity_id)
+    job = get_account_catchup_job(meta.id, identity.id, acct)
+    if job is None:
+        raise HTTPException(404, "No catch-up job found for this account")
+    return account_catchup_job_status(job)
+
+
+@router.delete("/{acct}/catchup")
+async def cancel_account_catchup(
+    acct: str,
+    identity_id: int = Query(..., description="The context Identity ID"),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    if acct == "everyone":
+        raise HTTPException(400, "Virtual user has no catch-up job")
+
+    identity = await _get_identity(meta, identity_id)
+    cancelled = cancel_account_catchup_job(meta.id, identity.id, acct)
+    if not cancelled:
+        raise HTTPException(404, "No running catch-up job for this account")
+    return {"cancelled": True}

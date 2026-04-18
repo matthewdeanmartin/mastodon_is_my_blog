@@ -18,6 +18,7 @@ from sqlalchemy import (
     func,
     insert,
     select,
+    text,
 )
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -190,6 +191,8 @@ class CachedPost(Base):
     # Metadata for filtering
     author_acct: Mapped[str] = mapped_column(String, index=True)
     author_id: Mapped[str] = mapped_column(String, index=True)
+    actor_acct: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
+    actor_id: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
 
     is_reblog: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -211,6 +214,7 @@ class CachedPost(Base):
     has_link: Mapped[bool] = mapped_column(
         Boolean, default=False
     )  # Generic 3rd party links
+    has_job: Mapped[bool] = mapped_column(Boolean, default=False)  # Job postings
     has_question: Mapped[bool] = mapped_column(
         Boolean, default=False
     )  # Contains questions
@@ -231,9 +235,11 @@ class CachedPost(Base):
     __table_args__ = (
         Index("ix_posts_meta_created", "meta_account_id", "created_at"),
         Index("ix_posts_meta_author", "meta_account_id", "author_acct", "created_at"),
+        Index("ix_posts_meta_actor", "meta_account_id", "actor_acct", "created_at"),
         Index("ix_posts_meta_clean", "meta_account_id", "is_reblog", "is_reply"),
         Index("ix_posts_meta_identity_created", "meta_account_id", "fetched_by_identity_id", "created_at"),
         Index("ix_posts_meta_identity_author", "meta_account_id", "fetched_by_identity_id", "author_acct", "created_at"),
+        Index("ix_posts_meta_identity_actor", "meta_account_id", "fetched_by_identity_id", "actor_acct", "created_at"),
         Index("ix_posts_in_reply_to", "meta_account_id", "fetched_by_identity_id", "in_reply_to_id"),
         Index("ix_posts_content_hub_only", "meta_account_id", "fetched_by_identity_id", "content_hub_only"),
     )
@@ -432,9 +438,79 @@ class ContentHubPostMatch(Base):
     )
 
 
+class CachedMyFavourite(Base):
+    """Outbound favourites — posts *I* have liked (per identity).
+    Only source for 'me→them favourite' signal used by the Engagement Matrix.
+    """
+
+    __tablename__ = "cached_my_favourites"
+
+    status_id: Mapped[str] = mapped_column(String, primary_key=True)
+    meta_account_id: Mapped[int] = mapped_column(
+        ForeignKey("meta_accounts.id"), primary_key=True
+    )
+    identity_id: Mapped[int] = mapped_column(
+        ForeignKey("mastodon_identities.id"), primary_key=True
+    )
+
+    target_account_id: Mapped[str] = mapped_column(String)
+    target_acct: Mapped[str] = mapped_column(String)
+    favourited_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index(
+            "ix_my_favourites_target_account",
+            "meta_account_id",
+            "identity_id",
+            "target_account_id",
+        ),
+        Index(
+            "ix_my_favourites_favourited_at",
+            "meta_account_id",
+            "identity_id",
+            "favourited_at",
+        ),
+    )
+
+
+async def ensure_cached_posts_schema() -> None:
+    async with engine.begin() as conn:
+        result = await conn.execute(text("PRAGMA table_info(cached_posts)"))
+        columns = {row[1] for row in result}
+
+        if "actor_acct" not in columns:
+            await conn.execute(text("ALTER TABLE cached_posts ADD COLUMN actor_acct VARCHAR"))
+        if "actor_id" not in columns:
+            await conn.execute(text("ALTER TABLE cached_posts ADD COLUMN actor_id VARCHAR"))
+
+        await conn.execute(
+            text(
+                """
+                UPDATE cached_posts
+                SET actor_acct = COALESCE(actor_acct, author_acct),
+                    actor_id = COALESCE(actor_id, author_id)
+                WHERE actor_acct IS NULL OR actor_id IS NULL
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_posts_meta_actor "
+                "ON cached_posts (meta_account_id, actor_acct, created_at)"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_posts_meta_identity_actor "
+                "ON cached_posts (meta_account_id, fetched_by_identity_id, actor_acct, created_at)"
+            )
+        )
+
+
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await ensure_cached_posts_schema()
 
 
 async def get_or_create_default_meta_account() -> MetaAccount:

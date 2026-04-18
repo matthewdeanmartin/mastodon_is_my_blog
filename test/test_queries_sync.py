@@ -35,6 +35,15 @@ async def test_get_counts_optimized_filters_by_user(db_session) -> None:
                 author_acct="bob@example.social",
                 content="short bob post",
             ),
+            make_cached_post(
+                post_id="alice-reblog",
+                actor_acct="alice@example.social",
+                actor_id="alice-1",
+                author_acct="charlie@example.social",
+                author_id="charlie-1",
+                is_reblog=True,
+                content="boosted from charlie",
+            ),
         ]
     )
     await db_session.commit()
@@ -44,8 +53,9 @@ async def test_get_counts_optimized_filters_by_user(db_session) -> None:
     )
 
     assert stats["user"] == "alice@example.social"
-    assert stats["everyone"] == {"total": 1, "unseen": 1}
+    assert stats["everyone"] == {"total": 2, "unseen": 2}
     assert stats["shorts"] == {"total": 1, "unseen": 1}
+    assert stats["reposts"] == {"total": 1, "unseen": 1}
 
 
 @pytest.mark.asyncio
@@ -78,11 +88,18 @@ async def test_sync_all_identities_aggregates_each_identity_result(
             {"mentions": 2},
         ]
     )
+    sync_favourites_mock = AsyncMock(
+        side_effect=[
+            {"total": 10, "new": 5},
+            {"total": 20, "new": 8},
+        ]
+    )
 
     with (
         patch.object(queries, "sync_friends_for_identity", sync_friends_mock),
         patch.object(queries, "sync_blog_roll_for_identity", sync_blog_roll_mock),
         patch.object(queries, "sync_user_timeline_for_identity", sync_timeline_mock),
+        patch.object(queries, "sync_my_favourites_for_identity", sync_favourites_mock),
         patch(
             "mastodon_is_my_blog.notification_sync.sync_notifications_for_identity",
             sync_notifications_mock,
@@ -95,12 +112,14 @@ async def test_sync_all_identities_aggregates_each_identity_result(
             "first@example.social": {
                 "timeline": {"status": "success", "count": 3},
                 "notifications": {"mentions": 1},
+                "favourites": {"total": 10, "new": 5},
             }
         },
         {
             "second@example.social": {
                 "timeline": {"status": "success", "count": 5},
                 "notifications": {"mentions": 2},
+                "favourites": {"total": 20, "new": 8},
             }
         },
     ]
@@ -246,6 +265,7 @@ async def test_sync_user_timeline_for_identity_persists_self_timeline(
                 "has_news": False,
                 "has_tech": False,
                 "has_link": False,
+                "has_job": False,
                 "has_question": False,
             },
         ),
@@ -299,6 +319,7 @@ async def test_sync_user_timeline_for_identity_deep_syncs_search_result(
                 "has_news": False,
                 "has_tech": False,
                 "has_link": False,
+                "has_job": False,
                 "has_question": False,
             },
         ),
@@ -365,6 +386,7 @@ async def test_sync_user_timeline_for_identity_full_history_skips_cache_cutoff(
                 "has_news": False,
                 "has_tech": False,
                 "has_link": False,
+                "has_job": False,
                 "has_question": False,
             },
         ),

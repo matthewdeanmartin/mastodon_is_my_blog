@@ -48,7 +48,13 @@
   }
 
   @if (!loading && items.length === 0) {
-    <div class="muted">No posts found for this filter.</div>
+    @if (currentUser && currentUser !== 'everyone') {
+      <div class="muted">
+        No cached posts found for this filter. Use Catch Up above to fetch the latest posts for this account, or Deep Catch Up to backfill all available history.
+      </div>
+    } @else {
+      <div class="muted">No posts found for this filter.</div>
+    }
   }
 
   @if (!loading && nextCursor) {
