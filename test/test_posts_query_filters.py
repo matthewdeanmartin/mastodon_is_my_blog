@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import and_, desc, func, select, text
+from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from mastodon_is_my_blog.routes import posts
@@ -142,7 +142,9 @@ async def test_scope_with_is_reblog_false_returns_data(in_memory_session) -> Non
 
 
 @pytest.mark.asyncio
-async def test_in_reply_to_id_is_none_filter_returns_root_posts(in_memory_session) -> None:
+async def test_in_reply_to_id_is_none_filter_returns_root_posts(
+    in_memory_session,
+) -> None:
     """in_reply_to_id.is_(None) must produce IS NULL in SQL, not match 0 rows."""
     in_memory_session.add(make_post("root", in_reply_to_id=None))
     in_memory_session.add(make_post("reply", in_reply_to_id="root"))
@@ -158,7 +160,9 @@ async def test_in_reply_to_id_is_none_filter_returns_root_posts(in_memory_sessio
 
 
 @pytest.mark.asyncio
-async def test_in_reply_to_id_is_not_none_filter_returns_replies(in_memory_session) -> None:
+async def test_in_reply_to_id_is_not_none_filter_returns_replies(
+    in_memory_session,
+) -> None:
     """in_reply_to_id.is_not(None) must produce IS NOT NULL."""
     in_memory_session.add(make_post("root", in_reply_to_id=None))
     in_memory_session.add(make_post("reply", in_reply_to_id="root"))
@@ -196,10 +200,18 @@ async def test_shorts_filter_returns_only_qualifying_posts(in_memory_session) ->
     and content length < 500. Verify all conditions work via .is_(False).
     """
     in_memory_session.add(make_post("short", content="<p>A short post.</p>"))
-    in_memory_session.add(make_post("reply-post", is_reply=True, content="<p>Reply</p>"))
-    in_memory_session.add(make_post("reblog-post", is_reblog=True, content="<p>Reblog</p>"))
-    in_memory_session.add(make_post("media-post", has_media=True, content="<p>Has media</p>"))
-    in_memory_session.add(make_post("link-post", has_link=True, content="<p>Has link</p>"))
+    in_memory_session.add(
+        make_post("reply-post", is_reply=True, content="<p>Reply</p>")
+    )
+    in_memory_session.add(
+        make_post("reblog-post", is_reblog=True, content="<p>Reblog</p>")
+    )
+    in_memory_session.add(
+        make_post("media-post", has_media=True, content="<p>Has media</p>")
+    )
+    in_memory_session.add(
+        make_post("link-post", has_link=True, content="<p>Has link</p>")
+    )
     await in_memory_session.flush()
 
     shorts_filter = and_(
@@ -211,9 +223,7 @@ async def test_shorts_filter_returns_only_qualifying_posts(in_memory_session) ->
         func.length(CachedPost.content) < 500,
     )
 
-    result = await in_memory_session.execute(
-        select(CachedPost).where(shorts_filter)
-    )
+    result = await in_memory_session.execute(select(CachedPost).where(shorts_filter))
     rows = result.scalars().all()
 
     assert len(rows) == 1
@@ -271,14 +281,18 @@ async def test_storms_scope_returns_nonzero_results(in_memory_session) -> None:
         CachedPost.is_reblog.is_(False),
     )
 
-    roots_query = select(CachedPost).where(
-        and_(
-            scope,
-            CachedPost.in_reply_to_id.is_(None),
-            CachedPost.has_link.is_(False),
-            func.length(CachedPost.content) >= 500,
+    roots_query = (
+        select(CachedPost)
+        .where(
+            and_(
+                scope,
+                CachedPost.in_reply_to_id.is_(None),
+                CachedPost.has_link.is_(False),
+                func.length(CachedPost.content) >= 500,
+            )
         )
-    ).order_by(desc(CachedPost.created_at))
+        .order_by(desc(CachedPost.created_at))
+    )
 
     result = await in_memory_session.execute(roots_query)
     roots = result.scalars().all()

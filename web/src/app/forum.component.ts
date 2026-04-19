@@ -30,31 +30,32 @@ interface Discussion {
           Multi-person threads from your friends and mutuals
         </p>
       </div>
-    
+
       <div class="filter-bar">
         @for (f of filters; track f) {
           <button
             [class.active]="currentFilter === f.value"
             (click)="setFilter(f.value)"
-            class="filter-btn">
+            class="filter-btn"
+          >
             {{ f.label }}
           </button>
         }
       </div>
-    
+
       @if (loading) {
         <div class="loading-state">
           <div class="loading-spinner"></div>
           <p>Loading discussions...</p>
         </div>
       }
-    
+
       @if (!loading && discussions.length === 0) {
         <div class="empty-state">
           <p>No active discussions found</p>
         </div>
       }
-    
+
       @if (!loading && discussions.length > 0) {
         <div class="discussions-list">
           @for (disc of discussions; track disc) {
@@ -66,12 +67,11 @@ interface Discussion {
                       [src]="p.avatar"
                       [title]="p.display_name || p.acct"
                       alt=""
-                      class="participant-avatar">
+                      class="participant-avatar"
+                    />
                   }
                   @if (disc.participant_count > 5) {
-                    <span class="more-count">
-                      +{{ disc.participant_count - 5 }}
-                    </span>
+                    <span class="more-count"> +{{ disc.participant_count - 5 }} </span>
                   }
                 </div>
                 <div class="discussion-meta">
@@ -81,181 +81,184 @@ interface Discussion {
               </div>
               <div class="discussion-preview">
                 <div class="author-line">
-                  <strong>{{ disc.root_post.author_display_name || disc.root_post.author_acct }}</strong>
+                  <strong>{{
+                    disc.root_post.author_display_name || disc.root_post.author_acct
+                  }}</strong>
                   <span class="muted">started the conversation</span>
                 </div>
                 <div class="content-preview" [innerHTML]="stripHtml(disc.root_post.content)"></div>
               </div>
               <div class="discussion-footer">
-                <a [routerLink]="['/p', disc.id]" class="view-thread-btn">
-                  View Full Thread →
-                </a>
+                <a [routerLink]="['/p', disc.id]" class="view-thread-btn"> View Full Thread → </a>
               </div>
             </div>
           }
         </div>
       }
     </div>
-    `,
-  styles: [`
-    .forum-container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
-
-    .forum-header {
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      border: 1px solid #e1e8ed;
-      margin-bottom: 20px;
-    }
-
-    .filter-bar {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    .filter-btn {
-      padding: 8px 16px;
-      background: white;
-      color: #374151;
-      border: 1px solid #d1d5db;
-      border-radius: 20px;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .filter-btn:hover {
-      background: #f9fafb;
-      border-color: #6366f1;
-    }
-
-    .filter-btn.active {
-      background: #6366f1;
-      color: white;
-      border-color: #6366f1;
-    }
-
-    .loading-state, .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      background: white;
-      border-radius: 8px;
-      color: #9ca3af;
-    }
-
-    .discussions-list {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    .discussion-card {
-      background: white;
-      border: 1px solid #e1e8ed;
-      border-radius: 8px;
-      padding: 20px;
-      transition: all 0.2s;
-    }
-
-    .discussion-card:hover {
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-      border-color: #6366f1;
-    }
-
-    .discussion-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #f3f4f6;
-    }
-
-    .participants {
-      display: flex;
-      align-items: center;
-      gap: -8px;
-    }
-
-    .participant-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 2px solid white;
-      margin-left: -8px;
-    }
-
-    .participant-avatar:first-child {
-      margin-left: 0;
-    }
-
-    .more-count {
-      margin-left: 8px;
-      font-size: 0.85rem;
-      color: #6b7280;
-      font-weight: 600;
-    }
-
-    .discussion-meta {
-      display: flex;
-      gap: 15px;
-      font-size: 0.85rem;
-      color: #6b7280;
-    }
-
-    .discussion-preview {
-      margin-bottom: 15px;
-    }
-
-    .author-line {
-      margin-bottom: 8px;
-      font-size: 0.9rem;
-    }
-
-    .author-line strong {
-      color: #374151;
-    }
-
-    .content-preview {
-      color: #4b5563;
-      line-height: 1.6;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    .discussion-footer {
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .view-thread-btn {
-      color: #6366f1;
-      text-decoration: none;
-      font-weight: 500;
-      font-size: 0.9rem;
-      transition: color 0.2s;
-    }
-
-    .view-thread-btn:hover {
-      color: #4f46e5;
-      text-decoration: underline;
-    }
-
-    @media (max-width: 768px) {
-      .discussion-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+  `,
+  styles: [
+    `
+      .forum-container {
+        max-width: 900px;
+        margin: 0 auto;
       }
-    }
-  `]
+
+      .forum-header {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        border: 1px solid #e1e8ed;
+        margin-bottom: 20px;
+      }
+
+      .filter-bar {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .filter-btn {
+        padding: 8px 16px;
+        background: white;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .filter-btn:hover {
+        background: #f9fafb;
+        border-color: #6366f1;
+      }
+
+      .filter-btn.active {
+        background: #6366f1;
+        color: white;
+        border-color: #6366f1;
+      }
+
+      .loading-state,
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 8px;
+        color: #9ca3af;
+      }
+
+      .discussions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .discussion-card {
+        background: white;
+        border: 1px solid #e1e8ed;
+        border-radius: 8px;
+        padding: 20px;
+        transition: all 0.2s;
+      }
+
+      .discussion-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-color: #6366f1;
+      }
+
+      .discussion-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #f3f4f6;
+      }
+
+      .participants {
+        display: flex;
+        align-items: center;
+        gap: -8px;
+      }
+
+      .participant-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid white;
+        margin-left: -8px;
+      }
+
+      .participant-avatar:first-child {
+        margin-left: 0;
+      }
+
+      .more-count {
+        margin-left: 8px;
+        font-size: 0.85rem;
+        color: #6b7280;
+        font-weight: 600;
+      }
+
+      .discussion-meta {
+        display: flex;
+        gap: 15px;
+        font-size: 0.85rem;
+        color: #6b7280;
+      }
+
+      .discussion-preview {
+        margin-bottom: 15px;
+      }
+
+      .author-line {
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+      }
+
+      .author-line strong {
+        color: #374151;
+      }
+
+      .content-preview {
+        color: #4b5563;
+        line-height: 1.6;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .discussion-footer {
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .view-thread-btn {
+        color: #6366f1;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: color 0.2s;
+      }
+
+      .view-thread-btn:hover {
+        color: #4f46e5;
+        text-decoration: underline;
+      }
+
+      @media (max-width: 768px) {
+        .discussion-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+      }
+    `,
+  ],
 })
 export class ForumComponent implements OnInit {
   private api = inject(ApiService);
@@ -268,7 +271,7 @@ export class ForumComponent implements OnInit {
     { value: 'active', label: 'Most Active' },
     { value: 'recent', label: 'Recent' },
     { value: 'friends', label: 'Friends Only' },
-    { value: 'all', label: 'All Discussions' }
+    { value: 'all', label: 'All Discussions' },
   ];
 
   ngOnInit(): void {
@@ -289,7 +292,7 @@ export class ForumComponent implements OnInit {
     this.api.getPublicPosts(identityId, 'discussions', undefined).subscribe({
       next: (page) => {
         // Simulate discussion threads (in reality, your backend would do this)
-        this.discussions = page.items.map(post => ({
+        this.discussions = page.items.map((post) => ({
           id: post.id,
           root_post: post,
           participant_count: Math.floor(Math.random() * 10) + 2,
@@ -299,17 +302,17 @@ export class ForumComponent implements OnInit {
             {
               acct: post.author_acct,
               display_name: post.author_display_name || post.author_acct,
-              avatar: post.author_avatar || ''
-            }
-          ]
+              avatar: post.author_avatar || '',
+            },
+          ],
         }));
 
         // Sort based on filter
         if (this.currentFilter === 'active') {
           this.discussions.sort((a, b) => b.reply_count - a.reply_count);
         } else {
-          this.discussions.sort((a, b) =>
-            new Date(b.latest_reply_at).getTime() - new Date(a.latest_reply_at).getTime()
+          this.discussions.sort(
+            (a, b) => new Date(b.latest_reply_at).getTime() - new Date(a.latest_reply_at).getTime(),
           );
         }
 
@@ -318,7 +321,7 @@ export class ForumComponent implements OnInit {
       error: (err: unknown) => {
         console.error('Error loading discussions:', err);
         this.loading = false;
-      }
+      },
     });
   }
 

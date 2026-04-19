@@ -1,4 +1,5 @@
 """Analytics endpoints backed by DuckDB over the live SQLite file."""
+
 from __future__ import annotations
 
 from typing import Any

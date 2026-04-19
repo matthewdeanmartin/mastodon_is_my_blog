@@ -1,6 +1,5 @@
 # mastodon_is_my_blog/engagement_scoring.py
 import math
-from datetime import datetime
 
 REPLY = 10
 QUOTE = 7
@@ -17,7 +16,8 @@ def decayed_weight(base: int, age_days: float) -> float:
 
 
 def score_interactions(rows: list[dict]) -> float:
-    """Sum decayed weighted events.
+    """
+    Sum decayed weighted events.
 
     Each row must have:
       - type: str — 'mention' | 'reblog' | 'favourite' | 'quote' (notification types)

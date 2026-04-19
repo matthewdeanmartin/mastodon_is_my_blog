@@ -49,7 +49,7 @@ describe('ApiService', () => {
 
     it('should clear storage on logout', async () => {
       service.setMetaAccountId('test-account');
-      service.setIdentityId(42);
+      service.setIdentityId(42, 'https://example.social');
 
       service.logout();
 
@@ -68,7 +68,7 @@ describe('ApiService', () => {
     });
 
     it('should set and get identity id', async () => {
-      service.setIdentityId(123);
+      service.setIdentityId(123, 'https://example.social');
 
       expect(service.getStoredIdentityId()).toBe(123);
       expect(service.getCurrentIdentityId()).toBe(123);
@@ -231,7 +231,9 @@ describe('ApiService', () => {
     it('should get account catch-up status', () => {
       service.getAccountCatchupStatus('user@domain', 42).subscribe();
 
-      const req = httpMock.expectOne((r) => r.url.includes('/api/accounts/user@domain/catchup/status'));
+      const req = httpMock.expectOne((r) =>
+        r.url.includes('/api/accounts/user@domain/catchup/status'),
+      );
       expect(req.request.method).toBe('GET');
       expect(req.request.params.get('identity_id')).toBe('42');
       req.flush({});

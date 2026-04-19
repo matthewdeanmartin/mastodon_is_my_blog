@@ -1,11 +1,4 @@
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-from fastapi import HTTPException
-from sqlalchemy import func, select
-
-from mastodon_is_my_blog import queries, store
+from datetime import datetime, timezone
 from test.conftest import (
     make_account_data,
     make_cached_post,
@@ -13,6 +6,13 @@ from test.conftest import (
     make_meta_account,
     make_status,
 )
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from fastapi import HTTPException
+from sqlalchemy import func, select
+
+from mastodon_is_my_blog import queries, store
 
 
 @pytest.mark.asyncio
@@ -151,12 +151,19 @@ async def test_sync_friends_for_identity_persists_following_and_followers(
 
     async with db_session_factory() as session:
         accounts = (
-            await session.execute(
-                select(store.CachedAccount).order_by(store.CachedAccount.id)
+            (
+                await session.execute(
+                    select(store.CachedAccount).order_by(store.CachedAccount.id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
-    assert [(account.id, account.is_following, account.is_followed_by) for account in accounts] == [
+    assert [
+        (account.id, account.is_following, account.is_followed_by)
+        for account in accounts
+    ] == [
         ("follower-1", False, True),
         ("following-1", True, False),
     ]
@@ -289,8 +296,12 @@ async def test_sync_user_timeline_for_identity_deep_syncs_search_result(
     await db_session.commit()
 
     target_account = make_account_data("friend-1", acct="friend@example.social")
-    page_one = [make_status("status-1", account_id="friend-1", acct="friend@example.social")]
-    page_two = [make_status("status-2", account_id="friend-1", acct="friend@example.social")]
+    page_one = [
+        make_status("status-1", account_id="friend-1", acct="friend@example.social")
+    ]
+    page_two = [
+        make_status("status-2", account_id="friend-1", acct="friend@example.social")
+    ]
 
     async def fake_deep_fetch(*args, **kwargs):
         yield page_one
@@ -403,7 +414,9 @@ async def test_sync_user_timeline_for_identity_full_history_skips_cache_cutoff(
 
 
 @pytest.mark.asyncio
-async def test_sync_user_timeline_for_identity_returns_error_payload_on_failure() -> None:
+async def test_sync_user_timeline_for_identity_returns_error_payload_on_failure() -> (
+    None
+):
     identity = make_identity()
     client = MagicMock()
     client.account_verify_credentials.side_effect = RuntimeError("boom")

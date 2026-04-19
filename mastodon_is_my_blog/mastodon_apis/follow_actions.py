@@ -1,5 +1,6 @@
 # mastodon_is_my_blog/mastodon_apis/follow_actions.py
 """Follow/unfollow write actions against the Mastodon API."""
+
 import asyncio
 import logging
 
@@ -53,9 +54,7 @@ async def follow_account(meta_id: int, identity: MastodonIdentity, acct: str) ->
     return {"followed": True, "acct": acct}
 
 
-async def unfollow_account(
-    meta_id: int, identity: MastodonIdentity, acct: str
-) -> dict:
+async def unfollow_account(meta_id: int, identity: MastodonIdentity, acct: str) -> dict:
     """Resolve acct to a remote id, unfollow them, update local cache."""
     m = client_from_identity(identity)
 

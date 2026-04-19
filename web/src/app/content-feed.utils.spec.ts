@@ -69,9 +69,9 @@ describe('content feed utilities', () => {
   });
 
   it('extracts the first linked domain from HTML content', () => {
-    expect(
-      extractFirstDomain('<p>Read <a href="https://www.example.com/story">this</a></p>'),
-    ).toBe('example.com');
+    expect(extractFirstDomain('<p>Read <a href="https://www.example.com/story">this</a></p>')).toBe(
+      'example.com',
+    );
   });
 
   it('groups links by domain and orders popular domains by combined score', () => {

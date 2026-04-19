@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import os
 from pathlib import Path
 
@@ -13,6 +14,7 @@ def get_default_db_url() -> str:
         return db_url
 
     from platformdirs import user_data_dir
+
     data_dir = Path(user_data_dir(appname="mastodon_is_my_blog", appauthor=False))
     data_dir.mkdir(parents=True, exist_ok=True)
     db_path = data_dir / "app.db"
@@ -29,5 +31,5 @@ def get_sqlite_file_path() -> str:
     url = get_default_db_url()
     for prefix in ("sqlite+aiosqlite:///", "sqlite:///"):
         if url.startswith(prefix):
-            return url[len(prefix):]
+            return url[len(prefix) :]
     raise ValueError(f"Unsupported DB_URL for DuckDB attach: {url!r}")

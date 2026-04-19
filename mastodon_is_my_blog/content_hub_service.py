@@ -9,6 +9,7 @@ Responsibilities:
 - write match rows to content_hub_post_matches
 - retro-match new bundle terms against existing cached posts
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,7 +30,6 @@ from mastodon_is_my_blog.queries import bulk_upsert_posts
 from mastodon_is_my_blog.store import (
     ContentHubGroup,
     ContentHubGroupTerm,
-    ContentHubPostMatch,
     MastodonIdentity,
     async_session,
 )
@@ -66,7 +66,9 @@ async def sync_server_follow_groups(
     try:
         followed = m.followed_tags()
     except Exception as exc:
-        logger.error("Failed to fetch followed tags for identity %s: %s", identity.id, exc)
+        logger.error(
+            "Failed to fetch followed tags for identity %s: %s", identity.id, exc
+        )
         return {"created": 0, "removed": 0}
 
     # followed is a list of tag dicts: {"name": str, ...}
@@ -191,7 +193,10 @@ async def refresh_group(
 
         async with async_session() as session:
             new_count, _ = await bulk_upsert_posts(
-                session, meta_id, identity.id, statuses,
+                session,
+                meta_id,
+                identity.id,
+                statuses,
                 discovery_source=term.term_type,
                 content_hub_only=True,
             )
@@ -200,7 +205,10 @@ async def refresh_group(
 
             post_ids = [str(s["id"]) for s in statuses]
             if term.term_type == "hashtag":
-                from mastodon_is_my_blog.content_hub_matching import retro_match_hashtag_term
+                from mastodon_is_my_blog.content_hub_matching import (
+                    retro_match_hashtag_term,
+                )
+
                 matched = await retro_match_hashtag_term(
                     session, meta_id, identity.id, group_id, term
                 )
@@ -238,12 +246,10 @@ async def retro_match_new_bundle(
     posts against all hashtag terms.  Raw search terms are skipped (we do not
     re-evaluate Mastodon search syntax locally).
     """
-    stmt = select(ContentHubGroupTerm).where(
-        ContentHubGroupTerm.group_id == group.id
-    )
+    stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group.id)
     terms = (await session.execute(stmt)).scalars().all()
     return await retro_match_group_hashtag_terms(
-        session, meta_id, identity_id, group.id, terms
+        session, meta_id, identity_id, group.id, list(terms)
     )
 
 
@@ -306,7 +312,11 @@ async def update_client_bundle(
     """
     async with async_session() as session:
         group = await session.get(ContentHubGroup, group_id)
-        if group is None or group.meta_account_id != meta_id or group.identity_id != identity_id:
+        if (
+            group is None
+            or group.meta_account_id != meta_id
+            or group.identity_id != identity_id
+        ):
             raise ValueError("Bundle not found or not owned by this identity")
         if group.is_read_only:
             raise ValueError("Cannot edit a read-only server-follow group")
@@ -327,12 +337,12 @@ async def update_client_bundle(
             await session.flush()
 
             now = utc_now()
-            for t in terms_input:
+            for new_t in terms_input:
                 term_obj = ContentHubGroupTerm(
                     group_id=group.id,
-                    term=t["term"],
-                    term_type=t["term_type"],
-                    normalized_term=normalize_term(t["term"], t["term_type"]),
+                    term=new_t["term"],
+                    term_type=new_t["term_type"],
+                    normalized_term=normalize_term(new_t["term"], new_t["term_type"]),
                     created_at=now,
                 )
                 session.add(term_obj)

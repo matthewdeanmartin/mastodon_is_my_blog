@@ -3,7 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subject, Subscription, of } from 'rxjs';
-import { catchError, debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
+import {
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  switchMap,
+  takeUntil,
+} from 'rxjs/operators';
 
 import { ApiService } from './api.service';
 import {
@@ -18,10 +24,26 @@ import {
 type Bucket = 'day' | 'week' | 'month';
 
 const TAG_COLORS = [
-  '#6366f1', '#f59e0b', '#10b981', '#ec4899', '#0ea5e9',
-  '#a855f7', '#ef4444', '#14b8a6', '#eab308', '#8b5cf6',
-  '#f97316', '#06b6d4', '#84cc16', '#db2777', '#22c55e',
-  '#3b82f6', '#d946ef', '#f43f5e', '#0891b2', '#65a30d',
+  '#6366f1',
+  '#f59e0b',
+  '#10b981',
+  '#ec4899',
+  '#0ea5e9',
+  '#a855f7',
+  '#ef4444',
+  '#14b8a6',
+  '#eab308',
+  '#8b5cf6',
+  '#f97316',
+  '#06b6d4',
+  '#84cc16',
+  '#db2777',
+  '#22c55e',
+  '#3b82f6',
+  '#d946ef',
+  '#f43f5e',
+  '#0891b2',
+  '#65a30d',
 ];
 
 const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -69,6 +91,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private router = inject(Router);
   private readonly destroy$ = new Subject<void>();
+  readonly hours = Array.from({ length: 24 }, (_unused, hour) => hour);
 
   identityId: number | null = null;
 
@@ -77,6 +100,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
 
   // Section A: Hashtag trends
   hashtagTop = 20;
+  hashtagMinOccurrence = 20;
   hashtagRows: HashtagTrendRow[] = [];
   hashtagLoading = false;
   hashtagError: string | null = null;
@@ -205,7 +229,8 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
       error: (err: unknown) => {
         this.hashtagLoading = false;
         this.hashtagError =
-          (err as { error?: { detail?: string } })?.error?.detail ?? 'Failed to load hashtag trends';
+          (err as { error?: { detail?: string } })?.error?.detail ??
+          'Failed to load hashtag trends';
       },
     });
   }
@@ -219,6 +244,23 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     if (this.hashtagTop < 1) this.hashtagTop = 1;
     if (this.hashtagTop > 50) this.hashtagTop = 50;
     this.loadHashtags();
+  }
+
+  onHashtagMinChange(): void {
+    if (this.hashtagMinOccurrence < 1) this.hashtagMinOccurrence = 1;
+  }
+
+  get filteredHashtagTableRows(): { tag: string; total: number; color: string }[] {
+    return this.hashtagTableRows().filter((r) => r.total >= this.hashtagMinOccurrence);
+  }
+
+  navigateToHashtag(tag: string): void {
+    this.onSearchInput(tag);
+    setTimeout(() => {
+      const el = document.getElementById('analytics-regex');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.focus();
+    }, 50);
   }
 
   get hashtagBuckets(): string[] {
@@ -246,12 +288,13 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     const plotW = width - padLeft - padRight;
     const plotH = height - padTop - padBottom;
 
-    // Assign colors by descending total
+    // Assign colors by descending total, filter by min occurrence
     const sorted = tags
       .map((tag) => ({
         tag,
         total: [...byTag.get(tag)!.values()].reduce((a, b) => a + b, 0),
       }))
+      .filter((entry) => entry.total >= this.hashtagMinOccurrence)
       .sort((a, b) => b.total - a.total);
 
     return sorted.map((entry, idx) => {
@@ -259,9 +302,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
       const points = buckets.map((b, i) => {
         const count = map.get(b) ?? 0;
         const x =
-          buckets.length > 1
-            ? padLeft + (i * plotW) / (buckets.length - 1)
-            : padLeft + plotW / 2;
+          buckets.length > 1 ? padLeft + (i * plotW) / (buckets.length - 1) : padLeft + plotW / 2;
         const y = maxCount > 0 ? padTop + plotH - (count / maxCount) * plotH : padTop + plotH;
         return { x, y, count, bucket: b };
       });
@@ -302,9 +343,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
 
   hashtagLinePath(s: HashtagChartSeries): string {
     if (s.points.length === 0) return '';
-    return s.points
-      .map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`))
-      .join(' ');
+    return s.points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
   }
 
   hashtagTableRows(): { tag: string; total: number; color: string }[] {
@@ -462,15 +501,9 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   }
 
   heatmapAriaLabel(cell: HeatmapGridCell): string {
-    const fullDow = [
-      'Sunday',
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-    ][cell.dow];
+    const fullDow = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][
+      cell.dow
+    ];
     const h = cell.hour % 12 === 0 ? 12 : cell.hour % 12;
     const ampm = cell.hour < 12 ? 'AM' : 'PM';
     return `${fullDow}, ${h} ${ampm}, ${cell.count} posts`;
@@ -482,20 +515,17 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     if (!this.identityId) return;
     this.repostersLoading = true;
     this.repostersError = null;
-    this.api
-      .getTopReposters(this.identityId, this.repostersWindow, this.repostersLimit)
-      .subscribe({
-        next: (rows) => {
-          this.repostersRows = rows;
-          this.repostersLoading = false;
-        },
-        error: (err: unknown) => {
-          this.repostersLoading = false;
-          this.repostersError =
-            (err as { error?: { detail?: string } })?.error?.detail ??
-            'Failed to load top reposters';
-        },
-      });
+    this.api.getTopReposters(this.identityId, this.repostersWindow, this.repostersLimit).subscribe({
+      next: (rows) => {
+        this.repostersRows = rows;
+        this.repostersLoading = false;
+      },
+      error: (err: unknown) => {
+        this.repostersLoading = false;
+        this.repostersError =
+          (err as { error?: { detail?: string } })?.error?.detail ?? 'Failed to load top reposters';
+      },
+    });
   }
 
   onRepostersWindowChange(): void {
@@ -617,9 +647,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     const segments: NotificationChartSegment[] = [];
     buckets.forEach((b, i) => {
       const center =
-        buckets.length > 1
-          ? padLeft + (i * plotW) / (buckets.length - 1)
-          : padLeft + plotW / 2;
+        buckets.length > 1 ? padLeft + (i * plotW) / (buckets.length - 1) : padLeft + plotW / 2;
       const x = center - barW / 2;
       let stackY = padTop + plotH;
       for (const t of types) {

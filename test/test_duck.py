@@ -1,10 +1,12 @@
-"""Smoke tests for the DuckDB analytics layer.
+"""
+Smoke tests for the DuckDB analytics layer.
 
 The critical invariant: a row committed through SQLAlchemy must be visible
 to DuckDB via ``sqlite_scanner`` within the same request. If WAL isolation
 were to hide the commit, all of our analytical endpoints would return
 stale data silently.
 """
+
 from __future__ import annotations
 
 import json
@@ -51,6 +53,7 @@ async def seeded_engine(sqlite_file: Path):
     async with engine.begin() as conn:
         # WAL matches the production PRAGMA so the test exercises real isolation.
         from sqlalchemy import text as sa_text
+
         await conn.execute(sa_text("PRAGMA journal_mode=WAL"))
         await conn.run_sync(Base.metadata.create_all)
 

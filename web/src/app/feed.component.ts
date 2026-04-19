@@ -1,20 +1,32 @@
 // web/src/app/feed.component.ts
 
-import { Component, OnInit, OnDestroy, ElementRef, ViewChildren, ViewChild, QueryList, AfterViewInit, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import {ActivatedRoute, RouterLink} from '@angular/router';
-import {ApiService, FeedPage} from './api.service';
-import {CommonModule} from '@angular/common';
-import {DomSanitizer} from '@angular/platform-browser';
-import {LinkPreviewComponent} from './link.component';
-import {combineLatest, Subscription} from 'rxjs';
-import {HttpErrorResponse} from '@angular/common/http';
-import {FeedViewModel, RawContentPost, toFeedViewModel} from './content-feed.utils';
-import {Storm} from './api.service';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ElementRef,
+  ViewChildren,
+  ViewChild,
+  QueryList,
+  AfterViewInit,
+  inject,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+} from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ApiService, FeedPage } from './api.service';
+import { CommonModule } from '@angular/common';
+import { DomSanitizer } from '@angular/platform-browser';
+import { LinkPreviewComponent, LinkFaviconsComponent } from './link.component';
+import { combineLatest, Subscription } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { FeedViewModel, RawContentPost, toFeedViewModel } from './content-feed.utils';
+import { Storm } from './api.service';
 
 @Component({
   selector: 'app-public-feed',
   standalone: true,
-  imports: [CommonModule, RouterLink, LinkPreviewComponent],
+  imports: [CommonModule, RouterLink, LinkPreviewComponent, LinkFaviconsComponent],
   templateUrl: 'feed.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -69,32 +81,37 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.items.filter((item): item is RawContentPost => !('root' in item));
   }
 
+  postTemplateContext(post: RawContentPost): { $implicit: RawContentPost } {
+    return { $implicit: post };
+  }
+
   ngOnInit(): void {
     // Combine Route Params with Identity State
-    combineLatest([this.route.queryParams, this.api.identityId$])
-      .subscribe(([params, identityId]) => {
-          const prevIdentityId = this.currentIdentityId;
-          this.currentIdentityId = identityId;
+    combineLatest([this.route.queryParams, this.api.identityId$]).subscribe(
+      ([params, identityId]) => {
+        const prevIdentityId = this.currentIdentityId;
+        this.currentIdentityId = identityId;
 
-          if (!identityId) {
-              this.loading = true; // Wait for identity
-              return;
-          }
+        if (!identityId) {
+          this.loading = true; // Wait for identity
+          return;
+        }
 
-          const newFilter = params['filter'] || 'storms';
-          const newUser = params['user'] || undefined; // "everyone" passes through as string here
+        const newFilter = params['filter'] || 'storms';
+        const newUser = params['user'] || undefined; // "everyone" passes through as string here
 
-          // Reload only if filter/user changed or identity actually changed
-          const identityChanged = prevIdentityId !== identityId;
-          const filterChanged = newFilter !== this.currentFilter;
-          const userChanged = newUser !== this.currentUser;
+        // Reload only if filter/user changed or identity actually changed
+        const identityChanged = prevIdentityId !== identityId;
+        const filterChanged = newFilter !== this.currentFilter;
+        const userChanged = newUser !== this.currentUser;
 
-          if (filterChanged || userChanged || identityChanged) {
-              this.currentFilter = newFilter;
-              this.currentUser = newUser;
-              this.load(this.currentFilter, this.currentUser, identityId);
-          }
-      });
+        if (filterChanged || userChanged || identityChanged) {
+          this.currentFilter = newFilter;
+          this.currentUser = newUser;
+          this.load(this.currentFilter, this.currentUser, identityId);
+        }
+      },
+    );
 
     this.refreshSubscription = this.api.refreshNeeded$.subscribe(() => {
       if (this.currentIdentityId) {
@@ -110,13 +127,18 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     this.nextCursor = null;
     this.loadingMore = false;
 
+    // Capture the base URL now, before any async work, so all view models
+    // built from this load use the correct instance even if the user switches
+    // identity while the request is in flight.
+    const localBaseUrl = this.api.getIdentityBaseUrl();
+
     // Define the success handler to reuse
     const handleSuccess = (page: FeedPage<RawContentPost | Storm>) => {
       this.loading = false;
       const data = page.items;
       this.items = data;
       this.nextCursor = page.next_cursor;
-      this.trackSeenPosts(data);
+      this.trackSeenPosts(data, localBaseUrl);
       this.updateUnreadCount();
       this.cdr.markForCheck();
       // Observe the load-more sentinel after the first page lands.
@@ -144,8 +166,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
         next: (page) => handleSuccess(page as FeedPage<RawContentPost | Storm>),
         error: handleError,
       });
-    }
-    else {
+    } else {
       // Otherwise use the standard flat list with the specific filter
       this.isStormView = false;
       this.api.getPublicPosts(identityId, filter, user).subscribe({
@@ -162,12 +183,13 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     const filter = this.currentFilter;
     const user = this.currentUser;
     const cursor = this.nextCursor;
+    const localBaseUrl = this.api.getIdentityBaseUrl();
 
     const handleMore = (page: FeedPage<RawContentPost | Storm>) => {
       this.items = [...this.items, ...page.items];
       this.nextCursor = page.next_cursor;
       this.loadingMore = false;
-      this.trackSeenPosts(page.items);
+      this.trackSeenPosts(page.items, localBaseUrl);
       this.updateUnreadCount();
       this.cdr.markForCheck();
       if (this.nextCursor) {
@@ -238,17 +260,25 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     return params;
   }
 
-  private buildViewModels(data: (RawContentPost | Storm)[]): void {
+  private buildViewModels(data: (RawContentPost | Storm)[], localBaseUrl: string | null): void {
     const sanitize = (html: string) => this.sanitizer.bypassSecurityTrustHtml(html);
-    const localBaseUrl = this.api.getIdentityBaseUrl();
     for (const item of data) {
       if ('root' in item) {
-        this.viewModels.set(item.root.id, toFeedViewModel(item.root, sanitize, this.seenPostIds, localBaseUrl));
+        this.viewModels.set(
+          item.root.id,
+          toFeedViewModel(item.root, sanitize, this.seenPostIds, localBaseUrl),
+        );
         for (const branch of item.branches ?? []) {
-          this.viewModels.set(branch.id, toFeedViewModel(branch, sanitize, this.seenPostIds, localBaseUrl));
+          this.viewModels.set(
+            branch.id,
+            toFeedViewModel(branch, sanitize, this.seenPostIds, localBaseUrl),
+          );
         }
       } else {
-        this.viewModels.set(item.id, toFeedViewModel(item, sanitize, this.seenPostIds, localBaseUrl));
+        this.viewModels.set(
+          item.id,
+          toFeedViewModel(item, sanitize, this.seenPostIds, localBaseUrl),
+        );
       }
     }
   }
@@ -256,7 +286,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
   private rebuildReadState(): void {
     for (const [id, model] of this.viewModels) {
       if (!model.isRead && this.seenPostIds.has(id)) {
-        this.viewModels.set(id, {...model, isRead: true});
+        this.viewModels.set(id, { ...model, isRead: true });
       }
     }
   }
@@ -302,7 +332,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
           }
         });
       },
-      { threshold: 0.5 }
+      { threshold: 0.5 },
     );
 
     this.postItems?.changes.subscribe(() => {
@@ -387,7 +417,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     this.api.markPostsSeen(postIds).subscribe({
       error: (err: unknown) => {
         console.error('Failed to mark posts as seen', err);
-      }
+      },
     });
   }
 
@@ -395,7 +425,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     this.unreadCount = this.items.length - this.seenPostIds.size;
   }
 
-  private trackSeenPosts(data: (RawContentPost | Storm)[]): void {
+  private trackSeenPosts(data: (RawContentPost | Storm)[], localBaseUrl: string | null): void {
     const postIds: string[] = [];
 
     for (const item of data) {
@@ -410,7 +440,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     // Build view models now (before seen state arrives, isRead = false for new items).
-    this.buildViewModels(data);
+    this.buildViewModels(data, localBaseUrl);
 
     this.api.getSeenPosts(postIds).subscribe({
       next: (res) => {
@@ -421,7 +451,7 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
       },
       error: (err: unknown) => {
         console.error('Failed to get seen posts', err);
-      }
+      },
     });
   }
 

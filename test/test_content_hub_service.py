@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from test.conftest import make_identity, make_meta_account
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -7,7 +8,6 @@ from sqlalchemy import select
 from mastodon_is_my_blog import content_hub_matching, content_hub_service
 from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.store import ContentHubGroup, ContentHubGroupTerm
-from test.conftest import make_identity, make_meta_account
 
 
 def make_group(
@@ -60,11 +60,12 @@ def test_make_slug_normalizes_names() -> None:
 
 @pytest.mark.asyncio
 async def test_is_group_stale_handles_missing_recent_and_old_timestamps() -> None:
-    assert await content_hub_service.is_group_stale(make_group(last_fetched_at=None)) is True
     assert (
-        await content_hub_service.is_group_stale(
-            make_group(last_fetched_at=utc_now())
-        )
+        await content_hub_service.is_group_stale(make_group(last_fetched_at=None))
+        is True
+    )
+    assert (
+        await content_hub_service.is_group_stale(make_group(last_fetched_at=utc_now()))
         is False
     )
     assert (
@@ -104,15 +105,25 @@ async def test_sync_server_follow_groups_creates_and_removes_groups(
 
     async with db_session_factory() as session:
         groups = (
-            await session.execute(
-                select(ContentHubGroup).order_by(ContentHubGroup.slug)
+            (
+                await session.execute(
+                    select(ContentHubGroup).order_by(ContentHubGroup.slug)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         terms = (
-            await session.execute(
-                select(ContentHubGroupTerm).order_by(ContentHubGroupTerm.normalized_term)
+            (
+                await session.execute(
+                    select(ContentHubGroupTerm).order_by(
+                        ContentHubGroupTerm.normalized_term
+                    )
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     assert result == {"created": 2, "removed": 1}
     assert [(group.name, group.slug, group.is_read_only) for group in groups] == [
@@ -145,7 +156,9 @@ async def test_refresh_group_raises_for_missing_group(patch_async_session) -> No
 
 
 @pytest.mark.asyncio
-async def test_refresh_group_skips_fresh_groups(db_session, patch_async_session) -> None:
+async def test_refresh_group_skips_fresh_groups(
+    db_session, patch_async_session
+) -> None:
     patch_async_session(content_hub_service)
     db_session.add_all(
         [
@@ -180,7 +193,9 @@ async def test_refresh_group_fetches_terms_records_matches_and_updates_timestamp
         term_type="search",
         normalized_term="python jobs",
     )
-    db_session.add_all([make_meta_account(), identity, group, hashtag_term, search_term])
+    db_session.add_all(
+        [make_meta_account(), identity, group, hashtag_term, search_term]
+    )
     await db_session.commit()
 
     client = MagicMock()
@@ -194,7 +209,9 @@ async def test_refresh_group_fetches_terms_records_matches_and_updates_timestamp
         patch.object(content_hub_service, "client_from_identity", return_value=client),
         patch.object(content_hub_service, "bulk_upsert_posts", bulk_upsert_mock),
         patch.object(content_hub_service, "record_search_matches", search_match_mock),
-        patch.object(content_hub_matching, "retro_match_hashtag_term", hashtag_match_mock),
+        patch.object(
+            content_hub_matching, "retro_match_hashtag_term", hashtag_match_mock
+        ),
     ):
         result = await content_hub_service.refresh_group(1, identity, group.id)
 
@@ -243,7 +260,9 @@ async def test_refresh_group_continues_after_term_errors(
         term_type="search",
         normalized_term="python jobs",
     )
-    db_session.add_all([make_meta_account(), identity, group, hashtag_term, search_term])
+    db_session.add_all(
+        [make_meta_account(), identity, group, hashtag_term, search_term]
+    )
     await db_session.commit()
 
     client = MagicMock()
@@ -251,7 +270,9 @@ async def test_refresh_group_continues_after_term_errors(
     client.search.return_value = {"statuses": []}
 
     with patch.object(content_hub_service, "client_from_identity", return_value=client):
-        result = await content_hub_service.refresh_group(1, identity, group.id, force=True)
+        result = await content_hub_service.refresh_group(
+            1, identity, group.id, force=True
+        )
 
     assert result == {"fetched": 0, "matched": 0}
 
@@ -267,9 +288,7 @@ async def test_create_client_bundle_persists_group_and_normalized_terms(
     await db_session.commit()
 
     retro_match_mock = AsyncMock(return_value=2)
-    with patch.object(
-        content_hub_service, "retro_match_new_bundle", retro_match_mock
-    ):
+    with patch.object(content_hub_service, "retro_match_new_bundle", retro_match_mock):
         group = await content_hub_service.create_client_bundle(
             1,
             1,
@@ -283,12 +302,16 @@ async def test_create_client_bundle_persists_group_and_normalized_terms(
     async with db_session_factory() as session:
         stored_group = await session.get(ContentHubGroup, group.id)
         terms = (
-            await session.execute(
-                select(ContentHubGroupTerm)
-                .where(ContentHubGroupTerm.group_id == group.id)
-                .order_by(ContentHubGroupTerm.id)
+            (
+                await session.execute(
+                    select(ContentHubGroupTerm)
+                    .where(ContentHubGroupTerm.group_id == group.id)
+                    .order_by(ContentHubGroupTerm.id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     assert stored_group is not None
     assert stored_group.slug == "python-jobs"
@@ -312,9 +335,7 @@ async def test_update_client_bundle_replaces_terms_and_updates_slug(
     await db_session.commit()
 
     retro_match_mock = AsyncMock(return_value=1)
-    with patch.object(
-        content_hub_service, "retro_match_new_bundle", retro_match_mock
-    ):
+    with patch.object(content_hub_service, "retro_match_new_bundle", retro_match_mock):
         updated_group = await content_hub_service.update_client_bundle(
             1,
             1,
@@ -329,12 +350,16 @@ async def test_update_client_bundle_replaces_terms_and_updates_slug(
     async with db_session_factory() as session:
         stored_group = await session.get(ContentHubGroup, updated_group.id)
         terms = (
-            await session.execute(
-                select(ContentHubGroupTerm)
-                .where(ContentHubGroupTerm.group_id == updated_group.id)
-                .order_by(ContentHubGroupTerm.id)
+            (
+                await session.execute(
+                    select(ContentHubGroupTerm)
+                    .where(ContentHubGroupTerm.group_id == updated_group.id)
+                    .order_by(ContentHubGroupTerm.id)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     assert stored_group is not None
     assert stored_group.name == "New Bundle"

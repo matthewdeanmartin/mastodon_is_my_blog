@@ -4,7 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService } from './api.service';
-import { ContentHubPost } from './mastodon';
+import { ContentHubPost, MastodonMediaAttachment } from './mastodon';
 import { Subscription, combineLatest } from 'rxjs';
 
 type Tab = 'text' | 'videos' | 'jobs';
@@ -19,6 +19,7 @@ interface PostViewModel {
   counts: { replies: number; reblogs: number; likes: number };
   is_reblog: boolean;
   is_reply: boolean;
+  videos: MastodonMediaAttachment[];
 }
 
 @Component({
@@ -26,6 +27,83 @@ interface PostViewModel {
   standalone: true,
   imports: [CommonModule],
   templateUrl: 'content-hub-group.component.html',
+  styles: [
+    `
+      .group-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+
+      .stale-badge {
+        display: inline-block;
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 1px 5px;
+        border-radius: 3px;
+        margin-left: 6px;
+      }
+
+      .tab-bar {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 12px;
+      }
+
+      .tab-btn {
+        padding: 5px 16px;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        color: #374151;
+        transition: all 0.2s;
+        font-weight: 500;
+      }
+
+      .tab-btn:hover {
+        background: #f3f4f6;
+        border-color: #6366f1;
+      }
+
+      .tab-btn.active {
+        background: #6366f1;
+        color: white;
+        border-color: #6366f1;
+      }
+
+      .post-item {
+        padding: 4px 0;
+      }
+
+      .badge {
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .badge.reblog {
+        background: #e3f2fd;
+        color: #1976d2;
+      }
+
+      .badge.reply {
+        background: #f3e5f5;
+        color: #7b1fa2;
+      }
+    `,
+  ],
 })
 export class ContentHubGroupComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
@@ -141,6 +219,7 @@ export class ContentHubGroupComponent implements OnInit, OnDestroy {
       counts: p.counts,
       is_reblog: p.is_reblog,
       is_reply: p.is_reply,
+      videos: (p.media_attachments ?? []).filter((m) => m.type === 'video' || m.type === 'gifv'),
     };
   }
 

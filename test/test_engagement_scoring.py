@@ -1,4 +1,4 @@
-import math
+
 import pytest
 
 from mastodon_is_my_blog.engagement_scoring import (

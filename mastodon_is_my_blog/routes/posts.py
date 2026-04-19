@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy import and_, desc, false, func, or_, select, true
 
 from mastodon_is_my_blog.link_previews import CardResponse, fetch_card
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
@@ -19,6 +19,7 @@ from mastodon_is_my_blog.queries import (
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedPost,
+    MastodonIdentity,
     MetaAccount,
     SeenPost,
     async_session,
@@ -41,7 +42,9 @@ async def fetch_account_info(
     if not accts:
         return {}
     result = await session.execute(
-        select(CachedAccount.acct, CachedAccount.avatar, CachedAccount.display_name).where(
+        select(
+            CachedAccount.acct, CachedAccount.avatar, CachedAccount.display_name
+        ).where(
             and_(
                 CachedAccount.meta_account_id == meta_id,
                 CachedAccount.mastodon_identity_id == identity_id,
@@ -49,7 +52,11 @@ async def fetch_account_info(
             )
         )
     )
-    return {row.acct: {"avatar": row.avatar, "display_name": row.display_name} for row in result.all()}
+    return {
+        row.acct: {"avatar": row.avatar, "display_name": row.display_name}
+        for row in result.all()
+    }
+
 
 STORM_MIN_TEXT_LEN = 500
 DEFAULT_PAGE_LIMIT = 30
@@ -138,6 +145,7 @@ async def get_public_posts(
             "storm",
             "shorts",
             "discussions",
+            "messages",
             "pictures",
             "videos",
             "news",
@@ -241,6 +249,24 @@ async def get_public_posts(
             query = query.where(
                 and_(CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(True))
             )
+        elif filter_type == "messages":
+            # Posts from others replying directly to the active identity's account
+            identity_stmt = select(MastodonIdentity).where(
+                and_(
+                    MastodonIdentity.id == identity_id,
+                    MastodonIdentity.meta_account_id == meta.id,
+                )
+            )
+            identity = (await session.execute(identity_stmt)).scalar_one_or_none()
+            if identity:
+                query = query.where(
+                    and_(
+                        CachedPost.is_reblog.is_(False),
+                        CachedPost.in_reply_to_account_id == identity.account_id,
+                    )
+                )
+            else:
+                query = query.where(false())
         elif filter_type == "pictures":
             query = query.where(
                 and_(CachedPost.is_reblog.is_(False), CachedPost.has_media.is_(True))
@@ -289,7 +315,9 @@ async def get_public_posts(
         rows = rows[:limit]
 
         author_accts = {p.author_acct for p, _ in rows}
-        account_info = await fetch_account_info(session, meta.id, identity_id, author_accts)
+        account_info = await fetch_account_info(
+            session, meta.id, identity_id, author_accts
+        )
 
         items = [
             {
@@ -297,7 +325,9 @@ async def get_public_posts(
                 "content": p.content,
                 "author_acct": p.author_acct,
                 "author_avatar": account_info.get(p.author_acct, {}).get("avatar", ""),
-                "author_display_name": account_info.get(p.author_acct, {}).get("display_name", ""),
+                "author_display_name": account_info.get(p.author_acct, {}).get(
+                    "display_name", ""
+                ),
                 "created_at": p.created_at.isoformat(),
                 "is_read": is_seen is not None,
                 "media_attachments": (
@@ -368,7 +398,9 @@ async def get_storms(
         CachedPost.is_reblog.is_(False),
         CachedPost.content_hub_only.is_(False),
     )
-    user_filter = (CachedPost.author_acct == user) if (user and user != "everyone") else True
+    user_filter = (
+        (CachedPost.author_acct == user) if (user and user != "everyone") else true()
+    )
 
     async with async_session() as session:
         # Subquery: post IDs that have at least one self-reply.
@@ -455,7 +487,9 @@ async def get_storms(
         replies = (await session.execute(replies_query)).scalars().all()
 
         root_accts = {p.author_acct for p in roots}
-        account_info = await fetch_account_info(session, meta.id, identity_id, root_accts)
+        account_info = await fetch_account_info(
+            session, meta.id, identity_id, root_accts
+        )
 
     # Build children map from the small reply set only
     children_map: dict[str, list] = {}
@@ -468,7 +502,9 @@ async def get_storms(
 
     def collect_children(parent_id: str, root_author_id: str) -> list:
         results = []
-        direct_kids = sorted(children_map.get(parent_id, []), key=lambda x: x.created_at)
+        direct_kids = sorted(
+            children_map.get(parent_id, []), key=lambda x: x.created_at
+        )
         for kid in direct_kids:
             if kid.author_id == root_author_id:
                 results.append(
@@ -502,7 +538,9 @@ async def get_storms(
                 "counts": {"replies": p.replies_count, "likes": p.favourites_count},
                 "author_acct": p.author_acct,
                 "author_avatar": account_info.get(p.author_acct, {}).get("avatar", ""),
-                "author_display_name": account_info.get(p.author_acct, {}).get("display_name", ""),
+                "author_display_name": account_info.get(p.author_acct, {}).get(
+                    "display_name", ""
+                ),
                 "is_read": p.id in seen_ids,
             },
             "branches": collect_children(p.id, p.author_id),
@@ -527,6 +565,7 @@ async def get_hashtags(
 ):
     """Aggregates all hashtags used by the user."""
     from mastodon_is_my_blog import duck
+
     return await duck.hashtag_counts(meta.id, identity_id, user=user)
 
 
@@ -576,7 +615,17 @@ async def get_counts(
         user = None
 
     async with async_session() as session:
-        return await get_counts_optimized(session, meta.id, identity_id, user)
+        identity_stmt = select(MastodonIdentity).where(
+            and_(
+                MastodonIdentity.id == identity_id,
+                MastodonIdentity.meta_account_id == meta.id,
+            )
+        )
+        identity = (await session.execute(identity_stmt)).scalar_one_or_none()
+        identity_account_id = identity.account_id if identity else None
+        return await get_counts_optimized(
+            session, meta.id, identity_id, user, identity_account_id
+        )
 
 
 @router.get("/card", response_model=CardResponse)

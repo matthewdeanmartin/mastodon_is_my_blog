@@ -1,3 +1,4 @@
+from test.conftest import make_identity
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -5,7 +6,6 @@ from sqlalchemy import select
 
 from mastodon_is_my_blog import identity_verifier
 from mastodon_is_my_blog.store import MastodonIdentity
-from test.conftest import make_identity
 
 
 @pytest.mark.asyncio
@@ -40,7 +40,10 @@ async def test_verify_identity_updates_verified_account_fields(
     await db_session.commit()
 
     client = MagicMock()
-    client.account_verify_credentials.return_value = {"acct": "verified@example.social", "id": 42}
+    client.account_verify_credentials.return_value = {
+        "acct": "verified@example.social",
+        "id": 42,
+    }
 
     with patch.object(identity_verifier, "client_from_identity", return_value=client):
         result = await identity_verifier.verify_identity(1)

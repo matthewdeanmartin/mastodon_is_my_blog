@@ -7,7 +7,15 @@ import { ApiService } from './api.service';
 import { ContentHubStateService } from './content-hub-state.service';
 import { ContentHubPost } from './mastodon';
 import { combineLatest, Subscription } from 'rxjs';
-import { ContentFeedPost, contentFeedFilters, ContentFeedFilter, getPopularityScore, sortContentPosts, normalizeContentPost, getContentUserFilter } from './content-feed.utils';
+import {
+  ContentFeedPost,
+  contentFeedFilters,
+  ContentFeedFilter,
+  getPopularityScore,
+  sortContentPosts,
+  normalizeContentPost,
+  getContentUserFilter,
+} from './content-feed.utils';
 
 function hubToFeedPost(p: ContentHubPost): ContentFeedPost {
   return {
@@ -79,7 +87,11 @@ const TAB_STYLES = `
           </div>
           <div class="filter-buttons">
             @for (filter of filters; track filter) {
-              <button [class.active]="currentFilter === filter.value" (click)="setFilter(filter.value)" class="filter-btn">
+              <button
+                [class.active]="currentFilter === filter.value"
+                (click)="setFilter(filter.value)"
+                class="filter-btn"
+              >
                 {{ filter.label }}
               </button>
             }
@@ -89,24 +101,38 @@ const TAB_STYLES = `
           </div>
         </div>
 
-        @if (loading) { <div class="muted">Loading...</div> }
-        @if (!loading && posts.length === 0) { <div class="muted">No posts found in this group.</div> }
+        @if (loading) {
+          <div class="muted">Loading...</div>
+        }
+        @if (!loading && posts.length === 0) {
+          <div class="muted">No posts found in this group.</div>
+        }
 
         @for (post of posts; track post.id) {
           <div class="post-card">
             <div class="row" style="gap: 8px; align-items: center; margin-bottom: 6px;">
               @if (post.author_avatar) {
-                <img [src]="post.author_avatar" alt="" style="width: 26px; height: 26px; border-radius: 50%;">
+                <img
+                  [src]="post.author_avatar"
+                  alt=""
+                  style="width: 26px; height: 26px; border-radius: 50%;"
+                />
               }
-              <strong style="font-size: 0.9rem;">{{ post.author_display_name || post.author_acct }}</strong>
-              <span class="muted" style="font-size: 0.8rem; margin-left: auto;">{{ post.created_at | date: 'short' }}</span>
+              <strong style="font-size: 0.9rem;">{{
+                post.author_display_name || post.author_acct
+              }}</strong>
+              <span class="muted" style="font-size: 0.8rem; margin-left: auto;">{{
+                post.created_at | date: 'short'
+              }}</span>
               <div class="signal-row" style="margin-left: 0;">
                 <span class="signal-pill">❤️ {{ post.counts.likes }}</span>
                 <span class="signal-pill">💬 {{ post.counts.replies }}</span>
               </div>
             </div>
             <div [innerHTML]="post.content" style="margin: 8px 0; font-size: 0.92rem;"></div>
-            <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">View</button>
+            <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">
+              View
+            </button>
           </div>
         }
       }
@@ -138,7 +164,9 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
     );
   }
 
-  ngOnDestroy(): void { this.sub?.unsubscribe(); }
+  ngOnDestroy(): void {
+    this.sub?.unsubscribe();
+  }
 
   private load(identityId: number, groupId: number): void {
     this.loading = true;
@@ -172,8 +200,12 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
     });
   }
 
-  viewPost(id: string): void { this.router.navigate(['/p', id]); }
-  getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }
+  viewPost(id: string): void {
+    this.router.navigate(['/p', id]);
+  }
+  getPopularityScore(post: ContentFeedPost): number {
+    return getPopularityScore(post);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -193,7 +225,11 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
         </div>
         <div class="filter-buttons">
           @for (filter of filters; track filter) {
-            <button [class.active]="currentFilter === filter.value" (click)="setFilter(filter.value)" class="filter-btn">
+            <button
+              [class.active]="currentFilter === filter.value"
+              (click)="setFilter(filter.value)"
+              class="filter-btn"
+            >
               {{ filter.label }}
             </button>
           }
@@ -205,7 +241,9 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
         </div>
       </div>
 
-      @if (loading) { <div class="muted">Loading...</div> }
+      @if (loading) {
+        <div class="muted">Loading...</div>
+      }
       @if (!loading && posts.length === 0) {
         <div class="muted">No job-related posts found.</div>
       }
@@ -214,17 +252,27 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
         <div class="post-card">
           <div class="row" style="gap: 8px; align-items: center; margin-bottom: 6px;">
             @if (post.author_avatar) {
-              <img [src]="post.author_avatar" alt="" style="width: 26px; height: 26px; border-radius: 50%;">
+              <img
+                [src]="post.author_avatar"
+                alt=""
+                style="width: 26px; height: 26px; border-radius: 50%;"
+              />
             }
-            <strong style="font-size: 0.9rem;">{{ post.author_display_name || post.author_acct }}</strong>
-            <span class="muted" style="font-size: 0.8rem; margin-left: auto;">{{ post.created_at | date: 'short' }}</span>
+            <strong style="font-size: 0.9rem;">{{
+              post.author_display_name || post.author_acct
+            }}</strong>
+            <span class="muted" style="font-size: 0.8rem; margin-left: auto;">{{
+              post.created_at | date: 'short'
+            }}</span>
             <div class="signal-row" style="margin-left: 0;">
               <span class="signal-pill">❤️ {{ post.counts.likes }}</span>
               <span class="signal-pill">💬 {{ post.counts.replies }}</span>
             </div>
           </div>
           <div [innerHTML]="post.content" style="margin: 8px 0; font-size: 0.92rem;"></div>
-          <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">View</button>
+          <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">
+            View
+          </button>
         </div>
       }
     </div>
@@ -256,7 +304,9 @@ export class ContentHubJobsComponent implements OnInit, OnDestroy {
     );
   }
 
-  ngOnDestroy(): void { this.sub?.unsubscribe(); }
+  ngOnDestroy(): void {
+    this.sub?.unsubscribe();
+  }
 
   private load(identityId: number, groupId: number | null): void {
     this.loading = true;
@@ -301,6 +351,10 @@ export class ContentHubJobsComponent implements OnInit, OnDestroy {
     });
   }
 
-  viewPost(id: string): void { this.router.navigate(['/p', id]); }
-  getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }
+  viewPost(id: string): void {
+    this.router.navigate(['/p', id]);
+  }
+  getPopularityScore(post: ContentFeedPost): number {
+    return getPopularityScore(post);
+  }
 }

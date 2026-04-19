@@ -1,9 +1,11 @@
-"""add in_reply_to index for storm queries
+"""
+add in_reply_to index for storm queries
 
 Revision ID: 002
 Revises: 001
 Create Date: 2026-04-11
 """
+
 from alembic import op
 
 revision = "002"

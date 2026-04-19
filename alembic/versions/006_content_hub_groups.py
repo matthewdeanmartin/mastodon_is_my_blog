@@ -1,4 +1,5 @@
-"""Add content hub tables and extend cached_posts with discovery metadata
+"""
+Add content hub tables and extend cached_posts with discovery metadata
 
 New tables: content_hub_groups, content_hub_group_terms, content_hub_post_matches
 New columns on cached_posts: discovery_source, content_hub_only
@@ -9,6 +10,7 @@ Create Date: 2026-04-12
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "006"
@@ -60,7 +62,9 @@ def upgrade() -> None:
         sa.Column("name", sa.String, nullable=False),
         sa.Column("slug", sa.String, nullable=False),
         sa.Column("source_type", sa.String(20), nullable=False),
-        sa.Column("is_read_only", sa.Boolean, nullable=False, server_default=sa.false()),
+        sa.Column(
+            "is_read_only", sa.Boolean, nullable=False, server_default=sa.false()
+        ),
         sa.Column("last_fetched_at", sa.DateTime, nullable=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
@@ -91,9 +95,7 @@ def upgrade() -> None:
         sa.Column("normalized_term", sa.String, nullable=False),
         sa.Column("created_at", sa.DateTime, nullable=False),
     )
-    op.create_index(
-        "ix_hub_terms_group", "content_hub_group_terms", ["group_id"]
-    )
+    op.create_index("ix_hub_terms_group", "content_hub_group_terms", ["group_id"])
     op.create_index(
         "ix_hub_terms_normalized", "content_hub_group_terms", ["normalized_term"]
     )

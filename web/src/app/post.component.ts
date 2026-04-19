@@ -1,11 +1,17 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import {ActivatedRoute, Router} from '@angular/router';
-import {ApiService} from './api.service';
-import {CommonModule} from '@angular/common';
-import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
-import {LinkPreviewComponent} from './link.component';
-import {LinkPreviewService} from './link.service';
-import {MastodonMediaAttachment, MastodonStatus} from './mastodon';
+import {
+  Component,
+  OnInit,
+  inject,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+} from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ApiService } from './api.service';
+import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { LinkPreviewComponent } from './link.component';
+import { LinkPreviewService } from './link.service';
+import { MastodonMediaAttachment, MastodonStatus } from './mastodon';
 
 interface TreeNode {
   post: MastodonStatus;
@@ -40,21 +46,23 @@ interface CommentsResponse {
   imports: [CommonModule, LinkPreviewComponent],
   templateUrl: 'post.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: [`
-    .tree-line {
-      position: absolute;
-      left: 20px;
-      top: 50px;
-      bottom: 0;
-      width: 2px;
-      background: #e1e8ed;
-      z-index: 0;
-    }
+  styles: [
+    `
+      .tree-line {
+        position: absolute;
+        left: 20px;
+        top: 50px;
+        bottom: 0;
+        width: 2px;
+        background: #e1e8ed;
+        z-index: 0;
+      }
 
-    .post-wrapper {
-      position: relative;
-    }
-  `]
+      .post-wrapper {
+        position: relative;
+      }
+    `,
+  ],
 })
 export class PublicPostComponent implements OnInit {
   private route = inject(ActivatedRoute);
@@ -80,14 +88,18 @@ export class PublicPostComponent implements OnInit {
   private allPosts: { id: string; created_at: string }[] = [];
   private currentPostIndex = -1;
 
+  treeNodeContext(node: TreeNode): { node: TreeNode } {
+    return { node };
+  }
+
   ngOnInit(): void {
     // Check if we are viewing a specific user's blog context
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.subscribe((params) => {
       this.blogUserAcct = params['user'] || null;
       this.currentFilter = params['filter'] || 'storms';
     });
 
-    this.route.paramMap.subscribe(params => {
+    this.route.paramMap.subscribe((params) => {
       const id = params.get('id');
       if (!id) return;
       this.targetId = id;
@@ -123,15 +135,15 @@ export class PublicPostComponent implements OnInit {
       error: (err: unknown) => {
         console.error(err);
         this.loading = false;
-      }
+      },
     });
   }
-  
+
   private markAsSeen(postId: string): void {
     this.api.markPostSeen(postId).subscribe({
       error: (err: unknown) => {
         console.error('Failed to mark post as seen', err);
-      }
+      },
     });
   }
 
@@ -143,8 +155,8 @@ export class PublicPostComponent implements OnInit {
     const identityId = this.api.getCurrentIdentityId();
 
     if (!identityId) {
-        console.warn('No identity context available for navigation');
-        return;
+      console.warn('No identity context available for navigation');
+      return;
     }
 
     const isStorms = this.currentFilter === 'storms' || this.currentFilter === 'all';
@@ -157,30 +169,34 @@ export class PublicPostComponent implements OnInit {
 
     if (isStorms) {
       this.api.getStorms(identityId, this.blogUserAcct || undefined).subscribe({
-        next: page => {
-          this.allPosts = page.items.map(storm => ({id: storm.root.id, created_at: storm.root.created_at}));
+        next: (page) => {
+          this.allPosts = page.items.map((storm) => ({
+            id: storm.root.id,
+            created_at: storm.root.created_at,
+          }));
           onDone();
         },
         error: () => onDone(),
       });
     } else {
-      this.api.getPublicPosts(identityId, this.currentFilter, this.blogUserAcct || undefined).subscribe({
-        next: page => {
-          this.allPosts = page.items.map(p => ({id: p.id, created_at: p.created_at}));
-          onDone();
-        },
-        error: () => onDone(),
-      });
+      this.api
+        .getPublicPosts(identityId, this.currentFilter, this.blogUserAcct || undefined)
+        .subscribe({
+          next: (page) => {
+            this.allPosts = page.items.map((p) => ({ id: p.id, created_at: p.created_at }));
+            onDone();
+          },
+          error: () => onDone(),
+        });
     }
   }
-
 
   private recomputeIndex(): void {
     if (!this.targetId || this.allPosts.length === 0) {
       this.currentPostIndex = -1;
       return;
     }
-    this.currentPostIndex = this.allPosts.findIndex(p => p.id === this.targetId);
+    this.currentPostIndex = this.allPosts.findIndex((p) => p.id === this.targetId);
   }
 
   nextPost(): void {
@@ -195,18 +211,20 @@ export class PublicPostComponent implements OnInit {
     this.loadingNext = true;
 
     // Navigate to next post with same query params
-    this.router.navigate(['/p', nextPost.id], {
-      queryParamsHandling: 'preserve'
-    }).then(() => {
-      this.loadingNext = false;
-      window.scrollTo({top: 0, behavior: 'smooth'});
-    });
+    this.router
+      .navigate(['/p', nextPost.id], {
+        queryParamsHandling: 'preserve',
+      })
+      .then(() => {
+        this.loadingNext = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
   }
 
   goBack(): void {
     // Navigate back to feed with preserved query params
     this.router.navigate(['/'], {
-      queryParamsHandling: 'preserve'
+      queryParamsHandling: 'preserve',
     });
   }
 
@@ -217,11 +235,11 @@ export class PublicPostComponent implements OnInit {
     const map = new Map<string, TreeNode>();
 
     // Initialize all nodes
-    flatPosts.forEach(p => map.set(p.id, {post: p, children: []}));
+    flatPosts.forEach((p) => map.set(p.id, { post: p, children: [] }));
 
     const roots: TreeNode[] = [];
 
-    flatPosts.forEach(p => {
+    flatPosts.forEach((p) => {
       const node = map.get(p.id)!;
       // If it replies to the target, it's a root of our descendants tree
       if (p.in_reply_to_id === targetId) {
@@ -238,7 +256,7 @@ export class PublicPostComponent implements OnInit {
     // Helper to sort nodes chronologically
     const sortNodes = (nodes: TreeNode[]) => {
       nodes.sort((a, b) => a.post.created_at.localeCompare(b.post.created_at));
-      nodes.forEach(n => sortNodes(n.children));
+      nodes.forEach((n) => sortNodes(n.children));
     };
 
     sortNodes(roots);
@@ -302,20 +320,25 @@ export class PublicPostComponent implements OnInit {
     return post.media_attachments?.filter((m) => m.type === 'image') || [];
   }
 
-  getOriginalPostUrl(post: MastodonStatus): string {
-    const acct = post.account.acct;
-    if (!acct) return '#';
+  getMediaVideos(post: MastodonStatus): MastodonMediaAttachment[] {
+    return post.media_attachments?.filter((m) => m.type === 'video' || m.type === 'gifv') || [];
+  }
 
+  getOriginalPostUrl(post: MastodonStatus): string | null {
+    // Always route through the active identity's home instance so the user
+    // can reply/boost/fav while signed in. If the active base URL isn't
+    // known, refuse to fabricate one — the template hides the link.
+    const acct = post.account.acct;
+    if (!acct) return null;
+    const base = this.api.getIdentityBaseUrl()?.replace(/\/$/, '');
+    if (!base) return null;
     const parts = acct.split('@');
     const username = parts[0];
-    const instance = parts[1] || 'mastodon.social';
-    const canonicalUrl = `https://${instance}/@${username}/${post.id}`;
-
-    const localBaseUrl = this.api.getIdentityBaseUrl();
-    if (localBaseUrl && parts[1]) {
-      return `${localBaseUrl.replace(/\/$/, '')}/@${username}@${parts[1]}/${post.id}`;
+    const remoteInstance = parts[1];
+    if (remoteInstance) {
+      return `${base}/@${username}@${remoteInstance}/${post.id}`;
     }
-    return canonicalUrl;
+    return `${base}/@${username}/${post.id}`;
   }
 
   /**

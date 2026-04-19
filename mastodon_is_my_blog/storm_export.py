@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import unescape
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
+from collections.abc import Sequence
 
 from bs4 import BeautifulSoup
 from sqlalchemy import select
@@ -29,7 +30,9 @@ from mastodon_is_my_blog.store import (
 
 DEFAULT_MIN_TEXT_LENGTH = 495
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "docs-src" / "src" / "_data" / "storms.json"
-DEFAULT_BLOGROLL_OUTPUT_PATH = PROJECT_ROOT / "docs-src" / "src" / "_data" / "blogroll.json"
+DEFAULT_BLOGROLL_OUTPUT_PATH = (
+    PROJECT_ROOT / "docs-src" / "src" / "_data" / "blogroll.json"
+)
 BLOGROLL_NOTIFICATION_TYPES = frozenset({"mention", "favourite", "reblog", "status"})
 BLOGROLL_CATEGORY_TITLES = {
     "top_friends": "Top Friends",
@@ -153,7 +156,9 @@ def build_storm_exports(
     posts: Sequence[CachedPost],
     min_text_length: int = DEFAULT_MIN_TEXT_LENGTH,
 ) -> dict[str, Any]:
-    identity_by_author_id = {str(identity.account_id): identity for identity in identities}
+    identity_by_author_id = {
+        str(identity.account_id): identity for identity in identities
+    }
     local_author_ids = set(identity_by_author_id)
 
     deduped_posts: dict[str, CachedPost] = {}
@@ -177,7 +182,9 @@ def build_storm_exports(
     storms: list[dict[str, Any]] = []
     storm_counts: dict[str, int] = {identity.acct: 0 for identity in identities}
 
-    for root in sorted(roots, key=lambda post: (post.created_at, post.id), reverse=True):
+    for root in sorted(
+        roots, key=lambda post: (post.created_at, post.id), reverse=True
+    ):
         identity = identity_by_author_id.get(str(root.author_id))
         if identity is None:
             continue
@@ -253,7 +260,10 @@ def categorize_blogroll_account(
         return None
     if account.bot:
         return "bots"
-    if account.is_followed_by and (account.mastodon_identity_id, account.id) in interacted_accounts:
+    if (
+        account.is_followed_by
+        and (account.mastodon_identity_id, account.id) in interacted_accounts
+    ):
         return "top_friends"
     if account.is_followed_by:
         return "mutuals"
@@ -268,7 +278,9 @@ def build_blogroll_entry(account: CachedAccount) -> dict[str, Any]:
         "avatar": account.avatar,
         "mastodon_social_url": mastodon_social_permalink(account.acct),
         "note": clean_mastodon_text(account.note) if account.note else "",
-        "last_status_at": account.last_status_at.isoformat() if account.last_status_at else None,
+        "last_status_at": (
+            account.last_status_at.isoformat() if account.last_status_at else None
+        ),
     }
 
 
@@ -296,9 +308,13 @@ def build_blogroll_export(
         candidate_sort = account.last_status_at or datetime.min
         existing = categorized_accounts.get(acct_key)
 
-        if existing is None or candidate_priority > existing["priority"] or (
-            candidate_priority == existing["priority"]
-            and candidate_sort > existing["sort_last_status_at"]
+        if (
+            existing is None
+            or candidate_priority > existing["priority"]
+            or (
+                candidate_priority == existing["priority"]
+                and candidate_sort > existing["sort_last_status_at"]
+            )
         ):
             categorized_accounts[acct_key] = {
                 "category": category,
@@ -345,17 +361,31 @@ async def load_storm_export_data(
 ) -> dict[str, Any]:
     async with async_session() as session:
         identities = (
-            await session.execute(select(MastodonIdentity).order_by(MastodonIdentity.acct))
-        ).scalars().all()
-        if not identities:
-            return build_storm_exports(identities=[], posts=[], min_text_length=min_text_length)
-        posts = (
-            await session.execute(
-                select(CachedPost).where(
-                    CachedPost.author_id.in_([str(identity.account_id) for identity in identities])
+            (
+                await session.execute(
+                    select(MastodonIdentity).order_by(MastodonIdentity.acct)
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
+        if not identities:
+            return build_storm_exports(
+                identities=[], posts=[], min_text_length=min_text_length
+            )
+        posts = (
+            (
+                await session.execute(
+                    select(CachedPost).where(
+                        CachedPost.author_id.in_(
+                            [str(identity.account_id) for identity in identities]
+                        )
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
 
     return build_storm_exports(
         identities=identities, posts=posts, min_text_length=min_text_length
@@ -365,24 +395,40 @@ async def load_storm_export_data(
 async def load_blogroll_export_data() -> dict[str, Any]:
     async with async_session() as session:
         identities = (
-            await session.execute(select(MastodonIdentity).order_by(MastodonIdentity.acct))
-        ).scalars().all()
+            (
+                await session.execute(
+                    select(MastodonIdentity).order_by(MastodonIdentity.acct)
+                )
+            )
+            .scalars()
+            .all()
+        )
         identity_ids = [identity.id for identity in identities]
         if not identity_ids:
             return build_blogroll_export(accounts=[], notifications=[])
 
         accounts = (
-            await session.execute(
-                select(CachedAccount).where(CachedAccount.mastodon_identity_id.in_(identity_ids))
-            )
-        ).scalars().all()
-        notifications = (
-            await session.execute(
-                select(CachedNotification).where(
-                    CachedNotification.identity_id.in_(identity_ids)
+            (
+                await session.execute(
+                    select(CachedAccount).where(
+                        CachedAccount.mastodon_identity_id.in_(identity_ids)
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
+        notifications = (
+            (
+                await session.execute(
+                    select(CachedNotification).where(
+                        CachedNotification.identity_id.in_(identity_ids)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
 
     return build_blogroll_export(accounts=accounts, notifications=notifications)
 
@@ -443,4 +489,3 @@ if __name__ == "__main__":
     import asyncio
 
     asyncio.run(main())
-

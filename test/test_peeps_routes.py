@@ -1,5 +1,10 @@
 from datetime import datetime
-from unittest.mock import AsyncMock, patch
+from test.conftest import (
+    make_cached_account,
+    make_cached_notification,
+    make_identity,
+    make_meta_account,
+)
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,16 +13,7 @@ from mastodon_is_my_blog import main
 from mastodon_is_my_blog.queries import get_current_meta_account
 from mastodon_is_my_blog.routes import peeps
 from mastodon_is_my_blog.store import (
-    CachedAccount,
     CachedMyFavourite,
-    CachedNotification,
-    CachedPost,
-)
-from test.conftest import (
-    make_cached_account,
-    make_cached_notification,
-    make_identity,
-    make_meta_account,
 )
 
 
@@ -95,7 +91,13 @@ async def test_matrix_returns_four_quadrants(
         session.add(identity)
         # Create fan: high inbound score
         session.add(
-            make_cached_account("account-fan", meta_account_id=1, identity_id=1, acct="fan@example.social", is_following=False)
+            make_cached_account(
+                "account-fan",
+                meta_account_id=1,
+                identity_id=1,
+                acct="fan@example.social",
+                is_following=False,
+            )
         )
         for i in range(5):
             session.add(
@@ -185,7 +187,12 @@ async def test_dossier_returns_full_payload(
         session.add(meta)
         session.add(identity)
         session.add(
-            make_cached_account("account-1", meta_account_id=1, identity_id=1, acct="friend@example.social")
+            make_cached_account(
+                "account-1",
+                meta_account_id=1,
+                identity_id=1,
+                acct="friend@example.social",
+            )
         )
         await session.commit()
 
@@ -263,7 +270,6 @@ async def test_follow_calls_mastodon_api(
     async def fake_meta(request=None):
         return meta
 
-    from mastodon_is_my_blog.mastodon_apis import follow_actions
     from mastodon_is_my_blog.routes import peeps as peeps_module
 
     async def fake_follow(meta_id, identity, acct):
@@ -274,7 +280,9 @@ async def test_follow_calls_mastodon_api(
     main.app.dependency_overrides[get_current_meta_account] = fake_meta
 
     with TestClient(main.app, raise_server_exceptions=False) as client:
-        resp = client.post("/api/peeps/dossier/friend@example.social/follow?identity_id=1")
+        resp = client.post(
+            "/api/peeps/dossier/friend@example.social/follow?identity_id=1"
+        )
 
     main.app.dependency_overrides.clear()
 

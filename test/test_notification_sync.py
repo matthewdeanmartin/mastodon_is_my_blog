@@ -1,4 +1,10 @@
 from datetime import datetime, timezone
+from test.conftest import (
+    make_cached_account,
+    make_cached_notification,
+    make_identity,
+    make_notification_payload,
+)
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -6,12 +12,6 @@ from sqlalchemy import func, select
 
 from mastodon_is_my_blog import notification_sync
 from mastodon_is_my_blog.store import CachedNotification
-from test.conftest import (
-    make_cached_account,
-    make_cached_notification,
-    make_identity,
-    make_notification_payload,
-)
 
 
 @pytest.mark.parametrize(
@@ -67,31 +67,31 @@ async def test_sync_notifications_persists_rows_and_syncs_top_mutuals(
 
     client = MagicMock()
     client.notifications.return_value = [
-            make_notification_payload(
-                "notif-1",
-                notification_type="mention",
-                account_id="mutual-1",
-                account_acct="mutual1@example.social",
-                status_id="status-1",
-                created_at=recent_time,
-            ),
-            make_notification_payload(
-                "notif-2",
-                notification_type="favourite",
-                account_id="mutual-2",
-                account_acct="mutual2@example.social",
-                status_id="status-2",
-                created_at=recent_time,
-            ),
-            make_notification_payload(
-                "notif-3",
-                notification_type="follow",
-                account_id="non-mutual",
-                account_acct="nonmutual@example.social",
-                status_id=None,
-                created_at=recent_time,
-            ),
-        ]
+        make_notification_payload(
+            "notif-1",
+            notification_type="mention",
+            account_id="mutual-1",
+            account_acct="mutual1@example.social",
+            status_id="status-1",
+            created_at=recent_time,
+        ),
+        make_notification_payload(
+            "notif-2",
+            notification_type="favourite",
+            account_id="mutual-2",
+            account_acct="mutual2@example.social",
+            status_id="status-2",
+            created_at=recent_time,
+        ),
+        make_notification_payload(
+            "notif-3",
+            notification_type="follow",
+            account_id="non-mutual",
+            account_acct="nonmutual@example.social",
+            status_id=None,
+            created_at=recent_time,
+        ),
+    ]
     timeline_sync_mock = AsyncMock(return_value={"status": "success"})
 
     with (
@@ -167,31 +167,31 @@ async def test_sync_notifications_continues_when_timeline_sync_fails(
 
     client = MagicMock()
     client.notifications.return_value = [
-            make_notification_payload(
-                "notif-existing",
-                notification_type="mention",
-                account_id="mutual-1",
-                account_acct="mutual1@example.social",
-                status_id="status-1",
-                created_at=recent_time,
-            ),
-            make_notification_payload(
-                "notif-new-1",
-                notification_type="status",
-                account_id="mutual-1",
-                account_acct="mutual1@example.social",
-                status_id="status-2",
-                created_at=recent_time,
-            ),
-            make_notification_payload(
-                "notif-new-2",
-                notification_type="reblog",
-                account_id="mutual-2",
-                account_acct="mutual2@example.social",
-                status_id="status-3",
-                created_at=recent_time,
-            ),
-        ]
+        make_notification_payload(
+            "notif-existing",
+            notification_type="mention",
+            account_id="mutual-1",
+            account_acct="mutual1@example.social",
+            status_id="status-1",
+            created_at=recent_time,
+        ),
+        make_notification_payload(
+            "notif-new-1",
+            notification_type="status",
+            account_id="mutual-1",
+            account_acct="mutual1@example.social",
+            status_id="status-2",
+            created_at=recent_time,
+        ),
+        make_notification_payload(
+            "notif-new-2",
+            notification_type="reblog",
+            account_id="mutual-2",
+            account_acct="mutual2@example.social",
+            status_id="status-3",
+            created_at=recent_time,
+        ),
+    ]
 
     async def fake_timeline_sync(*, acct: str, **kwargs):
         if acct == "mutual1@example.social":

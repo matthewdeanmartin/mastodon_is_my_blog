@@ -1,5 +1,5 @@
-import {MastodonMediaAttachment} from './mastodon';
-import {SafeHtml} from '@angular/platform-browser';
+import { MastodonMediaAttachment } from './mastodon';
+import { SafeHtml } from '@angular/platform-browser';
 
 export type ContentFeedFilter = 'recent' | 'popular' | 'following' | 'everyone';
 
@@ -50,8 +50,10 @@ export interface FeedViewModel {
   created_at: string;
   safeContentHtml: SafeHtml;
   firstLinkUrl: string | null;
+  allLinkUrls: string[];
   images: MastodonMediaAttachment[];
-  originalUrl: string;
+  videos: MastodonMediaAttachment[];
+  originalUrl: string | null;
   isRead: boolean;
   counts?: Partial<ContentCounts>;
   is_reblog?: boolean;
@@ -71,22 +73,49 @@ function extractFirstLinkUrl(html: string): string | null {
     if (anchor.classList.contains('hashtag') || anchor.classList.contains('mention')) continue;
     const href = anchor.getAttribute('href');
     if (!href || (!href.startsWith('http://') && !href.startsWith('https://'))) continue;
-    if (IGNORED_LINK_DOMAINS.some(d => href.includes(d))) continue;
+    if (IGNORED_LINK_DOMAINS.some((d) => href.includes(d))) continue;
     return href;
   }
   return null;
 }
 
-function buildOriginalUrl(acct: string, postId: string, localBaseUrl?: string | null): string {
-  if (!acct) return '#';
+export function extractAllLinkUrls(html: string): string[] {
+  if (typeof DOMParser === 'undefined') return [];
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const anchors = Array.from(doc.querySelectorAll('a[href]')) as HTMLAnchorElement[];
+  const seen = new Set<string>();
+  const urls: string[] = [];
+  for (const anchor of anchors) {
+    if (anchor.classList.contains('hashtag') || anchor.classList.contains('mention')) continue;
+    const href = anchor.getAttribute('href');
+    if (!href || (!href.startsWith('http://') && !href.startsWith('https://'))) continue;
+    if (IGNORED_LINK_DOMAINS.some((d) => href.includes(d))) continue;
+    if (!seen.has(href)) {
+      seen.add(href);
+      urls.push(href);
+    }
+  }
+  return urls;
+}
+
+function buildOriginalUrl(
+  acct: string,
+  postId: string,
+  localBaseUrl?: string | null,
+): string | null {
+  // Always route through the active identity's home instance so the user can
+  // reply/boost/fav while signed in. If we don't know the active base URL,
+  // we refuse to fabricate one — callers must hide the link.
+  if (!acct) return null;
+  const base = localBaseUrl?.replace(/\/$/, '');
+  if (!base) return null;
   const parts = acct.split('@');
   const username = parts[0];
   const remoteInstance = parts[1];
-  if (localBaseUrl && remoteInstance) {
-    // Open remote post via your own instance: /@user@remote/id
-    return `${localBaseUrl.replace(/\/$/, '')}/@${username}@${remoteInstance}/${postId}`;
+  if (remoteInstance) {
+    return `${base}/@${username}@${remoteInstance}/${postId}`;
   }
-  return `https://${remoteInstance || 'mastodon.social'}/@${username}/${postId}`;
+  return `${base}/@${username}/${postId}`;
 }
 
 export function toFeedViewModel(
@@ -96,13 +125,15 @@ export function toFeedViewModel(
   localBaseUrl?: string | null,
 ): FeedViewModel {
   const html = post.content ?? '';
-  const media = post.media_attachments ?? [];
+  const media = post.media_attachments ?? post.media ?? [];
   return {
     id: post.id,
     created_at: post.created_at,
     safeContentHtml: sanitize(html),
     firstLinkUrl: extractFirstLinkUrl(html),
-    images: media.filter(m => m.type === 'image'),
+    allLinkUrls: extractAllLinkUrls(html),
+    images: media.filter((m) => m.type === 'image'),
+    videos: media.filter((m) => m.type === 'video' || m.type === 'gifv'),
     originalUrl: buildOriginalUrl(post.author_acct, post.id, localBaseUrl),
     isRead: seenIds.has(post.id),
     counts: post.counts,

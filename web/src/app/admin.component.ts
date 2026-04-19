@@ -2,7 +2,15 @@ import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { ApiService } from './api.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminStatus, CatchupStatus, CatchupQueue, AdminBundle, AdminBundleTerm, OwnAccountCatchupResult, BulkSyncJobStatus } from './mastodon';
+import {
+  AdminStatus,
+  CatchupStatus,
+  CatchupQueue,
+  AdminBundle,
+  AdminBundleTerm,
+  OwnAccountCatchupResult,
+  BulkSyncJobStatus,
+} from './mastodon';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 
@@ -12,7 +20,7 @@ interface TermDraft {
 }
 
 interface BundleEditState {
-  bundleId: number | null;  // null = creating new
+  bundleId: number | null; // null = creating new
   name: string;
   terms: TermDraft[];
   saving: boolean;
@@ -102,9 +110,10 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.ownAccountSyncing = false;
         this.refreshStatus();
         const importedCount = result.count ?? 0;
-        this.ownAccountMessage = importedCount === 1
-          ? 'Imported 1 post from your own account history.'
-          : `Imported ${importedCount} posts from your own account history.`;
+        this.ownAccountMessage =
+          importedCount === 1
+            ? 'Imported 1 post from your own account history.'
+            : `Imported ${importedCount} posts from your own account history.`;
       },
       error: (err) => {
         this.ownAccountSyncing = false;
@@ -271,7 +280,8 @@ export class AdminComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         if (err?.status !== 404) {
-          this.notificationsJobError = err?.error?.detail ?? 'Failed to load notifications-sync status';
+          this.notificationsJobError =
+            err?.error?.detail ?? 'Failed to load notifications-sync status';
         }
       },
     });
@@ -408,9 +418,10 @@ export class AdminComponent implements OnInit, OnDestroy {
 
     const { bundleId } = this.editState;
 
-    const req$ = bundleId === null
-      ? this.api.createAdminBundle(identityId, name, terms)
-      : this.api.updateAdminBundle(identityId, bundleId, name, terms);
+    const req$ =
+      bundleId === null
+        ? this.api.createAdminBundle(identityId, name, terms)
+        : this.api.updateAdminBundle(identityId, bundleId, name, terms);
 
     req$.subscribe({
       next: () => {

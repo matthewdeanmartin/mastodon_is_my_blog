@@ -1,4 +1,5 @@
-"""Add cached_my_favourites table for outbound favourite tracking
+"""
+Add cached_my_favourites table for outbound favourite tracking
 
 Revision ID: 009
 Revises: 008
@@ -6,6 +7,7 @@ Create Date: 2026-04-18
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "009"

@@ -9,7 +9,10 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import and_, func, select
 
 from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
-from mastodon_is_my_blog.queries import bulk_upsert_accounts, sync_user_timeline_for_identity
+from mastodon_is_my_blog.queries import (
+    bulk_upsert_accounts,
+    sync_user_timeline_for_identity,
+)
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedNotification,
@@ -36,7 +39,8 @@ async def persist_notifications(
     notifications: list[dict],
     stats: dict[str, int],
 ) -> tuple[set[str], int]:
-    """Persist a single page of notifications. Upserts notification rows and
+    """
+    Persist a single page of notifications. Upserts notification rows and
     accounts seen in them. Returns (account_ids_seen, new_notification_count).
 
     Accounts are upserted without follow-state overrides, so non-followed
@@ -203,7 +207,9 @@ async def sync_notifications_for_identity(
             # 60-min cooldown keeps notification sync from amplifying into many API calls.
             SECOND_HOP_LIMIT = 5
             SECOND_HOP_COOLDOWN = 60
-            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
+            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+                days=30
+            )
 
             async with async_session() as session:
                 # Rank mutuals among the accounts we just saw by recent notification count.
@@ -242,9 +248,7 @@ async def sync_notifications_for_identity(
                     )
                     stats["timelines_synced"] += 1
                 except Exception as e:
-                    logger.warning(
-                        "Failed to sync timeline for %s: %s", mutual.acct, e
-                    )
+                    logger.warning("Failed to sync timeline for %s: %s", mutual.acct, e)
 
             t.extra = {k: v for k, v in stats.items()}
 

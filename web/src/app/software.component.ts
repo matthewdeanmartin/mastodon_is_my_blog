@@ -89,7 +89,8 @@ function hubToFeedPost(p: ContentHubPost): ContentFeedPost {
             {{ groupName ? groupName + ' — ' : '' }}Cool Software Recommendations
           </h2>
           <p class="muted" style="margin: 6px 0 0;">
-            Rank recommendations by community engagement or switch between your follows and the wider network.
+            Rank recommendations by community engagement or switch between your follows and the
+            wider network.
           </p>
         </div>
         <div class="filter-buttons">
@@ -97,7 +98,8 @@ function hubToFeedPost(p: ContentHubPost): ContentFeedPost {
             <button
               [class.active]="currentFilter === filter.value"
               (click)="setFilter(filter.value)"
-              class="filter-btn">
+              class="filter-btn"
+            >
               {{ filter.label }}
             </button>
           }
@@ -109,7 +111,9 @@ function hubToFeedPost(p: ContentHubPost): ContentFeedPost {
         </div>
       </div>
 
-      @if (loading) { <div class="muted">Loading software posts...</div> }
+      @if (loading) {
+        <div class="muted">Loading software posts...</div>
+      }
 
       @if (!loading && posts.length === 0) {
         <div class="muted">No software recommendations found.</div>
@@ -120,7 +124,9 @@ function hubToFeedPost(p: ContentHubPost): ContentFeedPost {
           <div class="row" style="gap: 12px; align-items: flex-start;">
             <div>
               <strong>{{ post.author_display_name || post.author_acct }}</strong>
-              <div class="muted" style="margin-top: 4px;">{{ post.created_at | date: 'short' }}</div>
+              <div class="muted" style="margin-top: 4px;">
+                {{ post.created_at | date: 'short' }}
+              </div>
             </div>
             <div class="signal-row">
               <span class="signal-pill">Score {{ getPopularityScore(post) }}</span>
@@ -134,8 +140,8 @@ function hubToFeedPost(p: ContentHubPost): ContentFeedPost {
         </div>
       }
     </div>
-    `,
-  styles: [SHARED_STYLES]
+  `,
+  styles: [SHARED_STYLES],
 })
 export class SoftwareFeedComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
@@ -161,7 +167,9 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
     );
   }
 
-  ngOnDestroy(): void { this.sub?.unsubscribe(); }
+  ngOnDestroy(): void {
+    this.sub?.unsubscribe();
+  }
 
   private load(identityId: number, groupId: number | null, groupName: string | null): void {
     this.loading = true;
@@ -200,13 +208,20 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
     if (!identityId || !group) return;
     this.refreshing = true;
     this.api.refreshContentHubGroup(group.id, identityId).subscribe({
-      next: () => { this.refreshing = false; this.load(identityId, group.id, group.name); },
+      next: () => {
+        this.refreshing = false;
+        this.load(identityId, group.id, group.name);
+      },
       error: () => (this.refreshing = false),
     });
   }
 
-  getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }
-  viewPost(id: string): void { this.router.navigate(['/p', id]); }
+  getPopularityScore(post: ContentFeedPost): number {
+    return getPopularityScore(post);
+  }
+  viewPost(id: string): void {
+    this.router.navigate(['/p', id]);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -231,7 +246,8 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
             <button
               [class.active]="currentFilter === filter.value"
               (click)="setFilter(filter.value)"
-              class="filter-btn">
+              class="filter-btn"
+            >
               {{ filter.label }}
             </button>
           }
@@ -243,7 +259,9 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
         </div>
       </div>
 
-      @if (loading) { <div class="muted">Loading links...</div> }
+      @if (loading) {
+        <div class="muted">Loading links...</div>
+      }
 
       @if (!loading && groups.length === 0) {
         <div class="muted">No links found.</div>
@@ -260,7 +278,8 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
             <div style="margin: 15px 0; padding-left: 15px; border-left: 3px solid #e5e7eb;">
               <div class="row" style="gap: 10px; align-items: center;">
                 <div class="muted">
-                  {{ post.author_display_name || post.author_acct }} • {{ post.created_at | date: 'short' }}
+                  {{ post.author_display_name || post.author_acct }} •
+                  {{ post.created_at | date: 'short' }}
                 </div>
                 <div class="signal-row">
                   <span class="signal-pill">Score {{ getPopularityScore(post) }}</span>
@@ -270,14 +289,16 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
                 </div>
               </div>
               <div [innerHTML]="post.content" style="margin: 5px 0;"></div>
-              <button (click)="viewPost(post.id)" class="secondary" style="margin-top: 8px;">View</button>
+              <button (click)="viewPost(post.id)" class="secondary" style="margin-top: 8px;">
+                View
+              </button>
             </div>
           }
         </div>
       }
     </div>
-    `,
-  styles: [SHARED_STYLES]
+  `,
+  styles: [SHARED_STYLES],
 })
 export class LinksFeedComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
@@ -303,7 +324,9 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
     );
   }
 
-  ngOnDestroy(): void { this.sub?.unsubscribe(); }
+  ngOnDestroy(): void {
+    this.sub?.unsubscribe();
+  }
 
   private load(identityId: number, groupId: number | null, groupName: string | null): void {
     this.loading = true;
@@ -312,10 +335,7 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
     if (groupId !== null) {
       this.api.getContentHubGroupPosts(groupId, identityId, 'links', null, 100).subscribe({
         next: (res) => {
-          const posts = sortContentPosts(
-            res.items.map(hubToFeedPost),
-            this.currentFilter,
-          );
+          const posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
           this.groups = groupLinkPosts(posts, this.currentFilter);
           this.loading = false;
         },
@@ -347,13 +367,20 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
     if (!identityId || !group) return;
     this.refreshing = true;
     this.api.refreshContentHubGroup(group.id, identityId).subscribe({
-      next: () => { this.refreshing = false; this.load(identityId, group.id, group.name); },
+      next: () => {
+        this.refreshing = false;
+        this.load(identityId, group.id, group.name);
+      },
       error: () => (this.refreshing = false),
     });
   }
 
-  getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }
-  viewPost(id: string): void { this.router.navigate(['/p', id]); }
+  getPopularityScore(post: ContentFeedPost): number {
+    return getPopularityScore(post);
+  }
+  viewPost(id: string): void {
+    this.router.navigate(['/p', id]);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -370,7 +397,8 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
         <div>
           <h2 style="margin: 0;">{{ groupName ? groupName + ' — ' : '' }}News Feed</h2>
           <p class="muted" style="margin: 6px 0 0;">
-            Browse breaking stories by freshness or let engagement surface the articles your network found worthwhile.
+            Browse breaking stories by freshness or let engagement surface the articles your network
+            found worthwhile.
           </p>
         </div>
         <div class="filter-buttons">
@@ -378,7 +406,8 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
             <button
               [class.active]="currentFilter === filter.value"
               (click)="setFilter(filter.value)"
-              class="filter-btn">
+              class="filter-btn"
+            >
               {{ filter.label }}
             </button>
           }
@@ -390,7 +419,9 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
         </div>
       </div>
 
-      @if (loading) { <div class="muted">Loading news...</div> }
+      @if (loading) {
+        <div class="muted">Loading news...</div>
+      }
 
       @if (!loading && posts.length === 0) {
         <div class="muted">No news articles found.</div>
@@ -401,7 +432,11 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
           <div class="row" style="margin-bottom: 10px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               @if (post.author_avatar) {
-                <img [src]="post.author_avatar" alt="" style="width: 32px; height: 32px; border-radius: 50%;">
+                <img
+                  [src]="post.author_avatar"
+                  alt=""
+                  style="width: 32px; height: 32px; border-radius: 50%;"
+                />
               }
               <strong>{{ post.author_display_name || post.author_acct }}</strong>
             </div>
@@ -414,12 +449,14 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
             </div>
           </div>
           <div [innerHTML]="post.content"></div>
-          <button (click)="viewPost(post.id)" class="secondary" style="margin-top: 10px;">Read More</button>
+          <button (click)="viewPost(post.id)" class="secondary" style="margin-top: 10px;">
+            Read More
+          </button>
         </div>
       }
     </div>
-    `,
-  styles: [SHARED_STYLES]
+  `,
+  styles: [SHARED_STYLES],
 })
 export class NewsFeedComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
@@ -445,7 +482,9 @@ export class NewsFeedComponent implements OnInit, OnDestroy {
     );
   }
 
-  ngOnDestroy(): void { this.sub?.unsubscribe(); }
+  ngOnDestroy(): void {
+    this.sub?.unsubscribe();
+  }
 
   private load(identityId: number, groupId: number | null, groupName: string | null): void {
     this.loading = true;
@@ -484,12 +523,18 @@ export class NewsFeedComponent implements OnInit, OnDestroy {
     if (!identityId || !group) return;
     this.refreshing = true;
     this.api.refreshContentHubGroup(group.id, identityId).subscribe({
-      next: () => { this.refreshing = false; this.load(identityId, group.id, group.name); },
+      next: () => {
+        this.refreshing = false;
+        this.load(identityId, group.id, group.name);
+      },
       error: () => (this.refreshing = false),
     });
   }
 
-  getPopularityScore(post: ContentFeedPost): number { return getPopularityScore(post); }
-  viewPost(id: string): void { this.router.navigate(['/p', id]); }
+  getPopularityScore(post: ContentFeedPost): number {
+    return getPopularityScore(post);
+  }
+  viewPost(id: string): void {
+    this.router.navigate(['/p', id]);
+  }
 }
-

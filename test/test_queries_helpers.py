@@ -1,5 +1,13 @@
 import json
 from datetime import datetime, timedelta, timezone
+from test.conftest import (
+    make_account_data,
+    make_cached_account,
+    make_cached_post,
+    make_identity,
+    make_meta_account,
+    make_status,
+)
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,14 +18,6 @@ from starlette.requests import Request
 from mastodon_is_my_blog import queries
 from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.store import CachedAccount, CachedPost, SeenPost
-from test.conftest import (
-    make_account_data,
-    make_cached_account,
-    make_cached_post,
-    make_identity,
-    make_meta_account,
-    make_status,
-)
 
 
 @pytest.mark.asyncio
@@ -79,7 +79,9 @@ async def test_bulk_upsert_accounts_merges_duplicates_and_latest_status(
         1,
         [
             {
-                "account_data": make_account_data("account-1", acct="friend@example.social"),
+                "account_data": make_account_data(
+                    "account-1", acct="friend@example.social"
+                ),
                 "last_status_at": datetime(2024, 1, 3, tzinfo=timezone.utc),
             },
             {
@@ -115,7 +117,9 @@ def test_build_post_payload_handles_reblogs_and_reply_flags() -> None:
         content="<p>original</p>",
         in_reply_to_id="root-1",
         in_reply_to_account_id="other-author",
-        media_attachments=[{"type": "image", "url": "https://example.social/image.jpg"}],
+        media_attachments=[
+            {"type": "image", "url": "https://example.social/image.jpg"}
+        ],
     )
     boosted = make_status(
         "boost-wrapper",
@@ -318,6 +322,7 @@ async def test_get_counts_optimized_excludes_reposts_from_content_filters(
     assert stats["software"] == {"total": 1, "unseen": 1}
     assert stats["reposts"] == {"total": 4, "unseen": 4}
 
+
 @pytest.mark.asyncio
 async def test_sync_user_timeline_for_identity_skips_recent_cooldown() -> None:
     identity = make_identity()
@@ -338,7 +343,9 @@ async def test_sync_user_timeline_for_identity_skips_recent_cooldown() -> None:
 
 
 @pytest.mark.asyncio
-async def test_sync_user_timeline_for_identity_returns_not_found_for_unknown_account() -> None:
+async def test_sync_user_timeline_for_identity_returns_not_found_for_unknown_account() -> (
+    None
+):
     identity = make_identity()
     client = MagicMock()
     client.account_search.return_value = []

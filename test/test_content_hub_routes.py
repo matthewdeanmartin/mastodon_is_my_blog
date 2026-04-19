@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from test.conftest import make_cached_post, make_identity, make_meta_account
 from types import SimpleNamespace
 from unittest.mock import ANY, AsyncMock
 
@@ -6,8 +7,8 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog import main
+from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.queries import get_current_meta_account
 from mastodon_is_my_blog.routes import content_hub
 from mastodon_is_my_blog.store import (
@@ -16,7 +17,6 @@ from mastodon_is_my_blog.store import (
     ContentHubGroupTerm,
     ContentHubPostMatch,
 )
-from test.conftest import make_cached_post, make_identity, make_meta_account
 
 
 async def async_noop(*args, **kwargs) -> None:
@@ -152,8 +152,12 @@ def test_list_groups_returns_groups_and_terms(
                         slug="alpha-bundle",
                         source_type="client_bundle",
                     ),
-                    make_term(term_id=1, group_id=1, term="zeta", normalized_term="zeta"),
-                    make_term(term_id=2, group_id=2, term="#alpha", normalized_term="alpha"),
+                    make_term(
+                        term_id=1, group_id=1, term="zeta", normalized_term="zeta"
+                    ),
+                    make_term(
+                        term_id=2, group_id=2, term="#alpha", normalized_term="alpha"
+                    ),
                 ]
             )
             await session.commit()

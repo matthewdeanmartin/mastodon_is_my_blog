@@ -37,7 +37,9 @@ class TimedMastodonClient:
             method = getattr(self.client, method_name)
             result = method(*args, **kwargs)
             elapsed: float = time.perf_counter() - start
-            self.logger.info("Mastodon API completed: %s in %.3fs", method_name, elapsed)
+            self.logger.info(
+                "Mastodon API completed: %s in %.3fs", method_name, elapsed
+            )
             return result
         except Exception as e:
             elapsed = time.perf_counter() - start

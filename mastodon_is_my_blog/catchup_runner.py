@@ -19,13 +19,21 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
 
-from sqlalchemy import select
 
-from mastodon_is_my_blog.catchup import RateBudget, deep_fetch_user_timeline, get_stop_at_id
+from mastodon_is_my_blog.catchup import (
+    RateBudget,
+    deep_fetch_user_timeline,
+    get_stop_at_id,
+)
 from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
 from mastodon_is_my_blog.queries import bulk_upsert_accounts, bulk_upsert_posts
-from mastodon_is_my_blog.store import CachedAccount, MastodonIdentity, MetaAccount, async_session
+from mastodon_is_my_blog.store import (
+    CachedAccount,
+    MastodonIdentity,
+    MetaAccount,
+    async_session,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -148,9 +156,7 @@ async def _run_loop(
         )
 
         try:
-            target_id = await asyncio.to_thread(
-                _resolve_account_id, m, account.acct
-            )
+            target_id = await asyncio.to_thread(_resolve_account_id, m, account.acct)
             if target_id is None:
                 logger.warning("catchup: could not resolve %s, skipping", account.acct)
                 job.done += 1
@@ -179,22 +185,26 @@ async def _run_loop(
                         session,
                         job.meta_id,
                         identity.id,
-                        [{"account_data": {
-                            "id": account.id,
-                            "acct": account.acct,
-                            "display_name": account.display_name,
-                            "avatar": account.avatar,
-                            "url": account.url,
-                            "note": account.note,
-                            "bot": account.bot,
-                            "locked": account.locked,
-                            "header": account.header,
-                            "fields": [],
-                            "followers_count": account.followers_count,
-                            "following_count": account.following_count,
-                            "statuses_count": account.statuses_count,
-                            "last_status_at": account.last_status_at,
-                        }}],
+                        [
+                            {
+                                "account_data": {
+                                    "id": account.id,
+                                    "acct": account.acct,
+                                    "display_name": account.display_name,
+                                    "avatar": account.avatar,
+                                    "url": account.url,
+                                    "note": account.note,
+                                    "bot": account.bot,
+                                    "locked": account.locked,
+                                    "header": account.header,
+                                    "fields": [],
+                                    "followers_count": account.followers_count,
+                                    "following_count": account.following_count,
+                                    "statuses_count": account.statuses_count,
+                                    "last_status_at": account.last_status_at,
+                                }
+                            }
+                        ],
                     )
                     await bulk_upsert_posts(session, job.meta_id, identity.id, page)
                     await session.commit()

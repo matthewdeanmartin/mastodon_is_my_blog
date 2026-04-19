@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from mastodon_is_my_blog import duck
 from mastodon_is_my_blog.identity_verifier import verify_all_identities
 from mastodon_is_my_blog.link_previews import close_http_client, init_http_client
 from mastodon_is_my_blog.mastodon_apis.masto_client import get_default_client
@@ -16,7 +17,6 @@ from mastodon_is_my_blog.queries import (
     sync_accounts_friends_followers,
     sync_user_timeline,
 )
-from mastodon_is_my_blog import duck
 from mastodon_is_my_blog.routes import (
     accounts,
     admin,
@@ -27,7 +27,6 @@ from mastodon_is_my_blog.routes import (
     writing,
 )
 from mastodon_is_my_blog.static_files import get_static_dir
-from mastodon_is_my_blog.utils.perf import performance_middleware
 from mastodon_is_my_blog.store import (
     get_or_create_default_meta_account,
     get_token,
@@ -35,6 +34,7 @@ from mastodon_is_my_blog.store import (
     set_token,
     sync_configured_identities,
 )
+from mastodon_is_my_blog.utils.perf import performance_middleware
 
 logger = logging.getLogger(__name__)
 logging.basicConfig()
@@ -78,6 +78,7 @@ async def add_security_headers(request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
+
 
 app.include_router(accounts.router)
 app.include_router(admin.router)

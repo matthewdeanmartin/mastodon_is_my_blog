@@ -1,9 +1,11 @@
-"""add identity composite indexes
+"""
+add identity composite indexes
 
 Revision ID: 001
 Revises:
 Create Date: 2026-04-11
 """
+
 from alembic import op
 
 revision = "001"

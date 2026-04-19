@@ -1,48 +1,74 @@
 @if (loading) {
-  <div class="muted" style="text-align: center; padding: 40px;">
-    Loading conversation...
-  </div>
+  <div class="muted" style="text-align: center; padding: 40px">Loading conversation...</div>
 }
 
 @if (!loading && target) {
-  <div style="max-width: 800px; margin: 0 auto;">
+  <div style="max-width: 800px; margin: 0 auto">
     <!-- Navigation Buttons at Top -->
-    <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: space-between;">
-      <button (click)="goBack()" class="secondary" style="flex: 1;">
-        ← Back to Feed
-      </button>
-      <button (click)="nextPost()" class="secondary" style="flex: 1;" [disabled]="loadingNext">
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: space-between">
+      <button (click)="goBack()" class="secondary" style="flex: 1">← Back to Feed</button>
+      <button (click)="nextPost()" class="secondary" style="flex: 1" [disabled]="loadingNext">
         {{ loadingNext ? 'Loading...' : 'Next Post →' }}
       </button>
     </div>
     <!-- Ancestors -->
     @for (ancestor of ancestors; track ancestor.id; let i = $index) {
-      <div style="margin-bottom: 20px; position: relative;">
-        <div class="card"
+      <div style="margin-bottom: 20px; position: relative">
+        <div
+          class="card"
           [style.border-left]="isActiveUser(ancestor) ? '4px solid #6366f1' : '1px solid #e1e8ed'"
-          style="opacity: 0.85; margin-bottom: 0;">
-          <div class="row" style="margin-bottom: 10px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <img [src]="ancestor.account.avatar" alt="" style="width: 32px; height: 32px; border-radius: 50%;">
+          style="opacity: 0.85; margin-bottom: 0"
+        >
+          <div class="row" style="margin-bottom: 10px">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <img
+                [src]="ancestor.account.avatar"
+                alt=""
+                style="width: 32px; height: 32px; border-radius: 50%"
+              />
               <div>
-                <strong style="font-size: 0.95rem;">{{ ancestor.account.display_name || ancestor.account.acct }}</strong>
-                <span class="muted" style="margin-left: 6px; font-size: 0.8rem;">@{{ ancestor.account.acct }}</span>
+                <strong style="font-size: 0.95rem">{{
+                  ancestor.account.display_name || ancestor.account.acct
+                }}</strong>
+                <span class="muted" style="margin-left: 6px; font-size: 0.8rem"
+                  >&#64;{{ ancestor.account.acct }}</span
+                >
                 @if (i === 0) {
                   <span
-                    style="background: #e0e7ff; color: #4338ca; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-weight: 600;">
+                    style="
+                      background: #e0e7ff;
+                      color: #4338ca;
+                      font-size: 0.7rem;
+                      padding: 2px 6px;
+                      border-radius: 4px;
+                      margin-left: 8px;
+                      font-weight: 600;
+                    "
+                  >
                     ROOT
                   </span>
                 }
               </div>
             </div>
-            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-              <small class="muted">{{ ancestor.created_at | date:'short' }}</small>
-              <a [href]="getOriginalPostUrl(ancestor)"
-                target="_blank"
-                rel="noopener noreferrer"
-                style="font-size: 0.75rem; color: #6366f1; text-decoration: none; display: flex; align-items: center; gap: 3px;">
-                🔗 Original
-              </a>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px">
+              <small class="muted">{{ ancestor.created_at | date: 'short' }}</small>
+              @if (getOriginalPostUrl(ancestor); as ancestorUrl) {
+                <a
+                  [href]="ancestorUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style="
+                    font-size: 0.75rem;
+                    color: #6366f1;
+                    text-decoration: none;
+                    display: flex;
+                    align-items: center;
+                    gap: 3px;
+                  "
+                >
+                  🔗 Original
+                </a>
+              }
             </div>
           </div>
           <div class="post-body" [innerHTML]="processContent(ancestor.content)"></div>
@@ -53,50 +79,101 @@
             </div>
           }
           @if (getMediaImages(ancestor).length > 0) {
-            <div style="margin-top: 10px; display: flex; gap: 8px;">
+            <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap">
               @for (m of getMediaImages(ancestor); track m.id) {
-                <img [src]="m.url" alt="" style="height: 100px; border-radius: 4px;" loading="lazy" decoding="async">
+                <img
+                  [src]="m.url"
+                  alt=""
+                  style="height: 100px; border-radius: 4px"
+                  loading="lazy"
+                  decoding="async"
+                />
               }
             </div>
           }
-          <div style="margin-top: 10px; text-align: center;">
-            <span style="font-size: 1.2rem; color: #cbd5e1;">⬇</span>
+          @if (getMediaVideos(ancestor).length > 0) {
+            <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px">
+              @for (m of getMediaVideos(ancestor); track m.id) {
+                <video
+                  [src]="m.url"
+                  [poster]="m.preview_url || ''"
+                  controls
+                  preload="none"
+                  style="width: 100%; border-radius: 4px; border: 1px solid #eee; background: #000"
+                ></video>
+              }
+            </div>
+          }
+          <div style="margin-top: 10px; text-align: center">
+            <span style="font-size: 1.2rem; color: #cbd5e1">⬇</span>
           </div>
         </div>
       </div>
     }
     <!-- Target Post -->
-    <div class="card"
+    <div
+      class="card"
       [style.border-left]="isActiveUser(target) ? '4px solid #6366f1' : '4px solid #10b981'"
       [style.box-shadow]="'0 4px 12px rgba(0,0,0,0.1)'"
-      style="margin-bottom: 30px; position: relative; z-index: 1;">
+      style="margin-bottom: 30px; position: relative; z-index: 1"
+    >
       <div class="row">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <img [src]="target.account.avatar" alt="" style="width: 48px; height: 48px; border-radius: 50%;">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <img
+            [src]="target.account.avatar"
+            alt=""
+            style="width: 48px; height: 48px; border-radius: 50%"
+          />
           <div>
-            <h2 style="font-size: 1.1rem; margin: 0;">{{ target.account.display_name || target.account.acct }}</h2>
-            <div class="muted">@{{ target.account.acct }}</div>
+            <h2 style="font-size: 1.1rem; margin: 0">
+              {{ target.account.display_name || target.account.acct }}
+            </h2>
+            <div class="muted">&#64;{{ target.account.acct }}</div>
             @if (ancestors.length === 0) {
               <span
-                style="background: #e0e7ff; color: #4338ca; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin-top: 4px;">
+                style="
+                  background: #e0e7ff;
+                  color: #4338ca;
+                  font-size: 0.7rem;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-weight: 600;
+                  display: inline-block;
+                  margin-top: 4px;
+                "
+              >
                 ROOT
               </span>
             }
           </div>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-          <div class="muted">{{ target.created_at | date:'medium' }}</div>
-          <a [href]="getOriginalPostUrl(target)"
-            target="_blank"
-            rel="noopener noreferrer"
-            style="font-size: 0.85rem; color: #6366f1; text-decoration: none; display: flex; align-items: center; gap: 4px; font-weight: 500;">
-            🔗 View on Mastodon
-          </a>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
+          <div class="muted">{{ target.created_at | date: 'medium' }}</div>
+          @if (getOriginalPostUrl(target); as targetUrl) {
+            <a
+              [href]="targetUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="
+                font-size: 0.85rem;
+                color: #6366f1;
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                font-weight: 500;
+              "
+            >
+              🔗 View on Mastodon
+            </a>
+          }
         </div>
       </div>
-      <div class="post-body"
-        style="font-size: 1.15rem; margin: 20px 0;"
-      [innerHTML]="processContent(target.content)"></div>
+      <div
+        class="post-body"
+        style="font-size: 1.15rem; margin: 20px 0"
+        [innerHTML]="processContent(target.content)"
+      ></div>
       <!-- Link Previews for Target Post -->
       @for (url of getPostUrls(target); track url; let ti = $index) {
         <div>
@@ -104,44 +181,70 @@
         </div>
       }
       @if (getMediaImages(target).length > 0) {
-        <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+        <div style="margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap">
           @for (m of getMediaImages(target); track m.id; let mi = $index) {
-            <img [src]="m.url" alt="" style="max-width: 100%; border-radius: 8px;"
+            <img
+              [src]="m.url"
+              alt=""
+              style="max-width: 100%; border-radius: 8px"
               [attr.loading]="mi === 0 ? null : 'lazy'"
-              [attr.decoding]="mi === 0 ? null : 'async'">
+              [attr.decoding]="mi === 0 ? null : 'async'"
+            />
           }
         </div>
       }
-      <div class="row" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
-        <div style="display: flex; gap: 20px;">
-          <span>💬 <strong>{{ target.replies_count }}</strong> Replies</span>
-          <span>🔁 <strong>{{ target.reblogs_count }}</strong> Boosts</span>
-          <span>⭐ <strong>{{ target.favourites_count }}</strong> Likes</span>
+      @if (getMediaVideos(target).length > 0) {
+        <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px">
+          @for (m of getMediaVideos(target); track m.id) {
+            <video
+              [src]="m.url"
+              [poster]="m.preview_url || ''"
+              controls
+              preload="metadata"
+              style="width: 100%; border-radius: 8px; border: 1px solid #eee; background: #000"
+            ></video>
+          }
+        </div>
+      }
+      <div class="row" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee">
+        <div style="display: flex; gap: 20px">
+          <span
+            >💬 <strong>{{ target.replies_count }}</strong> Replies</span
+          >
+          <span
+            >🔁 <strong>{{ target.reblogs_count }}</strong> Boosts</span
+          >
+          <span
+            >⭐ <strong>{{ target.favourites_count }}</strong> Likes</span
+          >
         </div>
       </div>
     </div>
     <!-- Descendants -->
     @if (descendantTree.length > 0) {
       <div>
-        <h3 class="muted" style="margin-bottom: 20px; font-size: 1rem; text-transform: uppercase;">Discussion</h3>
+        <h3 class="muted" style="margin-bottom: 20px; font-size: 1rem; text-transform: uppercase">
+          Discussion
+        </h3>
         @for (node of descendantTree; track node.post.id) {
           <div>
-            <ng-container *ngTemplateOutlet="treeNode; context: { node: node }"></ng-container>
+            <ng-container
+              [ngTemplateOutlet]="treeNode"
+              [ngTemplateOutletContext]="treeNodeContext(node)"
+            ></ng-container>
           </div>
         }
       </div>
     }
     @if (descendantTree.length === 0 && target.replies_count > 0) {
-      <div class="muted" style="text-align: center;">
+      <div class="muted" style="text-align: center">
         <em>Replies may be missing from this server's cache.</em>
       </div>
     }
     <!-- Navigation Buttons at Bottom -->
-    <div style="display: flex; gap: 10px; margin-top: 30px; justify-content: space-between;">
-      <button (click)="goBack()" class="secondary" style="flex: 1;">
-        ← Back to Feed
-      </button>
-      <button (click)="nextPost()" class="secondary" style="flex: 1;" [disabled]="loadingNext">
+    <div style="display: flex; gap: 10px; margin-top: 30px; justify-content: space-between">
+      <button (click)="goBack()" class="secondary" style="flex: 1">← Back to Feed</button>
+      <button (click)="nextPost()" class="secondary" style="flex: 1" [disabled]="loadingNext">
         {{ loadingNext ? 'Loading...' : 'Next Post →' }}
       </button>
     </div>
@@ -149,33 +252,58 @@
 }
 
 <ng-template #treeNode let-node="node">
-  <div class="post-wrapper" style="margin-bottom: 16px;">
-    <div class="card"
+  <div class="post-wrapper" style="margin-bottom: 16px">
+    <div
+      class="card"
       [style.border-left]="isActiveUser(node.post) ? '3px solid #6366f1' : '1px solid #e1e8ed'"
-      style="padding: 16px; margin-bottom: 8px; background: #fdfdfd;">
-
-      <div class="row" style="margin-bottom: 8px; justify-content: flex-start; gap: 10px;">
-        <img [src]="node.post.account.avatar" alt="" style="width: 24px; height: 24px; border-radius: 50%;">
-        <span style="font-weight: 600; font-size: 0.9rem;">{{ node.post.account.display_name || node.post.account.acct }}</span>
+      style="padding: 16px; margin-bottom: 8px; background: #fdfdfd"
+    >
+      <div class="row" style="margin-bottom: 8px; justify-content: flex-start; gap: 10px">
+        <img
+          [src]="node.post.account.avatar"
+          alt=""
+          style="width: 24px; height: 24px; border-radius: 50%"
+        />
+        <span style="font-weight: 600; font-size: 0.9rem">{{
+          node.post.account.display_name || node.post.account.acct
+        }}</span>
 
         @if (isActiveUser(node.post)) {
           <span
-            style="background: #6366f1; color: white; border-radius: 4px; padding: 1px 4px; font-size: 0.7rem; font-weight: bold;">
+            style="
+              background: #6366f1;
+              color: white;
+              border-radius: 4px;
+              padding: 1px 4px;
+              font-size: 0.7rem;
+              font-weight: bold;
+            "
+          >
             AUTHOR
           </span>
         }
 
-        <span class="muted" style="font-size: 0.8rem;">{{ node.post.created_at | date:'short' }}</span>
+        <span class="muted" style="font-size: 0.8rem">{{
+          node.post.created_at | date: 'short'
+        }}</span>
 
-        <a [href]="getOriginalPostUrl(node.post)"
-          target="_blank"
-          rel="noopener noreferrer"
-          style="font-size: 0.75rem; color: #6366f1; text-decoration: none; margin-left: auto;">
-          🔗
-        </a>
+        @if (getOriginalPostUrl(node.post); as nodeUrl) {
+          <a
+            [href]="nodeUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            style="font-size: 0.75rem; color: #6366f1; text-decoration: none; margin-left: auto"
+          >
+            🔗
+          </a>
+        }
       </div>
 
-      <div class="post-body" style="font-size: 0.95rem;" [innerHTML]="processContent(node.post.content)"></div>
+      <div
+        class="post-body"
+        style="font-size: 0.95rem"
+        [innerHTML]="processContent(node.post.content)"
+      ></div>
 
       <!-- Link Previews for Descendant Posts -->
       @for (url of getPostUrls(node.post); track url) {
@@ -185,14 +313,33 @@
       }
 
       @if (getMediaImages(node.post).length > 0) {
-        <div style="margin-top: 8px;">
+        <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px">
           @for (m of getMediaImages(node.post); track m.id) {
-            <img [src]="m.url" alt="" style="height: 80px; border-radius: 4px; margin-right: 5px;" loading="lazy" decoding="async">
+            <img
+              [src]="m.url"
+              alt=""
+              style="height: 80px; border-radius: 4px"
+              loading="lazy"
+              decoding="async"
+            />
+          }
+        </div>
+      }
+      @if (getMediaVideos(node.post).length > 0) {
+        <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px">
+          @for (m of getMediaVideos(node.post); track m.id) {
+            <video
+              [src]="m.url"
+              [poster]="m.preview_url || ''"
+              controls
+              preload="none"
+              style="width: 100%; border-radius: 4px; border: 1px solid #eee; background: #000"
+            ></video>
           }
         </div>
       }
 
-      <div style="margin-top: 8px; font-size: 0.8rem; color: #9ca3af;">
+      <div style="margin-top: 8px; font-size: 0.8rem; color: #9ca3af">
         @if (node.post.favourites_count > 0) {
           <span>⭐ {{ node.post.favourites_count }}</span>
         }
@@ -200,10 +347,13 @@
     </div>
 
     @if (node.children.length > 0) {
-      <div style="margin-left: 24px; border-left: 2px solid #e5e7eb; padding-left: 12px;">
+      <div style="margin-left: 24px; border-left: 2px solid #e5e7eb; padding-left: 12px">
         @for (child of node.children; track child.post.id) {
           <div>
-            <ng-container *ngTemplateOutlet="treeNode; context: { node: child }"></ng-container>
+            <ng-container
+              [ngTemplateOutlet]="treeNode"
+              [ngTemplateOutletContext]="treeNodeContext(child)"
+            ></ng-container>
           </div>
         }
       </div>

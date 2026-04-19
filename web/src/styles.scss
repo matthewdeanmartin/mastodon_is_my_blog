@@ -474,7 +474,6 @@ small {
   }
 }
 
-
 /* --- Identity Top Bar --- */
 .identity-bar {
   background: #1e293b;
@@ -485,7 +484,7 @@ small {
   align-items: center;
   gap: 20px;
   font-size: 0.9rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
   z-index: 1000;
@@ -584,7 +583,9 @@ body {
 
 /* --- Read/Unread Post Styling --- */
 .post-item {
-  transition: opacity 0.2s ease, background-color 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease;
   padding: 12px;
   margin: 0 -12px;
   border-radius: 4px;
@@ -593,7 +594,7 @@ body {
 
 .post-item.read-post {
   opacity: 0.65;
-  
+
   .post-body {
     color: #6b7280;
   }
@@ -602,7 +603,7 @@ body {
 .post-item:not(.read-post) {
   font-weight: 500;
   border-left-color: #6366f1;
-  
+
   .post-body {
     color: #374151;
   }
@@ -686,7 +687,7 @@ body {
   gap: 8px;
   flex-wrap: wrap;
 
-  input[type="text"] {
+  input[type='text'] {
     padding: 6px 8px;
     border: 1px solid #cbd5e1;
     border-radius: 4px;
@@ -722,7 +723,8 @@ body {
   border-collapse: collapse;
   font-size: 0.9rem;
 
-  th, td {
+  th,
+  td {
     padding: 6px 8px;
     text-align: left;
     border-bottom: 1px solid #f1f5f9;
@@ -880,9 +882,17 @@ body {
   color: #6366f1;
 }
 
-.delta-up { color: #10b981; font-weight: 600; }
-.delta-down { color: #ef4444; font-weight: 600; }
-.delta-flat { color: #94a3b8; }
+.delta-up {
+  color: #10b981;
+  font-weight: 600;
+}
+.delta-down {
+  color: #ef4444;
+  font-weight: 600;
+}
+.delta-flat {
+  color: #94a3b8;
+}
 
 .analytics-notif-grid {
   display: grid;

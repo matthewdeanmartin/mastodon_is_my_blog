@@ -1,4 +1,5 @@
-"""Add has_job column to cached_posts
+"""
+Add has_job column to cached_posts
 
 Revision ID: 008
 Revises: 007
@@ -6,6 +7,7 @@ Create Date: 2026-04-18
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "008"

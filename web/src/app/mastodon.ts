@@ -174,7 +174,7 @@ export interface ContentHubPost {
   author_avatar: string;
   author_display_name: string;
   created_at: string;
-  media_attachments: unknown[];
+  media_attachments: MastodonMediaAttachment[];
   tags: unknown[];
   counts: { replies: number; reblogs: number; likes: number };
   has_video: boolean;

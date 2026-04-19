@@ -1,4 +1,5 @@
 from datetime import datetime
+from test.conftest import make_cached_post, make_identity, make_meta_account
 
 import pytest
 from sqlalchemy import select
@@ -17,7 +18,6 @@ from mastodon_is_my_blog.store import (
     ContentHubGroupTerm,
     ContentHubPostMatch,
 )
-from test.conftest import make_cached_post, make_identity, make_meta_account
 
 
 def make_group(
@@ -69,7 +69,9 @@ def test_normalize_helpers_trim_and_lowercase_terms() -> None:
 
 
 @pytest.mark.asyncio
-async def test_retro_match_hashtag_term_inserts_only_new_matching_posts(db_session) -> None:
+async def test_retro_match_hashtag_term_inserts_only_new_matching_posts(
+    db_session,
+) -> None:
     group = make_group()
     term = make_term()
     new_post = make_cached_post(post_id="match-new", content="new match")
@@ -109,13 +111,19 @@ async def test_retro_match_hashtag_term_inserts_only_new_matching_posts(db_sessi
     await db_session.commit()
 
     matches = (
-        await db_session.execute(
-            select(ContentHubPostMatch).order_by(ContentHubPostMatch.post_id)
+        (
+            await db_session.execute(
+                select(ContentHubPostMatch).order_by(ContentHubPostMatch.post_id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     cached_posts = (
-        await db_session.execute(select(CachedPost).order_by(CachedPost.id))
-    ).scalars().all()
+        (await db_session.execute(select(CachedPost).order_by(CachedPost.id)))
+        .scalars()
+        .all()
+    )
 
     assert inserted == 1
     assert [post.id for post in cached_posts] == [
@@ -160,9 +168,7 @@ async def test_retro_match_group_hashtag_terms_ignores_search_terms(db_session) 
     )
     await db_session.commit()
 
-    matches = (
-        await db_session.execute(select(ContentHubPostMatch))
-    ).scalars().all()
+    matches = (await db_session.execute(select(ContentHubPostMatch))).scalars().all()
 
     assert inserted == 1
     assert len(matches) == 1
@@ -171,14 +177,18 @@ async def test_retro_match_group_hashtag_terms_ignores_search_terms(db_session) 
 
 @pytest.mark.asyncio
 async def test_record_search_matches_returns_zero_for_empty_input(db_session) -> None:
-    db_session.add_all([make_meta_account(), make_identity(), make_group(), make_term()])
+    db_session.add_all(
+        [make_meta_account(), make_identity(), make_group(), make_term()]
+    )
     await db_session.commit()
 
     assert await record_search_matches(db_session, 1, 1, 1, make_term(), []) == 0
 
 
 @pytest.mark.asyncio
-async def test_record_search_matches_persists_rows_for_search_results(db_session) -> None:
+async def test_record_search_matches_persists_rows_for_search_results(
+    db_session,
+) -> None:
     group = make_group()
     term = make_term(term_id=10, term="python jobs", term_type="search")
     db_session.add_all([make_meta_account(), make_identity(), group, term])
@@ -195,13 +205,19 @@ async def test_record_search_matches_persists_rows_for_search_results(db_session
     await db_session.commit()
 
     matches = (
-        await db_session.execute(
-            select(ContentHubPostMatch).order_by(ContentHubPostMatch.post_id)
+        (
+            await db_session.execute(
+                select(ContentHubPostMatch).order_by(ContentHubPostMatch.post_id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert inserted == 2
-    assert [(match.post_id, match.matched_via, match.matched_term_id) for match in matches] == [
+    assert [
+        (match.post_id, match.matched_via, match.matched_term_id) for match in matches
+    ] == [
         ("post-1", "search", term.id),
         ("post-2", "search", term.id),
     ]

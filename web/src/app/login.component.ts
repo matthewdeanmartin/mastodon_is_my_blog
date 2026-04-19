@@ -18,7 +18,8 @@ import { Router } from '@angular/router';
           type="number"
           [(ngModel)]="metaId"
           placeholder="e.g. 1"
-          style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+          style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"
+        />
       </div>
 
       <button (click)="login()" [disabled]="!metaId">Enter</button>
@@ -27,7 +28,7 @@ import { Router } from '@angular/router';
         If you are running locally without setup, ID <strong>1</strong> is usually the default.
       </div>
     </div>
-  `
+  `,
 })
 export class LoginComponent {
   private api = inject(ApiService);

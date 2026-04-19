@@ -10,26 +10,27 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from typing import Any, cast
 
 from mastodon import Mastodon
 from sqlalchemy import and_, case, func, select
 
-from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
+from mastodon_is_my_blog.datetime_helpers import utc_now
+from mastodon_is_my_blog.mastodon_apis.masto_client_timed import TimedMastodonClient
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedNotification,
     CachedPost,
-    MastodonIdentity,
     async_session,
 )
-from mastodon_is_my_blog.datetime_helpers import utc_now
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Rate-limit budget (shared across all pages in one deep fetch run)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class RateBudget:
@@ -69,6 +70,7 @@ class RateBudget:
 # ---------------------------------------------------------------------------
 # 4.2  Catchup queue
 # ---------------------------------------------------------------------------
+
 
 async def get_catchup_queue(
     meta_id: int,
@@ -139,7 +141,9 @@ async def get_catchup_queue(
             else_=4,
         ).label("priority")
 
-        notif_count_col = func.coalesce(notif_count_sq.c.notif_count, 0).label("notif_count")
+        notif_count_col = func.coalesce(notif_count_sq.c.notif_count, 0).label(
+            "notif_count"
+        )
 
         stmt = (
             select(CachedAccount, priority_col, notif_count_col)
@@ -179,7 +183,7 @@ PageCallback = Callable[[list[dict]], Coroutine[None, None, None]]
 
 
 async def deep_fetch_user_timeline(
-    m: Mastodon,
+    m: Mastodon | TimedMastodonClient,
     target_id: str,
     *,
     stop_at_id: str | None = None,
@@ -225,7 +229,7 @@ async def deep_fetch_user_timeline(
                 kwargs["max_id"] = max_id
 
             page: list[dict] = await asyncio.to_thread(
-                m.account_statuses, target_id, **kwargs
+                cast(Any, m.account_statuses), target_id, **kwargs
             )
         except Exception as exc:
             # Mastodon.py raises MastodonRatelimitError on 429
@@ -239,7 +243,7 @@ async def deep_fetch_user_timeline(
                 # Retry the same page once — don't advance max_id
                 try:
                     page = await asyncio.to_thread(
-                        m.account_statuses, target_id, **kwargs
+                        cast(Any, m.account_statuses), target_id, **kwargs
                     )
                 except Exception as retry_exc:
                     logger.error(

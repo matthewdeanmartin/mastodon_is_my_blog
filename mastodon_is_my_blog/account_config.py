@@ -35,9 +35,7 @@ class ConfiguredAccountSummary:
 
 
 def get_accounts_config_path() -> Path:
-    config_dir = Path(
-        user_config_dir(appname="mastodon_is_my_blog", appauthor=False)
-    )
+    config_dir = Path(user_config_dir(appname="mastodon_is_my_blog", appauthor=False))
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir / "accounts.json"
 

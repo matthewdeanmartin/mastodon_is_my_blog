@@ -191,7 +191,9 @@ def test_admin_identities_returns_serialized_identities(
     api_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     identities = [
-        SimpleNamespace(id=1, acct="alice@example.com", api_base_url="https://a.example"),
+        SimpleNamespace(
+            id=1, acct="alice@example.com", api_base_url="https://a.example"
+        ),
         SimpleNamespace(id=2, acct="bob@example.com", api_base_url="https://b.example"),
     ]
     monkeypatch.setattr(
@@ -482,7 +484,9 @@ def test_account_catchup_status_endpoint_returns_existing_job(
         lambda job: {"running": False, "acct": job.acct, "mode": "deep"},
     )
 
-    response = api_client.get("/api/accounts/friend@example.com/catchup/status?identity_id=5")
+    response = api_client.get(
+        "/api/accounts/friend@example.com/catchup/status?identity_id=5"
+    )
 
     assert response.status_code == 200
     assert response.json() == {
@@ -507,7 +511,9 @@ def test_account_catchup_cancel_endpoint_cancels_running_job(
         and acct == "friend@example.com",
     )
 
-    response = api_client.delete("/api/accounts/friend@example.com/catchup?identity_id=5")
+    response = api_client.delete(
+        "/api/accounts/friend@example.com/catchup?identity_id=5"
+    )
 
     assert response.status_code == 200
     assert response.json() == {"cancelled": True}
@@ -566,15 +572,21 @@ def test_public_posts_endpoint_returns_serialized_posts(
         has_link=True,
         tags='["Intro"]',
     )
-    account_row = SimpleNamespace(acct="alice@example.com", avatar="https://img.example.com/alice.png", display_name="Alice")
+    account_row = SimpleNamespace(
+        acct="alice@example.com",
+        avatar="https://img.example.com/alice.png",
+        display_name="Alice",
+    )
 
     monkeypatch.setattr(
         posts,
         "async_session",
-        FakeSessionFactory([
-            FakeResult(all_rows=[(post, "p1")]),
-            FakeResult(all_rows=[account_row]),
-        ]),
+        FakeSessionFactory(
+            [
+                FakeResult(all_rows=[(post, "p1")]),
+                FakeResult(all_rows=[account_row]),
+            ]
+        ),
     )
 
     response = api_client.get("/api/posts?identity_id=5&filter_type=all")
@@ -669,7 +681,11 @@ def test_storms_endpoint_returns_root_and_branch_posts(
         assert post_ids == ["root-1", "reply-1"]
         return {"reply-1"}
 
-    account_row = SimpleNamespace(acct="alice@example.com", avatar="https://img.example.com/alice.png", display_name="Alice")
+    account_row = SimpleNamespace(
+        acct="alice@example.com",
+        avatar="https://img.example.com/alice.png",
+        display_name="Alice",
+    )
 
     monkeypatch.setattr(
         posts,
@@ -732,6 +748,7 @@ def test_hashtags_endpoint_aggregates_and_sorts_tags(
         ]
 
     from mastodon_is_my_blog import duck
+
     monkeypatch.setattr(duck, "hashtag_counts", fake_hashtag_counts)
 
     response = api_client.get("/api/posts/hashtags?identity_id=5")

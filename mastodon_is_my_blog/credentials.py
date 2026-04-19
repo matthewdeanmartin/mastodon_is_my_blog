@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import logging
 import os
 
@@ -18,6 +19,7 @@ def get_credential(name: str, field: str) -> str | None:
     username = f"{name}:{field}"
     try:
         import keyring
+
         value = keyring.get_password(SERVICE, username)
         if value:
             return value
@@ -36,6 +38,7 @@ def set_credential(name: str, field: str, value: str) -> bool:
     username = f"{name}:{field}"
     try:
         import keyring
+
         keyring.set_password(SERVICE, username, value)
         return True
     except Exception as exc:

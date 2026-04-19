@@ -7,6 +7,7 @@ Tab membership:
 - videos: posts with video signals
 - jobs:   posts with has_job flag set at ingest time
 """
+
 from __future__ import annotations
 
 from mastodon_is_my_blog.store import CachedPost

@@ -37,7 +37,9 @@ class TimedMastodonClient:
             method = getattr(self.client, method_name)
             result = method(*args, **kwargs)
             elapsed: float = time.perf_counter() - start
-            self.logger.info("Mastodon API completed: %s in %.3fs", method_name, elapsed)
+            self.logger.info(
+                "Mastodon API completed: %s in %.3fs", method_name, elapsed
+            )
             return result
         except Exception as e:
             elapsed = time.perf_counter() - start
@@ -68,6 +70,15 @@ class TimedMastodonClient:
 
     def account_search(self, q: str, limit: int = 1):
         return self._timed_call("account_search", q, limit=limit)
+
+    def account_follow(self, account_id: str):
+        return self._timed_call("account_follow", account_id)
+
+    def account_unfollow(self, account_id: str):
+        return self._timed_call("account_unfollow", account_id)
+
+    def favourites(self, limit: int = 40, **kwargs):
+        return self._timed_call("favourites", limit=limit, **kwargs)
 
     def account(self, account_id: str):
         return self._timed_call("account", account_id)
@@ -102,5 +113,9 @@ class TimedMastodonClient:
     def timeline_hashtag(self, hashtag: str, limit: int = 40, **kwargs) -> list:
         return self._timed_call("timeline_hashtag", hashtag, limit=limit, **kwargs)
 
-    def search(self, q: str, result_type: str = "statuses", limit: int = 40, **kwargs) -> dict:
-        return self._timed_call("search", q, result_type=result_type, limit=limit, **kwargs)
+    def search(
+        self, q: str, result_type: str = "statuses", limit: int = 40, **kwargs
+    ) -> dict:
+        return self._timed_call(
+            "search", q, result_type=result_type, limit=limit, **kwargs
+        )

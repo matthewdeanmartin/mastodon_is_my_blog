@@ -1,6 +1,10 @@
 <div class="card">
   <h2 class="post-title">
-    {{ (currentFilter === 'all' || currentFilter === 'storms') ? 'Latest Storms' : (currentFilter | titlecase) }}
+    {{
+      currentFilter === 'all' || currentFilter === 'storms'
+        ? 'Latest Storms'
+        : (currentFilter | titlecase)
+    }}
     @if (unreadCount > 0) {
       <span class="unread-badge">{{ unreadCount }} unread</span>
     }
@@ -18,13 +22,15 @@
             <hr />
           }
           <ng-container
-            *ngTemplateOutlet="postTemplate; context: { $implicit: storm.root }"
+            [ngTemplateOutlet]="postTemplate"
+            [ngTemplateOutletContext]="postTemplateContext(storm.root)"
           ></ng-container>
           <div style="margin-left: 20px; border-left: 2px solid #eee; padding-left: 15px">
             @for (branch of storm.branches; track branch.id) {
               <div>
                 <ng-container
-                  *ngTemplateOutlet="postTemplate; context: { $implicit: branch }"
+                  [ngTemplateOutlet]="postTemplate"
+                  [ngTemplateOutletContext]="postTemplateContext(branch)"
                 ></ng-container>
               </div>
             }
@@ -41,7 +47,10 @@
           @if (i > 0) {
             <hr />
           }
-          <ng-container *ngTemplateOutlet="postTemplate; context: { $implicit: p }"></ng-container>
+          <ng-container
+            [ngTemplateOutlet]="postTemplate"
+            [ngTemplateOutletContext]="postTemplateContext(p)"
+          ></ng-container>
         </div>
       }
     </div>
@@ -50,7 +59,8 @@
   @if (!loading && items.length === 0) {
     @if (currentUser && currentUser !== 'everyone') {
       <div class="muted">
-        No cached posts found for this filter. Use Catch Up above to fetch the latest posts for this account, or Deep Catch Up to backfill all available history.
+        No cached posts found for this filter. Use Catch Up above to fetch the latest posts for this
+        account, or Deep Catch Up to backfill all available history.
       </div>
     } @else {
       <div class="muted">No posts found for this filter.</div>
@@ -58,7 +68,7 @@
   }
 
   @if (!loading && nextCursor) {
-    <div #loadMoreSentinel style="padding: 20px 0; text-align: center;">
+    <div #loadMoreSentinel style="padding: 20px 0; text-align: center">
       @if (loadingMore) {
         <span class="muted">Loading more…</span>
       } @else {
@@ -70,100 +80,154 @@
 
 <ng-template #postTemplate let-p>
   @if (vm(p.id); as v) {
-    <div #postItem [attr.data-post-id]="p.id" [class.read-post]="v.isRead" class="post-item" (mouseenter)="onPostMouseEnter(p.id)" (mouseleave)="onPostMouseLeave(p.id)">
-      <div class="row" style="margin-bottom: 8px; justify-content: flex-start; gap: 8px;">
+    <div
+      #postItem
+      [attr.data-post-id]="p.id"
+      [class.read-post]="v.isRead"
+      class="post-item"
+      (mouseenter)="onPostMouseEnter(p.id)"
+      (mouseleave)="onPostMouseLeave(p.id)"
+    >
+      <div class="row" style="margin-bottom: 8px; justify-content: flex-start; gap: 8px">
         @if (v.author_avatar) {
-          <img [src]="v.author_avatar" alt="" style="width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;" loading="lazy" decoding="async">
+          <img
+            [src]="v.author_avatar"
+            alt=""
+            style="width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0"
+            loading="lazy"
+            decoding="async"
+          />
         }
-        <div style="display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0;">
-          <span style="font-size: 0.9rem; font-weight: 600; color: #1f2937; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ v.author_display_name }}</span>
-          <span class="muted" style="font-size: 0.75rem;">@{{ v.author_acct }}</span>
+        <div style="display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0">
+          <span
+            style="
+              font-size: 0.9rem;
+              font-weight: 600;
+              color: #1f2937;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            "
+            >{{ v.author_display_name }}</span
+          >
+          <span class="muted" style="font-size: 0.75rem">&#64;{{ v.author_acct }}</span>
         </div>
         <a
           [routerLink]="['/p', p.id]"
           [queryParams]="getQueryParams()"
           class="muted"
-          style="font-size: 0.8rem; white-space: nowrap; flex-shrink: 0;"
-          >
+          style="font-size: 0.8rem; white-space: nowrap; flex-shrink: 0"
+        >
           @if (p.created_at) {
             <span>{{ p.created_at | date: 'mediumDate' }}</span>
-          }
-          @if (!p.created_at) {
+          } @else {
             <span>Just now</span>
           }
         </a>
         <div>
           @if (v.is_reblog) {
             <span
-          style="
-            background: #e3f2fd;
-            color: #1976d2;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-size: 0.75rem;
-            font-weight: 600;
-          "
-              >REBLOG</span
-              >
-            }
-            @if (v.is_reply) {
-              <span
-          style="
-            background: #f3e5f5;
-            color: #7b1fa2;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-left: 4px;
-          "
-                >REPLY</span
-                >
-              }
-            </div>
-          </div>
-
-          <div class="post-body">
-            <span [innerHTML]="v.safeContentHtml"></span>
-          </div>
-
-          <!-- Link Previews: only the first URL gets a rich card in the feed -->
-          @if (v.firstLinkUrl) {
-            <div>
-              <app-link-preview [url]="v.firstLinkUrl"></app-link-preview>
-            </div>
-          }
-
-          @if (v.images.length > 0) {
-            <div
-              style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;"
-              >
-              @for (img of v.images; track img.id) {
-                <img
-                  [src]="img.preview_url || img.url"
-                  alt=""
-                  style="width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee"
-                  loading="lazy"
-                  decoding="async"
-                  />
-              }
-            </div>
-          }
-
-          <div style="margin-top: 6px; margin-bottom: 15px">
-            <a [routerLink]="['/p', p.id]"><small>Read more</small></a>
-            @if (v.counts) {
-              <span class="muted" style="margin-left: 10px; font-size: 0.8rem">
-                {{ v.counts.replies }} replies &bull; {{ v.counts.likes }} likes
-              </span>
-            }
-            <span style="margin-left: 10px;">
-              <a [href]="v.originalUrl" target="_blank" rel="noopener noreferrer"
-                style="font-size: 0.8rem; color: #6366f1; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-                <span style="font-size: 1rem;">🔗</span> View on Mastodon
-              </a>
+              style="
+                background: #e3f2fd;
+                color: #1976d2;
+                padding: 2px 8px;
+                border-radius: 3px;
+                font-size: 0.75rem;
+                font-weight: 600;
+              "
+            >
+              REBLOG
             </span>
-          </div>
+          }
+          @if (v.is_reply) {
+            <span
+              style="
+                background: #f3e5f5;
+                color: #7b1fa2;
+                padding: 2px 8px;
+                border-radius: 3px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                margin-left: 4px;
+              "
+            >
+              REPLY
+            </span>
+          }
         </div>
+      </div>
+
+      <div class="post-body">
+        <span [innerHTML]="v.safeContentHtml"></span>
+      </div>
+
+      <!-- Favicon row for all external links in post -->
+      @if (v.allLinkUrls.length > 0) {
+        <app-link-favicons [urls]="v.allLinkUrls"></app-link-favicons>
+      }
+
+      <!-- Link Preview: rich card for first URL -->
+      @if (v.firstLinkUrl) {
+        <div>
+          <app-link-preview [url]="v.firstLinkUrl"></app-link-preview>
+        </div>
+      }
+
+      @if (v.images.length > 0) {
+        <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px">
+          @for (img of v.images; track img.id) {
+            <img
+              [src]="img.preview_url || img.url"
+              alt=""
+              style="width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee"
+              loading="lazy"
+              decoding="async"
+            />
+          }
+        </div>
+      }
+
+      @if (v.videos.length > 0) {
+        <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px">
+          @for (vid of v.videos; track vid.id) {
+            <video
+              [src]="vid.url"
+              [poster]="vid.preview_url || ''"
+              controls
+              preload="none"
+              style="width: 100%; border-radius: 4px; border: 1px solid #eee; background: #000"
+            ></video>
+          }
+        </div>
+      }
+
+      <div style="margin-top: 6px; margin-bottom: 15px">
+        <a [routerLink]="['/p', p.id]"><small>Read more</small></a>
+        @if (v.counts) {
+          <span class="muted" style="margin-left: 10px; font-size: 0.8rem">
+            {{ v.counts.replies }} replies &bull; {{ v.counts.likes }} likes
+          </span>
+        }
+        @if (v.originalUrl) {
+          <span style="margin-left: 10px">
+            <a
+              [href]="v.originalUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="
+                font-size: 0.8rem;
+                color: #6366f1;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+              "
+            >
+              <span style="font-size: 1rem">🔗</span> View on Mastodon
+            </a>
+          </span>
+        }
+      </div>
+    </div>
   }
 </ng-template>

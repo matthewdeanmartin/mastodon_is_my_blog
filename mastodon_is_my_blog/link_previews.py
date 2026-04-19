@@ -5,13 +5,14 @@ import ipaddress
 import re
 import socket
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, cast
 from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import AnyHttpUrl, BaseModel, field_validator
+
 from mastodon_is_my_blog.store import CachedLinkPreview, async_session
 from mastodon_is_my_blog.utils.perf import (
     record_card_timing,
@@ -41,7 +42,9 @@ _shared_client: httpx.AsyncClient | None = None
 
 def get_http_client() -> httpx.AsyncClient:
     if _shared_client is None:
-        raise RuntimeError("HTTP client not initialized. Call init_http_client() first.")
+        raise RuntimeError(
+            "HTTP client not initialized. Call init_http_client() first."
+        )
     return _shared_client
 
 
@@ -49,8 +52,16 @@ def init_http_client() -> None:
     global _shared_client
     _shared_client = httpx.AsyncClient(
         follow_redirects=True,
-        timeout=httpx.Timeout(connect=CONNECT_TIMEOUT, read=READ_TIMEOUT, write=READ_TIMEOUT, pool=READ_TIMEOUT),
-        headers={"User-Agent": "LinkPreviewBot/1.0 (+https://example.com)", "Accept": "text/html,application/xhtml+xml"},
+        timeout=httpx.Timeout(
+            connect=CONNECT_TIMEOUT,
+            read=READ_TIMEOUT,
+            write=READ_TIMEOUT,
+            pool=READ_TIMEOUT,
+        ),
+        headers={
+            "User-Agent": "LinkPreviewBot/1.0 (+https://example.com)",
+            "Accept": "text/html,application/xhtml+xml",
+        },
         max_redirects=REDIRECTS,
     )
 
@@ -91,7 +102,15 @@ class CardRequest(BaseModel):
 # ---- URL canonicalization ----
 
 STRIP_PARAMS = frozenset(
-    ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid"]
+    [
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
+        "fbclid",
+        "gclid",
+    ]
 )
 
 
@@ -174,11 +193,11 @@ def _meta(
     if prop:
         tag = soup.find("meta", attrs={"property": prop})
         if tag and tag.get("content"):
-            return tag["content"]
+            return cast(str, tag["content"])
     if name:
         tag = soup.find("meta", attrs={"name": name})
         if tag and tag.get("content"):
-            return tag["content"]
+            return cast(str, tag["content"])
     return None
 
 
@@ -190,9 +209,11 @@ def _abs_url(base: str, maybe: Optional[str]) -> Optional[str]:
 
 def _favicon(base: str, soup: BeautifulSoup) -> Optional[str]:
     for rel in ("icon", "shortcut icon", "apple-touch-icon"):
-        tag = soup.find("link", rel=lambda v, r=rel: isinstance(v, str) and r in v.lower())
+        tag = soup.find(
+            "link", rel=lambda v, r=rel: isinstance(v, str) and r in v.lower()
+        )
         if tag and tag.get("href"):
-            return urljoin(base, tag["href"])
+            return urljoin(base, cast(str, tag["href"]))
     return urljoin(base, "/favicon.ico")
 
 
@@ -256,7 +277,9 @@ def _now_utc() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-async def fetch_card(url: str = Query(..., min_length=8, max_length=2048)) -> CardResponse:
+async def fetch_card(
+    url: str = Query(..., min_length=8, max_length=2048),
+) -> CardResponse:
     """
     Cached entry point:
     1. Canonicalize URL → look up DB row.
@@ -307,11 +330,17 @@ async def fetch_card(url: str = Query(..., min_length=8, max_length=2048)) -> Ca
             asyncio.create_task(_revalidate(url, url_key))
             return stale_result
 
-        if row.status in ("error", "blocked") and row.expires_at and now < row.expires_at:
+        if (
+            row.status in ("error", "blocked")
+            and row.expires_at
+            and now < row.expires_at
+        ):
             # Negative cache still valid
             record_preview_error()
             record_card_timing(url_key, _time.perf_counter() - start, "error")
-            raise HTTPException(502, f"Cached fetch failure: {row.error_reason or 'unknown'}")
+            raise HTTPException(
+                502, f"Cached fetch failure: {row.error_reason or 'unknown'}"
+            )
 
     # Miss or expired — coalesce concurrent fetches for the same url_key
     return await _coalesced_fetch(url, url_key, start)

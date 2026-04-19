@@ -14,6 +14,12 @@ from mastodon_is_my_blog.account_config import (
     set_account_credentials,
     upsert_configured_account,
 )
+from mastodon_is_my_blog.bulk_sync_jobs import (
+    cancel_job,
+    get_job,
+    job_status,
+    start_bulk_job,
+)
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
     client,
     client_from_identity,
@@ -25,12 +31,6 @@ from mastodon_is_my_blog.queries import (
     sync_all_identities,
     sync_my_favourites_for_identity,
     sync_user_timeline_for_identity,
-)
-from mastodon_is_my_blog.bulk_sync_jobs import (
-    cancel_job,
-    get_job,
-    job_status,
-    start_bulk_job,
 )
 from mastodon_is_my_blog.store import (
     MastodonIdentity,
@@ -254,22 +254,21 @@ async def add_identity(
 @router.get("/status")
 async def admin_status() -> dict:
     """Get connection status and current user info"""
-
     # Try to get default identity
     current_user = None
     connected = False
 
     async with async_session() as session:
-        stmt = select(MetaAccount).where(MetaAccount.username == "default")
-        meta = (await session.execute(stmt)).scalar_one_or_none()
+        stmt_meta = select(MetaAccount).where(MetaAccount.username == "default")
+        meta = (await session.execute(stmt_meta)).scalar_one_or_none()
 
         if meta:
-            stmt = (
+            stmt_identity = (
                 select(MastodonIdentity)
                 .where(MastodonIdentity.meta_account_id == meta.id)
                 .limit(1)
             )
-            identity = (await session.execute(stmt)).scalar_one_or_none()
+            identity = (await session.execute(stmt_identity)).scalar_one_or_none()
 
             if identity and identity_has_access_token(identity):
                 connected = True
@@ -391,7 +390,9 @@ def group_to_dict(group: ContentHubGroup, terms: list[ContentHubGroupTerm]) -> d
         "slug": group.slug,
         "source_type": group.source_type,
         "is_read_only": group.is_read_only,
-        "last_fetched_at": group.last_fetched_at.isoformat() if group.last_fetched_at else None,
+        "last_fetched_at": (
+            group.last_fetched_at.isoformat() if group.last_fetched_at else None
+        ),
         "created_at": group.created_at.isoformat(),
         "updated_at": group.updated_at.isoformat(),
         "terms": [
@@ -442,9 +443,11 @@ async def create_bundle(
         [{"term": t.term, "term_type": t.term_type} for t in body.terms],
     )
     async with async_session() as session:
-        stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group.id)
+        stmt = select(ContentHubGroupTerm).where(
+            ContentHubGroupTerm.group_id == group.id
+        )
         terms = (await session.execute(stmt)).scalars().all()
-    return group_to_dict(group, terms)
+    return group_to_dict(group, list(terms))
 
 
 @router.put("/content-hub/bundles/{bundle_id}")
@@ -471,9 +474,11 @@ async def update_bundle(
         raise HTTPException(404, str(exc)) from exc
 
     async with async_session() as session:
-        stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group.id)
+        stmt = select(ContentHubGroupTerm).where(
+            ContentHubGroupTerm.group_id == group.id
+        )
         terms = (await session.execute(stmt)).scalars().all()
-    return group_to_dict(group, terms)
+    return group_to_dict(group, list(terms))
 
 
 @router.delete("/content-hub/bundles/{bundle_id}")
@@ -539,7 +544,7 @@ async def start_catchup(
 
     Returns 409 if a job is already running for this identity.
     """
-    from mastodon_is_my_blog.catchup_runner import start_job, job_status
+    from mastodon_is_my_blog.catchup_runner import job_status, start_job
 
     identity = await _get_identity(meta, identity_id)
 
@@ -608,7 +613,9 @@ async def catchup_queue_preview(
                 "acct": a.acct,
                 "display_name": a.display_name,
                 "is_followed_by": a.is_followed_by,
-                "last_status_at": a.last_status_at.isoformat() if a.last_status_at else None,
+                "last_status_at": (
+                    a.last_status_at.isoformat() if a.last_status_at else None
+                ),
             }
             for a in queue
         ],

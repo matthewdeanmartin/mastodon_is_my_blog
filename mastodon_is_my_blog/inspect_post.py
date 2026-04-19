@@ -1,26 +1,53 @@
 import logging
 import re
 from html import unescape
+from typing import cast
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
 from mastodon_is_my_blog.data.domain_categories import DOMAIN_CONFIG
 
-TAG_JOBS_KEYWORDS: frozenset[str] = frozenset([
-    "hiring", "job", "jobs", "jobhunting", "jobsearch",
-    "getfedihired", "fedihired", "career", "careers", "recruitment", "recruiter",
-])
+TAG_JOBS_KEYWORDS: frozenset[str] = frozenset(
+    [
+        "hiring",
+        "job",
+        "jobs",
+        "jobhunting",
+        "jobsearch",
+        "getfedihired",
+        "fedihired",
+        "career",
+        "careers",
+        "recruitment",
+        "recruiter",
+    ]
+)
 
 STRONG_JOB_PHRASES: tuple[str, ...] = (
-    "we're hiring", "we are hiring", "now hiring", "join our team",
-    "job listing", "job post", "job opening", "open position",
-    "open role", "apply now", "apply here", "submit your application",
-    "send your cv", "send your resume",
+    "we're hiring",
+    "we are hiring",
+    "now hiring",
+    "join our team",
+    "job listing",
+    "job post",
+    "job opening",
+    "open position",
+    "open role",
+    "apply now",
+    "apply here",
+    "submit your application",
+    "send your cv",
+    "send your resume",
 )
 
 WEAK_JOB_KEYWORDS: tuple[str, ...] = (
-    "hiring", "recruiter", "freelance", "contract", "full-time", "part-time",
+    "hiring",
+    "recruiter",
+    "freelance",
+    "contract",
+    "full-time",
+    "part-time",
 )
 
 logger = logging.getLogger(__name__)
@@ -29,9 +56,13 @@ logger = logging.getLogger(__name__)
 # e.g. https://mastodon.social/@gargron/112345678901234567
 MASTODON_POST_URL_RE = re.compile(r"^/@[\w.]+/\d+$")
 
+
 # --- Helper: Content Analysis ---
 def analyze_content_domains(
-    html: str, media_attachments: list, is_reply_to_other: bool, tags: list | None = None
+    html: str,
+    media_attachments: list,
+    is_reply_to_other: bool,
+    tags: list | None = None,
 ) -> dict:
     """
     Analyzes HTML content and attachments to determine content flags.
@@ -64,17 +95,25 @@ def analyze_content_domains(
         try:
             # Check classes to distinguish generic links from Mentions/Hashtags
             # Mastodon mentions/tags usually have class="mention" or "hashtag"
-            classes = link.get("class", [])
+            raw_classes = link.get("class")
+            classes: list[str] = []
+            if isinstance(raw_classes, str):
+                classes = [raw_classes]
+            elif isinstance(raw_classes, list):
+                classes = raw_classes
+
             is_mention_or_tag = "mention" in classes or "hashtag" in classes
 
             if not is_mention_or_tag:
                 # Mastodon quote-posts use /@user/id URLs â€” not generic links
-                parsed_path = urlparse(link["href"]).path
+                href = cast(str, link["href"])
+                parsed_path = urlparse(href).path
                 is_mastodon_post = bool(MASTODON_POST_URL_RE.match(parsed_path))
                 if not is_mastodon_post:
                     flags["has_link"] = True
 
-            domain = urlparse(link["href"]).netloc.lower()
+            href = cast(str, link["href"])
+            domain = urlparse(href).netloc.lower()
             # Remove 'www.' prefix if present for matching
             clean_domain = domain.replace("www.", "")
 

@@ -1,8 +1,10 @@
-"""Tracker for long-running bulk-sync asyncio tasks (friends backfill, notifications backfill).
+"""
+Tracker for long-running bulk-sync asyncio tasks (friends backfill, notifications backfill).
 
 Separate from catchup_runner — that queue targets per-author timeline pagination.
 These jobs are one-shot "download everything" operations keyed by (meta_id, identity_id, kind).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -61,7 +63,8 @@ async def start_bulk_job(
     identity_id: int,
     runner: Callable[[Callable[[int, int | None, str], None], Callable[[], bool]], Any],
 ) -> BulkJob:
-    """Start a bulk-sync task. runner is an async callable that receives
+    """
+    Start a bulk-sync task. runner is an async callable that receives
     (on_progress, cancelled) and performs the work, returning a result dict.
 
     Raises ValueError if a job of this kind is already running for the identity.

@@ -2,6 +2,7 @@
 """
 Factory functions for creating Mastodon API clients.
 """
+
 import logging
 import os
 
@@ -77,7 +78,9 @@ def client_from_identity(
         base_url=identity.api_base_url,
     )
 
-    client_id = configured_identity.client_id if configured_identity else identity.client_id
+    client_id = (
+        configured_identity.client_id if configured_identity else identity.client_id
+    )
     client_secret = (
         configured_identity.client_secret
         if configured_identity
@@ -88,7 +91,9 @@ def client_from_identity(
         if configured_identity
         else identity.access_token
     )
-    base_url = configured_identity.base_url if configured_identity else identity.api_base_url
+    base_url = (
+        configured_identity.base_url if configured_identity else identity.api_base_url
+    )
 
     return client(
         base_url=base_url,
@@ -120,8 +125,8 @@ async def client_from_identity_id(identity_id: int) -> Mastodon | TimedMastodonC
 
     Raises:
         ValueError: If identity not found
-    """
 
+    """
     async with async_session() as session:
         stmt = select(MastodonIdentity).where(MastodonIdentity.id == identity_id)
         identity = (await session.execute(stmt)).scalar_one_or_none()
@@ -147,8 +152,8 @@ async def client_from_meta_account(
 
     Raises:
         ValueError: If meta account has no identities
-    """
 
+    """
     async with async_session() as session:
         stmt = (
             select(MastodonIdentity)
@@ -172,7 +177,6 @@ async def get_default_client() -> Mastodon | TimedMastodonClient:
     Gets a client for the default meta account's first identity.
     Strictly relies on the database being bootstrapped.
     """
-
     identity = await get_default_identity()
     if not identity:
         # We do not fallback to env vars or magic here.

@@ -1,4 +1,5 @@
-"""Add stable config name to Mastodon identities
+"""
+Add stable config name to Mastodon identities
 
 Revision ID: 007
 Revises: 006
@@ -6,6 +7,7 @@ Create Date: 2026-04-15
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "007"

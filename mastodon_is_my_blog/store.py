@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 # mastodon_is_my_blog/store.py
 import logging
 import os
@@ -37,6 +38,7 @@ logging.basicConfig()
 dotenv.load_dotenv()
 
 from mastodon_is_my_blog.db_path import get_default_db_url
+
 DB_URL = get_default_db_url()
 # Database setup
 engine = create_async_engine(
@@ -83,7 +85,7 @@ class MetaAccount(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # Relationships
-    identities: Mapped[List["MastodonIdentity"]] = relationship(
+    identities: Mapped[List[MastodonIdentity]] = relationship(
         "MastodonIdentity", back_populates="meta_account", cascade="all, delete-orphan"
     )
 
@@ -112,13 +114,14 @@ class MastodonIdentity(Base):
     acct: Mapped[str] = mapped_column(String)  # user@instance
     account_id: Mapped[str] = mapped_column(String)  # Numeric ID on that instance
 
-    meta_account: Mapped["MetaAccount"] = relationship(
+    meta_account: Mapped[MetaAccount] = relationship(
         "MetaAccount", back_populates="identities"
     )
 
 
 class CachedAccount(Base):
-    """Stores friends, followers, and active posters for the Blog Roll
+    """
+    Stores friends, followers, and active posters for the Blog Roll
     Scoped by MetaAccount so User A's notes on @Gargron don't leak to User B.
     """
 
@@ -237,11 +240,38 @@ class CachedPost(Base):
         Index("ix_posts_meta_author", "meta_account_id", "author_acct", "created_at"),
         Index("ix_posts_meta_actor", "meta_account_id", "actor_acct", "created_at"),
         Index("ix_posts_meta_clean", "meta_account_id", "is_reblog", "is_reply"),
-        Index("ix_posts_meta_identity_created", "meta_account_id", "fetched_by_identity_id", "created_at"),
-        Index("ix_posts_meta_identity_author", "meta_account_id", "fetched_by_identity_id", "author_acct", "created_at"),
-        Index("ix_posts_meta_identity_actor", "meta_account_id", "fetched_by_identity_id", "actor_acct", "created_at"),
-        Index("ix_posts_in_reply_to", "meta_account_id", "fetched_by_identity_id", "in_reply_to_id"),
-        Index("ix_posts_content_hub_only", "meta_account_id", "fetched_by_identity_id", "content_hub_only"),
+        Index(
+            "ix_posts_meta_identity_created",
+            "meta_account_id",
+            "fetched_by_identity_id",
+            "created_at",
+        ),
+        Index(
+            "ix_posts_meta_identity_author",
+            "meta_account_id",
+            "fetched_by_identity_id",
+            "author_acct",
+            "created_at",
+        ),
+        Index(
+            "ix_posts_meta_identity_actor",
+            "meta_account_id",
+            "fetched_by_identity_id",
+            "actor_acct",
+            "created_at",
+        ),
+        Index(
+            "ix_posts_in_reply_to",
+            "meta_account_id",
+            "fetched_by_identity_id",
+            "in_reply_to_id",
+        ),
+        Index(
+            "ix_posts_content_hub_only",
+            "meta_account_id",
+            "fetched_by_identity_id",
+            "content_hub_only",
+        ),
     )
 
     # Define Composite Indexes to speed up specific query patterns
@@ -332,7 +362,9 @@ class CachedLinkPreview(Base):
     site_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     image: Mapped[str | None] = mapped_column(String, nullable=True)
     favicon: Mapped[str | None] = mapped_column(String, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default="ok")  # ok | error | blocked
+    status: Mapped[str] = mapped_column(
+        String(16), default="ok"
+    )  # ok | error | blocked
     fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     error_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -369,7 +401,9 @@ class ContentHubGroup(Base):
     )
     name: Mapped[str] = mapped_column(String)
     slug: Mapped[str] = mapped_column(String)
-    source_type: Mapped[str] = mapped_column(String(20))  # client_bundle | server_follow
+    source_type: Mapped[str] = mapped_column(
+        String(20)
+    )  # client_bundle | server_follow
     is_read_only: Mapped[bool] = mapped_column(Boolean, default=False)
     last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
@@ -377,7 +411,7 @@ class ContentHubGroup(Base):
         DateTime, default=utc_now, onupdate=utc_now
     )
 
-    terms: Mapped[List["ContentHubGroupTerm"]] = relationship(
+    terms: Mapped[List[ContentHubGroupTerm]] = relationship(
         "ContentHubGroupTerm", back_populates="group", cascade="all, delete-orphan"
     )
 
@@ -403,7 +437,7 @@ class ContentHubGroupTerm(Base):
     normalized_term: Mapped[str] = mapped_column(String, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
-    group: Mapped["ContentHubGroup"] = relationship(
+    group: Mapped[ContentHubGroup] = relationship(
         "ContentHubGroup", back_populates="terms"
     )
 
@@ -439,7 +473,8 @@ class ContentHubPostMatch(Base):
 
 
 class CachedMyFavourite(Base):
-    """Outbound favourites — posts *I* have liked (per identity).
+    """
+    Outbound favourites — posts *I* have liked (per identity).
     Only source for 'me→them favourite' signal used by the Engagement Matrix.
     """
 
@@ -479,20 +514,20 @@ async def ensure_cached_posts_schema() -> None:
         columns = {row[1] for row in result}
 
         if "actor_acct" not in columns:
-            await conn.execute(text("ALTER TABLE cached_posts ADD COLUMN actor_acct VARCHAR"))
+            await conn.execute(
+                text("ALTER TABLE cached_posts ADD COLUMN actor_acct VARCHAR")
+            )
         if "actor_id" not in columns:
-            await conn.execute(text("ALTER TABLE cached_posts ADD COLUMN actor_id VARCHAR"))
+            await conn.execute(
+                text("ALTER TABLE cached_posts ADD COLUMN actor_id VARCHAR")
+            )
 
-        await conn.execute(
-            text(
-                """
+        await conn.execute(text("""
                 UPDATE cached_posts
                 SET actor_acct = COALESCE(actor_acct, author_acct),
                     actor_id = COALESCE(actor_id, author_id)
                 WHERE actor_acct IS NULL OR actor_id IS NULL
-                """
-            )
-        )
+                """))
         await conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS ix_posts_meta_actor "
@@ -542,10 +577,16 @@ async def sync_configured_identities() -> None:
             await session.flush()
 
         existing_identities = (
-            await session.execute(
-                select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id)
+            (
+                await session.execute(
+                    select(MastodonIdentity).where(
+                        MastodonIdentity.meta_account_id == meta.id
+                    )
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         existing_by_name = {
             identity.config_name: identity
@@ -607,12 +648,12 @@ async def get_default_identity() -> Optional[MastodonIdentity]:
         if not meta:
             return None
 
-        stmt = (
+        stmt_identity = (
             select(MastodonIdentity)
             .where(MastodonIdentity.meta_account_id == meta.id)
             .limit(1)
         )
-        return (await session.execute(stmt)).scalar_one_or_none()
+        return (await session.execute(stmt_identity)).scalar_one_or_none()
 
 
 # --- Sync State Logic ---
@@ -720,9 +761,7 @@ async def mark_posts_seen(meta_account_id: int, post_ids: list[str]) -> None:
     unique_ids = list(dict.fromkeys(post_ids))
     rows = [{"meta_account_id": meta_account_id, "post_id": pid} for pid in unique_ids]
     async with async_session() as session:
-        await session.execute(
-            insert(SeenPost).values(rows).prefix_with("OR IGNORE")
-        )
+        await session.execute(insert(SeenPost).values(rows).prefix_with("OR IGNORE"))
         await session.commit()
 
 

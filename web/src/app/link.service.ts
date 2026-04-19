@@ -37,7 +37,7 @@ export class LinkPreviewService {
         console.warn('Failed to fetch preview for:', url, error);
         return of(null);
       }),
-      shareReplay(1) // Share the result among multiple subscribers
+      shareReplay(1), // Share the result among multiple subscribers
     );
 
     this.cache.set(url, request$);
@@ -55,7 +55,7 @@ export class LinkPreviewService {
     const anchors = Array.from(doc.querySelectorAll('a[href]')) as HTMLAnchorElement[];
 
     return anchors
-      .filter(anchor => {
+      .filter((anchor) => {
         // 1. EXCLUDE HASHTAGS & MENTIONS
         // The JSON payload shows these links have "mention" and "hashtag" classes.
         if (anchor.classList.contains('hashtag') || anchor.classList.contains('mention')) {
@@ -66,16 +66,16 @@ export class LinkPreviewService {
         // If you want to strictly block 'mastodon.social' or others regardless of class:
         const href = anchor.getAttribute('href');
         if (href) {
-           // simple check against a blocklist
-           const ignoredDomains = ['mastodon.social', 'appdot.net'];
-           if (ignoredDomains.some(d => href.includes(d))) {
-             return false;
-           }
+          // simple check against a blocklist
+          const ignoredDomains = ['mastodon.social', 'appdot.net'];
+          if (ignoredDomains.some((d) => href.includes(d))) {
+            return false;
+          }
         }
 
         return true;
       })
-      .map(anchor => anchor.getAttribute('href'))
+      .map((anchor) => anchor.getAttribute('href'))
       .filter((href): href is string => {
         if (!href) return false;
         // Only include http/https URLs

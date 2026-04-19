@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
+from test.conftest import make_identity, make_meta_account
 from unittest.mock import patch
 
 import pytest
@@ -8,7 +9,6 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from mastodon_is_my_blog import store
 from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.utils.settings_loader import IdentityConfig
-from test.conftest import make_identity, make_meta_account
 
 
 @pytest.mark.asyncio
@@ -30,9 +30,12 @@ async def test_init_db_creates_tables() -> None:
                 .all()
             )
 
-        assert {"meta_accounts", "mastodon_identities", "seen_posts", "tokens"}.issubset(
-            table_names
-        )
+        assert {
+            "meta_accounts",
+            "mastodon_identities",
+            "seen_posts",
+            "tokens",
+        }.issubset(table_names)
     finally:
         await engine.dispose()
 
@@ -49,9 +52,7 @@ async def test_get_or_create_default_meta_account_creates_and_reuses(
 
     async with db_session_factory() as session:
         count = (
-            await session.execute(
-                select(func.count()).select_from(store.MetaAccount)
-            )
+            await session.execute(select(func.count()).select_from(store.MetaAccount))
         ).scalar_one()
 
     assert created.username == "default"
@@ -116,13 +117,22 @@ async def test_sync_configured_identities_creates_default_meta_and_new_identitie
             )
         ).scalar_one()
         identities = (
-            await session.execute(
-                select(store.MastodonIdentity).order_by(store.MastodonIdentity.client_id)
+            (
+                await session.execute(
+                    select(store.MastodonIdentity).order_by(
+                        store.MastodonIdentity.client_id
+                    )
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     assert meta.username == "default"
-    assert [identity.client_id for identity in identities] == ["art-client", "main-client"]
+    assert [identity.client_id for identity in identities] == [
+        "art-client",
+        "main-client",
+    ]
     assert identities[0].acct == "art@unknown"
     assert identities[0].config_name == "ART"
     assert identities[0].access_token == ""
@@ -170,9 +180,7 @@ async def test_sync_configured_identities_updates_existing_identity(
         await store.sync_configured_identities()
 
     async with db_session_factory() as session:
-        identity = (
-            await session.execute(select(store.MastodonIdentity))
-        ).scalar_one()
+        identity = (await session.execute(select(store.MastodonIdentity))).scalar_one()
 
     assert identity.config_name == "MAIN"
     assert identity.client_secret == ""
@@ -291,9 +299,7 @@ async def test_set_token_updates_default_identity_when_present(
     await store.set_token("new-token")
 
     async with db_session_factory() as session:
-        identity = (
-            await session.execute(select(store.MastodonIdentity))
-        ).scalar_one()
+        identity = (await session.execute(select(store.MastodonIdentity))).scalar_one()
         token_count = (
             await session.execute(select(func.count()).select_from(store.Token))
         ).scalar_one()
@@ -317,9 +323,7 @@ async def test_set_token_writes_keyring_for_configured_identity(
         await store.set_token("new-token")
 
     async with db_session_factory() as session:
-        identity = (
-            await session.execute(select(store.MastodonIdentity))
-        ).scalar_one()
+        identity = (await session.execute(select(store.MastodonIdentity))).scalar_one()
 
     set_credential_mock.assert_called_once_with("MAIN", "access_token", "new-token")
     assert identity.access_token == ""
@@ -356,7 +360,9 @@ async def test_mark_post_seen_mark_posts_seen_and_seen_queries(
     db_session.add_all(
         [
             store.SeenPost(meta_account_id=1, post_id="old-post", seen_at=old_time),
-            store.SeenPost(meta_account_id=1, post_id="recent-post", seen_at=recent_time),
+            store.SeenPost(
+                meta_account_id=1, post_id="recent-post", seen_at=recent_time
+            ),
         ]
     )
     await db_session.commit()
@@ -368,10 +374,14 @@ async def test_mark_post_seen_mark_posts_seen_and_seen_queries(
 
     async with db_session_factory() as session:
         posts = (
-            await session.execute(
-                select(store.SeenPost).where(store.SeenPost.meta_account_id == 1)
+            (
+                await session.execute(
+                    select(store.SeenPost).where(store.SeenPost.meta_account_id == 1)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     assert sorted(post.post_id for post in posts) == [
         "bulk-1",

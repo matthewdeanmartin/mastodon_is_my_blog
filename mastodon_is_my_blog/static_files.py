@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import importlib.resources
 from pathlib import Path
 

@@ -2,7 +2,7 @@ from mastodon_is_my_blog.inspect_post import analyze_content_domains, has_human_
 
 
 def test_has_human_question_ignores_question_marks_inside_urls() -> None:
-    html = '<p>See https://example.com/search?q=test for details.</p>'
+    html = "<p>See https://example.com/search?q=test for details.</p>"
 
     assert has_human_question(html) is False
 

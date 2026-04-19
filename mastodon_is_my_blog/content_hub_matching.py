@@ -7,6 +7,7 @@ Responsibilities:
 - retro-match existing cached posts against new hashtag bundle terms
 - preserve raw-search historical matches (no local re-evaluation)
 """
+
 from __future__ import annotations
 
 import json
@@ -16,12 +17,12 @@ from sqlalchemy import and_, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.store import (
     CachedPost,
     ContentHubGroupTerm,
     ContentHubPostMatch,
 )
-from mastodon_is_my_blog.datetime_helpers import utc_now
 
 
 def normalize_hashtag(term: str) -> str:
@@ -87,9 +88,7 @@ async def retro_match_hashtag_term(
             ContentHubPostMatch.post_id.in_(matching_post_ids),
         )
     )
-    already_matched = set(
-        (await session.execute(existing_stmt)).scalars().all()
-    )
+    already_matched = set((await session.execute(existing_stmt)).scalars().all())
 
     new_ids = [pid for pid in matching_post_ids if pid not in already_matched]
     if not new_ids:

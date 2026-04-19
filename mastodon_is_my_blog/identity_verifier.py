@@ -3,6 +3,7 @@
 Helper to verify and update MastodonIdentity records with actual account info.
 This is needed because identities loaded from .env don't have acct/account_id initially.
 """
+
 import logging
 
 from sqlalchemy import select
@@ -42,7 +43,7 @@ async def verify_identity(identity_id: int) -> bool:
             identity.account_id = str(me["id"])
 
             await session.commit()
-            logger.info("Verified identity {identity_id}: %s", me['acct'])
+            logger.info("Verified identity {identity_id}: %s", me["acct"])
             return True
 
         except Exception as e:

@@ -23,7 +23,9 @@ def test_card_request_rejects_non_http_urls() -> None:
 
 
 @pytest.mark.asyncio
-async def test_ensure_public_destination_rejects_private_ips(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_ensure_public_destination_rejects_private_ips(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     async def fake_resolve_host(host: str) -> list[str]:
         assert host == "example.com"
         return ["127.0.0.1", "93.184.216.34"]
@@ -125,7 +127,9 @@ async def test_fetch_card_from_network_rejects_non_html_responses(
 
 
 @pytest.mark.asyncio
-async def test_fetch_card_from_network_wraps_request_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_fetch_card_from_network_wraps_request_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class DummySharedClient:
         async def get(self, url: str):
             raise httpx.ConnectError("boom")

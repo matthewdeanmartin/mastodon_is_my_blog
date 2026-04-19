@@ -1,4 +1,5 @@
-"""fix cached_posts primary key to include fetched_by_identity_id
+"""
+fix cached_posts primary key to include fetched_by_identity_id
 
 The ORM model defines (id, meta_account_id, fetched_by_identity_id) as the
 composite primary key, but the original table was created with only
@@ -12,7 +13,7 @@ Revises: 004
 Create Date: 2026-04-12
 """
 
-import sqlalchemy as sa
+
 from alembic import op
 
 revision = "005"
@@ -110,15 +111,19 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Recreate original 2-column PK table
-    original_columns = COLUMNS.replace(
-        "PRIMARY KEY (id, meta_account_id, fetched_by_identity_id)",
-        "PRIMARY KEY (id, meta_account_id)",
-    ).replace(
-        "fetched_by_identity_id INTEGER NOT NULL",
-        "fetched_by_identity_id INTEGER",
-    ).replace(
-        "    FOREIGN KEY(fetched_by_identity_id) REFERENCES mastodon_identities (id)\n",
-        "",
+    original_columns = (
+        COLUMNS.replace(
+            "PRIMARY KEY (id, meta_account_id, fetched_by_identity_id)",
+            "PRIMARY KEY (id, meta_account_id)",
+        )
+        .replace(
+            "fetched_by_identity_id INTEGER NOT NULL",
+            "fetched_by_identity_id INTEGER",
+        )
+        .replace(
+            "    FOREIGN KEY(fetched_by_identity_id) REFERENCES mastodon_identities (id)\n",
+            "",
+        )
     )
 
     op.execute(f"CREATE TABLE cached_posts_old ({original_columns})")

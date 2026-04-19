@@ -1,4 +1,5 @@
-"""DuckDB analytics layer.
+"""
+DuckDB analytics layer.
 
 Attaches the live SQLite file read-only via DuckDB's ``sqlite_scanner``.
 SQLite remains the source of truth; DuckDB runs analytical queries that
@@ -8,6 +9,7 @@ Each query opens its own short-lived DuckDB connection in a worker thread.
 DuckDB connections are not thread-safe so sharing a global connection across
 concurrent asyncio.to_thread calls causes races and deadlocks.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -35,9 +37,7 @@ def _open_query_connection() -> duckdb.DuckDBPyConnection:
         con.execute("INSTALL sqlite;")
         SQLITE_INSTALLED = True
     con.execute("LOAD sqlite;")
-    con.execute(
-        f"ATTACH '{sqlite_path}' AS {ATTACH_ALIAS} (TYPE sqlite, READ_ONLY);"
-    )
+    con.execute(f"ATTACH '{sqlite_path}' AS {ATTACH_ALIAS} (TYPE sqlite, READ_ONLY);")
     return con
 
 
@@ -59,6 +59,7 @@ async def run(
     params: list[Any] | None = None,
 ) -> list[tuple]:
     """Execute ``sql`` in a worker thread with a fresh DuckDB connection."""
+
     def _go() -> list[tuple]:
         t0 = time.monotonic()
         con = _open_query_connection()
@@ -79,13 +80,15 @@ async def run(
 
 # --- Named analytical queries -----------------------------------------------
 
+
 async def hashtag_trends(
     meta_id: int,
     identity_id: int,
     bucket: str = "week",
     top: int = 20,
 ) -> list[dict[str, Any]]:
-    """Top hashtags per time bucket.
+    """
+    Top hashtags per time bucket.
 
     Returns one row per (bucket_start, tag) with count, limited to the top
     N tags per bucket. ``bucket`` is one of ``'day'``, ``'week'``, ``'month'``.
@@ -141,7 +144,8 @@ async def hashtag_counts(
     identity_id: int,
     user: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Flat hashtag leaderboard, sorted by count descending.
+    """
+    Flat hashtag leaderboard, sorted by count descending.
 
     Drop-in replacement for the JSON-loop aggregation in
     ``routes.posts.get_hashtags``. Matches that endpoint's response shape.
@@ -178,7 +182,8 @@ async def content_regex_search(
     pattern: str,
     limit: int = 100,
 ) -> list[dict[str, Any]]:
-    """Regex scan across ``cached_posts.content``.
+    """
+    Regex scan across ``cached_posts.content``.
 
     DuckDB's ``regexp_matches`` is case-insensitive when invoked with the 'i'
     flag. We apply that by default since post content is HTML and callers
@@ -214,7 +219,8 @@ async def posting_heatmap(
     identity_id: int,
     author_acct: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Hour-of-day × day-of-week posting counts.
+    """
+    Hour-of-day × day-of-week posting counts.
 
     Returns one row per (dow, hour) cell with a count. ``dow`` is 0 (Sunday)
     through 6 (Saturday), matching DuckDB's ``date_part('dow', ...)``.
@@ -248,7 +254,8 @@ async def top_reposters(
     window_days: int = 30,
     limit: int = 50,
 ) -> list[dict[str, Any]]:
-    """Top reblog-notification senders with delta vs. prior window.
+    """
+    Top reblog-notification senders with delta vs. prior window.
 
     Counts reblog notifications per account in the current ``window_days``
     window and in the prior window of equal length, and reports the delta.
@@ -312,7 +319,8 @@ async def notification_trends(
     notification_type: str | None = None,
     bucket: str = "day",
 ) -> dict[str, list[dict[str, Any]]]:
-    """Time-series counts of notifications by type and by top actor.
+    """
+    Time-series counts of notifications by type and by top actor.
 
     Returns two parallel series so the UI can render stacked-bar + leaderboard
     in one round-trip. ``notification_type`` optionally filters both series
@@ -363,7 +371,5 @@ async def notification_trends(
             }
             for r in by_type
         ],
-        "by_actor": [
-            {"account_acct": r[0], "count": r[1]} for r in by_actor
-        ],
+        "by_actor": [{"account_acct": r[0], "count": r[1]} for r in by_actor],
     }

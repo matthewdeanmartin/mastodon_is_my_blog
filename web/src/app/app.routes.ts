@@ -28,15 +28,15 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'images', pathMatch: 'full' },
       // Tab views — each works in both "my follows" mode and "hashtag group" mode
-      { path: 'images',   component: ImageFeedComponent },
+      { path: 'images', component: ImageFeedComponent },
       { path: 'software', component: SoftwareFeedComponent },
-      { path: 'links',    component: LinksFeedComponent },
-      { path: 'news',     component: NewsFeedComponent },
+      { path: 'links', component: LinksFeedComponent },
+      { path: 'news', component: NewsFeedComponent },
       // Group-only tab views (also work in follows mode — just show a prompt)
-      { path: 'text',     component: ContentHubTextComponent },
-      { path: 'jobs',     component: ContentHubJobsComponent },
-      { path: 'people',   component: ContentHubPeopleComponent },
-    ]
+      { path: 'text', component: ContentHubTextComponent },
+      { path: 'jobs', component: ContentHubJobsComponent },
+      { path: 'people', component: ContentHubPeopleComponent },
+    ],
   },
 
   // Forum App

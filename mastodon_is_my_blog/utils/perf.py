@@ -49,9 +49,15 @@ class PreviewCardTiming:
 
 
 # Module-level ring buffers — in-process, not persisted across restarts.
-stage_timings: collections.deque[StageTiming] = collections.deque(maxlen=RING_BUFFER_SIZE)
-feed_timings: collections.deque[FeedQueryTiming] = collections.deque(maxlen=RING_BUFFER_SIZE)
-card_timings: collections.deque[PreviewCardTiming] = collections.deque(maxlen=RING_BUFFER_SIZE)
+stage_timings: collections.deque[StageTiming] = collections.deque(
+    maxlen=RING_BUFFER_SIZE
+)
+feed_timings: collections.deque[FeedQueryTiming] = collections.deque(
+    maxlen=RING_BUFFER_SIZE
+)
+card_timings: collections.deque[PreviewCardTiming] = collections.deque(
+    maxlen=RING_BUFFER_SIZE
+)
 
 # ---------------------------------------------------------------------------
 # Preview cache counters (scaffold — real cache in Phase 1)
@@ -85,7 +91,9 @@ preview_cache_counters = PreviewCacheCounters()
 
 def record_preview_hit() -> None:
     preview_cache_counters.hits += 1
-    card_timings.append(PreviewCardTiming(url="<cached>", elapsed_s=0.0, cache_status="hit"))
+    card_timings.append(
+        PreviewCardTiming(url="<cached>", elapsed_s=0.0, cache_status="hit")
+    )
 
 
 def record_preview_miss() -> None:
@@ -101,7 +109,9 @@ def record_preview_error() -> None:
 
 
 def record_card_timing(url: str, elapsed_s: float, cache_status: str = "miss") -> None:
-    card_timings.append(PreviewCardTiming(url=url, elapsed_s=elapsed_s, cache_status=cache_status))
+    card_timings.append(
+        PreviewCardTiming(url=url, elapsed_s=elapsed_s, cache_status=cache_status)
+    )
 
 
 # ---------------------------------------------------------------------------

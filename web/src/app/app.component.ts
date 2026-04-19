@@ -1,12 +1,29 @@
 // src/app/app.component.ts
-import {Component, OnDestroy, OnInit, inject} from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 
-import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet} from '@angular/router';
+import {
+  ActivatedRoute,
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
+import { CommonModule } from '@angular/common';
 
-import {ApiService} from './api.service';
-import {debounceTime, distinctUntilChanged, map, shareReplay, switchMap, takeUntil, catchError, filter} from 'rxjs/operators';
-import {of, Subject, Subscription, combineLatest, interval} from 'rxjs';
-import {AccountCatchupStatus, Identity, MastodonAccount} from './mastodon';
+import { ApiService } from './api.service';
+import {
+  debounceTime,
+  distinctUntilChanged,
+  map,
+  shareReplay,
+  switchMap,
+  takeUntil,
+  catchError,
+  filter,
+} from 'rxjs/operators';
+import { of, Subject, Subscription, combineLatest, interval } from 'rxjs';
+import { AccountCatchupStatus, Identity, MastodonAccount } from './mastodon';
 
 interface CountDetail {
   total: number;
@@ -21,6 +38,7 @@ interface SidebarCounts {
   pictures: CountDetail;
   videos: CountDetail;
   discussions: CountDetail;
+  messages: CountDetail;
   links: CountDetail;
   questions: CountDetail;
   everyone: CountDetail;
@@ -32,7 +50,7 @@ const emptyCount = () => ({ total: 0, unseen: 0 });
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit, OnDestroy {
@@ -42,7 +60,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
   currentFilter = 'storms';
-  currentBlogFilter = 'all';
+  currentBlogFilter = 'top_friends';
 
   // Identities State
   identities: Identity[] = [];
@@ -63,16 +81,21 @@ export class AppComponent implements OnInit, OnDestroy {
   recentlyViewed: Set<string> = new Set<string>();
   private activeUserCatchupPollSub?: Subscription;
 
-
-
   // Inside AppComponent class
   counts: SidebarCounts = {
-    storms: emptyCount(), shorts: emptyCount(), news: emptyCount(),
-    software: emptyCount(), pictures: emptyCount(), videos: emptyCount(),
-    discussions: emptyCount(), links: emptyCount(), questions: emptyCount(),
-    everyone: emptyCount(), reposts: emptyCount()
+    storms: emptyCount(),
+    shorts: emptyCount(),
+    news: emptyCount(),
+    software: emptyCount(),
+    pictures: emptyCount(),
+    videos: emptyCount(),
+    discussions: emptyCount(),
+    messages: emptyCount(),
+    links: emptyCount(),
+    questions: emptyCount(),
+    everyone: emptyCount(),
+    reposts: emptyCount(),
   };
-
 
   ngOnDestroy(): void {
     this.stopActiveUserCatchupPolling();
@@ -84,25 +107,25 @@ export class AppComponent implements OnInit, OnDestroy {
     this.currentMetaId = this.api.getMetaAccountId();
 
     // Track current page for conditional sidebar display
-    this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd),
-      takeUntil(this.destroy$)
-    ).subscribe(() => {
-      const url = this.router.url;
-      const path = url.split('?')[0];
-      if (path.startsWith('/content')) {
-        this.currentPage = 'content';
-      } else if (path.startsWith('/forum')) {
-        this.currentPage = 'forum';
-      } else if (
-        path === '/' || path === ''
-      ) {
-        this.currentPage = 'people';
-      } else {
-        // /p/:id, /write, /admin, /login — no sidebar
-        this.currentPage = 'other';
-      }
-    });
+    this.router.events
+      .pipe(
+        filter((event) => event instanceof NavigationEnd),
+        takeUntil(this.destroy$),
+      )
+      .subscribe(() => {
+        const url = this.router.url;
+        const path = url.split('?')[0];
+        if (path.startsWith('/content')) {
+          this.currentPage = 'content';
+        } else if (path.startsWith('/forum')) {
+          this.currentPage = 'forum';
+        } else if (path === '/' || path === '') {
+          this.currentPage = 'people';
+        } else {
+          // /p/:id, /write, /admin, /login — no sidebar
+          this.currentPage = 'other';
+        }
+      });
 
     // Subscribe to server status
     this.api.serverDown$.subscribe(() => {
@@ -116,26 +139,29 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     // Fetch Identities & Initialize Context
-    this.api.getIdentities().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (ids) => {
-        this.identities = ids;
+    this.api
+      .getIdentities()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (ids) => {
+          this.identities = ids;
 
-        // Auto-select identity if none selected or invalid
-        const storedId = this.api.getStoredIdentityId();
-        const validStored = storedId && ids.find(i => i.id === storedId);
+          // Auto-select identity if none selected or invalid
+          const storedId = this.api.getStoredIdentityId();
+          const validStored = storedId && ids.find((i) => i.id === storedId);
 
-        if (validStored) {
-          const identity = ids.find(i => i.id === storedId)!;
-          this.setContextIdentity(storedId!, identity.base_url);
-        } else if (ids.length > 0) {
-          this.setContextIdentity(ids[0].id, ids[0].base_url);
-        }
-      },
-      error: (e: unknown) => console.log('Could not fetch identities', e)
-    });
+          if (validStored) {
+            const identity = ids.find((i) => i.id === storedId)!;
+            this.setContextIdentity(storedId!, identity.base_url);
+          } else if (ids.length > 0) {
+            this.setContextIdentity(ids[0].id, ids[0].base_url);
+          }
+        },
+        error: (e: unknown) => console.log('Could not fetch identities', e),
+      });
 
     // React to Identity Changes
-    this.api.identityId$.pipe(takeUntil(this.destroy$)).subscribe(id => {
+    this.api.identityId$.pipe(takeUntil(this.destroy$)).subscribe((id) => {
       this.activeIdentityId = id;
       if (id) {
         this.loadBlogRoll();
@@ -155,26 +181,25 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     const selection$ = this.route.queryParams.pipe(
-      map(params => {
+      map((params) => {
         const user = (params['user'] as string | undefined) ?? null;
         const filter = (params['filter'] as string | undefined) ?? 'storms';
         const blogFilter = (params['blog_filter'] as string | undefined) ?? this.currentBlogFilter;
 
-        const scope = user === 'everyone'
-          ? ({kind: 'everyone'} as const)
-          : user
-            ? ({kind: 'user', acct: user} as const)
-            : ({kind: 'main'} as const);
+        const scope =
+          user === 'everyone'
+            ? ({ kind: 'everyone' } as const)
+            : user
+              ? ({ kind: 'user', acct: user } as const)
+              : ({ kind: 'main' } as const);
 
-        return {scope, filter, blogFilter};
+        return { scope, filter, blogFilter };
       }),
-      distinctUntilChanged((a, b) =>
-        JSON.stringify(a) === JSON.stringify(b)
-      ),
-      shareReplay(1)
+      distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
+      shareReplay(1),
     );
 
-    selection$.pipe(takeUntil(this.destroy$)).subscribe(sel => {
+    selection$.pipe(takeUntil(this.destroy$)).subscribe((sel) => {
       this.currentFilter = sel.filter;
       if (sel.blogFilter !== this.currentBlogFilter) {
         this.currentBlogFilter = sel.blogFilter;
@@ -182,7 +207,12 @@ export class AppComponent implements OnInit, OnDestroy {
       }
 
       this.viewingEveryone = sel.scope.kind === 'everyone';
-      this.currentUser = sel.scope.kind === 'user' ? sel.scope.acct : (sel.scope.kind === 'everyone' ? 'everyone' : null);
+      this.currentUser =
+        sel.scope.kind === 'user'
+          ? sel.scope.acct
+          : sel.scope.kind === 'everyone'
+            ? 'everyone'
+            : null;
 
       if (sel.scope.kind === 'user') {
         this.recentlyViewed.add(sel.scope.acct);
@@ -199,30 +229,32 @@ export class AppComponent implements OnInit, OnDestroy {
     // Active User Info Pipeline
     // Debounce rapid click-through in the blog roll so we don't stack
     // /api/accounts/{acct} + /api/posts/counts calls per intermediate user.
-    combineLatest([selection$, this.api.identityId$]).pipe(
-      takeUntil(this.destroy$),
-      debounceTime(150),
-      switchMap(([sel, identityId]) => {
-        if (!identityId) return of(null);
+    combineLatest([selection$, this.api.identityId$])
+      .pipe(
+        takeUntil(this.destroy$),
+        debounceTime(150),
+        switchMap(([sel, identityId]) => {
+          if (!identityId) return of(null);
 
-        if (sel.scope.kind === 'everyone') {
-          return of(null);
-        }
-        if (sel.scope.kind === 'main') {
-          return of(this.mainUser);
-        }
+          if (sel.scope.kind === 'everyone') {
+            return of(null);
+          }
+          if (sel.scope.kind === 'main') {
+            return of(this.mainUser);
+          }
 
-        // kind === 'user'
-        const acct = sel.scope.acct;
-        return this.fetchActiveUserInfo$(acct, identityId);
-      })
-    ).subscribe(active => {
-      this.activeUserInfo = active;
-      this.refreshCounts();
-      if (this.currentUser && this.currentUser !== 'everyone' && this.activeIdentityId) {
-        this.loadActiveUserCatchupStatus(this.currentUser, this.activeIdentityId);
-      }
-    });
+          // kind === 'user'
+          const acct = sel.scope.acct;
+          return this.fetchActiveUserInfo$(acct, identityId);
+        }),
+      )
+      .subscribe((active) => {
+        this.activeUserInfo = active;
+        this.refreshCounts();
+        if (this.currentUser && this.currentUser !== 'everyone' && this.activeIdentityId) {
+          this.loadActiveUserCatchupStatus(this.currentUser, this.activeIdentityId);
+        }
+      });
   }
 
   // --- Helper Methods ---
@@ -235,21 +267,18 @@ export class AppComponent implements OnInit, OnDestroy {
     return this.currentPage === 'other';
   }
 
-  setContextIdentity(id: number, baseUrl?: string) {
+  setContextIdentity(id: number, baseUrl: string) {
     this.api.setIdentityId(id, baseUrl);
-    const identity = this.identities.find(i => i.id === id);
-    // Navigate to this identity's own blog view
+    const identity = this.identities.find((i) => i.id === id);
     this.router.navigate(['/'], {
-      queryParams: {user: identity?.acct ?? null, filter: 'storms'}
+      queryParams: { user: identity?.acct ?? null, filter: 'storms', blog_filter: 'top_friends' },
     });
   }
 
   // --- Data Fetching ---
 
   private fetchActiveUserInfo$(acct: string, identityId: number) {
-    return this.api.getAccountInfo(acct, identityId).pipe(
-      catchError(() => of(null))
-    );
+    return this.api.getAccountInfo(acct, identityId).pipe(catchError(() => of(null)));
   }
 
   private refreshActiveUserContext(): void {
@@ -281,13 +310,12 @@ export class AppComponent implements OnInit, OnDestroy {
     const effectiveUser = this.viewingEveryone ? 'everyone' : userForCounts;
 
     this.api.getCounts(this.activeIdentityId, effectiveUser || undefined).subscribe({
-
       next: (response: unknown) => {
-        const c = response as Record<string, { total?: number, unseen?: number }>;
+        const c = response as Record<string, { total?: number; unseen?: number }>;
         // Helper to extract nested counts safely
-        const mapCount = (data?: { total?: number, unseen?: number }): CountDetail => ({
+        const mapCount = (data?: { total?: number; unseen?: number }): CountDetail => ({
           total: Number(data?.total || 0),
-          unseen: Number(data?.unseen || 0)
+          unseen: Number(data?.unseen || 0),
         });
         this.counts = {
           storms: mapCount(c['storms']),
@@ -297,6 +325,7 @@ export class AppComponent implements OnInit, OnDestroy {
           pictures: mapCount(c['pictures']),
           videos: mapCount(c['videos']),
           discussions: mapCount(c['discussions']),
+          messages: mapCount(c['messages']),
           links: mapCount(c['links']),
           questions: mapCount(c['questions']),
           everyone: mapCount(c['everyone']),
@@ -314,7 +343,7 @@ export class AppComponent implements OnInit, OnDestroy {
     // We now prefer clicking the chip to set CONTEXT.
     // But if we want to "view this identity's blog" specifically:
     this.router.navigate(['/'], {
-      queryParams: {user: acct, filter: 'storms'}
+      queryParams: { user: acct, filter: 'storms' },
     });
   }
 
@@ -340,7 +369,7 @@ export class AppComponent implements OnInit, OnDestroy {
   // --- Navigation Actions ---
   setFilter(filter: string): void {
     this.router.navigate(['/'], {
-      queryParams: {filter},
+      queryParams: { filter },
       queryParamsHandling: 'merge',
     });
   }
@@ -351,24 +380,23 @@ export class AppComponent implements OnInit, OnDestroy {
     // Optional: Add to URL so refresh works
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: {blog_filter: filter},
+      queryParams: { blog_filter: filter },
       queryParamsHandling: 'merge',
     });
   }
 
   viewEveryone(): void {
     this.router.navigate(['/'], {
-      queryParams: {user: 'everyone', filter: 'storms'},
+      queryParams: { user: 'everyone', filter: 'storms' },
     });
   }
 
-
   viewMainUser(): void {
-    const identity = this.identities.find(i => i.id === this.activeIdentityId);
+    const identity = this.identities.find((i) => i.id === this.activeIdentityId);
     this.router.navigate(['/'], {
-      queryParams: {user: identity?.acct ?? null, filter: 'storms'},
+      queryParams: { user: identity?.acct ?? null, filter: 'storms' },
     });
-    window.scrollTo({top: 0, behavior: 'smooth'});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // Logic to jump to next blogroll user (requires context identity)
@@ -377,7 +405,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Find current index
     const currentIndex = this.currentUser
-      ? this.blogRoll.findIndex(acc => acc.acct === this.currentUser)
+      ? this.blogRoll.findIndex((acc) => acc.acct === this.currentUser)
       : -1;
 
     // Get next index (wrap around to 0 if at end)
@@ -386,16 +414,16 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Navigate to next user
     this.router.navigate(['/'], {
-      queryParams: {user: nextUser.acct, filter: this.currentFilter},
+      queryParams: { user: nextUser.acct, filter: this.currentFilter },
     });
 
     // Scroll to top
-    window.scrollTo({top: 0, behavior: 'smooth'});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   isViewingMainUser(): boolean {
     if (this.viewingEveryone) return false;
-    const identity = this.identities.find(i => i.id === this.activeIdentityId);
+    const identity = this.identities.find((i) => i.id === this.activeIdentityId);
     return !!identity && this.currentUser === identity.acct;
   }
 
@@ -407,8 +435,21 @@ export class AppComponent implements OnInit, OnDestroy {
     return this.currentUser === acct;
   }
 
+  activeUserProfileUrl(): string | null {
+    return this.activeUserInfo?.url ?? null;
+  }
+
+  mainUserProfileUrl(): string | null {
+    return this.mainUser?.url ?? null;
+  }
+
   showPeopleCatchupControls(): boolean {
-    return this.isPeoplePage() && !!this.currentUser && this.currentUser !== 'everyone' && !!this.activeUserInfo;
+    return (
+      this.isPeoplePage() &&
+      !!this.currentUser &&
+      this.currentUser !== 'everyone' &&
+      !!this.activeUserInfo
+    );
   }
 
   activeUserCacheMessage(): string {
@@ -451,6 +492,8 @@ export class AppComponent implements OnInit, OnDestroy {
         return 'videos';
       case 'discussions':
         return 'discussions';
+      case 'messages':
+        return 'messages';
       case 'links':
         return 'links';
       case 'questions':
@@ -479,6 +522,8 @@ export class AppComponent implements OnInit, OnDestroy {
         return this.counts.videos.total;
       case 'discussions':
         return this.counts.discussions.total;
+      case 'messages':
+        return this.counts.messages.total;
       case 'links':
         return this.counts.links.total;
       case 'questions':

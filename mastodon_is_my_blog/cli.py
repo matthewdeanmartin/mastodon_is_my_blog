@@ -4,7 +4,7 @@ import argparse
 import asyncio
 from getpass import getpass
 from importlib.metadata import version as pkg_version
-from typing import Sequence
+from collections.abc import Sequence
 
 from mastodon_is_my_blog.account_config import (
     ConfiguredAccount,
@@ -239,7 +239,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     command = args.command
-    if command not in {"init", "db-info", "version"} and not has_configured_identities():
+    if (
+        command not in {"init", "db-info", "version"}
+        and not has_configured_identities()
+    ):
         print("No configured Mastodon accounts found. Starting setup.")
         run_init_command()
 

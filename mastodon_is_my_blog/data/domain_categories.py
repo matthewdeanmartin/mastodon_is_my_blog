@@ -27,7 +27,6 @@ DOMAIN_CONFIG = {
         "savannah.gnu.org",
         "notabug.org",
         "gitea.com",
-
         # Package registries
         "npmjs.com",
         "pypi.org",
@@ -45,7 +44,6 @@ DOMAIN_CONFIG = {
         "opam.ocaml.org",
         "maven.apache.org",
         "mvnrepository.com",
-
         # Code playgrounds / interactive dev
         "codepen.io",
         "jsfiddle.net",
@@ -54,19 +52,16 @@ DOMAIN_CONFIG = {
         "stackblitz.com",
         "observablehq.com",
         "codesandbox.io",
-
         # Launch / showcase platforms
         "producthunt.com",
         "betalist.com",
         "launchingnext.com",
         "startupstash.com",
-
         # Niche coding communities
         "itch.io",
         "moddb.com",
         "kaggle.com",
         "huggingface.co",
-
         # Alternative / emerging ecosystems
         "forgejo.org",
         "radicle.xyz",
@@ -95,7 +90,6 @@ DOMAIN_CONFIG = {
         "statnews.com",
         "nbcnewyork.com",
         "news.sky.com",
-
         # Major US
         "apnews.com",
         "abcnews.go.com",
@@ -111,13 +105,11 @@ DOMAIN_CONFIG = {
         "thehill.com",
         "propublica.org",
         "buzzfeednews.com",
-
         # UK
         "independent.co.uk",
         "telegraph.co.uk",
         "ft.com",
         "standard.co.uk",
-
         # International
         "dw.com",
         "euronews.com",
@@ -132,33 +124,27 @@ DOMAIN_CONFIG = {
         "japantimes.co.jp",
         "hindustantimes.com",
         "timesofindia.indiatimes.com",
-
         # Business / Finance
         "bloomberg.com",
         "marketwatch.com",
         "financialpost.com",
-
         # Tech-focused news (still journalism)
         "theverge.com",
         "techcrunch.com",
         "wired.com",
         "engadget.com",
-
         # Investigative / long-form
         "theintercept.com",
         "motherjones.com",
-
         # Science / health news
         "sciencenews.org",
         "newscientist.com",
-
         # Regional / US metro
         "sfchronicle.com",
         "seattletimes.com",
         "denverpost.com",
         "miamiherald.com",
         "dallasnews.com",
-
         # Other notable
         "voanews.com",
         "thenation.com",

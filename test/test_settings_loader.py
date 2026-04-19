@@ -41,7 +41,9 @@ def test_load_identities_from_env_reads_complete_groups(monkeypatch) -> None:
     }
 
 
-def test_load_identities_from_env_ignores_invalid_and_incomplete_entries(monkeypatch) -> None:
+def test_load_identities_from_env_ignores_invalid_and_incomplete_entries(
+    monkeypatch,
+) -> None:
     for key in list(os.environ):
         if key.startswith("MASTODON_ID_"):
             monkeypatch.delenv(key, raising=False)

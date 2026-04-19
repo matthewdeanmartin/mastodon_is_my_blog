@@ -9,16 +9,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from mastodon_is_my_blog.datetime_helpers import utc_now
-from mastodon_is_my_blog.store import Base, CachedAccount, CachedNotification, CachedPost
-
+from mastodon_is_my_blog.store import (
+    Base,
+    CachedAccount,
+    CachedNotification,
+    CachedPost,
+)
 
 # ---------------------------------------------------------------------------
 # Shared in-memory DB fixture
 # ---------------------------------------------------------------------------
+
 
 @pytest_asyncio.fixture
 async def db():
@@ -70,7 +74,9 @@ def make_account(
     )
 
 
-def make_notification(notif_id: str, account_id: str, created_at: datetime) -> CachedNotification:
+def make_notification(
+    notif_id: str, account_id: str, created_at: datetime
+) -> CachedNotification:
     return CachedNotification(
         id=notif_id,
         meta_account_id=META_ID,
@@ -87,6 +93,7 @@ def make_notification(notif_id: str, account_id: str, created_at: datetime) -> C
 # 4.2  get_catchup_queue
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_queue_only_includes_following(db) -> None:
     """Accounts with is_following=False must not appear in the queue."""
@@ -99,6 +106,7 @@ async def test_queue_only_includes_following(db) -> None:
         mock_session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
         from mastodon_is_my_blog.catchup import get_catchup_queue
+
         result = await get_catchup_queue(META_ID, IDENTITY_ID)
 
     acct_ids = [a.id for a in result]
@@ -113,8 +121,19 @@ async def test_mutual_with_notification_ranks_first(db) -> None:
     old = utc_now() - timedelta(days=60)
 
     db.add(make_account("plain-follow", is_following=True, last_status_at=recent))
-    db.add(make_account("mutual", is_following=True, is_followed_by=True, last_status_at=recent))
-    db.add(make_account("mutual-notif", is_following=True, is_followed_by=True, last_status_at=recent))
+    db.add(
+        make_account(
+            "mutual", is_following=True, is_followed_by=True, last_status_at=recent
+        )
+    )
+    db.add(
+        make_account(
+            "mutual-notif",
+            is_following=True,
+            is_followed_by=True,
+            last_status_at=recent,
+        )
+    )
     db.add(make_notification("n1", "mutual-notif", recent))
     await db.flush()
 
@@ -123,6 +142,7 @@ async def test_mutual_with_notification_ranks_first(db) -> None:
         mock_session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
         from mastodon_is_my_blog.catchup import get_catchup_queue
+
         result = await get_catchup_queue(META_ID, IDENTITY_ID)
 
     ids = [a.id for a in result]
@@ -142,6 +162,7 @@ async def test_max_accounts_limits_result(db) -> None:
         mock_session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
         from mastodon_is_my_blog.catchup import get_catchup_queue
+
         result = await get_catchup_queue(META_ID, IDENTITY_ID, max_accounts=3)
 
     assert len(result) == 3
@@ -157,6 +178,7 @@ async def test_empty_queue_when_no_following(db) -> None:
         mock_session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
         from mastodon_is_my_blog.catchup import get_catchup_queue
+
         result = await get_catchup_queue(META_ID, IDENTITY_ID)
 
     assert result == []
@@ -165,6 +187,7 @@ async def test_empty_queue_when_no_following(db) -> None:
 # ---------------------------------------------------------------------------
 # 4.3  deep_fetch_user_timeline
 # ---------------------------------------------------------------------------
+
 
 def _make_status(sid: str) -> dict:
     return {
@@ -195,8 +218,8 @@ def _make_mock_mastodon(pages: list[list[dict]]) -> MagicMock:
 async def test_deep_fetch_yields_all_pages() -> None:
     """All non-empty pages are yielded."""
     pages = [
-        [_make_status(str(i)) for i in range(40, 80)],   # page 1: ids 40-79
-        [_make_status(str(i)) for i in range(0, 40)],    # page 2: ids 0-39
+        [_make_status(str(i)) for i in range(40, 80)],  # page 1: ids 40-79
+        [_make_status(str(i)) for i in range(0, 40)],  # page 2: ids 0-39
     ]
     m = _make_mock_mastodon(pages)
 
@@ -216,14 +239,16 @@ async def test_deep_fetch_stops_at_stop_id() -> None:
     """Pages where all ids <= stop_at_id are skipped and iteration ends."""
     pages = [
         [_make_status("100"), _make_status("90")],  # page 1: above stop
-        [_make_status("50"), _make_status("40")],   # page 2: all <= "60" — should stop
+        [_make_status("50"), _make_status("40")],  # page 2: all <= "60" — should stop
     ]
     m = _make_mock_mastodon(pages)
 
     from mastodon_is_my_blog.catchup import deep_fetch_user_timeline
 
     collected: list[list[dict]] = []
-    async for page in deep_fetch_user_timeline(m, "111", stop_at_id="60", inter_page_delay=0):
+    async for page in deep_fetch_user_timeline(
+        m, "111", stop_at_id="60", inter_page_delay=0
+    ):
         collected.append(page)
 
     assert len(collected) == 1
@@ -240,7 +265,9 @@ async def test_deep_fetch_respects_max_pages() -> None:
     from mastodon_is_my_blog.catchup import deep_fetch_user_timeline
 
     collected: list[list[dict]] = []
-    async for page in deep_fetch_user_timeline(m, "111", max_pages=3, inter_page_delay=0):
+    async for page in deep_fetch_user_timeline(
+        m, "111", max_pages=3, inter_page_delay=0
+    ):
         collected.append(page)
 
     assert len(collected) == 3
@@ -271,7 +298,7 @@ async def test_deep_fetch_calls_on_page_callback() -> None:
     """on_page callback is awaited for each page."""
     pages = [
         [_make_status(str(i)) for i in range(40, 80)],  # full page — continues
-        [_make_status(str(i)) for i in range(0, 5)],    # short page — last
+        [_make_status(str(i)) for i in range(0, 5)],  # short page — last
     ]
     m = _make_mock_mastodon(pages)
 
@@ -282,7 +309,9 @@ async def test_deep_fetch_calls_on_page_callback() -> None:
 
     from mastodon_is_my_blog.catchup import deep_fetch_user_timeline
 
-    async for _ in deep_fetch_user_timeline(m, "111", on_page=on_page, inter_page_delay=0):
+    async for _ in deep_fetch_user_timeline(
+        m, "111", on_page=on_page, inter_page_delay=0
+    ):
         pass
 
     assert len(received) == 2
@@ -315,6 +344,7 @@ async def test_deep_fetch_retries_on_rate_limit() -> None:
 # get_stop_at_id
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_get_stop_at_id_returns_none_when_no_posts(db) -> None:
     with patch("mastodon_is_my_blog.catchup.async_session") as mock_session_ctx:
@@ -322,6 +352,7 @@ async def test_get_stop_at_id_returns_none_when_no_posts(db) -> None:
         mock_session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
         from mastodon_is_my_blog.catchup import get_stop_at_id
+
         result = await get_stop_at_id(META_ID, IDENTITY_ID, "alice@example.com")
 
     assert result is None
@@ -330,28 +361,30 @@ async def test_get_stop_at_id_returns_none_when_no_posts(db) -> None:
 @pytest.mark.asyncio
 async def test_get_stop_at_id_returns_max_post_id(db) -> None:
     for pid in ["100", "200", "150"]:
-        db.add(CachedPost(
-            id=pid,
-            meta_account_id=META_ID,
-            fetched_by_identity_id=IDENTITY_ID,
-            content="<p>x</p>",
-            created_at=datetime(2024, 1, 1),
-            visibility="public",
-            author_acct="alice@example.com",
-            author_id="111",
-            is_reblog=False,
-            is_reply=False,
-            has_media=False,
-            has_video=False,
-            has_news=False,
-            has_tech=False,
-            has_link=False,
-            has_question=False,
-            replies_count=0,
-            reblogs_count=0,
-            favourites_count=0,
-            tags="[]",
-        ))
+        db.add(
+            CachedPost(
+                id=pid,
+                meta_account_id=META_ID,
+                fetched_by_identity_id=IDENTITY_ID,
+                content="<p>x</p>",
+                created_at=datetime(2024, 1, 1),
+                visibility="public",
+                author_acct="alice@example.com",
+                author_id="111",
+                is_reblog=False,
+                is_reply=False,
+                has_media=False,
+                has_video=False,
+                has_news=False,
+                has_tech=False,
+                has_link=False,
+                has_question=False,
+                replies_count=0,
+                reblogs_count=0,
+                favourites_count=0,
+                tags="[]",
+            )
+        )
     await db.flush()
 
     with patch("mastodon_is_my_blog.catchup.async_session") as mock_session_ctx:
@@ -359,6 +392,7 @@ async def test_get_stop_at_id_returns_max_post_id(db) -> None:
         mock_session_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
 
         from mastodon_is_my_blog.catchup import get_stop_at_id
+
         result = await get_stop_at_id(META_ID, IDENTITY_ID, "alice@example.com")
 
     assert result == "200"

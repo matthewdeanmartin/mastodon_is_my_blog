@@ -42,7 +42,11 @@ import { GroupPerson } from './mastodon';
         <div class="people-list">
           @for (person of people; track person.acct) {
             <div class="person-row">
-              <img class="avatar" [src]="person.avatar || 'assets/default-avatar.png'" [alt]="person.display_name" />
+              <img
+                class="avatar"
+                [src]="person.avatar || 'assets/default-avatar.png'"
+                [alt]="person.display_name"
+              />
               <div class="person-info">
                 <span class="display-name">{{ person.display_name }}</span>
                 <span class="acct">&#64;{{ person.acct }}</span>
@@ -57,6 +61,10 @@ import { GroupPerson } from './mastodon';
                 <button class="filter-btn" (click)="viewDossier(person.acct)">View Dossier</button>
                 @if (!person.is_following) {
                   <button class="filter-btn follow-btn" (click)="follow(person)">Follow</button>
+                } @else {
+                  <button class="filter-btn unfollow-btn" (click)="unfollow(person)">
+                    Unfollow
+                  </button>
                 }
               </div>
             </div>
@@ -68,75 +76,126 @@ import { GroupPerson } from './mastodon';
       </div>
     }
   `,
-  styles: [`
-    .no-group-prompt {
-      padding: 32px;
-      text-align: center;
-      color: #9ca3af;
-    }
-    .people-panel { padding: 0; }
-    .people-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 12px 0;
-      margin-bottom: 12px;
-      border-bottom: 1px solid #e1e8ed;
-    }
-    .toggle-label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.85rem;
-      color: #374151;
-      cursor: pointer;
-    }
-    select {
-      font-size: 0.82rem;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      padding: 4px 8px;
-      background: white;
-    }
-    .loading, .error-msg, .empty {
-      padding: 16px;
-      text-align: center;
-      color: #9ca3af;
-      font-size: 0.85rem;
-    }
-    .error-msg { color: #dc2626; }
-    .people-list { display: flex; flex-direction: column; gap: 10px; }
-    .person-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px;
-      background: white;
-      border: 1px solid #e1e8ed;
-      border-radius: 8px;
-    }
-    .avatar {
-      width: 44px; height: 44px; border-radius: 8px;
-      object-fit: cover; flex-shrink: 0;
-    }
-    .person-info { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-    .display-name { font-weight: 600; font-size: 0.88rem; color: #1f2937; }
-    .acct { font-size: 0.78rem; color: #6b7280; }
-    .stats-line { font-size: 0.75rem; color: #9ca3af; margin-top: 2px; }
-    .person-actions { display: flex; gap: 6px; flex-shrink: 0; }
-    .filter-btn {
-      padding: 5px 12px;
-      font-size: 0.8rem;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      background: white;
-      cursor: pointer;
-      color: #374151;
-    }
-    .filter-btn:hover { background: #f3f4f6; }
-    .follow-btn { border-color: #6366f1; color: #6366f1; }
-    .follow-btn:hover { background: #eef2ff; }
-  `],
+  styles: [
+    `
+      .no-group-prompt {
+        padding: 32px;
+        text-align: center;
+        color: #9ca3af;
+      }
+      .people-panel {
+        padding: 0;
+      }
+      .people-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 0;
+        margin-bottom: 12px;
+        border-bottom: 1px solid #e1e8ed;
+      }
+      .toggle-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        color: #374151;
+        cursor: pointer;
+      }
+      select {
+        font-size: 0.82rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 4px 8px;
+        background: white;
+      }
+      .loading,
+      .error-msg,
+      .empty {
+        padding: 16px;
+        text-align: center;
+        color: #9ca3af;
+        font-size: 0.85rem;
+      }
+      .error-msg {
+        color: #dc2626;
+      }
+      .people-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .person-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px;
+        background: white;
+        border: 1px solid #e1e8ed;
+        border-radius: 8px;
+      }
+      .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        object-fit: cover;
+        flex-shrink: 0;
+      }
+      .person-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .display-name {
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: #1f2937;
+      }
+      .acct {
+        font-size: 0.78rem;
+        color: #6b7280;
+      }
+      .stats-line {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        margin-top: 2px;
+      }
+      .person-actions {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .filter-btn {
+        padding: 5px 12px;
+        font-size: 0.8rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background: white;
+        cursor: pointer;
+        color: #374151;
+      }
+      .filter-btn:hover {
+        background: #f3f4f6;
+      }
+      .follow-btn {
+        border-color: #6366f1;
+        color: #6366f1;
+      }
+      .follow-btn:hover {
+        background: #eef2ff;
+      }
+      .unfollow-btn {
+        border-color: #d1d5db;
+        color: #6b7280;
+      }
+      .unfollow-btn:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+        color: #dc2626;
+      }
+    `,
+  ],
 })
 export class ContentHubPeopleComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
@@ -210,6 +269,17 @@ export class ContentHubPeopleComponent implements OnInit, OnDestroy {
         person.is_following = true;
       },
       error: (e: unknown) => console.error('Follow failed', e),
+    });
+  }
+
+  unfollow(person: GroupPerson): void {
+    const id = this.api.getCurrentIdentityId();
+    if (!id) return;
+    this.api.unfollowAccount(person.acct, id).subscribe({
+      next: () => {
+        person.is_following = false;
+      },
+      error: (e: unknown) => console.error('Unfollow failed', e),
     });
   }
 }

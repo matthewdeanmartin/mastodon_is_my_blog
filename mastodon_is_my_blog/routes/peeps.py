@@ -9,17 +9,20 @@ Endpoints:
   POST /api/peeps/dossier/{acct}/follow?identity_id=...
   POST /api/peeps/dossier/{acct}/unfollow?identity_id=...
 """
+
 from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 
 from mastodon_is_my_blog.account_catchup_runner import (
     job_status as account_catchup_job_status,
+)
+from mastodon_is_my_blog.account_catchup_runner import (
     start_job as start_account_catchup_job,
 )
 from mastodon_is_my_blog.engagement_scoring import score_interactions
@@ -78,124 +81,112 @@ async def get_engagement_matrix(
 
     async with async_session() as session:
         # --- Inbound: them→me (notifications) ---
-        notif_stmt = (
-            select(
-                CachedNotification.account_id,
-                CachedNotification.account_acct,
-                CachedNotification.type,
-                CachedNotification.created_at,
-            )
-            .where(
-                CachedNotification.meta_account_id == meta.id,
-                CachedNotification.identity_id == identity_id,
-                CachedNotification.created_at >= cutoff,
-            )
+        notif_stmt = select(
+            CachedNotification.account_id,
+            CachedNotification.account_acct,
+            CachedNotification.type,
+            CachedNotification.created_at,
+        ).where(
+            CachedNotification.meta_account_id == meta.id,
+            CachedNotification.identity_id == identity_id,
+            CachedNotification.created_at >= cutoff,
         )
         notif_rows = (await session.execute(notif_stmt)).all()
 
         # Group inbound by account_id
         inbound: dict[str, list[dict]] = {}
         inbound_acct: dict[str, str] = {}
-        for row in notif_rows:
-            if row.account_id not in inbound:
-                inbound[row.account_id] = []
-            inbound[row.account_id].append(
+        for n_row in notif_rows:
+            if n_row.account_id not in inbound:
+                inbound[n_row.account_id] = []
+            inbound[n_row.account_id].append(
                 {
-                    "type": row.type,
-                    "age_days": _age_days(row.created_at, now),
+                    "type": n_row.type,
+                    "age_days": _age_days(n_row.created_at, now),
                 }
             )
-            inbound_acct[row.account_id] = row.account_acct
+            inbound_acct[n_row.account_id] = n_row.account_acct
 
         # --- Outbound: me→them via cached_posts (replies/reblogs I authored) ---
         my_acct = identity.acct
         # Replies by me to others
-        reply_stmt = (
-            select(
-                CachedPost.in_reply_to_account_id,
-                CachedPost.created_at,
-            )
-            .where(
-                CachedPost.meta_account_id == meta.id,
-                CachedPost.fetched_by_identity_id == identity_id,
-                CachedPost.author_acct == my_acct,
-                CachedPost.is_reply.is_(True),
-                CachedPost.created_at >= cutoff,
-                CachedPost.in_reply_to_account_id.is_not(None),
-            )
+        reply_stmt = select(
+            CachedPost.in_reply_to_account_id,
+            CachedPost.created_at,
+        ).where(
+            CachedPost.meta_account_id == meta.id,
+            CachedPost.fetched_by_identity_id == identity_id,
+            CachedPost.author_acct == my_acct,
+            CachedPost.is_reply.is_(True),
+            CachedPost.created_at >= cutoff,
+            CachedPost.in_reply_to_account_id.is_not(None),
         )
         reply_rows = (await session.execute(reply_stmt)).all()
 
         # Reblogs by me
-        reblog_stmt = (
-            select(
-                CachedPost.in_reply_to_account_id,
-                CachedPost.author_id,
-                CachedPost.created_at,
-                CachedPost.is_reblog,
-            )
-            .where(
-                CachedPost.meta_account_id == meta.id,
-                CachedPost.fetched_by_identity_id == identity_id,
-                CachedPost.is_reblog.is_(True),
-                CachedPost.created_at >= cutoff,
-            )
+        reblog_stmt = select(
+            CachedPost.in_reply_to_account_id,
+            CachedPost.author_id,
+            CachedPost.created_at,
+            CachedPost.is_reblog,
+        ).where(
+            CachedPost.meta_account_id == meta.id,
+            CachedPost.fetched_by_identity_id == identity_id,
+            CachedPost.is_reblog.is_(True),
+            CachedPost.created_at >= cutoff,
         )
         reblog_rows = (await session.execute(reblog_stmt)).all()
 
         # Outbound favourites
-        fav_stmt = (
-            select(
-                CachedMyFavourite.target_account_id,
-                CachedMyFavourite.target_acct,
-                CachedMyFavourite.favourited_at,
-            )
-            .where(
-                CachedMyFavourite.meta_account_id == meta.id,
-                CachedMyFavourite.identity_id == identity_id,
-                CachedMyFavourite.favourited_at >= cutoff,
-            )
+        fav_stmt = select(
+            CachedMyFavourite.target_account_id,
+            CachedMyFavourite.target_acct,
+            CachedMyFavourite.favourited_at,
+        ).where(
+            CachedMyFavourite.meta_account_id == meta.id,
+            CachedMyFavourite.identity_id == identity_id,
+            CachedMyFavourite.favourited_at >= cutoff,
         )
         fav_rows = (await session.execute(fav_stmt)).all()
 
         # Group outbound by account_id
         outbound: dict[str, list[dict]] = {}
-        for row in reply_rows:
-            account_id = str(row.in_reply_to_account_id)
+        for r_row in reply_rows:
+            account_id = str(r_row.in_reply_to_account_id)
             if account_id not in outbound:
                 outbound[account_id] = []
             outbound[account_id].append(
-                {"type": "mention", "age_days": _age_days(row.created_at, now)}
+                {"type": "mention", "age_days": _age_days(r_row.created_at, now)}
             )
 
-        for row in fav_rows:
-            account_id = str(row.target_account_id)
+        for f_row in fav_rows:
+            account_id = str(f_row.target_account_id)
             if account_id not in outbound:
                 outbound[account_id] = []
             outbound[account_id].append(
-                {"type": "favourite", "age_days": _age_days(row.favourited_at, now)}
+                {"type": "favourite", "age_days": _age_days(f_row.favourited_at, now)}
             )
 
         # Gather all account_ids we need
         all_account_ids = set(inbound.keys()) | set(outbound.keys())
 
         # Fetch CachedAccount records for these accounts
-        accounts: dict[str, CachedAccount] = {}
+        accounts_map: dict[str, CachedAccount] = {}
         if all_account_ids:
             acct_stmt = select(CachedAccount).where(
                 CachedAccount.meta_account_id == meta.id,
                 CachedAccount.mastodon_identity_id == identity_id,
                 CachedAccount.id.in_(all_account_ids),
             )
-            for ca in (await session.execute(acct_stmt)).scalars():
-                accounts[ca.id] = ca
+            for ca_obj in (await session.execute(acct_stmt)).scalars():
+                accounts_map[ca_obj.id] = ca_obj
 
     # Score each account
-    scored = {}
+    scored: dict[str, dict] = {}
     for account_id in all_account_ids:
         in_score = score_interactions(inbound.get(account_id, []))
         out_score = score_interactions(outbound.get(account_id, []))
-        ca = accounts.get(account_id)
+        ca = accounts_map.get(account_id)
         scored[account_id] = {
             "account_id": account_id,
             "acct": ca.acct if ca else inbound_acct.get(account_id, ""),
@@ -212,8 +203,8 @@ async def get_engagement_matrix(
         }
 
     # Quadrant thresholds
-    scores_in = [v["in_score"] for v in scored.values()]
-    scores_out = [v["out_score"] for v in scored.values()]
+    scores_in: list[float] = [v["in_score"] for v in scored.values()]
+    scores_out: list[float] = [v["out_score"] for v in scored.values()]
     in_median = sorted(scores_in)[len(scores_in) // 2] if scores_in else 0.0
     out_median = sorted(scores_out)[len(scores_out) // 2] if scores_out else 0.0
 
@@ -286,25 +277,19 @@ async def get_dossier(
         interaction_history: dict[str, dict] = {}
         for label, days in windows.items():
             cutoff = now - timedelta(days=days)
-            in_stmt = (
-                select(func.count(CachedNotification.id))
-                .where(
-                    CachedNotification.meta_account_id == meta.id,
-                    CachedNotification.identity_id == identity_id,
-                    CachedNotification.account_id == ca.id,
-                    CachedNotification.created_at >= cutoff,
-                )
+            in_stmt = select(func.count(CachedNotification.id)).where(
+                CachedNotification.meta_account_id == meta.id,
+                CachedNotification.identity_id == identity_id,
+                CachedNotification.account_id == ca.id,
+                CachedNotification.created_at >= cutoff,
             )
             in_count = (await session.execute(in_stmt)).scalar_one()
 
-            out_stmt = (
-                select(func.count(CachedMyFavourite.status_id))
-                .where(
-                    CachedMyFavourite.meta_account_id == meta.id,
-                    CachedMyFavourite.identity_id == identity_id,
-                    CachedMyFavourite.target_account_id == ca.id,
-                    CachedMyFavourite.favourited_at >= cutoff,
-                )
+            out_stmt = select(func.count(CachedMyFavourite.status_id)).where(
+                CachedMyFavourite.meta_account_id == meta.id,
+                CachedMyFavourite.identity_id == identity_id,
+                CachedMyFavourite.target_account_id == ca.id,
+                CachedMyFavourite.favourited_at >= cutoff,
             )
             out_count = (await session.execute(out_stmt)).scalar_one()
 
@@ -336,24 +321,21 @@ async def get_dossier(
         top_hashtags = sorted(tag_counter.items(), key=lambda x: -x[1])[:5]
 
         # Media profile
-        media_stmt = (
-            select(
-                func.count(CachedPost.id).label("total"),
-                func.sum(
-                    CachedPost.has_media.cast(type_=__import__("sqlalchemy").Integer)
-                ).label("has_media"),
-                func.sum(
-                    CachedPost.has_video.cast(type_=__import__("sqlalchemy").Integer)
-                ).label("has_video"),
-                func.sum(
-                    CachedPost.has_link.cast(type_=__import__("sqlalchemy").Integer)
-                ).label("has_link"),
-            )
-            .where(
-                CachedPost.meta_account_id == meta.id,
-                CachedPost.fetched_by_identity_id == identity_id,
-                CachedPost.author_acct == acct,
-            )
+        media_stmt = select(
+            func.count(CachedPost.id).label("total"),
+            func.sum(
+                CachedPost.has_media.cast(type_=__import__("sqlalchemy").Integer)
+            ).label("has_media"),
+            func.sum(
+                CachedPost.has_video.cast(type_=__import__("sqlalchemy").Integer)
+            ).label("has_video"),
+            func.sum(
+                CachedPost.has_link.cast(type_=__import__("sqlalchemy").Integer)
+            ).label("has_link"),
+        ).where(
+            CachedPost.meta_account_id == meta.id,
+            CachedPost.fetched_by_identity_id == identity_id,
+            CachedPost.author_acct == acct,
         )
         media_row = (await session.execute(media_stmt)).one()
         total_posts = media_row.total or 0
@@ -365,18 +347,24 @@ async def get_dossier(
         }
 
         # Staleness check
-        latest_stmt = (
-            select(func.max(CachedPost.created_at))
-            .where(
-                CachedPost.meta_account_id == meta.id,
-                CachedPost.fetched_by_identity_id == identity_id,
-                CachedPost.author_acct == acct,
-            )
+        latest_stmt = select(func.max(CachedPost.created_at)).where(
+            CachedPost.meta_account_id == meta.id,
+            CachedPost.fetched_by_identity_id == identity_id,
+            CachedPost.author_acct == acct,
         )
         latest_post_at = (await session.execute(latest_stmt)).scalar_one_or_none()
-        is_stale = latest_post_at is None or (
-            now - (latest_post_at.replace(tzinfo=None) if latest_post_at.tzinfo else latest_post_at)
-        ).days > 7
+        is_stale = (
+            latest_post_at is None
+            or (
+                now
+                - (
+                    latest_post_at.replace(tzinfo=None)
+                    if latest_post_at.tzinfo
+                    else latest_post_at
+                )
+            ).days
+            > 7
+        )
 
         # Parse fields
         fields_data = []

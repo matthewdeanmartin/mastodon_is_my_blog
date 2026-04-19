@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 # e.g. https://mastodon.social/@gargron/112345678901234567
 MASTODON_POST_URL_RE = re.compile(r"^/@[\w.]+/\d+$")
 
+
 # --- Helper: Content Analysis ---
 def analyze_content_domains(
     html: str, media_attachments: list, is_reply_to_other: bool

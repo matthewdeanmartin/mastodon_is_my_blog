@@ -6,17 +6,16 @@ from typing import Any
 
 import dotenv
 from fastapi import HTTPException, Request
-from sqlalchemy import Integer, and_, func, outerjoin, select
+from sqlalchemy import Integer, and_, false, func, outerjoin, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mastodon_is_my_blog.inspect_post import analyze_content_domains
 from mastodon_is_my_blog.datetime_helpers import utc_now
+from mastodon_is_my_blog.inspect_post import analyze_content_domains
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
     client_from_identity,
 )
 from mastodon_is_my_blog.store import SeenPost  # ADDED
-from mastodon_is_my_blog.utils.perf import sync_stage
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedMyFavourite,
@@ -28,6 +27,7 @@ from mastodon_is_my_blog.store import (
     get_token,
     update_last_sync,
 )
+from mastodon_is_my_blog.utils.perf import sync_stage
 
 logger = logging.getLogger(__name__)
 
@@ -163,13 +163,15 @@ async def bulk_upsert_accounts(
         if batch_last is not None:
             prev_last = existing_last.get(acc_id)
             row_values["last_status_at"] = (
-                batch_last if (prev_last is None or batch_last > prev_last) else prev_last
+                batch_last
+                if (prev_last is None or batch_last > prev_last)
+                else prev_last
             )
         values.append(row_values)
 
     # Build the ON CONFLICT DO UPDATE statement.  The update set must exclude the
     # primary key columns; everything else is taken from excluded.*.
-    stmt = sqlite_insert(CachedAccount).values(values)
+    insert_stmt = sqlite_insert(CachedAccount).values(values)
     non_pk_cols = [
         c.name
         for c in CachedAccount.__table__.columns
@@ -177,16 +179,16 @@ async def bulk_upsert_accounts(
     ]
     # Only update columns that were actually present in the incoming payload
     # (e.g. last_status_at may only appear for some callers).
-    present_cols = set()
+    present_cols: set[str] = set()
     for v in values:
         present_cols.update(v.keys())
-    update_cols = {c: stmt.excluded[c] for c in non_pk_cols if c in present_cols}
+    update_cols = {c: insert_stmt.excluded[c] for c in non_pk_cols if c in present_cols}
 
-    stmt = stmt.on_conflict_do_update(
+    upsert_stmt = insert_stmt.on_conflict_do_update(
         index_elements=["id", "meta_account_id", "mastodon_identity_id"],
         set_=update_cols,
     )
-    await session.execute(stmt)
+    await session.execute(upsert_stmt)
 
 
 def build_post_payload(
@@ -201,20 +203,20 @@ def build_post_payload(
 
     in_reply_to_id = actual.get("in_reply_to_id")
     in_reply_to_account = actual.get("in_reply_to_account_id")
-    is_reply_to_other = in_reply_to_id is not None and str(
-        in_reply_to_account
-    ) != str(actual["account"]["id"])
+    is_reply_to_other = in_reply_to_id is not None and str(in_reply_to_account) != str(
+        actual["account"]["id"]
+    )
 
     raw_tags = [t_tag["name"] for t_tag in status.get("tags", [])]
     tags_json = json.dumps(raw_tags)
     flags = analyze_content_domains(
-        actual["content"], actual["media_attachments"], is_reply_to_other,
+        actual["content"],
+        actual["media_attachments"],
+        is_reply_to_other,
         tags=raw_tags,
     )
     media_json = (
-        json.dumps(actual["media_attachments"])
-        if actual["media_attachments"]
-        else None
+        json.dumps(actual["media_attachments"]) if actual["media_attachments"] else None
     )
 
     return {
@@ -302,9 +304,13 @@ async def bulk_upsert_posts(
     non_pk_cols = [
         c.name
         for c in CachedPost.__table__.columns
-        if c.name not in (
-            "id", "meta_account_id", "fetched_by_identity_id",
-            "discovery_source", "content_hub_only",
+        if c.name
+        not in (
+            "id",
+            "meta_account_id",
+            "fetched_by_identity_id",
+            "discovery_source",
+            "content_hub_only",
         )
     ]
     update_cols = {c: stmt.excluded[c] for c in non_pk_cols}
@@ -399,7 +405,8 @@ async def sync_my_favourites_for_identity(
     inter_page_delay: float = 0.3,
     max_pages: int | None = None,
 ) -> dict[str, int]:
-    """Paginate client.favourites() and upsert into cached_my_favourites.
+    """
+    Paginate client.favourites() and upsert into cached_my_favourites.
 
     Mirrors the shape of sync_all_notifications_for_identity.
     """
@@ -535,7 +542,9 @@ async def sync_all_following_for_identity(
                     await session.commit()
                 total_following += len(page)
                 if on_progress is not None:
-                    on_progress(total_following + total_followers, grand_total, "following")
+                    on_progress(
+                        total_following + total_followers, grand_total, "following"
+                    )
                 next_page = await asyncio.to_thread(m.fetch_next, page)
                 if not next_page:
                     break
@@ -556,7 +565,9 @@ async def sync_all_following_for_identity(
                     await session.commit()
                 total_followers += len(page)
                 if on_progress is not None:
-                    on_progress(total_following + total_followers, grand_total, "followers")
+                    on_progress(
+                        total_following + total_followers, grand_total, "followers"
+                    )
                 next_page = await asyncio.to_thread(m.fetch_next, page)
                 if not next_page:
                     break
@@ -604,8 +615,12 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
                     await session.execute(
                         select(
                             CachedPost.author_id,
-                            func.count(CachedPost.id).label("total"),  # pylint: disable=not-callable
-                            func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),  # pylint: disable=not-callable
+                            func.count(CachedPost.id).label(
+                                "total"
+                            ),  # pylint: disable=not-callable
+                            func.sum(func.cast(CachedPost.is_reply, Integer)).label(
+                                "replies"
+                            ),  # pylint: disable=not-callable
                         )
                         .where(
                             and_(
@@ -655,7 +670,8 @@ async def sync_user_timeline_for_identity(
     rate_budget=None,
     stop_at_cached: bool = True,
 ) -> dict:
-    """Syncs posts for a specific identity and optional target account.
+    """
+    Syncs posts for a specific identity and optional target account.
 
     When deep=True, walks all available pages via max_id pagination instead of
     fetching a single page of 200.  max_pages caps the walk; rate_budget
@@ -763,17 +779,17 @@ async def sync_accounts_friends_followers() -> None:
 
     # Get default meta and identity
     async with async_session() as session:
-        stmt = select(MetaAccount).where(MetaAccount.username == "default")
-        meta = (await session.execute(stmt)).scalar_one_or_none()
+        stmt_meta = select(MetaAccount).where(MetaAccount.username == "default")
+        meta = (await session.execute(stmt_meta)).scalar_one_or_none()
         if not meta:
             return
 
-        stmt = (
+        stmt_identity = (
             select(MastodonIdentity)
             .where(MastodonIdentity.meta_account_id == meta.id)
             .limit(1)
         )
-        identity = (await session.execute(stmt)).scalar_one_or_none()
+        identity = (await session.execute(stmt_identity)).scalar_one_or_none()
         if not identity:
             return
 
@@ -784,17 +800,17 @@ async def sync_accounts_friends_followers() -> None:
 async def sync_blog_roll_activity() -> None:
     """Legacy wrapper for backward compatibility."""
     async with async_session() as session:
-        stmt = select(MetaAccount).where(MetaAccount.username == "default")
-        meta = (await session.execute(stmt)).scalar_one_or_none()
+        stmt_meta = select(MetaAccount).where(MetaAccount.username == "default")
+        meta = (await session.execute(stmt_meta)).scalar_one_or_none()
         if not meta:
             return
 
-        stmt = (
+        stmt_identity = (
             select(MastodonIdentity)
             .where(MastodonIdentity.meta_account_id == meta.id)
             .limit(1)
         )
-        identity = (await session.execute(stmt)).scalar_one_or_none()
+        identity = (await session.execute(stmt_identity)).scalar_one_or_none()
         if not identity:
             return
 
@@ -813,18 +829,18 @@ async def sync_user_timeline(
 
     async with async_session() as session:
         # Get default meta
-        stmt = select(MetaAccount).where(MetaAccount.username == "default")
-        meta = (await session.execute(stmt)).scalar_one_or_none()
+        stmt_meta = select(MetaAccount).where(MetaAccount.username == "default")
+        meta = (await session.execute(stmt_meta)).scalar_one_or_none()
         if not meta:
             raise HTTPException(500, "Default meta account missing")
 
         # Get first identity
-        stmt = (
+        stmt_identity = (
             select(MastodonIdentity)
             .where(MastodonIdentity.meta_account_id == meta.id)
             .limit(1)
         )
-        identity = (await session.execute(stmt)).scalar_one_or_none()
+        identity = (await session.execute(stmt_identity)).scalar_one_or_none()
         if not identity:
             raise HTTPException(500, "No identity found")
 
@@ -834,12 +850,15 @@ async def sync_user_timeline(
 
 
 async def get_counts_optimized(
-    session: AsyncSession, meta_id: int, identity_id: int, user: str | None = None
-) -> dict[str, int | str]:
+    session: AsyncSession,
+    meta_id: int,
+    identity_id: int,
+    user: str | None = None,
+    identity_account_id: str | None = None,
+) -> dict[str, Any]:
     """
     Optimized count query returns { "filter": {"total": X, "unseen": Y} }
     """
-
     # Build base conditions
     base_conditions = [
         CachedPost.meta_account_id == meta_id,
@@ -854,9 +873,13 @@ async def get_counts_optimized(
 
     # Helper for conditional aggregation
     def filter_count(condition, label: str):
-        total = func.sum(func.cast(condition, Integer)).label(f"total_{label}")  # pylint: disable=not-callable
+        total = func.sum(func.cast(condition, Integer)).label(
+            f"total_{label}"
+        )  # pylint: disable=not-callable
         unseen = func.sum(
-            func.cast(and_(condition, SeenPost.post_id.is_(None)), Integer)  # pylint: disable=not-callable
+            func.cast(
+                and_(condition, SeenPost.post_id.is_(None)), Integer
+            )  # pylint: disable=not-callable
         ).label(f"unseen_{label}")
         return total, unseen
 
@@ -881,11 +904,17 @@ async def get_counts_optimized(
     f_links = and_(CachedPost.is_reblog.is_(False), CachedPost.has_link.is_(True))
     f_pics = and_(CachedPost.is_reblog.is_(False), CachedPost.has_media.is_(True))
     f_vids = and_(CachedPost.is_reblog.is_(False), CachedPost.has_video.is_(True))
-    f_discussions = and_(
-        CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(True)
-    )
+    f_discussions = and_(CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(True))
     f_jobs = and_(CachedPost.is_reblog.is_(False), CachedPost.has_job.is_(True))
     f_reposts = CachedPost.is_reblog.is_(True)
+    f_messages = (
+        and_(
+            CachedPost.is_reblog.is_(False),
+            CachedPost.in_reply_to_account_id == identity_account_id,
+        )
+        if identity_account_id
+        else false()
+    )
 
     # Build the massive select
     sel_args = []
@@ -899,6 +928,7 @@ async def get_counts_optimized(
         (f_pics, "pictures"),
         (f_vids, "videos"),
         (f_discussions, "discussions"),
+        (f_messages, "messages"),
         (f_jobs, "jobs"),
         (f_reposts, "reposts"),
     ]:
@@ -933,10 +963,11 @@ async def get_counts_optimized(
         "pictures",
         "videos",
         "discussions",
+        "messages",
         "jobs",
         "reposts",
     ]
-    stats = {"user": user or "all"}
+    stats: dict[str, Any] = {"user": user or "all"}
 
     for key in keys:
         stats[key] = {

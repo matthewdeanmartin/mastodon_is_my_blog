@@ -9,7 +9,7 @@ application_derive_data:
 application_detach:
 	echo
 
-.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test clean setup db-reset
+.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend lint lint-backend lint-frontend prerelease prerelease-backend prerelease-frontend clean setup db-reset
 
 # Default target
 help:
@@ -46,6 +46,7 @@ help:
 	@echo "Distribution:"
 	@echo "  make build-wheel        - Build Angular + Python wheel (full)"
 	@echo "  make build-wheel-skip-ng - Build wheel reusing existing Angular dist"
+	@echo "  make prerelease         - Run strict release checks before publishing"
 	@echo "  make publish-test       - Upload wheel to TestPyPI"
 	@echo "  make publish            - Upload wheel to PyPI"
 	@echo "  make install-from-wheel - Install local wheel and smoke-test"
@@ -174,6 +175,19 @@ lint-frontend:
 	@echo "Linting TypeScript code..."
 	cd web && ng lint
 
+prerelease: prerelease-backend prerelease-frontend build-wheel
+	@echo "✓ Prerelease checks passed"
+
+prerelease-backend:
+	@echo "Running backend prerelease checks..."
+	uv run ruff check mastodon_is_my_blog/
+	uv run mypy mastodon_is_my_blog/
+	uv run pytest test -q --tb=line --no-header --color=no --cov=mastodon_is_my_blog --cov-fail-under 48 --cov-branch --cov-report=term:skip-covered --timeout=5 --session-timeout=600
+
+prerelease-frontend:
+	@echo "Running frontend prerelease checks..."
+	cd web && npm run lint && npm run build && npm run test:ci
+
 # Format code
 format: format-backend format-frontend
 
@@ -228,3 +242,12 @@ update-frontend:
 	@echo "Updating Node dependencies..."
 	cd web && npm update
 
+.PHONY:
+mypy:
+	@echo "Running mypy"
+	uv run mypy mastodon_is_my_blog --ignore-missing-imports --check-untyped-defs
+
+.PHONY:
+pylint:
+	@echo "Running pylint"
+	uv run pylint mastodon_is_my_blog --fail-under 9.9
