@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed for any bug fixes.
 - Security in case of vulnerabilities.
 
+
+## [0.1.0] - 2026-01-04
+
+### Added
+
+- Analytics
+- Hashtags work better
+- Quality of life fixes
+
 ## [0.1.0] - 2025-01-04
 
 ### Added
