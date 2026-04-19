@@ -228,6 +228,10 @@ export class PublicPostComponent implements OnInit {
     });
   }
 
+  replyToPost(statusId: string): void {
+    this.router.navigate(['/write/reply', statusId]);
+  }
+
   /**
    * Constructs a nested tree from the flat descendants list.
    */

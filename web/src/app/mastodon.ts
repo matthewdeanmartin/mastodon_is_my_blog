@@ -294,6 +294,21 @@ export interface DossierMediaProfile {
   has_link: number;
 }
 
+export interface DossierInteraction {
+  notification_id: string;
+  type: string;
+  created_at: string;
+  status_id: string;
+  content: string | null;
+  post_created_at: string | null;
+}
+
+export interface DossierField {
+  name: string;
+  value: string;
+  verified_at: string | null;
+}
+
 export interface Dossier {
   id: string;
   acct: string;
@@ -302,7 +317,7 @@ export interface Dossier {
   header: string;
   url: string;
   note: string;
-  fields: unknown[];
+  fields: DossierField[];
   bot: boolean;
   followers_count: number;
   following_count: number;
@@ -314,6 +329,7 @@ export interface Dossier {
   interaction_history: Record<string, DossierInteractionWindow>;
   media_profile: DossierMediaProfile;
   is_stale: boolean;
+  created_at: string | null;
 }
 
 export interface GroupPerson {
@@ -326,4 +342,49 @@ export interface GroupPerson {
   post_count_in_group: number;
   last_in_group: string | null;
   total_engagement_in_group: number;
+}
+
+export interface DraftNode {
+  client_id: `${string}-${string}-${string}-${string}-${string}`;
+  parent_client_id: string | null;
+  mode: 'single' | 'manual';
+  body: string;
+  spoiler_text: string | null;
+  visibility: 'public' | 'unlisted' | 'private' | 'direct';
+}
+
+export interface Draft {
+  id: number;
+  meta_account_id: number;
+  identity_id: number | null;
+  reply_to_status_id: string | null;
+  title: string | null;
+  tree_json: string;
+  editor_engine: string;
+  language: string | null;
+  created_at: string;
+  updated_at: string;
+  published_at: string | null;
+  published_root_status_id: string | null;
+}
+
+export interface DraftIn {
+  title?: string | null;
+  reply_to_status_id?: string | null;
+  tree_json: string;
+  editor_engine: string;
+  language?: string | null;
+  identity_id?: number | null;
+}
+
+export interface SpellcheckMatch {
+  message: string;
+  offset: number;
+  length: number;
+  replacements: string[];
+  rule_id: string;
+}
+
+export interface SpellcheckOut {
+  matches: SpellcheckMatch[];
 }

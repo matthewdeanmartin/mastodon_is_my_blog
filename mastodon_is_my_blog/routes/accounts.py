@@ -63,10 +63,14 @@ async def get_blog_roll(
     Filters:
     - all: Everyone I follow (no strangers)
     - top_friends: Mutuals who have replied to me
+    - readers: Anyone who has reposted me (follow or not)
     - mutuals: I follow them, they follow me
-    - chatty: High reply ratio (> 50%)
-    - broadcasters: Low reply ratio (< 20%)
+    - chatty: High reply ratio (> 50%) among people I follow
+    - broadcasters: Low reply ratio (< 20%) among people I follow
+    - idols: I follow them, they don't follow me, but I've replied to them
     - bots: Strictly identified as bots
+    - lively: People I follow with a cached post in the last 30 days
+    - graveyard: People I follow with no cached posts, or last cached post older than 90 days
     """
     async with async_session() as session:
         # Get the current identity to know "My Account ID" for the "Replied to Me" check
@@ -164,6 +168,21 @@ async def get_blog_roll(
             )
             query = query.where(has_outbound)
             query = query.order_by(desc(CachedAccount.last_status_at))
+
+        elif filter_type == "lively":
+            # People I follow who have posted recently — at least one cached post in the last 30 days.
+            cutoff = datetime.utcnow() - timedelta(days=30)
+            query = query.where(CachedAccount.last_status_at >= cutoff)
+            query = query.order_by(desc(CachedAccount.last_status_at))
+
+        elif filter_type == "graveyard":
+            # People I follow whose account has gone quiet — no cached posts, or last post older than 90 days.
+            cutoff = datetime.utcnow() - timedelta(days=90)
+            query = query.where(
+                (CachedAccount.last_status_at.is_(None))
+                | (CachedAccount.last_status_at < cutoff)
+            )
+            query = query.order_by(CachedAccount.last_status_at.asc().nullsfirst())
 
         else:  # "all", "chatty", "broadcasters"
             query = query.order_by(desc(CachedAccount.last_status_at))

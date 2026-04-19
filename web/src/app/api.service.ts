@@ -20,8 +20,12 @@ import {
   NotificationTrendsResponse,
   EngagementMatrix,
   Dossier,
+  DossierInteraction,
   GroupPerson,
   AccountCatchupStatus,
+  Draft,
+  DraftIn,
+  SpellcheckOut,
 } from './mastodon';
 import { RawContentPost } from './content-feed.utils';
 import { Observable, throwError, timer, BehaviorSubject, of, Subject } from 'rxjs';
@@ -831,6 +835,22 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
+  getDossierInteractions(
+    acct: string,
+    identityId: number,
+    limit = 20,
+  ): Observable<DossierInteraction[]> {
+    const params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('limit', limit.toString());
+    return this.http
+      .get<DossierInteraction[]>(`${this.base}/api/peeps/dossier/${acct}/interactions`, {
+        params,
+        headers: this.headers,
+      })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
   deepFetchDossier(acct: string, identityId: number): Observable<AccountCatchupStatus> {
     const params = new HttpParams().set('identity_id', identityId.toString());
     return this.http
@@ -884,6 +904,57 @@ export class ApiService {
       .get<
         GroupPerson[]
       >(`${this.base}/api/content-hub/groups/${groupId}/people`, { params, headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  // --- Drafts ---
+
+  listDrafts(): Observable<Draft[]> {
+    return this.http
+      .get<Draft[]>(`${this.base}/api/drafts`, { headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getDraft(id: number): Observable<Draft> {
+    return this.http
+      .get<Draft>(`${this.base}/api/drafts/${id}`, { headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  createDraft(payload: DraftIn): Observable<Draft> {
+    return this.http
+      .post<Draft>(`${this.base}/api/drafts`, payload, { headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  updateDraft(id: number, payload: DraftIn): Observable<Draft> {
+    return this.http
+      .put<Draft>(`${this.base}/api/drafts/${id}`, payload, { headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  deleteDraft(id: number): Observable<void> {
+    return this.http
+      .delete<void>(`${this.base}/api/drafts/${id}`, { headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  publishDraft(id: number, identityId: number): Observable<Draft> {
+    return this.http
+      .post<Draft>(
+        `${this.base}/api/drafts/${id}/publish`,
+        { identity_id: identityId },
+        { headers: this.headers },
+      )
+      .pipe(
+        tap(() => this.refreshNeeded$.next()),
+        catchError((err) => this.handleError(err)),
+      );
+  }
+
+  spellcheck(text: string, language = 'en-US'): Observable<SpellcheckOut> {
+    return this.http
+      .post<SpellcheckOut>(`${this.base}/api/drafts/spellcheck`, { text, language }, { headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 }

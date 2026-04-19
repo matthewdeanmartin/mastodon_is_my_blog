@@ -86,7 +86,8 @@ app.include_router(analytics.router)
 app.include_router(content_hub.router)
 app.include_router(peeps.router)
 app.include_router(posts.router)
-app.include_router(writing.router)
+app.include_router(writing.posts_router)
+app.include_router(writing.drafts_router)
 
 # Add CORS middleware
 app.add_middleware(

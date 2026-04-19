@@ -725,6 +725,37 @@ async def set_token(value: str) -> None:
             await session.commit()
 
 
+class Draft(Base):
+    """Local draft storage — Mastodon has no server-side drafts API."""
+
+    __tablename__ = "drafts"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    meta_account_id: Mapped[int] = mapped_column(
+        ForeignKey("meta_accounts.id"), index=True
+    )
+    identity_id: Mapped[int | None] = mapped_column(
+        ForeignKey("mastodon_identities.id"), nullable=True
+    )
+    reply_to_status_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    title: Mapped[str | None] = mapped_column(String, nullable=True)
+    tree_json: Mapped[str] = mapped_column(Text, default="[]")
+    editor_engine: Mapped[str] = mapped_column(String(50), default="plain")
+    language: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utc_now, onupdate=utc_now
+    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    published_root_status_id: Mapped[str | None] = mapped_column(
+        String, nullable=True
+    )
+
+    __table_args__ = (
+        Index("ix_drafts_meta_updated", "meta_account_id", "updated_at"),
+    )
+
+
 class SeenPost(Base):
     """
     Tracks which posts a specific MetaAccount has viewed.

@@ -5,6 +5,7 @@ Peeps Finder — engagement intelligence layer.
 Endpoints:
   GET  /api/peeps/matrix?identity_id=...&window_days=180
   GET  /api/peeps/dossier/{acct}?identity_id=...
+  GET  /api/peeps/dossier/{acct}/interactions?identity_id=...
   POST /api/peeps/dossier/{acct}/deep-fetch?identity_id=...
   POST /api/peeps/dossier/{acct}/follow?identity_id=...
   POST /api/peeps/dossier/{acct}/unfollow?identity_id=...
@@ -398,7 +399,75 @@ async def get_dossier(
         "interaction_history": interaction_history,
         "media_profile": media_profile,
         "is_stale": is_stale,
+        "created_at": ca.created_at.isoformat() if ca.created_at else None,
     }
+
+
+@router.get("/dossier/{acct}/interactions")
+async def get_dossier_interactions(
+    acct: str,
+    identity_id: int = Query(...),
+    limit: int = Query(20, ge=1, le=50),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> list:
+    """Return recent notifications (with post content) from this account to the logged-in user."""
+    async with async_session() as session:
+        ca_stmt = select(CachedAccount.id).where(
+            CachedAccount.meta_account_id == meta.id,
+            CachedAccount.mastodon_identity_id == identity_id,
+            CachedAccount.acct == acct,
+        )
+        ca_id = (await session.execute(ca_stmt)).scalar_one_or_none()
+        if not ca_id:
+            return []
+
+        notif_stmt = (
+            select(
+                CachedNotification.id,
+                CachedNotification.type,
+                CachedNotification.created_at,
+                CachedNotification.status_id,
+            )
+            .where(
+                CachedNotification.meta_account_id == meta.id,
+                CachedNotification.identity_id == identity_id,
+                CachedNotification.account_id == ca_id,
+                CachedNotification.status_id.is_not(None),
+            )
+            .order_by(CachedNotification.created_at.desc())
+            .limit(limit)
+        )
+        notif_rows = (await session.execute(notif_stmt)).all()
+
+        if not notif_rows:
+            return []
+
+        status_ids = [r.status_id for r in notif_rows]
+        posts_stmt = select(
+            CachedPost.id,
+            CachedPost.content,
+            CachedPost.created_at,
+        ).where(
+            CachedPost.meta_account_id == meta.id,
+            CachedPost.id.in_(status_ids),
+        )
+        post_rows = (await session.execute(posts_stmt)).all()
+        posts_by_id = {p.id: p for p in post_rows}
+
+        result = []
+        for n in notif_rows:
+            post = posts_by_id.get(n.status_id)
+            result.append(
+                {
+                    "notification_id": n.id,
+                    "type": n.type,
+                    "created_at": n.created_at.isoformat(),
+                    "status_id": n.status_id,
+                    "content": post.content if post else None,
+                    "post_created_at": post.created_at.isoformat() if post else None,
+                }
+            )
+        return result
 
 
 @router.post("/dossier/{acct}/deep-fetch")

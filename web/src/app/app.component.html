@@ -239,6 +239,7 @@
         class="nav-btn"
         [class.active]="currentBlogFilter === 'top_friends'"
         (click)="setBlogFilter('top_friends')"
+        title="Mutuals (you follow each other) who have also sent you at least one notification — a mention, favourite, reblog, or status alert. These are people who both follow you back AND have actively engaged with your content. Sorted by most recent post."
       >
         Top Friends
       </button>
@@ -246,6 +247,7 @@
         class="nav-btn"
         [class.active]="currentBlogFilter === 'readers'"
         (click)="setBlogFilter('readers')"
+        title="Anyone who has reposted (reblogged) your posts — whether or not you follow them back. These are silent amplifiers: they read your stuff and share it, but may never reply or mention you. Includes people you don't follow."
       >
         Readers
       </button>
@@ -253,6 +255,7 @@
         class="nav-btn"
         [class.active]="currentBlogFilter === 'mutuals'"
         (click)="setBlogFilter('mutuals')"
+        title="People you follow who also follow you back. No interaction required — just a mutual follow. They may or may not actually read your posts."
       >
         Mutuals
       </button>
@@ -260,6 +263,7 @@
         class="nav-btn"
         [class.active]="currentBlogFilter === 'chatty'"
         (click)="setBlogFilter('chatty')"
+        title="People you follow whose cached posts are more than 50% replies. These accounts are conversationalists — they talk back to people rather than broadcasting. Requires at least 5 cached posts. Sorted highest reply ratio first."
       >
         Chatty
       </button>
@@ -267,6 +271,7 @@
         class="nav-btn"
         [class.active]="currentBlogFilter === 'idols'"
         (click)="setBlogFilter('idols')"
+        title="People you follow who don't follow you back, but whom you have replied to at least once. You talk at them but they're not in a conversation with you — could be celebrities, big accounts, or just disinterested people."
       >
         Idols
       </button>
@@ -274,6 +279,7 @@
         class="nav-btn"
         [class.active]="currentBlogFilter === 'broadcasters'"
         (click)="setBlogFilter('broadcasters')"
+        title="People you follow whose cached posts are less than 20% replies — they mostly post original content and rarely engage in back-and-forth conversation. Requires at least 5 cached posts. No one is home; they're just publishing."
       >
         Broadcasters
       </button>
@@ -281,13 +287,31 @@
         class="nav-btn"
         [class.active]="currentBlogFilter === 'bots'"
         (click)="setBlogFilter('bots')"
+        title="Accounts explicitly marked as bots by the bot flag on their Mastodon profile. These are automated accounts, not humans."
       >
         Bots
       </button>
       <button
         class="nav-btn"
+        [class.active]="currentBlogFilter === 'lively'"
+        (click)="setBlogFilter('lively')"
+        title="People you follow who have posted at least once in the last 30 days (based on cached data). These accounts are actively publishing — someone is home and posting regularly."
+      >
+        Lively
+      </button>
+      <button
+        class="nav-btn"
+        [class.active]="currentBlogFilter === 'graveyard'"
+        (click)="setBlogFilter('graveyard')"
+        title="People you follow whose last cached post is older than 90 days, or who have no cached posts at all. The account may be abandoned, or just not synced yet — use Catch Up to check."
+      >
+        Graveyard
+      </button>
+      <button
+        class="nav-btn"
         [class.active]="currentBlogFilter === 'all'"
         (click)="setBlogFilter('all')"
+        title="Everyone you follow, with no additional filtering. Sorted by most recent post date."
       >
         All
       </button>
