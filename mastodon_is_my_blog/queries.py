@@ -248,6 +248,9 @@ def build_post_payload(
         "reblogs_count": status["reblogs_count"],
         "favourites_count": status["favourites_count"],
         "media_attachments": media_json,
+        # Phase 2: root_id — will be refined by backfill for deep chains
+        "root_id": str(in_reply_to_id) if in_reply_to_id else str(status["id"]),
+        "root_is_partial": in_reply_to_id is not None,
     }
 
 
@@ -311,6 +314,8 @@ async def bulk_upsert_posts(
             "fetched_by_identity_id",
             "discovery_source",
             "content_hub_only",
+            "root_id",
+            "root_is_partial",
         )
     ]
     update_cols = {c: stmt.excluded[c] for c in non_pk_cols}
@@ -659,6 +664,50 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
             raise
 
 
+async def recompute_account_post_stats(meta_id: int, identity: MastodonIdentity) -> dict:
+    """Recompute cached_post_count and cached_reply_count for all accounts in this identity."""
+    async with async_session() as session:
+        stats_rows = (
+            await session.execute(
+                select(
+                    CachedPost.author_id,
+                    func.count(CachedPost.id).label("total"),
+                    func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),
+                )
+                .where(
+                    and_(
+                        CachedPost.meta_account_id == meta_id,
+                        CachedPost.fetched_by_identity_id == identity.id,
+                    )
+                )
+                .group_by(CachedPost.author_id)
+            )
+        ).all()
+
+        updated = 0
+        if stats_rows:
+            author_ids = [row.author_id for row in stats_rows]
+            accounts_res = await session.execute(
+                select(CachedAccount).where(
+                    and_(
+                        CachedAccount.meta_account_id == meta_id,
+                        CachedAccount.mastodon_identity_id == identity.id,
+                        CachedAccount.id.in_(author_ids),
+                    )
+                )
+            )
+            accounts_by_id = {a.id: a for a in accounts_res.scalars().all()}
+            for row in stats_rows:
+                acc = accounts_by_id.get(row.author_id)
+                if acc:
+                    acc.cached_post_count = row.total or 0
+                    acc.cached_reply_count = row.replies or 0
+                    updated += 1
+            await session.commit()
+
+    return {"updated": updated, "total_authors": len(stats_rows)}
+
+
 async def sync_user_timeline_for_identity(
     meta_id: int,
     identity: MastodonIdentity,
@@ -707,6 +756,8 @@ async def sync_user_timeline_for_identity(
             total_new = 0
             total_updated = 0
 
+            latest_status_at: datetime | None = None
+
             if deep:
                 from mastodon_is_my_blog.catchup import (
                     deep_fetch_user_timeline,
@@ -727,12 +778,18 @@ async def sync_user_timeline_for_identity(
                     rate_budget=rate_budget,
                 ):
                     total_fetched += len(page)
+                    page_latest = max(
+                        (to_naive_utc(s["created_at"]) for s in page if s.get("created_at")),
+                        default=None,
+                    )
+                    if page_latest and (latest_status_at is None or page_latest > latest_status_at):
+                        latest_status_at = page_latest
                     async with async_session() as session:
                         await bulk_upsert_accounts(
                             session,
                             meta_id,
                             identity.id,
-                            [{"account_data": target_account}],
+                            [{"account_data": target_account, "last_status_at": latest_status_at}],
                         )
                         new_count, updated_count = await bulk_upsert_posts(
                             session, meta_id, identity.id, page
@@ -743,13 +800,17 @@ async def sync_user_timeline_for_identity(
             else:
                 statuses = m.account_statuses(target_id, limit=200)
                 total_fetched = len(statuses)
+                latest_status_at = max(
+                    (to_naive_utc(s["created_at"]) for s in statuses if s.get("created_at")),
+                    default=None,
+                )
 
                 async with async_session() as session:
                     await bulk_upsert_accounts(
                         session,
                         meta_id,
                         identity.id,
-                        [{"account_data": target_account}],
+                        [{"account_data": target_account, "last_status_at": latest_status_at}],
                     )
                     total_new, total_updated = await bulk_upsert_posts(
                         session, meta_id, identity.id, statuses

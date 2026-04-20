@@ -10,6 +10,7 @@ import {
   AdminBundleTerm,
   OwnAccountCatchupResult,
   BulkSyncJobStatus,
+  NlpBackfillStatus,
 } from './mastodon';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
@@ -59,6 +60,12 @@ export class AdminComponent implements OnInit, OnDestroy {
   notificationsJobLoading = false;
   private notificationsPollSub?: Subscription;
 
+  // NLP topic backfill
+  nlpStatus: NlpBackfillStatus | null = null;
+  nlpJobLoading = false;
+  nlpJobError: string | null = null;
+  private nlpPollSub?: Subscription;
+
   // Bundle management
   bundles: AdminBundle[] = [];
   bundlesLoading = false;
@@ -75,6 +82,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.checkCatchupStatus();
     this.checkFollowingJob();
     this.checkNotificationsJob();
+    this.checkNlpBackfill();
     this.loadBundles();
   }
 
@@ -82,6 +90,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.stopPolling();
     this.stopFollowingPolling();
     this.stopNotificationsPolling();
+    this.stopNlpPolling();
   }
 
   refreshStatus() {
@@ -346,6 +355,92 @@ export class AdminComponent implements OnInit, OnDestroy {
 
   trackByAcct(_i: number, entry: { acct: string }): string {
     return entry.acct;
+  }
+
+  // --- NLP topic backfill ---
+
+  checkNlpBackfill() {
+    this.api.getNlpBackfillStatus().subscribe({
+      next: (s) => {
+        this.nlpStatus = s;
+        if (s.job && !s.job.finished) this.startNlpPolling();
+      },
+      error: () => {},
+    });
+  }
+
+  startNlpBackfillJob() {
+    if (this.nlpJobLoading) return;
+    this.nlpJobLoading = true;
+    this.nlpJobError = null;
+    this.api.startNlpBackfill().subscribe({
+      next: (s) => {
+        this.nlpStatus = s as unknown as NlpBackfillStatus;
+        this.nlpJobLoading = false;
+        this.startNlpPolling();
+      },
+      error: (err) => {
+        this.nlpJobLoading = false;
+        this.nlpJobError = err?.error?.detail ?? 'Failed to start NLP backfill';
+      },
+    });
+  }
+
+  cancelNlpBackfillJob() {
+    this.api.cancelNlpBackfill().subscribe({
+      next: () => this.checkNlpBackfill(),
+      error: (err) => {
+        this.nlpJobError = err?.error?.detail ?? 'Failed to cancel';
+      },
+    });
+  }
+
+  private startNlpPolling() {
+    this.stopNlpPolling();
+    this.nlpPollSub = interval(2000)
+      .pipe(switchMap(() => this.api.getNlpBackfillStatus()))
+      .subscribe({
+        next: (s) => {
+          this.nlpStatus = s;
+          if (!s.job || s.job.finished) this.stopNlpPolling();
+        },
+        error: () => this.stopNlpPolling(),
+      });
+  }
+
+  private stopNlpPolling() {
+    this.nlpPollSub?.unsubscribe();
+    this.nlpPollSub = undefined;
+  }
+
+  get nlpProgressPct(): number {
+    const j = this.nlpStatus?.job;
+    if (!j || !j.total || j.total === 0) return 0;
+    return Math.min(100, Math.round((j.done / j.total) * 100));
+  }
+
+  // --- Recompute post stats ---
+
+  recomputingStats = false;
+  recomputeStatsMessage: string | null = null;
+  recomputeStatsError: string | null = null;
+
+  recomputePostStats() {
+    const identityId = this.currentIdentityId();
+    if (!identityId || this.recomputingStats) return;
+    this.recomputingStats = true;
+    this.recomputeStatsMessage = null;
+    this.recomputeStatsError = null;
+    this.api.recomputePostStats(identityId).subscribe({
+      next: (r) => {
+        this.recomputingStats = false;
+        this.recomputeStatsMessage = `Updated ${r['updated']} accounts (${r['total_authors']} with cached posts).`;
+      },
+      error: (err) => {
+        this.recomputingStats = false;
+        this.recomputeStatsError = err?.error?.detail ?? 'Failed to recompute stats';
+      },
+    });
   }
 
   // --- Bundle management ---

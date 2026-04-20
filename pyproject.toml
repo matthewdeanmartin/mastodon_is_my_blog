@@ -1,6 +1,6 @@
 [project]
 name = "mastodon-is-my-blog"
-version = "0.2.0"
+version = "0.3.0"
 description = "A personal Mastodon reader and blog management tool"
 readme = "README.md"
 license = { text = "MIT" }
@@ -14,7 +14,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
+    # "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     # web backend
@@ -36,6 +36,10 @@ dependencies = [
     "python-dotenv>=1.0",
     # analytics
     "duckdb>=1.1",
+    # forum topic extraction
+    "wordfreq>=3.0",
+    "spacy>=3.7; python_version <= '3.13'",
+    "scikit-learn>=1.4",
 ]
 
 [project.optional-dependencies]

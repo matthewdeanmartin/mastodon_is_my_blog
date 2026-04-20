@@ -2,7 +2,7 @@
 // Text and Jobs tab components — only meaningful when a hashtag group is selected.
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ApiService } from './api.service';
 import { ContentHubStateService } from './content-hub-state.service';
 import { ContentHubPost } from './mastodon';
@@ -72,7 +72,7 @@ const TAB_STYLES = `
 @Component({
   selector: 'app-content-hub-text',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   template: `
     <div class="card">
       @if (!groupName) {
@@ -95,6 +95,9 @@ const TAB_STYLES = `
                 {{ filter.label }}
               </button>
             }
+            <button (click)="shuffle()" class="filter-btn" [disabled]="loading">
+              🔀 Shuffle
+            </button>
             <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
               {{ refreshing ? 'Fetching...' : 'Fetch New' }}
             </button>
@@ -130,11 +133,21 @@ const TAB_STYLES = `
               </div>
             </div>
             <div [innerHTML]="post.content" style="margin: 8px 0; font-size: 0.92rem;"></div>
-            <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">
-              View
-            </button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">View</button>
+              <a [routerLink]="['/write/reply', post.id]" style="font-size: 0.8rem; color: #6b7280; text-decoration: none;">↩ Reply</a>
+            </div>
           </div>
         }
+
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+          <button class="filter-btn" (click)="prevPage()" [disabled]="loading || cursorStack.length === 0">
+            ← Prev
+          </button>
+          <button class="filter-btn" (click)="nextPage()" [disabled]="loading || !nextCursor">
+            Next →
+          </button>
+        </div>
       }
     </div>
   `,
@@ -152,14 +165,20 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
   currentFilter: ContentFeedFilter = 'recent';
   readonly filters = contentFeedFilters;
 
+  nextCursor: string | null = null;
+  cursorStack: string[] = [];  // cursors for already-visited pages (enables Prev)
+
+  private currentIdentityId: number | null = null;
+  private currentGroupId: number | null = null;
   private sub?: Subscription;
 
   ngOnInit(): void {
     this.sub = combineLatest([this.api.identityId$, this.hubState.activeGroup$]).subscribe(
       ([identityId, group]) => {
         this.groupName = group?.name ?? null;
-        if (identityId && group) this.load(identityId, group.id);
-        else this.posts = [];
+        this.currentIdentityId = identityId;
+        this.currentGroupId = group?.id ?? null;
+        this.resetAndLoad();
       },
     );
   }
@@ -168,11 +187,15 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
     this.sub?.unsubscribe();
   }
 
-  private load(identityId: number, groupId: number): void {
+  private resetAndLoad(before: string | null = null, doShuffle = false): void {
+    if (!this.currentIdentityId || !this.currentGroupId) { this.posts = []; return; }
     this.loading = true;
-    this.api.getContentHubGroupPosts(groupId, identityId, 'text', null, 100).subscribe({
+    this.api.getContentHubGroupPosts(
+      this.currentGroupId, this.currentIdentityId, 'text', before, 30, doShuffle
+    ).subscribe({
       next: (res) => {
-        this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
+        this.posts = res.items.map(hubToFeedPost);
+        this.nextCursor = res.next_cursor ?? null;
         this.loading = false;
       },
       error: () => (this.loading = false),
@@ -181,20 +204,40 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
 
   setFilter(filter: ContentFeedFilter): void {
     this.currentFilter = filter;
-    const identityId = this.api.getCurrentIdentityId();
-    const group = this.hubState.getActiveGroup();
-    if (identityId && group) this.load(identityId, group.id);
+    this.cursorStack = [];
+    this.nextCursor = null;
+    this.resetAndLoad();
+  }
+
+  shuffle(): void {
+    this.cursorStack = [];
+    this.nextCursor = null;
+    this.resetAndLoad(null, true);
+  }
+
+  nextPage(): void {
+    if (!this.nextCursor) return;
+    this.cursorStack.push(this.nextCursor);
+    this.resetAndLoad(this.nextCursor);
+  }
+
+  prevPage(): void {
+    if (this.cursorStack.length === 0) return;
+    const cursor = this.cursorStack.pop()!;
+    // prev means going back one — pop the cursor we pushed, reload from the one before it
+    const before = this.cursorStack.length > 0 ? this.cursorStack[this.cursorStack.length - 1] : null;
+    this.resetAndLoad(before);
   }
 
   fetchNew(): void {
-    const identityId = this.api.getCurrentIdentityId();
-    const group = this.hubState.getActiveGroup();
-    if (!identityId || !group) return;
+    if (!this.currentIdentityId || !this.currentGroupId) return;
     this.refreshing = true;
-    this.api.refreshContentHubGroup(group.id, identityId).subscribe({
+    this.api.refreshContentHubGroup(this.currentGroupId, this.currentIdentityId).subscribe({
       next: () => {
         this.refreshing = false;
-        this.load(identityId, group.id);
+        this.cursorStack = [];
+        this.nextCursor = null;
+        this.resetAndLoad();
       },
       error: () => (this.refreshing = false),
     });
@@ -203,6 +246,7 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
   viewPost(id: string): void {
     this.router.navigate(['/p', id]);
   }
+
   getPopularityScore(post: ContentFeedPost): number {
     return getPopularityScore(post);
   }

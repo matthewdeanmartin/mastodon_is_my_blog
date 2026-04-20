@@ -5,7 +5,7 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
 } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from './api.service';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -43,7 +43,7 @@ interface CommentsResponse {
 @Component({
   selector: 'app-public-post',
   standalone: true,
-  imports: [CommonModule, LinkPreviewComponent],
+  imports: [CommonModule, LinkPreviewComponent, RouterLink],
   templateUrl: 'post.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [
@@ -72,10 +72,8 @@ export class PublicPostComponent implements OnInit {
   private linkPreviewService = inject(LinkPreviewService);
   private cdr = inject(ChangeDetectorRef);
 
-  private feedReady = false;
   private targetId: string | null = null;
   loading = true;
-  loadingNext = false;
   ancestors: MastodonStatus[] = [];
   target: MastodonStatus | null = null;
   descendantTree: TreeNode[] = [];
@@ -83,10 +81,6 @@ export class PublicPostComponent implements OnInit {
   // The account of the blog we are currently viewing (for highlighting)
   blogUserAcct: string | null = null;
   currentFilter = 'all';
-
-  // For next post functionality
-  private allPosts: { id: string; created_at: string }[] = [];
-  private currentPostIndex = -1;
 
   treeNodeContext(node: TreeNode): { node: TreeNode } {
     return { node };
@@ -103,12 +97,7 @@ export class PublicPostComponent implements OnInit {
       const id = params.get('id');
       if (!id) return;
       this.targetId = id;
-
-      // Load the post details
       this.loadPost(id);
-
-      // Load the surrounding feed (for Next/Prev navigation)
-      this.loadFeedForNavigation();
     });
   }
 
@@ -124,8 +113,6 @@ export class PublicPostComponent implements OnInit {
         this.target = target;
         this.descendantTree = target ? this.buildTree(data.descendants || [], target.id) : [];
 
-        // Find current post index in the feed if feed is already loaded
-        this.recomputeIndex();
         this.loading = false;
         this.cdr.markForCheck();
 
@@ -144,87 +131,6 @@ export class PublicPostComponent implements OnInit {
       error: (err: unknown) => {
         console.error('Failed to mark post as seen', err);
       },
-    });
-  }
-
-  loadFeedForNavigation(): void {
-    this.feedReady = false;
-    this.allPosts = [];
-
-    // NEW: We must have an identity context to know which feed to load.
-    const identityId = this.api.getCurrentIdentityId();
-
-    if (!identityId) {
-      console.warn('No identity context available for navigation');
-      return;
-    }
-
-    const isStorms = this.currentFilter === 'storms' || this.currentFilter === 'all';
-
-    const onDone = () => {
-      this.feedReady = true;
-      this.recomputeIndex();
-      this.cdr.markForCheck();
-    };
-
-    if (isStorms) {
-      this.api.getStorms(identityId, this.blogUserAcct || undefined).subscribe({
-        next: (page) => {
-          this.allPosts = page.items.map((storm) => ({
-            id: storm.root.id,
-            created_at: storm.root.created_at,
-          }));
-          onDone();
-        },
-        error: () => onDone(),
-      });
-    } else {
-      this.api
-        .getPublicPosts(identityId, this.currentFilter, this.blogUserAcct || undefined)
-        .subscribe({
-          next: (page) => {
-            this.allPosts = page.items.map((p) => ({ id: p.id, created_at: p.created_at }));
-            onDone();
-          },
-          error: () => onDone(),
-        });
-    }
-  }
-
-  private recomputeIndex(): void {
-    if (!this.targetId || this.allPosts.length === 0) {
-      this.currentPostIndex = -1;
-      return;
-    }
-    this.currentPostIndex = this.allPosts.findIndex((p) => p.id === this.targetId);
-  }
-
-  nextPost(): void {
-    if (this.allPosts.length === 0 || this.loadingNext) return;
-
-    // Find next index (wrap around to 0 if at end)
-    const nextIndex = (this.currentPostIndex + 1) % this.allPosts.length;
-    const nextPost = this.allPosts[nextIndex];
-
-    if (!nextPost) return;
-
-    this.loadingNext = true;
-
-    // Navigate to next post with same query params
-    this.router
-      .navigate(['/p', nextPost.id], {
-        queryParamsHandling: 'preserve',
-      })
-      .then(() => {
-        this.loadingNext = false;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
-  }
-
-  goBack(): void {
-    // Navigate back to feed with preserved query params
-    this.router.navigate(['/'], {
-      queryParamsHandling: 'preserve',
     });
   }
 

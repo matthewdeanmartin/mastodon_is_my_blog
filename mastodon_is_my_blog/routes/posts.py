@@ -157,6 +157,7 @@ async def get_public_posts(
             "everyone",
         ],
     ),
+    hashtag: str | None = Query(None, description="Filter posts containing this hashtag"),
     limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
     before: str | None = Query(None, description="Opaque cursor from a previous page"),
     meta: MetaAccount = Depends(get_current_meta_account),
@@ -305,6 +306,13 @@ async def get_public_posts(
         elif filter_type == "everyone":
             # No additional filters, show all posts
             pass
+
+        # Hashtag filter (additive on top of any type filter)
+        if hashtag:
+            tag_lower = hashtag.lower().lstrip("#")
+            query = query.where(
+                func.lower(CachedPost.tags).contains(f'"{tag_lower}"')
+            )
 
         # Fetch limit+1 to detect whether a next page exists
         query = query.limit(limit + 1)

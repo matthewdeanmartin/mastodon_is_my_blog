@@ -26,6 +26,8 @@ import {
   Draft,
   DraftIn,
   SpellcheckOut,
+  ForumThreadsResponse,
+  NlpBackfillStatus,
 } from './mastodon';
 import { RawContentPost } from './content-feed.utils';
 import { Observable, throwError, timer, BehaviorSubject, of, Subject } from 'rxjs';
@@ -219,6 +221,7 @@ export class ApiService {
     user?: string,
     before?: string | null,
     limit = 30,
+    hashtag?: string,
   ): Observable<FeedPage<RawContentPost>> {
     let params = new HttpParams()
       .set('identity_id', identityId.toString())
@@ -229,6 +232,9 @@ export class ApiService {
     }
     if (before) {
       params = params.set('before', before);
+    }
+    if (hashtag) {
+      params = params.set('hashtag', hashtag);
     }
     const key = `posts:${params.toString()}`;
     return this.cached(
@@ -485,6 +491,18 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
+  recomputePostStats(identityId?: number | null): Observable<Record<string, number>> {
+    let params = new HttpParams();
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .post<Record<string, number>>(
+        `${this.base}/api/admin/recompute-post-stats`,
+        {},
+        { params, headers: this.headers },
+      )
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
   catchupOwnAccount(identityId?: number | null): Observable<OwnAccountCatchupResult> {
     let params = new HttpParams();
     if (identityId != null) params = params.set('identity_id', identityId.toString());
@@ -646,12 +664,14 @@ export class ApiService {
     tab: 'text' | 'videos' | 'jobs' | 'software' | 'news' | 'links' = 'text',
     before?: string | null,
     limit = 30,
+    shuffle = false,
   ): Observable<ContentHubGroupPostsResponse> {
     let params = new HttpParams()
       .set('identity_id', identityId.toString())
       .set('tab', tab)
       .set('limit', limit.toString());
     if (before) params = params.set('before', before);
+    if (shuffle) params = params.set('shuffle', 'true');
     return this.http
       .get<ContentHubGroupPostsResponse>(`${this.base}/api/content-hub/groups/${groupId}/posts`, {
         params,
@@ -780,6 +800,23 @@ export class ApiService {
         >(`${this.base}/api/analytics/posting-heatmap`, { params, headers: this.headers })
         .pipe(catchError((err) => this.handleError(err))),
     );
+  }
+
+  getActivityCalendar(
+    identityId: number,
+    authorAcct?: string,
+    years = 2,
+  ): Observable<{ date: string; count: number }[]> {
+    let params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('years', years.toString());
+    if (authorAcct) params = params.set('author_acct', authorAcct);
+    return this.http
+      .get<{ date: string; count: number }[]>(
+        `${this.base}/api/analytics/activity-calendar`,
+        { params, headers: this.headers },
+      )
+      .pipe(catchError((err) => this.handleError(err)));
   }
 
   getTopReposters(identityId: number, windowDays = 30, limit = 20): Observable<ReposterRow[]> {
@@ -955,6 +992,59 @@ export class ApiService {
   spellcheck(text: string, language = 'en-US'): Observable<SpellcheckOut> {
     return this.http
       .post<SpellcheckOut>(`${this.base}/api/drafts/spellcheck`, { text, language }, { headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getForumThreads(
+    identityId: number,
+    params: {
+      top_filter?: string;
+      hashtag?: string[];
+      uncommon_word?: string[];
+      root_instance?: string[];
+      limit?: number;
+      before?: string | null;
+      include_content_hub?: boolean;
+    } = {},
+  ): Observable<ForumThreadsResponse> {
+    let httpParams = new HttpParams().set('identity_id', identityId.toString());
+    if (params.top_filter) httpParams = httpParams.set('top_filter', params.top_filter);
+    if (params.limit) httpParams = httpParams.set('limit', params.limit.toString());
+    if (params.before) httpParams = httpParams.set('before', params.before);
+    if (params.include_content_hub) httpParams = httpParams.set('include_content_hub', 'true');
+    for (const tag of params.hashtag ?? []) {
+      httpParams = httpParams.append('hashtag', tag);
+    }
+    for (const word of params.uncommon_word ?? []) {
+      httpParams = httpParams.append('uncommon_word', word);
+    }
+    for (const inst of params.root_instance ?? []) {
+      httpParams = httpParams.append('root_instance', inst);
+    }
+    const key = `forum:${httpParams.toString()}`;
+    return this.cached(
+      key,
+      this.http
+        .get<ForumThreadsResponse>(`${this.base}/api/forum/threads`, { params: httpParams, headers: this.headers })
+        .pipe(catchError((err) => this.handleError(err))),
+    );
+  }
+
+  getNlpBackfillStatus(): Observable<NlpBackfillStatus> {
+    return this.http
+      .get<NlpBackfillStatus>(`${this.base}/api/admin/nlp-backfill/status`, { headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  startNlpBackfill(): Observable<NlpBackfillStatus> {
+    return this.http
+      .post<NlpBackfillStatus>(`${this.base}/api/admin/nlp-backfill/start`, {}, { headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  cancelNlpBackfill(): Observable<{ cancelled: boolean }> {
+    return this.http
+      .delete<{ cancelled: boolean }>(`${this.base}/api/admin/nlp-backfill`, { headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 }

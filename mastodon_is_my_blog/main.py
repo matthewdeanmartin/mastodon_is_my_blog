@@ -22,6 +22,7 @@ from mastodon_is_my_blog.routes import (
     admin,
     analytics,
     content_hub,
+    forum,
     peeps,
     posts,
     writing,
@@ -61,6 +62,18 @@ async def lifespan(_: FastAPI):
     # Open DuckDB analytics connection, attached read-only to the SQLite file
     duck.startup()
 
+    # Load spaCy model off the event loop — it's a slow blocking import
+    try:
+        import asyncio
+        from mastodon_is_my_blog.text_topics import load_spacy_model
+
+        loop = asyncio.get_event_loop()
+        app.state.nlp = await loop.run_in_executor(None, load_spacy_model)
+        logger.info("spaCy en_core_web_sm loaded")
+    except Exception:
+        app.state.nlp = None
+        logger.warning("spaCy model not available — forum topic facets disabled")
+
     yield
 
     # Shutdown: close shared httpx client
@@ -84,6 +97,7 @@ app.include_router(accounts.router)
 app.include_router(admin.router)
 app.include_router(analytics.router)
 app.include_router(content_hub.router)
+app.include_router(forum.router)
 app.include_router(peeps.router)
 app.include_router(posts.router)
 app.include_router(writing.posts_router)

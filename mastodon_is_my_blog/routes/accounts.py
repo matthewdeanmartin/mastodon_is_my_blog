@@ -71,6 +71,7 @@ async def get_blog_roll(
     - bots: Strictly identified as bots
     - lively: People I follow with a cached post in the last 30 days
     - graveyard: People I follow with no cached posts, or last cached post older than 90 days
+    - other: People I follow who don't fit any other named category
     """
     async with async_session() as session:
         # Get the current identity to know "My Account ID" for the "Replied to Me" check
@@ -183,6 +184,41 @@ async def get_blog_roll(
                 | (CachedAccount.last_status_at < cutoff)
             )
             query = query.order_by(CachedAccount.last_status_at.asc().nullsfirst())
+
+        elif filter_type == "other":
+            # People I follow who don't fall into any named category.
+            # Excludes: mutuals, bots, idols (replied to non-follower), readers (reposted me)
+            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            is_mutual = CachedAccount.is_followed_by.is_(True)
+            is_bot = CachedAccount.bot.is_(True)
+            is_lively = CachedAccount.last_status_at >= thirty_days_ago
+            has_notification = exists(
+                select(1).where(
+                    and_(
+                        CachedNotification.account_id == CachedAccount.id,
+                        CachedNotification.meta_account_id == meta.id,
+                        CachedNotification.identity_id == identity_id,
+                    )
+                )
+            )
+            has_outbound = exists(
+                select(1).where(
+                    and_(
+                        CachedPost.meta_account_id == meta.id,
+                        CachedPost.fetched_by_identity_id == identity_id,
+                        CachedPost.author_acct == identity.acct,
+                        CachedPost.in_reply_to_account_id == CachedAccount.id,
+                    )
+                )
+            )
+            query = query.where(
+                ~is_mutual,
+                ~is_bot,
+                ~is_lively,
+                ~has_notification,
+                ~has_outbound,
+            )
+            query = query.order_by(desc(CachedAccount.last_status_at))
 
         else:  # "all", "chatty", "broadcasters"
             query = query.order_by(desc(CachedAccount.last_status_at))

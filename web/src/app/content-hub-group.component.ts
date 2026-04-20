@@ -1,6 +1,6 @@
 // web/src/app/content-hub-group.component.ts
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService } from './api.service';
@@ -25,7 +25,7 @@ interface PostViewModel {
 @Component({
   selector: 'app-content-hub-group',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: 'content-hub-group.component.html',
   styles: [
     `

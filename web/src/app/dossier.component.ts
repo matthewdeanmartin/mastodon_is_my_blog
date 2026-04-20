@@ -10,6 +10,7 @@ import { Subject, Subscription, interval } from 'rxjs';
 import { takeUntil, switchMap } from 'rxjs/operators';
 
 const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 interface HeatmapGridCell {
   dow: number;
@@ -18,7 +19,23 @@ interface HeatmapGridCell {
   color: string;
 }
 
-type PostsTab = 'recent' | 'popular';
+interface CalendarDay {
+  date: string;
+  count: number;
+  color: string;
+}
+
+interface CalendarWeek {
+  days: (CalendarDay | null)[];
+}
+
+interface CalendarYear {
+  year: number;
+  weeks: CalendarWeek[];
+  monthLabels: { label: string; weekIndex: number }[];
+}
+
+type PostsTab = 'recent' | 'popular' | 'hashtag';
 
 @Component({
   selector: 'app-dossier',
@@ -172,25 +189,6 @@ type PostsTab = 'recent' | 'popular';
           </div>
         }
 
-        <!-- Top Hashtags -->
-        @if (dossier.top_hashtags.length > 0) {
-          <div class="section">
-            <h4>Hashtags</h4>
-            <div class="hashtag-chips">
-              @for (ht of dossier.top_hashtags; track ht.tag) {
-                <a
-                  class="hashtag-chip"
-                  [href]="hashtagUrl(ht.tag)"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="{{ ht.count }} posts"
-                >#{{ ht.tag }} <span class="chip-count">{{ ht.count }}</span></a
-                >
-              }
-            </div>
-          </div>
-        }
-
         <!-- Posting Heatmap -->
         <div class="section">
           <h4>Posting Heatmap</h4>
@@ -223,6 +221,55 @@ type PostsTab = 'recent' | 'popular';
                   }
                 </div>
               }
+            </div>
+          }
+        </div>
+
+        <!-- Activity Calendar -->
+        <div class="section">
+          <h4>Activity</h4>
+          @if (calendarLoading) {
+            <div style="color: #9ca3af; font-size: 0.84rem;">Loading…</div>
+          }
+          @if (!calendarLoading && calendarYears.length === 0) {
+            <div style="color: #9ca3af; font-style: italic; font-size: 0.84rem;">No activity in cache yet.</div>
+          }
+          @for (yr of calendarYears; track yr.year) {
+            <div style="margin-bottom: 16px;">
+              <div class="calendar-year-label">{{ yr.year }}</div>
+              <div class="calendar-wrap">
+                <div class="calendar-months-row">
+                  <div class="calendar-dow-col"></div>
+                  @for (ml of yr.monthLabels; track ml.label) {
+                    <div
+                      class="calendar-month-label"
+                      [style.left.px]="ml.weekIndex * 13 + 24"
+                    >{{ ml.label }}</div>
+                  }
+                </div>
+                <div class="calendar-grid">
+                  <div class="calendar-dow-col">
+                    @for (d of [1,3,5]; track d) {
+                      <div class="calendar-dow-label">{{ dowLabel(d) }}</div>
+                    }
+                  </div>
+                  @for (week of yr.weeks; track $index) {
+                    <div class="calendar-week-col">
+                      @for (day of week.days; track $index) {
+                        @if (day) {
+                          <div
+                            class="calendar-cell"
+                            [style.background]="day.color"
+                            [title]="day.date + ' — ' + day.count + ' posts'"
+                          ></div>
+                        } @else {
+                          <div class="calendar-cell calendar-cell-empty"></div>
+                        }
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
             </div>
           }
         </div>
@@ -325,6 +372,23 @@ type PostsTab = 'recent' | 'popular';
           </div>
         </div>
 
+        <!-- Top Hashtags -->
+        @if (dossier.top_hashtags.length > 0) {
+          <div class="section">
+            <h4>Hashtags</h4>
+            <div class="hashtag-chips">
+              @for (ht of dossier.top_hashtags; track ht.tag) {
+                <button
+                  class="hashtag-chip"
+                  [class.active]="activeHashtag === ht.tag"
+                  (click)="filterByHashtag(ht.tag)"
+                  title="{{ ht.count }} posts"
+                >#{{ ht.tag }} <span class="chip-count">{{ ht.count }}</span></button
+                >
+              }
+            </div>
+          </div>
+        }
         <!-- Posts -->
         <div class="section">
           <div class="posts-header">
@@ -340,6 +404,12 @@ type PostsTab = 'recent' | 'popular';
                 [class.active]="postsTab === 'popular'"
                 (click)="setPostsTab('popular')"
               >Popular</button>
+              @if (activeHashtag) {
+                <button
+                  class="tab-btn active"
+                  (click)="clearHashtagFilter()"
+                >#{{ activeHashtag }} ✕</button>
+              }
             </div>
           </div>
           @if (postsLoading) {
@@ -361,6 +431,7 @@ type PostsTab = 'recent' | 'popular';
                     </span>
                   }
                   <a [routerLink]="['/p', post.id]" class="view-link">View →</a>
+                  <a [routerLink]="['/write/reply', post.id]" class="reply-link">↩ Reply</a>
                 </div>
                 <div class="post-body" [innerHTML]="sanitizeHtml(post.content ?? '')"></div>
               </div>
@@ -615,9 +686,19 @@ type PostsTab = 'recent' | 'popular';
         text-decoration: none;
         cursor: pointer;
         transition: background 0.1s;
+        border: 1px solid #bfdbfe;
       }
       .hashtag-chip:hover {
         background: #dbeafe;
+      }
+      .hashtag-chip.active {
+        background: #6366f1;
+        color: white;
+        border: none;
+      }
+      .hashtag-chip.active .chip-count {
+        background: rgba(255,255,255,0.25);
+        color: white;
       }
       .chip-count {
         background: #dbeafe;
@@ -705,6 +786,62 @@ type PostsTab = 'recent' | 'popular';
         margin: 1px;
         flex-shrink: 0;
       }
+      /* Activity Calendar */
+      .calendar-year-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #6b7280;
+        margin-bottom: 4px;
+      }
+      .calendar-wrap {
+        overflow-x: auto;
+        position: relative;
+      }
+      .calendar-months-row {
+        position: relative;
+        height: 16px;
+        display: flex;
+        margin-left: 24px;
+      }
+      .calendar-month-label {
+        position: absolute;
+        font-size: 0.6rem;
+        color: #9ca3af;
+        white-space: nowrap;
+      }
+      .calendar-grid {
+        display: flex;
+        gap: 2px;
+        margin-top: 2px;
+      }
+      .calendar-dow-col {
+        width: 24px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        padding-top: 13px;
+      }
+      .calendar-dow-label {
+        font-size: 0.6rem;
+        color: #9ca3af;
+        height: 11px;
+        line-height: 11px;
+      }
+      .calendar-week-col {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+      .calendar-cell {
+        width: 11px;
+        height: 11px;
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+      .calendar-cell-empty {
+        background: transparent !important;
+      }
       /* Posts */
       .posts-header {
         display: flex;
@@ -784,6 +921,15 @@ type PostsTab = 'recent' | 'popular';
       .view-link:hover {
         text-decoration: underline;
       }
+      .reply-link {
+        color: #6b7280;
+        font-size: 0.75rem;
+        text-decoration: none;
+      }
+      .reply-link:hover {
+        color: #6366f1;
+        text-decoration: underline;
+      }
       .notif-type-badge {
         font-size: 0.7rem;
         font-weight: 600;
@@ -822,7 +968,7 @@ export class DossierComponent implements OnInit, OnDestroy {
   dossier: Dossier | null = null;
   loading = true;
   error: string | null = null;
-  noteExpanded = false;
+  noteExpanded = true;
   followBusy = false;
   fetchBusy = false;
   catchupError: string | null = null;
@@ -834,9 +980,15 @@ export class DossierComponent implements OnInit, OnDestroy {
   heatmapError: string | null = null;
   readonly hours = Array.from({ length: 24 }, (_u, h) => h);
 
+  calendarDays: { date: string; count: number }[] = [];
+  calendarLoading = false;
+  calendarYears: CalendarYear[] = [];
+
   allPosts: RawContentPost[] = [];
+  hashtagPosts: RawContentPost[] = [];
   postsLoading = false;
   postsTab: PostsTab = 'recent';
+  activeHashtag: string | null = null;
 
   interactions: DossierInteraction[] = [];
   interactionsLoading = false;
@@ -849,6 +1001,9 @@ export class DossierComponent implements OnInit, OnDestroy {
   }[] = [];
 
   get displayedPosts(): RawContentPost[] {
+    if (this.postsTab === 'hashtag') {
+      return this.hashtagPosts.slice(0, 20);
+    }
     if (this.postsTab === 'popular') {
       return [...this.allPosts]
         .sort((a, b) => {
@@ -911,18 +1066,6 @@ export class DossierComponent implements OnInit, OnDestroy {
     return `${h - 12}p`;
   }
 
-  hashtagUrl(tag: string): string {
-    if (this.dossier?.url) {
-      try {
-        const base = new URL(this.dossier.url).origin;
-        return `${base}/tags/${tag}`;
-      } catch {
-        // fall through
-      }
-    }
-    return `https://mastodon.social/tags/${tag}`;
-  }
-
   sanitizeHtml(html: string): SafeHtml {
     return this.sanitizer.bypassSecurityTrustHtml(html);
   }
@@ -934,6 +1077,7 @@ export class DossierComponent implements OnInit, OnDestroy {
         this.loadDossier(acct, id);
         this.loadCatchupStatus(acct, id);
         this.loadHeatmap(acct, id);
+        this.loadCalendar(acct, id);
         this.loadPosts(acct, id);
         this.loadInteractions(acct, id);
       }
@@ -948,6 +1092,122 @@ export class DossierComponent implements OnInit, OnDestroy {
 
   setPostsTab(tab: PostsTab): void {
     this.postsTab = tab;
+  }
+
+  private loadCalendar(acct: string, identityId: number): void {
+    this.calendarLoading = true;
+    this.api
+      .getActivityCalendar(identityId, acct, 2)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (days) => {
+          this.calendarDays = days;
+          this.calendarYears = this.buildCalendarYears(days);
+          this.calendarLoading = false;
+        },
+        error: () => {
+          this.calendarLoading = false;
+        },
+      });
+  }
+
+  private buildCalendarYears(
+    days: { date: string; count: number }[],
+  ): CalendarYear[] {
+    const countMap = new Map<string, number>();
+    let maxCount = 0;
+    for (const d of days) {
+      countMap.set(d.date, d.count);
+      if (d.count > maxCount) maxCount = d.count;
+    }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const years: CalendarYear[] = [];
+
+    for (let yr = currentYear - 1; yr <= currentYear; yr++) {
+      const jan1 = new Date(yr, 0, 1);
+      const dec31 = new Date(yr, 11, 31);
+      const startDow = jan1.getDay(); // 0=Sun
+
+      const weeks: CalendarWeek[] = [];
+      let week: (CalendarDay | null)[] = Array(startDow).fill(null);
+      const cur = new Date(jan1);
+
+      while (cur <= dec31) {
+        const dateStr = cur.toISOString().slice(0, 10);
+        const count = countMap.get(dateStr) ?? 0;
+        week.push({ date: dateStr, count, color: this.calendarColor(count, maxCount) });
+        if (week.length === 7) {
+          weeks.push({ days: week });
+          week = [];
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+      if (week.length > 0) {
+        while (week.length < 7) week.push(null);
+        weeks.push({ days: week });
+      }
+
+      // Month label positions
+      const monthLabels: { label: string; weekIndex: number }[] = [];
+      let prevMonth = -1;
+      for (let wi = 0; wi < weeks.length; wi++) {
+        for (const day of weeks[wi].days) {
+          if (day) {
+            const m = new Date(day.date).getMonth();
+            if (m !== prevMonth) {
+              monthLabels.push({ label: MONTH_LABELS[m], weekIndex: wi });
+              prevMonth = m;
+            }
+            break;
+          }
+        }
+      }
+
+      years.push({ year: yr, weeks, monthLabels });
+    }
+    return years;
+  }
+
+  private calendarColor(count: number, max: number): string {
+    if (count === 0 || max === 0) return '#ebedf0';
+    const t = Math.log1p(count) / Math.log1p(max);
+    return this.lerpColor('#9be9a8', '#216e39', Math.min(1, Math.max(0.15, t)));
+  }
+
+  filterByHashtag(tag: string): void {
+    const acct = this.route.snapshot.paramMap.get('acct') ?? '';
+    const id = this.api.getCurrentIdentityId();
+    if (!id) return;
+
+    if (this.activeHashtag === tag) {
+      this.clearHashtagFilter();
+      return;
+    }
+
+    this.activeHashtag = tag;
+    this.postsTab = 'hashtag';
+    this.postsLoading = true;
+    this.api
+      .getPublicPosts(id, 'all', acct, null, 20, tag)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (page) => {
+          this.hashtagPosts = page.items;
+          this.postsLoading = false;
+        },
+        error: () => {
+          this.hashtagPosts = [];
+          this.postsLoading = false;
+        },
+      });
+  }
+
+  clearHashtagFilter(): void {
+    this.activeHashtag = null;
+    this.hashtagPosts = [];
+    this.postsTab = 'recent';
   }
 
   private loadHeatmap(acct: string, identityId: number): void {

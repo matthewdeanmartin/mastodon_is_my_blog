@@ -10,6 +10,7 @@ import {
   RouterOutlet,
 } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 import { ApiService } from './api.service';
 import {
@@ -50,7 +51,7 @@ const emptyCount = () => ({ total: 0, unseen: 0 });
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule],
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit, OnDestroy {
@@ -61,6 +62,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
   currentFilter = 'storms';
   currentBlogFilter = 'top_friends';
+  blogRollNameFilter = '';
 
   // Identities State
   identities: Identity[] = [];
@@ -73,6 +75,16 @@ export class AppComponent implements OnInit, OnDestroy {
   currentPage: 'people' | 'content' | 'forum' | 'other' = 'people';
 
   blogRoll: MastodonAccount[] = [];
+
+  get filteredBlogRoll(): MastodonAccount[] {
+    const q = this.blogRollNameFilter.trim().toLowerCase();
+    if (!q) return this.blogRoll;
+    return this.blogRoll.filter(
+      (a) =>
+        a.acct.toLowerCase().includes(q) ||
+        (a.display_name ?? '').toLowerCase().includes(q),
+    );
+  }
   mainUser: MastodonAccount | null = null; // The "Profile" of the currently connected user
   activeUserInfo: MastodonAccount | null = null; // The "Profile" of the user we are viewing
   activeUserCatchup: AccountCatchupStatus | null = null;

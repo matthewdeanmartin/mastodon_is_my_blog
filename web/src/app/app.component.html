@@ -309,6 +309,14 @@
       </button>
       <button
         class="nav-btn"
+        [class.active]="currentBlogFilter === 'other'"
+        (click)="setBlogFilter('other')"
+        title="People you follow who don't fit any other named category — not mutuals, not bots, didn't post in the last 30 days, no notifications from them, and you haven't replied to them."
+      >
+        Other
+      </button>
+      <button
+        class="nav-btn"
         [class.active]="currentBlogFilter === 'all'"
         (click)="setBlogFilter('all')"
         title="Everyone you follow, with no additional filtering. Sorted by most recent post date."
@@ -316,13 +324,27 @@
         All
       </button>
       <hr />
-      <div class="muted" style="margin-bottom: 10px">BLOG ROLL</div>
-      @if (blogRoll.length === 0) {
+      <div class="muted" style="margin-bottom: 6px">BLOG ROLL</div>
+      <input
+        type="search"
+        [(ngModel)]="blogRollNameFilter"
+        placeholder="Filter people…"
+        style="
+          width: 100%;
+          box-sizing: border-box;
+          padding: 4px 8px;
+          margin-bottom: 8px;
+          border: 1px solid #d1d5db;
+          border-radius: 4px;
+          font-size: 0.8rem;
+        "
+      />
+      @if (filteredBlogRoll.length === 0) {
         <div class="muted" style="font-style: italic; font-size: 0.85rem">
           No friends found for this identity.
         </div>
       }
-      @for (acc of blogRoll; track acc.acct) {
+      @for (acc of filteredBlogRoll; track acc.acct) {
         <div style="margin-bottom: 8px">
           <!-- was  queryParamsHandling="merge" why not now?-->
           <a

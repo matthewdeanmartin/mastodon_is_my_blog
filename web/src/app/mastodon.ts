@@ -388,3 +388,59 @@ export interface SpellcheckMatch {
 export interface SpellcheckOut {
   matches: SpellcheckMatch[];
 }
+
+export interface ForumRootPost {
+  id: string;
+  author_acct: string;
+  author_display_name: string;
+  author_avatar: string;
+  author_instance: string;
+  content: string;
+  created_at: string;
+  has_question: boolean;
+  tags: unknown[];
+}
+
+export interface ForumFriendReplier {
+  acct: string;
+  display_name: string;
+  avatar: string;
+}
+
+export interface ForumThread {
+  root_id: string;
+  root_post: ForumRootPost;
+  reply_count: number;
+  friend_reply_count: number;
+  friend_repliers: ForumFriendReplier[];
+  latest_reply_at: string | null;
+  root_is_partial: boolean;
+}
+
+export interface ForumFacetItem {
+  tag?: string;
+  word?: string;
+  instance?: string;
+  count: number;
+  thread_count?: number;
+}
+
+export interface ForumFacets {
+  hashtags: { tag: string; count: number }[];
+  uncommon_words: { word: string; thread_count: number }[];
+  root_instances: { instance: string; count: number }[];
+}
+
+export interface ForumThreadsResponse {
+  items: ForumThread[];
+  next_cursor: string | null;
+  facets: ForumFacets;
+}
+
+export interface NlpBackfillStatus {
+  total_threads: number;
+  done_threads: number;
+  needs_run: boolean;
+  job: BulkSyncJobStatus | null;
+}
+

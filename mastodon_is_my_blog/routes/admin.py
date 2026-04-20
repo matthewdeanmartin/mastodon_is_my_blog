@@ -2,7 +2,7 @@
 import logging
 from typing import Literal
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.routing import APIRouter
 from sqlalchemy import select
 
@@ -27,6 +27,7 @@ from mastodon_is_my_blog.mastodon_apis.masto_client import (
 )
 from mastodon_is_my_blog.queries import (
     get_current_meta_account,
+    recompute_account_post_stats,
     sync_all_following_for_identity,
     sync_all_identities,
     sync_my_favourites_for_identity,
@@ -173,6 +174,21 @@ async def start_sync_my_favourites(
     identity = await _get_identity(meta, identity_id)
     stats = await sync_my_favourites_for_identity(meta.id, identity, full=full)
     return {"synced": True, **stats}
+
+
+@router.post("/recompute-post-stats")
+async def recompute_post_stats(
+    identity_id: int | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """
+    Recomputes cached_post_count and cached_reply_count on every CachedAccount row
+    for the selected identity, using already-cached posts. No API calls made.
+    Run this to ensure chatty/broadcaster blogroll filters are up to date.
+    """
+    identity = await _get_identity(meta, identity_id)
+    result = await recompute_account_post_stats(meta.id, identity)
+    return {"ok": True, **result}
 
 
 @router.post("/own-account/catchup")
@@ -501,6 +517,161 @@ async def delete_bundle(
         await session.delete(group)
         await session.commit()
     return {"deleted": True, "id": bundle_id}
+
+
+# ---------------------------------------------------------------------------
+# NLP topic backfill
+# ---------------------------------------------------------------------------
+
+NLP_JOB_KIND = "nlp_backfill"
+NLP_META_ID = 0   # not identity-scoped; use a sentinel identity_id
+
+
+@router.get("/nlp-backfill/status")
+async def nlp_backfill_status(
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    from sqlalchemy import func, text as sa_text
+
+    job = get_job(NLP_JOB_KIND, meta.id, NLP_META_ID)
+
+    async with async_session() as session:
+        total_threads = (
+            await session.execute(
+                sa_text(
+                    "SELECT COUNT(DISTINCT root_id) FROM cached_posts "
+                    "WHERE meta_account_id = :mid AND root_id IS NOT NULL"
+                ),
+                {"mid": meta.id},
+            )
+        ).scalar() or 0
+
+        done_threads = (
+            await session.execute(
+                sa_text(
+                    "SELECT COUNT(*) FROM cached_posts "
+                    "WHERE meta_account_id = :mid AND root_id = id "
+                    "AND thread_uncommon_words IS NOT NULL"
+                ),
+                {"mid": meta.id},
+            )
+        ).scalar() or 0
+
+    needs_run = done_threads < total_threads
+
+    return {
+        "total_threads": total_threads,
+        "done_threads": done_threads,
+        "needs_run": needs_run,
+        "job": job_status(job) if job else None,
+    }
+
+
+@router.post("/nlp-backfill/start")
+async def start_nlp_backfill(
+    request: Request,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    from sqlalchemy import text as sa_text
+
+    from mastodon_is_my_blog.text_topics import uncommon_lemmas
+
+    nlp = getattr(request.app.state, "nlp", None)
+    if nlp is None:
+        raise HTTPException(503, "spaCy model not loaded — install en_core_web_sm first")
+
+    existing = get_job(NLP_JOB_KIND, meta.id, NLP_META_ID)
+    if existing is not None and not existing.finished:
+        raise HTTPException(409, "NLP backfill already running")
+
+    async def runner(on_progress, cancelled):
+        # Load all root posts (id == root_id) and their thread content
+        async with async_session() as session:
+            root_rows = (
+                await session.execute(
+                    sa_text(
+                        "SELECT id, meta_account_id FROM cached_posts "
+                        "WHERE meta_account_id = :mid AND root_id = id"
+                    ),
+                    {"mid": meta.id},
+                )
+            ).all()
+
+        total = len(root_rows)
+        logger.info("NLP backfill: %d threads to process", total)
+        on_progress(0, total, "loading")
+
+        done = 0
+        batch_size = 50
+        updates: list[dict] = []
+
+        for root_row in root_rows:
+            if cancelled():
+                logger.info("NLP backfill cancelled at %d/%d", done, total)
+                break
+
+            root_id = root_row.id
+            meta_id = root_row.meta_account_id
+
+            # Fetch all posts in this thread
+            async with async_session() as session:
+                thread_rows = (
+                    await session.execute(
+                        sa_text(
+                            "SELECT content FROM cached_posts "
+                            "WHERE meta_account_id = :mid AND root_id = :rid"
+                        ),
+                        {"mid": meta_id, "rid": root_id},
+                    )
+                ).all()
+
+            combined = " ".join(r.content for r in thread_rows)
+            words = uncommon_lemmas(combined, nlp)
+            import json as _json
+            updates.append({"root_id": root_id, "meta_id": meta_id, "words": _json.dumps(words)})
+            done += 1
+
+            if len(updates) >= batch_size:
+                async with async_session() as session:
+                    await session.execute(
+                        sa_text(
+                            "UPDATE cached_posts SET thread_uncommon_words = :words "
+                            "WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"
+                        ),
+                        updates,
+                    )
+                    await session.commit()
+                logger.info("NLP backfill: %d/%d committed", done, total)
+                updates = []
+                on_progress(done, total, "processing")
+
+        if updates:
+            async with async_session() as session:
+                await session.execute(
+                    sa_text(
+                        "UPDATE cached_posts SET thread_uncommon_words = :words "
+                        "WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"
+                    ),
+                    updates,
+                )
+                await session.commit()
+            logger.info("NLP backfill: %d/%d final batch committed", done, total)
+
+        on_progress(done, total, "done")
+        return {"processed": done, "total": total}
+
+    job = await start_bulk_job(NLP_JOB_KIND, meta.id, NLP_META_ID, runner)
+    return {"started": True, **job_status(job)}
+
+
+@router.delete("/nlp-backfill")
+async def cancel_nlp_backfill(
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    cancelled = cancel_job(NLP_JOB_KIND, meta.id, NLP_META_ID)
+    if not cancelled:
+        raise HTTPException(404, "No running NLP backfill job")
+    return {"cancelled": True}
 
 
 # ---------------------------------------------------------------------------

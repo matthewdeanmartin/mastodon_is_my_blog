@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 from mastodon_is_my_blog.data.domain_categories import DOMAIN_CONFIG
+from mastodon_is_my_blog.data.mastodon_instances import is_mastodon_domain
 
 TAG_JOBS_KEYWORDS: frozenset[str] = frozenset(
     [
@@ -105,10 +106,11 @@ def analyze_content_domains(
             is_mention_or_tag = "mention" in classes or "hashtag" in classes
 
             if not is_mention_or_tag:
-                # Mastodon quote-posts use /@user/id URLs â€” not generic links
                 href = cast(str, link["href"])
-                parsed_path = urlparse(href).path
-                is_mastodon_post = bool(MASTODON_POST_URL_RE.match(parsed_path))
+                parsed = urlparse(href)
+                # Skip links that are fediverse posts: /@user/id path on a known instance,
+                # or the same URL pattern on any domain (ActivityPub quote-posts)
+                is_mastodon_post = bool(MASTODON_POST_URL_RE.match(parsed.path)) or is_mastodon_domain(parsed.netloc)
                 if not is_mastodon_post:
                     flags["has_link"] = True
 

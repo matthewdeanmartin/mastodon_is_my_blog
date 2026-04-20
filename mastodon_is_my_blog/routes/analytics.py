@@ -67,3 +67,15 @@ async def notification_trends(
     return await duck.notification_trends(
         meta.id, identity_id, notification_type=type, bucket=bucket
     )
+
+
+@router.get("/activity-calendar")
+async def activity_calendar(
+    identity_id: int = Query(...),
+    author_acct: str | None = Query(None),
+    years: int = Query(2, ge=1, le=5),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> list[dict[str, Any]]:
+    return await duck.activity_calendar(
+        meta.id, identity_id, author_acct=author_acct, years=years
+    )

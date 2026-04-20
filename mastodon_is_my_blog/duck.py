@@ -313,6 +313,191 @@ async def top_reposters(
     ]
 
 
+async def forum_thread_summaries(
+    meta_id: int,
+    identity_id: int,
+    include_content_hub: bool = False,
+) -> list[dict[str, Any]]:
+    """
+    Aggregate cached posts into thread summaries for the forum view.
+
+    Returns one row per root_id with: reply_count, unique_participant_count,
+    latest_reply_at, root_post fields, tags union, and per-thread uncommon words.
+    Only threads with ≥1 reply and ≥2 unique participants are returned.
+    """
+    content_hub_clause = "" if include_content_hub else "AND content_hub_only = false"
+
+    sql = f"""
+        WITH posts AS (
+            SELECT
+                id,
+                root_id,
+                author_acct,
+                created_at,
+                content,
+                has_question,
+                tags,
+                thread_uncommon_words,
+                in_reply_to_id
+            FROM {ATTACH_ALIAS}.cached_posts
+            WHERE meta_account_id = ?
+              AND fetched_by_identity_id = ?
+              AND is_reblog = false
+              AND root_id IS NOT NULL
+              {content_hub_clause}
+        ),
+        thread_stats AS (
+            SELECT
+                root_id,
+                COUNT(*) AS total_posts,
+                COUNT(*) - 1 AS reply_count,
+                COUNT(DISTINCT author_acct) AS unique_participants,
+                MAX(CASE WHEN id != root_id THEN created_at ELSE NULL END) AS latest_reply_at
+            FROM posts
+            GROUP BY root_id
+            HAVING COUNT(*) > 1 AND COUNT(DISTINCT author_acct) >= 2
+        ),
+        root_posts AS (
+            SELECT
+                p.id,
+                p.root_id,
+                p.author_acct,
+                p.created_at,
+                p.content,
+                p.has_question,
+                p.tags AS root_tags,
+                p.thread_uncommon_words,
+                p.in_reply_to_id
+            FROM posts p
+            INNER JOIN thread_stats ts ON p.id = ts.root_id
+        ),
+        exploded_tags AS (
+            SELECT p.root_id, lower(tag) AS tag
+            FROM posts p
+            INNER JOIN thread_stats ts ON p.root_id = ts.root_id,
+            LATERAL unnest(from_json(p.tags, '["VARCHAR"]')) AS t(tag)
+            WHERE p.tags IS NOT NULL AND p.tags != '[]'
+        ),
+        tags_union AS (
+            SELECT root_id, string_agg(DISTINCT tag, ',') AS all_tags
+            FROM exploded_tags
+            GROUP BY root_id
+        )
+        SELECT
+            ts.root_id,
+            ts.reply_count,
+            ts.unique_participants,
+            ts.latest_reply_at,
+            rp.author_acct,
+            rp.created_at AS root_created_at,
+            rp.content AS root_content,
+            rp.has_question,
+            rp.root_tags,
+            rp.thread_uncommon_words,
+            rp.in_reply_to_id IS NOT NULL AS root_is_partial,
+            COALESCE(tu.all_tags, '') AS tags_csv
+        FROM thread_stats ts
+        JOIN root_posts rp ON rp.root_id = ts.root_id
+        LEFT JOIN tags_union tu ON tu.root_id = ts.root_id
+        ORDER BY COALESCE(ts.latest_reply_at, rp.created_at) DESC;
+    """
+    rows = await run(sql, [meta_id, identity_id])
+    results = []
+    for r in rows:
+        tags_csv: str = r[11] or ""
+        tags_set = {t for t in tags_csv.split(",") if t} if tags_csv else set()
+        uncommon: list[str] = []
+        if r[9]:
+            try:
+                import json as _json
+                uncommon = _json.loads(r[9])
+            except Exception:
+                pass
+        results.append({
+            "root_id": r[0],
+            "reply_count": int(r[1] or 0),
+            "unique_participants": int(r[2] or 0),
+            "latest_reply_at": r[3].isoformat() if r[3] else None,
+            "author_acct": r[4],
+            "root_created_at": r[5].isoformat() if r[5] else None,
+            "root_content": r[6],
+            "has_question": bool(r[7]),
+            "root_tags": r[8],
+            "uncommon_words": uncommon,
+            "root_is_partial": bool(r[10]),
+            "tags": tags_set,
+        })
+    return results
+
+
+async def forum_friend_reply_counts(
+    meta_id: int,
+    identity_id: int,
+    root_ids: list[str],
+    following_accts: set[str],
+) -> dict[str, int]:
+    """Return count of replies by followed accounts per root_id."""
+    if not root_ids or not following_accts:
+        return {}
+
+    placeholders = ", ".join("?" for _ in root_ids)
+    acct_placeholders = ", ".join("?" for _ in following_accts)
+
+    sql = f"""
+        SELECT root_id, COUNT(*) AS n
+        FROM src.cached_posts
+        WHERE meta_account_id = ?
+          AND fetched_by_identity_id = ?
+          AND id != root_id
+          AND root_id IN ({placeholders})
+          AND author_acct IN ({acct_placeholders})
+        GROUP BY root_id;
+    """
+    params: list[Any] = [meta_id, identity_id, *root_ids, *following_accts]
+    rows = await run(sql, params)
+    return {r[0]: int(r[1]) for r in rows}
+
+
+async def activity_calendar(
+    meta_id: int,
+    identity_id: int,
+    author_acct: str | None = None,
+    years: int = 2,
+) -> list[dict[str, Any]]:
+    """
+    Daily post counts for the past ``years`` calendar years (always full years,
+    Jan 1 through Dec 31), used to render a GitHub-style contribution calendar.
+
+    Returns one row per day that has ≥1 post: {date, count}.
+    """
+    import datetime as _dt
+    current_year = _dt.datetime.utcnow().year
+    start_year = current_year - (years - 1)
+    cutoff = f"{start_year}-01-01"
+
+    params: list[Any] = [meta_id, identity_id, cutoff]
+    extra = ""
+    if author_acct:
+        extra = "AND author_acct = ?"
+        params.append(author_acct)
+
+    sql = f"""
+        SELECT
+            CAST(created_at AS DATE) AS day,
+            COUNT(*) AS n
+        FROM {ATTACH_ALIAS}.cached_posts
+        WHERE meta_account_id = ?
+          AND fetched_by_identity_id = ?
+          AND content_hub_only = false
+          AND created_at >= CAST(? AS DATE)
+          {extra}
+        GROUP BY day
+        ORDER BY day;
+    """
+    rows = await run(sql, params)
+    return [{"date": str(r[0]), "count": int(r[1])} for r in rows]
+
+
 async def notification_trends(
     meta_id: int,
     identity_id: int,

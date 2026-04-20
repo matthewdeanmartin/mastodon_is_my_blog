@@ -119,6 +119,7 @@ async def get_group_posts(
     ),
     limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     before: str | None = Query(None),
+    shuffle: bool = Query(False),
     meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
     """
@@ -188,6 +189,10 @@ async def get_group_posts(
         posts = [p for p in posts if p.has_link]
     # "text" includes all posts
 
+    if shuffle:
+        import random
+        random.shuffle(posts)
+
     has_more = len(posts) > limit
     posts = posts[:limit]
 
@@ -237,7 +242,7 @@ async def get_group_posts(
     ]
 
     next_cursor = None
-    if has_more and posts:
+    if has_more and posts and not shuffle:
         next_cursor = encode_cursor(posts[-1].created_at, posts[-1].id)
 
     return {

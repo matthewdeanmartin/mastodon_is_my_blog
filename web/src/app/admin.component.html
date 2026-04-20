@@ -183,6 +183,91 @@
       </div>
     </div>
 
+    <div style="margin-bottom: 24px">
+      <h3 style="margin: 0 0 8px 0; font-size: 1rem">Blog Roll Post Stats</h3>
+      <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px">
+        Recomputes cached post and reply counts for every followed account, using already-cached
+        posts. No API calls. Run this after a catch-up to keep the
+        <strong>Chatty</strong> and <strong>Broadcasters</strong> filters accurate.
+      </div>
+
+      @if (recomputeStatsError) {
+        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">{{ recomputeStatsError }}</div>
+      }
+      @if (recomputeStatsMessage) {
+        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem">{{ recomputeStatsMessage }}</div>
+      }
+
+      <button (click)="recomputePostStats()" [disabled]="recomputingStats">
+        {{ recomputingStats ? 'Recomputing...' : 'Re-bin Blog Roll' }}
+      </button>
+    </div>
+
+    <div style="margin-bottom: 24px">
+      <h3 style="margin: 0 0 8px 0; font-size: 1rem">Forum Topic Words (NLP Backfill)</h3>
+      <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px">
+        Precomputes uncommon topic words for each forum thread using spaCy. Run this once after
+        importing posts, then re-run when you want fresh results. Requires
+        <code>en_core_web_sm</code> to be installed.
+      </div>
+
+      @if (nlpStatus) {
+        <div style="margin-bottom: 10px; font-size: 0.9rem">
+          @if (nlpStatus.needs_run) {
+            <span style="color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 4px; padding: 2px 8px;">
+              {{ nlpStatus.done_threads }} / {{ nlpStatus.total_threads }} threads indexed — needs run
+            </span>
+          } @else {
+            <span style="color: #166534; background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 4px; padding: 2px 8px;">
+              All {{ nlpStatus.total_threads }} threads indexed ✓
+            </span>
+          }
+        </div>
+      }
+
+      @if (nlpJobError) {
+        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">{{ nlpJobError }}</div>
+      }
+
+      @if (nlpStatus?.job && !nlpStatus!.job!.finished) {
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; margin-bottom: 10px;">
+          <div class="row" style="margin-bottom: 8px">
+            <span style="font-weight: 600">Running — {{ nlpStatus!.job!.stage }}</span>
+            <span class="muted" style="font-size: 0.85rem">
+              {{ nlpStatus!.job!.done }}<ng-container *ngIf="nlpStatus!.job!.total"> / {{ nlpStatus!.job!.total }}</ng-container> threads
+            </span>
+          </div>
+          <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden">
+            <div [style.width.%]="nlpProgressPct" style="height: 100%; background: #6366f1; transition: width 0.4s"></div>
+          </div>
+        </div>
+      }
+
+      @if (nlpStatus?.job?.finished && nlpStatus!.job!.ok) {
+        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem">
+          Done. Indexed {{ nlpStatus!.job!.result?.['processed'] }} threads.
+        </div>
+      }
+
+      @if (nlpStatus?.job?.finished && !nlpStatus!.job!.ok) {
+        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">
+          Failed: {{ nlpStatus!.job!.error }}
+        </div>
+      }
+
+      <div class="row" style="gap: 8px">
+        <button
+          (click)="startNlpBackfillJob()"
+          [disabled]="nlpJobLoading || (nlpStatus?.job && !nlpStatus!.job!.finished) || undefined"
+        >
+          {{ nlpStatus?.job && !nlpStatus!.job!.finished ? 'Running...' : 'Run NLP Backfill' }}
+        </button>
+        @if (nlpStatus?.job && !nlpStatus!.job!.finished) {
+          <button class="secondary" (click)="cancelNlpBackfillJob()">Stop</button>
+        }
+      </div>
+    </div>
+
     <hr />
 
     <!-- Catch-up section -->

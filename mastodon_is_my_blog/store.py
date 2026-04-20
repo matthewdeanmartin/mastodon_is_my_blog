@@ -234,6 +234,13 @@ class CachedPost(Base):
     reblogs_count: Mapped[int] = mapped_column(Integer, default=0)
     favourites_count: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Thread root tracking (Phase 1)
+    root_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    root_is_partial: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Precomputed NLP topic words for the thread rooted at this post (JSON list of strings)
+    thread_uncommon_words: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Indexes need to include meta_account_id for performance
     __table_args__ = (
         Index("ix_posts_meta_created", "meta_account_id", "created_at"),
@@ -271,6 +278,12 @@ class CachedPost(Base):
             "meta_account_id",
             "fetched_by_identity_id",
             "content_hub_only",
+        ),
+        Index(
+            "ix_posts_root_id",
+            "meta_account_id",
+            "root_id",
+            "created_at",
         ),
     )
 

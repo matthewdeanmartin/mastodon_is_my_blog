@@ -4,13 +4,6 @@
 
 @if (!loading && target) {
   <div style="max-width: 800px; margin: 0 auto">
-    <!-- Navigation Buttons at Top -->
-    <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: space-between">
-      <button (click)="goBack()" class="secondary" style="flex: 1">← Back to Feed</button>
-      <button (click)="nextPost()" class="secondary" style="flex: 1" [disabled]="loadingNext">
-        {{ loadingNext ? 'Loading...' : 'Next Post →' }}
-      </button>
-    </div>
     <!-- Ancestors -->
     @for (ancestor of ancestors; track ancestor.id; let i = $index) {
       <div style="margin-bottom: 20px; position: relative">
@@ -33,6 +26,7 @@
                 <span class="muted" style="margin-left: 6px; font-size: 0.8rem"
                   >&#64;{{ ancestor.account.acct }}</span
                 >
+                <a [routerLink]="['/peeps/dossier', ancestor.account.acct]" style="margin-left: 6px; font-size: 0.72rem; color: #9ca3af; text-decoration: none;" title="View person">👤</a>
                 @if (i === 0) {
                   <span
                     style="
@@ -128,7 +122,10 @@
             <h2 style="font-size: 1.1rem; margin: 0">
               {{ target.account.display_name || target.account.acct }}
             </h2>
-            <div class="muted">&#64;{{ target.account.acct }}</div>
+            <div class="muted" style="display: flex; align-items: center; gap: 6px;">
+              &#64;{{ target.account.acct }}
+              <a [routerLink]="['/peeps/dossier', target.account.acct]" style="font-size: 0.72rem; color: #9ca3af; text-decoration: none;" title="View person">👤</a>
+            </div>
             @if (ancestors.length === 0) {
               <span
                 style="
@@ -244,13 +241,6 @@
         <em>Replies may be missing from this server's cache.</em>
       </div>
     }
-    <!-- Navigation Buttons at Bottom -->
-    <div style="display: flex; gap: 10px; margin-top: 30px; justify-content: space-between">
-      <button (click)="goBack()" class="secondary" style="flex: 1">← Back to Feed</button>
-      <button (click)="nextPost()" class="secondary" style="flex: 1" [disabled]="loadingNext">
-        {{ loadingNext ? 'Loading...' : 'Next Post →' }}
-      </button>
-    </div>
   </div>
 }
 
@@ -270,6 +260,7 @@
         <span style="font-weight: 600; font-size: 0.9rem">{{
           node.post.account.display_name || node.post.account.acct
         }}</span>
+        <a [routerLink]="['/peeps/dossier', node.post.account.acct]" style="font-size: 0.72rem; color: #9ca3af; text-decoration: none;" title="View person">👤</a>
 
         @if (isActiveUser(node.post)) {
           <span
