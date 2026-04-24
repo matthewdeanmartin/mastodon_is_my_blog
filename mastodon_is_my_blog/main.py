@@ -23,6 +23,7 @@ from mastodon_is_my_blog.routes import (
     analytics,
     content_hub,
     forum,
+    observability,
     peeps,
     posts,
     writing,
@@ -96,6 +97,7 @@ async def add_security_headers(request, call_next):
 app.include_router(accounts.router)
 app.include_router(admin.router)
 app.include_router(analytics.router)
+app.include_router(observability.router)
 app.include_router(content_hub.router)
 app.include_router(forum.router)
 app.include_router(peeps.router)

@@ -444,3 +444,58 @@ export interface NlpBackfillStatus {
   job: BulkSyncJobStatus | null;
 }
 
+// Observability
+
+export interface ApiSummaryWindow {
+  total_calls: number;
+  total_mb: number;
+  throttle_events: number;
+  median_latency_s: number;
+}
+
+export interface ApiSummaryResponse {
+  '7d': ApiSummaryWindow;
+  '30d': ApiSummaryWindow;
+  '90d': ApiSummaryWindow;
+}
+
+export interface ApiVolumePoint {
+  bucket_start: string;
+  count: number;
+}
+
+export interface ApiMethodRow {
+  method_name: string;
+  calls: number;
+  total_elapsed_s: number;
+  total_bytes: number;
+  avg_elapsed_s: number;
+  throttle_count: number;
+  error_count: number;
+}
+
+export interface ApiLatencyPoint {
+  bucket_start: string;
+  p50: number;
+  p95: number;
+  count: number;
+}
+
+export interface ApiThrottleEvent {
+  day: string;
+  method_name: string;
+  count: number;
+}
+
+export interface ApiDataVolumePoint {
+  day: string;
+  mb: number;
+}
+
+export interface ApiErrorRatePoint {
+  day: string;
+  total: number;
+  errors: number;
+  rate: number;
+}
+

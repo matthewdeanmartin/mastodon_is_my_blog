@@ -95,6 +95,15 @@ def client_from_identity(
         configured_identity.base_url if configured_identity else identity.api_base_url
     )
 
+    if PERF:
+        return TimedMastodonClient(
+            api_base_url=base_url.rstrip("/"),
+            client_id=client_id,
+            client_secret=client_secret,
+            access_token=access_token,
+            acct=getattr(identity, "acct", None),
+        )
+
     return client(
         base_url=base_url,
         client_id=client_id,

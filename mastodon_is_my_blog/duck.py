@@ -558,3 +558,194 @@ async def notification_trends(
         ],
         "by_actor": [{"account_acct": r[0], "count": r[1]} for r in by_actor],
     }
+
+
+# ---------------------------------------------------------------------------
+# Observability: API call log analytics
+# ---------------------------------------------------------------------------
+
+
+async def api_call_volume(
+    bucket: str = "day",
+    days: int = 30,
+) -> list[dict[str, Any]]:
+    """Call count per time bucket (hour/day/week) across all methods."""
+    if bucket not in ("hour", "day", "week"):
+        raise ValueError(f"bucket must be hour/day/week, got {bucket!r}")
+    cutoff = f"now() - INTERVAL {days} DAY"
+    sql = f"""
+        SELECT
+            time_bucket(INTERVAL 1 {bucket}, to_timestamp(ts)) AS bucket_start,
+            COUNT(*) AS n
+        FROM {ATTACH_ALIAS}.api_call_log
+        WHERE ts >= epoch(({cutoff}))
+        GROUP BY bucket_start
+        ORDER BY bucket_start;
+    """
+    rows = await run(sql)
+    return [{"bucket_start": r[0].isoformat() if r[0] else None, "count": int(r[1])} for r in rows]
+
+
+async def api_call_by_method(
+    days: int = 30,
+    limit: int = 30,
+) -> list[dict[str, Any]]:
+    """Per-method call count, total elapsed seconds, and total payload bytes."""
+    cutoff = f"now() - INTERVAL {days} DAY"
+    sql = f"""
+        SELECT
+            method_name,
+            COUNT(*) AS calls,
+            ROUND(SUM(elapsed_s), 3) AS total_elapsed_s,
+            SUM(payload_bytes) AS total_bytes,
+            ROUND(AVG(elapsed_s), 4) AS avg_elapsed_s,
+            SUM(CASE WHEN throttled = 1 THEN 1 ELSE 0 END) AS throttle_count,
+            SUM(CASE WHEN ok = 0 THEN 1 ELSE 0 END) AS error_count
+        FROM {ATTACH_ALIAS}.api_call_log
+        WHERE ts >= epoch(({cutoff}))
+        GROUP BY method_name
+        ORDER BY calls DESC
+        LIMIT ?;
+    """
+    rows = await run(sql, [limit])
+    return [
+        {
+            "method_name": r[0],
+            "calls": int(r[1]),
+            "total_elapsed_s": float(r[2] or 0),
+            "total_bytes": int(r[3] or 0),
+            "avg_elapsed_s": float(r[4] or 0),
+            "throttle_count": int(r[5] or 0),
+            "error_count": int(r[6] or 0),
+        }
+        for r in rows
+    ]
+
+
+async def api_latency_trend(
+    method_name: str | None = None,
+    bucket: str = "day",
+    days: int = 30,
+) -> list[dict[str, Any]]:
+    """P50/P95 latency per time bucket, optionally filtered to one method."""
+    if bucket not in ("hour", "day", "week"):
+        raise ValueError(f"bucket must be hour/day/week, got {bucket!r}")
+    cutoff = f"now() - INTERVAL {days} DAY"
+    method_clause = "AND method_name = ?" if method_name else ""
+    params: list[Any] = [method_name] if method_name else []
+    sql = f"""
+        SELECT
+            time_bucket(INTERVAL 1 {bucket}, to_timestamp(ts)) AS bucket_start,
+            ROUND(PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY elapsed_s), 4) AS p50,
+            ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY elapsed_s), 4) AS p95,
+            COUNT(*) AS n
+        FROM {ATTACH_ALIAS}.api_call_log
+        WHERE ts >= epoch(({cutoff}))
+          AND ok = 1
+          {method_clause}
+        GROUP BY bucket_start
+        ORDER BY bucket_start;
+    """
+    rows = await run(sql, params if params else None)
+    return [
+        {
+            "bucket_start": r[0].isoformat() if r[0] else None,
+            "p50": float(r[1] or 0),
+            "p95": float(r[2] or 0),
+            "count": int(r[3]),
+        }
+        for r in rows
+    ]
+
+
+async def api_throttle_events(
+    days: int = 30,
+) -> list[dict[str, Any]]:
+    """Throttle events grouped by day and method."""
+    cutoff = f"now() - INTERVAL {days} DAY"
+    sql = f"""
+        SELECT
+            CAST(to_timestamp(ts) AS DATE) AS day,
+            method_name,
+            COUNT(*) AS n
+        FROM {ATTACH_ALIAS}.api_call_log
+        WHERE ts >= epoch(({cutoff}))
+          AND throttled = 1
+        GROUP BY day, method_name
+        ORDER BY day DESC, n DESC;
+    """
+    rows = await run(sql)
+    return [
+        {"day": str(r[0]), "method_name": r[1], "count": int(r[2])}
+        for r in rows
+    ]
+
+
+async def api_data_volume(
+    days: int = 30,
+) -> list[dict[str, Any]]:
+    """Total MB transferred per day."""
+    cutoff = f"now() - INTERVAL {days} DAY"
+    sql = f"""
+        SELECT
+            CAST(to_timestamp(ts) AS DATE) AS day,
+            ROUND(SUM(payload_bytes) / 1048576.0, 4) AS mb
+        FROM {ATTACH_ALIAS}.api_call_log
+        WHERE ts >= epoch(({cutoff}))
+        GROUP BY day
+        ORDER BY day;
+    """
+    rows = await run(sql)
+    return [{"day": str(r[0]), "mb": float(r[1] or 0)} for r in rows]
+
+
+async def api_error_rate(
+    days: int = 30,
+) -> list[dict[str, Any]]:
+    """Daily error count and rate (errors / total calls)."""
+    cutoff = f"now() - INTERVAL {days} DAY"
+    sql = f"""
+        SELECT
+            CAST(to_timestamp(ts) AS DATE) AS day,
+            COUNT(*) AS total,
+            SUM(CASE WHEN ok = 0 THEN 1 ELSE 0 END) AS errors,
+            ROUND(SUM(CASE WHEN ok = 0 THEN 1 ELSE 0 END) * 1.0 / COUNT(*), 4) AS rate
+        FROM {ATTACH_ALIAS}.api_call_log
+        WHERE ts >= epoch(({cutoff}))
+        GROUP BY day
+        ORDER BY day;
+    """
+    rows = await run(sql)
+    return [
+        {
+            "day": str(r[0]),
+            "total": int(r[1]),
+            "errors": int(r[2] or 0),
+            "rate": float(r[3] or 0),
+        }
+        for r in rows
+    ]
+
+
+async def api_summary(days: int = 7) -> dict[str, Any]:
+    """Aggregate totals for summary cards."""
+    cutoff = f"now() - INTERVAL {days} DAY"
+    sql = f"""
+        SELECT
+            COUNT(*) AS total_calls,
+            ROUND(SUM(payload_bytes) / 1048576.0, 3) AS total_mb,
+            SUM(CASE WHEN throttled = 1 THEN 1 ELSE 0 END) AS throttle_events,
+            ROUND(PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY elapsed_s), 4) AS median_latency_s
+        FROM {ATTACH_ALIAS}.api_call_log
+        WHERE ts >= epoch(({cutoff}));
+    """
+    rows = await run(sql)
+    if not rows or rows[0][0] is None:
+        return {"total_calls": 0, "total_mb": 0.0, "throttle_events": 0, "median_latency_s": 0.0}
+    r = rows[0]
+    return {
+        "total_calls": int(r[0] or 0),
+        "total_mb": float(r[1] or 0),
+        "throttle_events": int(r[2] or 0),
+        "median_latency_s": float(r[3] or 0),
+    }

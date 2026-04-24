@@ -28,6 +28,13 @@ import {
   SpellcheckOut,
   ForumThreadsResponse,
   NlpBackfillStatus,
+  ApiSummaryResponse,
+  ApiVolumePoint,
+  ApiMethodRow,
+  ApiLatencyPoint,
+  ApiThrottleEvent,
+  ApiDataVolumePoint,
+  ApiErrorRatePoint,
 } from './mastodon';
 import { RawContentPost } from './content-feed.utils';
 import { Observable, throwError, timer, BehaviorSubject, of, Subject } from 'rxjs';
@@ -1045,6 +1052,57 @@ export class ApiService {
   cancelNlpBackfill(): Observable<{ cancelled: boolean }> {
     return this.http
       .delete<{ cancelled: boolean }>(`${this.base}/api/admin/nlp-backfill`, { headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  // --- Observability ---
+
+  getObservabilitySummary(): Observable<ApiSummaryResponse> {
+    return this.http
+      .get<ApiSummaryResponse>(`${this.base}/api/observability/summary`, { headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getApiVolume(bucket = 'day', days = 30): Observable<ApiVolumePoint[]> {
+    const params = new HttpParams().set('bucket', bucket).set('days', days.toString());
+    return this.http
+      .get<ApiVolumePoint[]>(`${this.base}/api/observability/volume`, { params, headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getApiByMethod(days = 30): Observable<ApiMethodRow[]> {
+    const params = new HttpParams().set('days', days.toString());
+    return this.http
+      .get<ApiMethodRow[]>(`${this.base}/api/observability/by-method`, { params, headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getApiLatency(method: string | null, bucket = 'day', days = 30): Observable<ApiLatencyPoint[]> {
+    let params = new HttpParams().set('bucket', bucket).set('days', days.toString());
+    if (method) params = params.set('method', method);
+    return this.http
+      .get<ApiLatencyPoint[]>(`${this.base}/api/observability/latency`, { params, headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getApiThrottles(days = 30): Observable<ApiThrottleEvent[]> {
+    const params = new HttpParams().set('days', days.toString());
+    return this.http
+      .get<ApiThrottleEvent[]>(`${this.base}/api/observability/throttles`, { params, headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getApiDataVolume(days = 30): Observable<ApiDataVolumePoint[]> {
+    const params = new HttpParams().set('days', days.toString());
+    return this.http
+      .get<ApiDataVolumePoint[]>(`${this.base}/api/observability/data-volume`, { params, headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  getApiErrors(days = 30): Observable<ApiErrorRatePoint[]> {
+    const params = new HttpParams().set('days', days.toString());
+    return this.http
+      .get<ApiErrorRatePoint[]>(`${this.base}/api/observability/errors`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 }

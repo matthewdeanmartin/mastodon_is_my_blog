@@ -1,4 +1,5 @@
 # mastodon_is_my_blog/queries.py
+import asyncio
 import json
 import logging
 from datetime import datetime, timedelta, timezone
@@ -399,6 +400,11 @@ async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[di
                 }
             }
         )
+
+    from mastodon_is_my_blog.mastodon_apis.api_log import purge_old_rows
+    deleted = await asyncio.to_thread(purge_old_rows)
+    if deleted:
+        logger.info("Purged %d old api_call_log rows", deleted)
 
     return results
 

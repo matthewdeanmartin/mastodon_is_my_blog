@@ -10,6 +10,7 @@ import dotenv
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -431,6 +432,30 @@ class ContentHubGroup(Base):
     __table_args__ = (
         Index("ix_hub_groups_identity", "meta_account_id", "identity_id"),
         Index("ix_hub_groups_slug", "meta_account_id", "identity_id", "slug"),
+    )
+
+
+class ApiCallLog(Base):
+    """
+    One row per Mastodon API call. Written synchronously by the timed client.
+    Used by DuckDB to generate API observability analytics.
+    """
+
+    __tablename__ = "api_call_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ts: Mapped[float] = mapped_column(Float, nullable=False)
+    method_name: Mapped[str] = mapped_column(Text, nullable=False)
+    identity_acct: Mapped[str | None] = mapped_column(Text, nullable=True)
+    elapsed_s: Mapped[float] = mapped_column(Float, nullable=False)
+    payload_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    ok: Mapped[int] = mapped_column(Integer, default=1)
+    throttled: Mapped[int] = mapped_column(Integer, default=0)
+    error_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        Index("ix_api_call_log_ts", "ts"),
+        Index("ix_api_call_log_method_ts", "method_name", "ts"),
     )
 
 

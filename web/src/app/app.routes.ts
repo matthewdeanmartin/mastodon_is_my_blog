@@ -14,6 +14,7 @@ import { ForumComponent } from './forum.component';
 import { AnalyticsComponent } from './analytics.component';
 import { PeepsComponent } from './peeps.component';
 import { DossierComponent } from './dossier.component';
+import { ObservabilityComponent } from './observability.component';
 
 export const routes: Routes = [
   { path: '', component: PublicFeedComponent },
@@ -24,6 +25,7 @@ export const routes: Routes = [
   { path: 'write/reply/:statusId', component: WriteComponent },
   { path: 'write/draft/:draftId', component: WriteComponent },
   { path: 'admin', component: AdminComponent },
+  { path: 'observability', component: ObservabilityComponent },
 
   // Content Hub
   {

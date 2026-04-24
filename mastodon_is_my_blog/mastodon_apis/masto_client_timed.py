@@ -1,9 +1,12 @@
+import json
 import logging
 import time
 from typing import Any
 
 import dotenv
-from mastodon import Mastodon
+from mastodon import Mastodon, MastodonRatelimitError
+
+from mastodon_is_my_blog.mastodon_apis.api_log import log_api_call
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +14,7 @@ dotenv.load_dotenv()
 
 
 class TimedMastodonClient:
-    """Wrapper around Mastodon client with automatic timing"""
+    """Wrapper around Mastodon client with automatic timing and call logging."""
 
     def __init__(
         self,
@@ -19,6 +22,7 @@ class TimedMastodonClient:
         client_id: str,
         client_secret: str,
         access_token: str | None = None,
+        acct: str | None = None,
     ):
         self.client: Mastodon = Mastodon(
             api_base_url=api_base_url,
@@ -26,96 +30,123 @@ class TimedMastodonClient:
             client_secret=client_secret,
             access_token=access_token,
         )
+        self.acct: str | None = acct
         self.logger: logging.Logger = logging.getLogger(__name__)
 
-    def _timed_call(self, method_name: str, *args, **kwargs) -> Any:
-        """Execute a Mastodon API call with timing"""
+    def timed_call(self, method_name: str, *args, **kwargs) -> Any:
+        """Execute a Mastodon API call with timing and structured logging."""
         start: float = time.perf_counter()
         self.logger.info("Mastodon API call: %s", method_name)
+
+        ok = True
+        throttled = False
+        error_type: str | None = None
+        payload_bytes = 0
+        result = None
 
         try:
             method = getattr(self.client, method_name)
             result = method(*args, **kwargs)
             elapsed: float = time.perf_counter() - start
-            self.logger.info(
-                "Mastodon API completed: %s in %.3fs", method_name, elapsed
-            )
+            self.logger.info("Mastodon API completed: %s in %.3fs", method_name, elapsed)
+            try:
+                payload_bytes = len(json.dumps(result, default=str))
+            except Exception:
+                pass
             return result
-        except Exception as e:
+        except MastodonRatelimitError as exc:
+            throttled = True
+            ok = False
+            error_type = type(exc).__name__
             elapsed = time.perf_counter() - start
-            self.logger.error(
-                "Mastodon API failed: %s after %.3fs - %s", method_name, elapsed, e
-            )
+            self.logger.warning("Mastodon API throttled: %s after %.3fs", method_name, elapsed)
             raise
+        except Exception as exc:
+            ok = False
+            error_type = type(exc).__name__
+            elapsed = time.perf_counter() - start
+            self.logger.error("Mastodon API failed: %s after %.3fs - %s", method_name, elapsed, exc)
+            raise
+        finally:
+            elapsed = time.perf_counter() - start
+            log_api_call(
+                method_name=method_name,
+                identity_acct=self.acct,
+                elapsed_s=elapsed,
+                payload_bytes=payload_bytes,
+                ok=ok,
+                throttled=throttled,
+                error_type=error_type,
+            )
 
     # Wrap common methods
     def account_verify_credentials(self):
-        return self._timed_call("account_verify_credentials")
+        return self.timed_call("account_verify_credentials")
 
     def account_following(self, account_id: str, limit: int = 40):
-        return self._timed_call("account_following", account_id, limit=limit)
+        return self.timed_call("account_following", account_id, limit=limit)
 
     def account_followers(self, account_id: str, limit: int = 40):
-        return self._timed_call("account_followers", account_id, limit=limit)
+        return self.timed_call("account_followers", account_id, limit=limit)
 
     def fetch_next(self, previous_page):
         """Fetch the next page following a paginated response. Returns None if no next page."""
-        return self._timed_call("fetch_next", previous_page)
+        return self.timed_call("fetch_next", previous_page)
 
     def timeline_home(self, limit: int = 40):
-        return self._timed_call("timeline_home", limit=limit)
+        return self.timed_call("timeline_home", limit=limit)
 
     def account_statuses(self, account_id: str, limit: int = 40, **kwargs):
-        return self._timed_call("account_statuses", account_id, limit=limit, **kwargs)
+        return self.timed_call("account_statuses", account_id, limit=limit, **kwargs)
 
     def account_search(self, q: str, limit: int = 1):
-        return self._timed_call("account_search", q, limit=limit)
+        return self.timed_call("account_search", q, limit=limit)
 
     def account_follow(self, account_id: str):
-        return self._timed_call("account_follow", account_id)
+        return self.timed_call("account_follow", account_id)
 
     def account_unfollow(self, account_id: str):
-        return self._timed_call("account_unfollow", account_id)
+        return self.timed_call("account_unfollow", account_id)
 
     def favourites(self, limit: int = 40, **kwargs):
-        return self._timed_call("favourites", limit=limit, **kwargs)
+        return self.timed_call("favourites", limit=limit, **kwargs)
 
     def account(self, account_id: str):
-        return self._timed_call("account", account_id)
+        return self.timed_call("account", account_id)
 
     def status(self, status_id: str):
-        return self._timed_call("status", status_id)
+        return self.timed_call("status", status_id)
 
     def status_context(self, status_id: str):
-        return self._timed_call("status_context", status_id)
+        return self.timed_call("status_context", status_id)
 
     def status_source(self, status_id: str):
-        return self._timed_call("status_source", status_id)
+        return self.timed_call("status_source", status_id)
 
     def status_post(self, status: str, **kwargs):
-        return self._timed_call("status_post", status, **kwargs)
+        return self.timed_call("status_post", status, **kwargs)
 
     def status_update(self, status_id: str, **kwargs):
-        return self._timed_call("status_update", status_id, **kwargs)
+        return self.timed_call("status_update", status_id, **kwargs)
 
     def auth_request_url(self, **kwargs):
-        return self._timed_call("auth_request_url", **kwargs)
+        return self.timed_call("auth_request_url", **kwargs)
 
     def log_in(self, **kwargs):
-        return self._timed_call("log_in", **kwargs)
+        return self.timed_call("log_in", **kwargs)
 
     def notifications(self, limit: int = 40, **kwargs):
-        return self._timed_call("notifications", limit=limit, **kwargs)
+        return self.timed_call("notifications", limit=limit, **kwargs)
 
     def followed_tags(self) -> list:
-        return self._timed_call("followed_tags")
+        return self.timed_call("followed_tags")
 
     def timeline_hashtag(self, hashtag: str, limit: int = 40, **kwargs) -> list:
-        return self._timed_call("timeline_hashtag", hashtag, limit=limit, **kwargs)
+        return self.timed_call("timeline_hashtag", hashtag, limit=limit, **kwargs)
 
     def search(
         self, q: str, result_type: str = "statuses", limit: int = 40, **kwargs
     ) -> dict:
-        return self._timed_call(
+        return self.timed_call(
             "search", q, result_type=result_type, limit=limit, **kwargs
         )
