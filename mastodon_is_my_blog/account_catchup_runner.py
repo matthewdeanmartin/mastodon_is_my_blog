@@ -27,6 +27,7 @@ class AccountCatchupJob:
     identity_id: int
     acct: str
     mode: Mode
+    max_pages: int | None = None
     stage: str = "queued"
     pages_fetched: int = 0
     posts_fetched: int = 0
@@ -51,6 +52,7 @@ async def start_job(
     identity: MastodonIdentity,
     acct: str,
     mode: Mode,
+    max_pages: int | None = None,
 ) -> AccountCatchupJob:
     key = _job_key(meta.id, identity.id, acct)
     existing = ACCOUNT_CATCHUP.get(key)
@@ -62,6 +64,7 @@ async def start_job(
         identity_id=identity.id,
         acct=acct,
         mode=mode,
+        max_pages=max_pages,
     )
     ACCOUNT_CATCHUP[key] = job
     job.task = asyncio.create_task(_run_job(job, identity))
@@ -119,7 +122,7 @@ async def _run_deep(job: AccountCatchupJob, identity: MastodonIdentity) -> None:
         client,
         target_id,
         stop_at_id=None,
-        max_pages=None,
+        max_pages=job.max_pages,
         rate_budget=rate_budget,
         inter_page_delay=0.5,
     ):
@@ -164,6 +167,7 @@ def job_status(job: AccountCatchupJob) -> dict:
         "finished": job.finished_at is not None and not running,
         "acct": job.acct,
         "mode": job.mode,
+        "max_pages": job.max_pages,
         "stage": job.stage,
         "pages_fetched": job.pages_fetched,
         "posts_fetched": job.posts_fetched,

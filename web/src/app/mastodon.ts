@@ -282,6 +282,18 @@ export interface DossierHashtag {
   count: number;
 }
 
+export interface DossierFeaturedHashtag {
+  tag: string;
+  uses: number;
+}
+
+export interface DossierCacheInfo {
+  cached_posts: number;
+  oldest_cached_post_at: string | null;
+  latest_cached_post_at: string | null;
+  last_status_at: string | null;
+}
+
 export interface DossierInteractionWindow {
   them_to_me: number;
   me_to_them: number;
@@ -309,6 +321,24 @@ export interface DossierField {
   verified_at: string | null;
 }
 
+export interface QuickDossier {
+  id: string;
+  acct: string;
+  display_name: string;
+  avatar: string;
+  header: string;
+  url: string;
+  note: string;
+  bot: boolean;
+  locked: boolean;
+  followers_count: number;
+  following_count: number;
+  statuses_count: number;
+  created_at: string | null;
+  featured_hashtags: DossierFeaturedHashtag[];
+  fields: DossierField[];
+}
+
 export interface Dossier {
   id: string;
   acct: string;
@@ -319,6 +349,7 @@ export interface Dossier {
   note: string;
   fields: DossierField[];
   bot: boolean;
+  locked: boolean;
   followers_count: number;
   following_count: number;
   statuses_count: number;
@@ -326,10 +357,12 @@ export interface Dossier {
   is_followed_by: boolean;
   post_reply_ratio: number | null;
   top_hashtags: DossierHashtag[];
+  featured_hashtags: DossierFeaturedHashtag[];
   interaction_history: Record<string, DossierInteractionWindow>;
   media_profile: DossierMediaProfile;
   is_stale: boolean;
   created_at: string | null;
+  cache_info: DossierCacheInfo;
 }
 
 export interface GroupPerson {

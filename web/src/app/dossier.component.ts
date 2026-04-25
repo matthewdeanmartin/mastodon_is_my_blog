@@ -1,10 +1,18 @@
 // src/app/dossier.component.ts
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService } from './api.service';
-import { AccountCatchupStatus, Dossier, DossierInteraction, HeatmapCell } from './mastodon';
+import {
+  AccountCatchupStatus,
+  Dossier,
+  DossierInteraction,
+  HeatmapCell,
+  MastodonAccount,
+  QuickDossier,
+} from './mastodon';
 import { RawContentPost } from './content-feed.utils';
 import { Subject, Subscription, interval } from 'rxjs';
 import { takeUntil, switchMap } from 'rxjs/operators';
@@ -35,29 +43,92 @@ interface CalendarYear {
   monthLabels: { label: string; weekIndex: number }[];
 }
 
+interface DossierRouteState {
+  account?: MastodonAccount;
+}
+
+interface DossierTimezoneOption {
+  label: string;
+  value: number;
+  inferredLabel: string;
+}
+
 type PostsTab = 'recent' | 'popular' | 'hashtag';
 
 @Component({
   selector: 'app-dossier',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule],
   template: `
     <div class="dossier-page">
       @if (loading) {
         <div class="loading">Loading dossier…</div>
       }
-      @if (error) {
-        <div class="error-msg">{{ error }}</div>
+      @if (error || quickDossier || quickDossierLoading || cacheMissMessage) {
+        @if (error) {
+          <div class="error-msg">{{ error }}</div>
+        }
+        @if (quickDossier) {
+          <div class="dossier-header" style="margin-top: 12px;">
+            @if (quickDossier.header) {
+              <div class="header-banner" [style.backgroundImage]="'url(' + quickDossier.header + ')'"></div>
+            }
+            <div class="header-body">
+              <img class="avatar-lg" [src]="quickDossier.avatar" [alt]="quickDossier.display_name" />
+              <div class="header-info">
+                <h2>{{ quickDossier.display_name }}</h2>
+                <p class="acct-line">
+                  <a [href]="quickDossier.url" target="_blank" rel="noopener noreferrer" class="acct-link">&#64;{{ quickDossier.acct }}</a>
+                </p>
+                <div class="stat-row">
+                  <span>{{ quickDossier.followers_count | number }} followers</span>
+                  <span>{{ quickDossier.following_count | number }} following</span>
+                  <span>{{ quickDossier.statuses_count | number }} posts</span>
+                </div>
+                @if (quickDossier.bot) { <span class="bot-badge">BOT</span> }
+                @if (quickDossier.locked) { <span class="locked-badge">🔒 Approves followers</span> }
+              </div>
+            </div>
+            @if (quickDossier.featured_hashtags.length > 0) {
+              <div style="padding: 8px 16px 12px;">
+                <div style="font-size: 0.78rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; margin-bottom: 6px;">Featured Hashtags</div>
+                <div class="hashtag-chips">
+                  @for (ht of quickDossier.featured_hashtags; track ht.tag) {
+                    <span class="hashtag-chip featured-chip">#{{ ht.tag }} <span class="chip-count">{{ ht.uses }}</span></span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+        @if (quickDossierLoading) {
+          <div style="color: #9ca3af; font-size: 0.84rem; margin-top: 8px;">Loading account info…</div>
+        }
+        @if (cacheMissMessage) {
+          <div style="margin-top: 8px; color: #64748b; font-size: 0.84rem;">{{ cacheMissMessage }}</div>
+        }
         <div class="catchup-prompt">
           <p style="margin: 0 0 12px 0; font-size: 0.9rem; color: #374151;">
             To build a dossier, first run a Deep Catch Up to download this account's posts into your
             local cache.
           </p>
+          <div class="catchup-limit-row" style="margin-bottom: 10px;">
+            <label for="deep-catchup-limit" style="font-size: 0.84rem; color: #374151;">Deep Catch Up limit:</label>
+            <select id="deep-catchup-limit" [(ngModel)]="deepCatchupLimit" style="font-size: 0.82rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px; background: white; margin-left: 8px;">
+              <option [ngValue]="null">All posts</option>
+              <option [ngValue]="25">~500 posts</option>
+              <option [ngValue]="50">~1,000 posts</option>
+              <option [ngValue]="125">~2,500 posts</option>
+              <option [ngValue]="250">~5,000 posts</option>
+              <option [ngValue]="500">~10,000 posts</option>
+              <option [ngValue]="750">~15,000 posts</option>
+            </select>
+          </div>
           <div class="catchup-btn-row">
-            <button class="action-btn secondary" (click)="shallowFetchUnknown()" [disabled]="fetchBusy">
+            <button class="action-btn secondary" (click)="shallowFetchUnknown()" [disabled]="fetchBusy" title="Fetches the most recent page of posts">
               {{ fetchBusy ? 'Starting…' : 'Catch Up' }}
             </button>
-            <button class="action-btn secondary" (click)="deepFetchUnknown()" [disabled]="fetchBusy">
+            <button class="action-btn secondary" (click)="deepFetchUnknown()" [disabled]="fetchBusy" title="Walks full post history in the background">
               {{ fetchBusy ? 'Starting…' : 'Deep Catch Up' }}
             </button>
           </div>
@@ -97,6 +168,12 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
               @if (dossier.bot) {
                 <span class="bot-badge">BOT</span>
               }
+              @if (dossier.locked) {
+                <span class="locked-badge">🔒 Approves followers</span>
+              }
+              @if (dossier.is_followed_by) {
+                <span class="follows-you-badge">Follows you</span>
+              }
             </div>
             <div class="header-actions">
               <button
@@ -111,22 +188,35 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
                 class="action-btn secondary"
                 (click)="shallowFetch()"
                 [disabled]="fetchBusy || catchupStatus?.running"
+                title="Fetches the most recent page of posts"
               >
                 {{ fetchBusy ? 'Starting…' : catchupStatus?.running ? 'Running…' : 'Catch Up' }}
               </button>
-              <button
-                class="action-btn secondary"
-                (click)="deepFetch()"
-                [disabled]="fetchBusy || catchupStatus?.running"
-              >
-                {{
-                  fetchBusy
-                    ? 'Starting…'
-                    : catchupStatus?.running
-                      ? 'Deep Catch Up Running…'
-                      : 'Deep Catch Up'
-                }}
-              </button>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button
+                  class="action-btn secondary"
+                  (click)="deepFetch()"
+                  [disabled]="fetchBusy || catchupStatus?.running"
+                  title="Walks full post history in the background"
+                >
+                  {{
+                    fetchBusy
+                      ? 'Starting…'
+                      : catchupStatus?.running
+                        ? 'Running…'
+                        : 'Deep Catch Up'
+                  }}
+                </button>
+                <select [(ngModel)]="deepCatchupLimit" style="font-size: 0.78rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 6px; background: white;" title="Limit pages fetched">
+                  <option [ngValue]="null">All</option>
+                  <option [ngValue]="25">~500</option>
+                  <option [ngValue]="50">~1k</option>
+                  <option [ngValue]="125">~2.5k</option>
+                  <option [ngValue]="250">~5k</option>
+                  <option [ngValue]="500">~10k</option>
+                  <option [ngValue]="750">~15k</option>
+                </select>
+              </div>
               @if (catchupStatus?.running) {
                 <button class="action-btn secondary" (click)="cancelCatchup()">Stop</button>
               }
@@ -189,9 +279,59 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
           </div>
         }
 
+        <!-- Cache Info -->
+        @if (dossier.cache_info) {
+          <div class="section">
+            <h4>Cache</h4>
+            <div class="cache-info-grid">
+              <div class="cache-cell">
+                <span class="cache-label">Cached posts</span>
+                <span class="cache-value">{{ dossier.cache_info.cached_posts | number }}</span>
+              </div>
+              @if (dossier.cache_info.oldest_cached_post_at) {
+                <div class="cache-cell">
+                  <span class="cache-label">Oldest cached</span>
+                  <span class="cache-value">{{ dossier.cache_info.oldest_cached_post_at | date: 'mediumDate' }}</span>
+                </div>
+              }
+              @if (dossier.cache_info.latest_cached_post_at) {
+                <div class="cache-cell">
+                  <span class="cache-label">Newest cached</span>
+                  <span class="cache-value">{{ dossier.cache_info.latest_cached_post_at | date: 'mediumDate' }}</span>
+                </div>
+              }
+              @if (dossier.cache_info.last_status_at) {
+                <div class="cache-cell">
+                  <span class="cache-label">Last post (API)</span>
+                  <span class="cache-value">{{ dossier.cache_info.last_status_at | date: 'mediumDate' }}</span>
+                </div>
+              }
+              @if (cacheGapDays !== null) {
+                <div class="cache-cell">
+                  <span class="cache-label">Cache gap</span>
+                  <span class="cache-value" [style.color]="cacheGapDays > 30 ? '#dc2626' : '#374151'">{{ cacheGapDays }} days behind</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
         <!-- Posting Heatmap -->
         <div class="section">
-          <h4>Posting Heatmap</h4>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <h4 style="margin: 0;">Posting Heatmap</h4>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #6b7280;">
+              <label for="heatmap-timezone-offset">Timezone offset:</label>
+              <select id="heatmap-timezone-offset" [(ngModel)]="heatmapTzOffset" style="font-size: 0.78rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 2px 6px; background: white;">
+                @for (tz of tzOptions; track tz.value) {
+                  <option [ngValue]="tz.value">{{ tz.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          @if (inferredTimezoneDescription) {
+            <div style="font-size: 0.78rem; color: #64748b; margin-bottom: 6px;">{{ inferredTimezoneDescription }}</div>
+          }
           @if (heatmapLoading) {
             <div style="color: #9ca3af; font-size: 0.84rem;">Loading…</div>
           }
@@ -206,7 +346,7 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
               <div class="heatmap-hours-row">
                 <div class="heatmap-corner"></div>
                 @for (h of hours; track h) {
-                  <div class="heatmap-hour-label">{{ h % 6 === 0 ? hourLabel(h) : '' }}</div>
+                  <div class="heatmap-hour-label">{{ h % 6 === 0 ? shiftedHourLabel(h) : '' }}</div>
                 }
               </div>
               @for (row of heatmapGrid; track $index) {
@@ -216,7 +356,7 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
                     <div
                       class="heatmap-cell"
                       [style.background]="cell.color"
-                      [title]="dowLabel(cell.dow) + ' ' + hourLabel(cell.hour) + ':00 — ' + cell.count + ' posts'"
+                      [title]="dowLabel(cell.dow) + ' ' + shiftedHourLabel(cell.hour) + ':00 — ' + cell.count + ' posts'"
                     ></div>
                   }
                 </div>
@@ -372,21 +512,40 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
           </div>
         </div>
 
-        <!-- Top Hashtags -->
-        @if (dossier.top_hashtags.length > 0) {
+        <!-- Hashtags -->
+        @if (dossier.top_hashtags.length > 0 || (dossier.featured_hashtags && dossier.featured_hashtags.length > 0)) {
           <div class="section">
             <h4>Hashtags</h4>
-            <div class="hashtag-chips">
-              @for (ht of dossier.top_hashtags; track ht.tag) {
-                <button
-                  class="hashtag-chip"
-                  [class.active]="activeHashtag === ht.tag"
-                  (click)="filterByHashtag(ht.tag)"
-                  title="{{ ht.count }} posts"
-                >#{{ ht.tag }} <span class="chip-count">{{ ht.count }}</span></button
-                >
-              }
-            </div>
+            @if (dossier.featured_hashtags && dossier.featured_hashtags.length > 0) {
+              <div style="margin-bottom: 10px;">
+                <div class="hashtag-section-label">Featured (pinned by user)</div>
+                <div class="hashtag-chips">
+                  @for (ht of dossier.featured_hashtags; track ht.tag) {
+                    <button
+                      class="hashtag-chip featured-chip"
+                      [class.active]="activeHashtag === ht.tag"
+                      (click)="filterByHashtag(ht.tag)"
+                      title="{{ ht.uses }} total posts"
+                    >#{{ ht.tag }} <span class="chip-count">{{ ht.uses }}</span></button>
+                  }
+                </div>
+              </div>
+            }
+            @if (dossier.top_hashtags.length > 0) {
+              <div>
+                <div class="hashtag-section-label">Post hashtags (from cached posts)</div>
+                <div class="hashtag-chips">
+                  @for (ht of dossier.top_hashtags; track ht.tag) {
+                    <button
+                      class="hashtag-chip"
+                      [class.active]="activeHashtag === ht.tag"
+                      (click)="filterByHashtag(ht.tag)"
+                      title="{{ ht.count }} cached posts"
+                    >#{{ ht.tag }} <span class="chip-count">{{ ht.count }}</span></button>
+                  }
+                </div>
+              </div>
+            }
           </div>
         }
         <!-- Posts -->
@@ -955,6 +1114,65 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
         background: #fce7f3;
         color: #9d174d;
       }
+      .locked-badge {
+        font-size: 0.65rem;
+        background: #fef3c7;
+        color: #92400e;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-top: 4px;
+        display: inline-block;
+      }
+      .follows-you-badge {
+        font-size: 0.65rem;
+        background: #d1fae5;
+        color: #065f46;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-top: 4px;
+        display: inline-block;
+      }
+      .hashtag-section-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #9ca3af;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .featured-chip {
+        background: #fef3c7 !important;
+        border-color: #fcd34d !important;
+        color: #92400e !important;
+      }
+      .featured-chip.active {
+        background: #f59e0b !important;
+        color: white !important;
+      }
+      .cache-info-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .cache-cell {
+        display: flex;
+        flex-direction: column;
+        background: #f9fafb;
+        border-radius: 6px;
+        padding: 8px 12px;
+        min-width: 120px;
+      }
+      .cache-label {
+        font-size: 0.72rem;
+        color: #9ca3af;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+      .cache-value {
+        font-size: 0.9rem;
+        color: #374151;
+        font-weight: 600;
+        margin-top: 2px;
+      }
     `,
   ],
 })
@@ -966,6 +1184,9 @@ export class DossierComponent implements OnInit, OnDestroy {
   private catchupPollSub?: Subscription;
 
   dossier: Dossier | null = null;
+  quickDossier: QuickDossier | null = null;
+  quickDossierLoading = false;
+  cacheMissMessage: string | null = null;
   loading = true;
   error: string | null = null;
   noteExpanded = true;
@@ -974,6 +1195,93 @@ export class DossierComponent implements OnInit, OnDestroy {
   catchupError: string | null = null;
   catchupStatus: AccountCatchupStatus | null = null;
   isFollowing = false;
+  deepCatchupLimit: number | null = null;
+
+  readonly tzOptions: DossierTimezoneOption[] = [
+    { label: 'UTC (server time)', value: 0, inferredLabel: 'UTC' },
+    { label: 'UTC-12', value: -12, inferredLabel: 'UTC-12' },
+    { label: 'UTC-11', value: -11, inferredLabel: 'UTC-11' },
+    { label: 'UTC-10 (Hawaii)', value: -10, inferredLabel: 'UTC-10 (Hawaii)' },
+    { label: 'UTC-9 (Alaska)', value: -9, inferredLabel: 'UTC-9 (Alaska)' },
+    { label: 'UTC-8 (Pacific)', value: -8, inferredLabel: 'UTC-8 (Pacific / Los Angeles)' },
+    { label: 'UTC-7 (Mountain)', value: -7, inferredLabel: 'UTC-7 (Mountain / Denver)' },
+    { label: 'UTC-6 (Central)', value: -6, inferredLabel: 'UTC-6 (Central / Chicago)' },
+    { label: 'UTC-5 (Eastern)', value: -5, inferredLabel: 'UTC-5 (Eastern / New York)' },
+    { label: 'UTC-4 (Atlantic)', value: -4, inferredLabel: 'UTC-4 (Atlantic / Halifax)' },
+    { label: 'UTC-3', value: -3, inferredLabel: 'UTC-3' },
+    { label: 'UTC-2', value: -2, inferredLabel: 'UTC-2' },
+    { label: 'UTC-1', value: -1, inferredLabel: 'UTC-1' },
+    { label: 'UTC+1 (CET)', value: 1, inferredLabel: 'UTC+1 (Central Europe / Berlin)' },
+    { label: 'UTC+2 (EET)', value: 2, inferredLabel: 'UTC+2 (Eastern Europe / Helsinki)' },
+    { label: 'UTC+3 (Moscow)', value: 3, inferredLabel: 'UTC+3 (Moscow)' },
+    { label: 'UTC+4', value: 4, inferredLabel: 'UTC+4' },
+    { label: 'UTC+5', value: 5, inferredLabel: 'UTC+5' },
+    { label: 'UTC+5:30 (IST)', value: 5.5, inferredLabel: 'UTC+5:30 (India / Delhi)' },
+    { label: 'UTC+6', value: 6, inferredLabel: 'UTC+6' },
+    { label: 'UTC+7', value: 7, inferredLabel: 'UTC+7' },
+    { label: 'UTC+8 (CST/AWST)', value: 8, inferredLabel: 'UTC+8 (China / Perth)' },
+    { label: 'UTC+9 (JST)', value: 9, inferredLabel: 'UTC+9 (Japan / Tokyo)' },
+    { label: 'UTC+10 (AEST)', value: 10, inferredLabel: 'UTC+10 (Eastern Australia / Sydney)' },
+    { label: 'UTC+11', value: 11, inferredLabel: 'UTC+11' },
+    { label: 'UTC+12', value: 12, inferredLabel: 'UTC+12' },
+  ];
+  heatmapTzOffset = 0;
+  inferredTimezone: DossierTimezoneOption | null = null;
+
+  inferTimezoneFromHeatmap(): void {
+    if (this.heatmapCells.length === 0) {
+      this.inferredTimezone = null;
+      return;
+    }
+
+    const hourTotals = new Array(24).fill(0);
+    for (const c of this.heatmapCells) hourTotals[c.hour] += c.count;
+
+    // Find the 6-hour window with the lowest total post count (sleep window).
+    // We try all 24 possible 6-hour windows (wrapping around midnight).
+    const SLEEP_HOURS = 6;
+    let minWindowCount = Infinity;
+    let sleepWindowStart = 0;
+    for (let start = 0; start < 24; start++) {
+      let windowCount = 0;
+      for (let i = 0; i < SLEEP_HOURS; i++) {
+        windowCount += hourTotals[(start + i) % 24];
+      }
+      if (windowCount < minWindowCount) {
+        minWindowCount = windowCount;
+        sleepWindowStart = start;
+      }
+    }
+
+    // Sleep window end = first hour after the sleep window (assumed ~8am local)
+    const sleepWindowEndUtc = (sleepWindowStart + SLEEP_HOURS) % 24;
+    // offset = 8 - sleepWindowEndUtc  (so that sleepWindowEndUtc + offset = 8)
+    let rawOffset = 8 - sleepWindowEndUtc;
+    // Normalise to [-12, 12]
+    if (rawOffset > 12) rawOffset -= 24;
+    if (rawOffset < -12) rawOffset += 24;
+
+    // Snap to nearest available tzOptions value
+    const best = this.tzOptions.reduce((prev, cur) =>
+      Math.abs(cur.value - rawOffset) < Math.abs(prev.value - rawOffset) ? cur : prev
+    );
+    this.inferredTimezone = best;
+    this.heatmapTzOffset = best.value;
+  }
+
+  get inferredTimezoneDescription(): string | null {
+    if (!this.inferredTimezone) return null;
+    return `The inferred timezone of this person is roughly ${this.inferredTimezone.inferredLabel}. Posting drops overnight and picks back up around 8a local time.`;
+  }
+
+  get cacheGapDays(): number | null {
+    if (!this.dossier?.cache_info) return null;
+    const lastStatus = this.dossier.cache_info.last_status_at;
+    const latestCached = this.dossier.cache_info.latest_cached_post_at;
+    if (!lastStatus || !latestCached) return null;
+    const diff = new Date(lastStatus).getTime() - new Date(latestCached).getTime();
+    return Math.max(0, Math.round(diff / 86400000));
+  }
 
   heatmapCells: HeatmapCell[] = [];
   heatmapLoading = false;
@@ -1064,6 +1372,11 @@ export class DossierComponent implements OnInit, OnDestroy {
     if (h < 12) return `${h}a`;
     if (h === 12) return '12p';
     return `${h - 12}p`;
+  }
+
+  shiftedHourLabel(h: number): string {
+    const shifted = ((h + this.heatmapTzOffset) % 24 + 24) % 24;
+    return this.hourLabel(shifted);
   }
 
   sanitizeHtml(html: string): SafeHtml {
@@ -1220,6 +1533,7 @@ export class DossierComponent implements OnInit, OnDestroy {
         next: (cells) => {
           this.heatmapCells = cells;
           this.heatmapLoading = false;
+          this.inferTimezoneFromHeatmap();
         },
         error: (err: unknown) => {
           this.heatmapLoading = false;
@@ -1277,8 +1591,10 @@ export class DossierComponent implements OnInit, OnDestroy {
     if (!id || !acct) return;
     this.fetchBusy = true;
     this.catchupError = null;
-    this.api
-      .startAccountCatchup(acct, id, mode)
+    const req$ = mode === 'deep'
+      ? this.api.deepFetchDossier(acct, id, this.deepCatchupLimit ?? undefined)
+      : this.api.startAccountCatchup(acct, id, mode);
+    req$
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (status) => {
@@ -1321,23 +1637,150 @@ export class DossierComponent implements OnInit, OnDestroy {
 
   loadDossier(acct: string, identityId: number): void {
     this.loading = true;
+    this.dossier = null;
     this.error = null;
+    this.cacheMissMessage = null;
+    this.primeQuickDossierFromRoute(acct);
+    this.quickDossierLoading = false;
     this.api
       .getDossier(acct, identityId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (d) => {
           this.dossier = d;
+          this.quickDossier = null;
           this.isFollowing = d.is_following;
           this.buildInteractionWindows(d);
           this.loading = false;
         },
         error: (e: unknown) => {
-          this.error = 'No cached data found for this account yet.';
           this.loading = false;
+          if (this.getHttpStatus(e) === 404) {
+            this.cacheMissMessage = 'No cached posts found yet, so this is a quick API lookup.';
+            this.loadQuickDossier(acct, identityId);
+            return;
+          }
+          this.error = 'Failed to load dossier.';
           console.error(e);
         },
       });
+  }
+
+  private loadQuickDossier(acct: string, identityId: number): void {
+    this.quickDossierLoading = true;
+    const candidates = this.getQuickLookupCandidates(acct);
+    this.tryLoadQuickDossier(candidates, identityId);
+  }
+
+  private tryLoadQuickDossier(candidates: string[], identityId: number): void {
+    const [acct, ...rest] = candidates;
+    if (!acct) {
+      this.quickDossierLoading = false;
+      this.cacheMissMessage = null;
+      if (!this.quickDossier) {
+        this.error = 'No cached data found for this account yet.';
+      }
+      return;
+    }
+
+    this.api
+      .getQuickDossier(acct, identityId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (qd) => {
+          this.quickDossier = qd;
+          this.quickDossierLoading = false;
+        },
+        error: () => {
+          if (rest.length > 0) {
+            this.tryLoadQuickDossier(rest, identityId);
+            return;
+          }
+          this.quickDossierLoading = false;
+          this.cacheMissMessage = null;
+          if (!this.quickDossier) {
+            this.error = 'No cached data found for this account yet.';
+          }
+        },
+      });
+  }
+
+  private getQuickLookupCandidates(acct: string): string[] {
+    const candidates = new Set<string>([acct]);
+    const routeAccount = this.getRouteStateAccount(acct);
+    if (!routeAccount) return [...candidates];
+
+    const canonicalAcct = this.getCanonicalAcct(routeAccount);
+    if (canonicalAcct) {
+      candidates.add(canonicalAcct);
+    }
+    if (routeAccount.username) {
+      candidates.add(routeAccount.username);
+    }
+    return [...candidates];
+  }
+
+  private primeQuickDossierFromRoute(acct: string): void {
+    const routeAccount = this.getRouteStateAccount(acct);
+    if (!routeAccount) {
+      this.quickDossier = null;
+      return;
+    }
+
+    this.quickDossier = {
+      id: routeAccount.id,
+      acct: this.getCanonicalAcct(routeAccount) ?? routeAccount.acct,
+      display_name: routeAccount.display_name,
+      avatar: routeAccount.avatar,
+      header: routeAccount.header ?? routeAccount.header_static ?? '',
+      url: routeAccount.url,
+      note: routeAccount.note,
+      bot: routeAccount.bot,
+      locked: Boolean(routeAccount.locked),
+      followers_count: routeAccount.followers_count ?? routeAccount.counts?.followers ?? 0,
+      following_count: routeAccount.following_count ?? routeAccount.counts?.following ?? 0,
+      statuses_count: routeAccount.statuses_count ?? routeAccount.counts?.statuses ?? 0,
+      created_at: routeAccount.created_at ?? null,
+      featured_hashtags: [],
+      fields: [],
+    };
+  }
+
+  private getRouteStateAccount(acct: string): MastodonAccount | null {
+    const state = history.state as DossierRouteState | null;
+    const account = state?.account;
+    if (!account) return null;
+    const canonicalAcct = this.getCanonicalAcct(account);
+    if (account.acct === acct || canonicalAcct === acct) {
+      return account;
+    }
+    return null;
+  }
+
+  private getCanonicalAcct(account: MastodonAccount): string | null {
+    if (account.acct.includes('@')) {
+      return account.acct;
+    }
+    const host = this.getAccountHost(account.url);
+    const username = account.username ?? account.acct;
+    if (!host || !username) return null;
+    return `${username}@${host}`;
+  }
+
+  private getAccountHost(url: string): string | null {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return null;
+    }
+  }
+
+  private getHttpStatus(error: unknown): number | null {
+    if (typeof error === 'object' && error !== null && 'status' in error) {
+      const status = (error as { status: unknown }).status;
+      return typeof status === 'number' ? status : null;
+    }
+    return null;
   }
 
   buildInteractionWindows(d: Dossier): void {
@@ -1395,15 +1838,18 @@ export class DossierComponent implements OnInit, OnDestroy {
     if (!id) return;
     this.fetchBusy = true;
     this.catchupError = null;
-    this.api
-      .startAccountCatchup(this.dossier.acct, id, mode)
+    const acct = this.dossier.acct;
+    const req$ = mode === 'deep'
+      ? this.api.deepFetchDossier(acct, id, this.deepCatchupLimit ?? undefined)
+      : this.api.startAccountCatchup(acct, id, mode);
+    req$
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (status) => {
           this.catchupStatus = status;
           this.fetchBusy = false;
           if (status.running) {
-            this.startCatchupPolling(this.dossier!.acct, id);
+            this.startCatchupPolling(acct, id);
           }
         },
         error: (e: unknown) => {

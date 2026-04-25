@@ -20,6 +20,8 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 
+import asyncio
+
 from mastodon_is_my_blog.account_catchup_runner import (
     job_status as account_catchup_job_status,
 )
@@ -31,6 +33,7 @@ from mastodon_is_my_blog.mastodon_apis.follow_actions import (
     follow_account,
     unfollow_account,
 )
+from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
 from mastodon_is_my_blog.queries import (
     get_current_meta_account,
 )
@@ -255,6 +258,53 @@ async def get_engagement_matrix(
     }
 
 
+@router.get("/dossier/{acct}/quick")
+async def get_quick_dossier(
+    acct: str,
+    identity_id: int = Query(...),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """Return basic account info from the Mastodon API (no local cache required)."""
+    identity = await _resolve_identity(meta.id, identity_id)
+    client = client_from_identity(identity)
+
+    try:
+        results = await asyncio.to_thread(client.account_search, acct, limit=1, resolve=True)
+    except Exception as exc:
+        raise HTTPException(502, f"Mastodon API error: {exc}")
+
+    if not results:
+        raise HTTPException(404, f"Account {acct!r} not found via API")
+
+    acc = results[0]
+
+    featured: list[dict] = []
+    try:
+        acc_id = str(acc["id"])
+        raw_featured = await asyncio.to_thread(client.account_featured_tags, acc_id)
+        featured = [{"tag": ft.get("name", ""), "uses": ft.get("statuses_count", 0)} for ft in (raw_featured or [])]
+    except Exception:
+        pass
+
+    return {
+        "id": str(acc.get("id", "")),
+        "acct": acc.get("acct", acct),
+        "display_name": acc.get("display_name", ""),
+        "avatar": acc.get("avatar", ""),
+        "header": acc.get("header", ""),
+        "url": acc.get("url", ""),
+        "note": acc.get("note", ""),
+        "bot": bool(acc.get("bot", False)),
+        "locked": bool(acc.get("locked", False)),
+        "followers_count": acc.get("followers_count", 0),
+        "following_count": acc.get("following_count", 0),
+        "statuses_count": acc.get("statuses_count", 0),
+        "created_at": acc.get("created_at", None),
+        "featured_hashtags": featured,
+        "fields": acc.get("fields", []),
+    }
+
+
 @router.get("/dossier/{acct}")
 async def get_dossier(
     acct: str,
@@ -321,6 +371,14 @@ async def get_dossier(
                 tag_counter[tag_lower] = tag_counter.get(tag_lower, 0) + 1
         top_hashtags = sorted(tag_counter.items(), key=lambda x: -x[1])[:5]
 
+        # Oldest cached post date
+        oldest_stmt = select(func.min(CachedPost.created_at)).where(
+            CachedPost.meta_account_id == meta.id,
+            CachedPost.fetched_by_identity_id == identity_id,
+            CachedPost.author_acct == acct,
+        )
+        oldest_post_at = (await session.execute(oldest_stmt)).scalar_one_or_none()
+
         # Media profile
         media_stmt = select(
             func.count(CachedPost.id).label("total"),
@@ -375,6 +433,21 @@ async def get_dossier(
             except Exception:
                 fields_data = []
 
+        ca_id = ca.id
+
+    # Fetch featured hashtags from Mastodon API (outside DB session)
+    featured_hashtags: list[dict] = []
+    try:
+        identity = await _resolve_identity(meta.id, identity_id)
+        api_client = client_from_identity(identity)
+        raw_featured = await asyncio.to_thread(api_client.account_featured_tags, ca_id)
+        featured_hashtags = [
+            {"tag": ft.get("name", ""), "uses": ft.get("statuses_count", 0)}
+            for ft in (raw_featured or [])
+        ]
+    except Exception:
+        pass
+
     return {
         "id": ca.id,
         "acct": ca.acct,
@@ -385,6 +458,7 @@ async def get_dossier(
         "note": ca.note,
         "fields": fields_data,
         "bot": ca.bot,
+        "locked": ca.locked,
         "followers_count": ca.followers_count,
         "following_count": ca.following_count,
         "statuses_count": ca.statuses_count,
@@ -396,10 +470,17 @@ async def get_dossier(
             else None
         ),
         "top_hashtags": [{"tag": t, "count": c} for t, c in top_hashtags],
+        "featured_hashtags": featured_hashtags,
         "interaction_history": interaction_history,
         "media_profile": media_profile,
         "is_stale": is_stale,
         "created_at": ca.created_at.isoformat() if ca.created_at else None,
+        "cache_info": {
+            "cached_posts": total_posts,
+            "oldest_cached_post_at": oldest_post_at.isoformat() if oldest_post_at else None,
+            "latest_cached_post_at": latest_post_at.isoformat() if latest_post_at else None,
+            "last_status_at": ca.last_status_at.isoformat() if ca.last_status_at else None,
+        },
     }
 
 
@@ -474,12 +555,13 @@ async def get_dossier_interactions(
 async def deep_fetch_dossier(
     acct: str,
     identity_id: int = Query(...),
+    max_pages: int | None = Query(None, ge=1, le=5000),
     meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
     """Trigger a background deep catch-up of an account's posts."""
     identity = await _resolve_identity(meta.id, identity_id)
     try:
-        job = await start_account_catchup_job(meta, identity, acct, mode="deep")
+        job = await start_account_catchup_job(meta, identity, acct, mode="deep", max_pages=max_pages)
     except ValueError as exc:
         raise HTTPException(409, str(exc))
     return account_catchup_job_status(job)

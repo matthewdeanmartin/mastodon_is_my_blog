@@ -26,7 +26,7 @@
                 <span class="muted" style="margin-left: 6px; font-size: 0.8rem"
                   >&#64;{{ ancestor.account.acct }}</span
                 >
-                <a [routerLink]="['/peeps/dossier', ancestor.account.acct]" style="margin-left: 6px; font-size: 0.72rem; color: #9ca3af; text-decoration: none;" title="View person">👤</a>
+                <a [routerLink]="['/peeps/dossier', ancestor.account.acct]" [state]="{ account: ancestor.account }" style="margin-left: 6px; font-size: 0.72rem; color: #9ca3af; text-decoration: none;" title="View person">👤</a>
                 @if (i === 0) {
                   <span
                     style="
@@ -124,7 +124,7 @@
             </h2>
             <div class="muted" style="display: flex; align-items: center; gap: 6px;">
               &#64;{{ target.account.acct }}
-              <a [routerLink]="['/peeps/dossier', target.account.acct]" style="font-size: 0.72rem; color: #9ca3af; text-decoration: none;" title="View person">👤</a>
+              <a [routerLink]="['/peeps/dossier', target.account.acct]" [state]="{ account: target.account }" style="font-size: 0.72rem; color: #9ca3af; text-decoration: none;" title="View person">👤</a>
             </div>
             @if (ancestors.length === 0) {
               <span
@@ -260,7 +260,7 @@
         <span style="font-weight: 600; font-size: 0.9rem">{{
           node.post.account.display_name || node.post.account.acct
         }}</span>
-        <a [routerLink]="['/peeps/dossier', node.post.account.acct]" style="font-size: 0.72rem; color: #9ca3af; text-decoration: none;" title="View person">👤</a>
+        <a [routerLink]="['/peeps/dossier', node.post.account.acct]" [state]="{ account: node.post.account }" style="font-size: 0.72rem; color: #9ca3af; text-decoration: none;" title="View person">👤</a>
 
         @if (isActiveUser(node.post)) {
           <span

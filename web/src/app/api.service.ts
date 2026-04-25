@@ -21,6 +21,7 @@ import {
   EngagementMatrix,
   Dossier,
   DossierInteraction,
+  QuickDossier,
   GroupPerson,
   AccountCatchupStatus,
   Draft,
@@ -879,6 +880,13 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
+  getQuickDossier(acct: string, identityId: number): Observable<QuickDossier> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .get<QuickDossier>(`${this.base}/api/peeps/dossier/${acct}/quick`, { params, headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
   getDossierInteractions(
     acct: string,
     identityId: number,
@@ -895,8 +903,9 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  deepFetchDossier(acct: string, identityId: number): Observable<AccountCatchupStatus> {
-    const params = new HttpParams().set('identity_id', identityId.toString());
+  deepFetchDossier(acct: string, identityId: number, maxPages?: number): Observable<AccountCatchupStatus> {
+    let params = new HttpParams().set('identity_id', identityId.toString());
+    if (maxPages != null) params = params.set('max_pages', maxPages.toString());
     return this.http
       .post<AccountCatchupStatus>(
         `${this.base}/api/peeps/dossier/${acct}/deep-fetch`,
