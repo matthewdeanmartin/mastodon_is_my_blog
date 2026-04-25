@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import and_, select
 
 from mastodon_is_my_blog import duck
@@ -49,6 +49,7 @@ def instance_from_acct(acct: str, identity_base_url: str) -> str:
 
 @router.get("/threads")
 async def get_forum_threads(
+    request: Request,
     identity_id: int = Query(...),
     top_filter: str = Query(
         "recent",
@@ -62,7 +63,7 @@ async def get_forum_threads(
     include_content_hub: bool = Query(False),
     meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
-    empty = {"items": [], "next_cursor": None, "facets": {"hashtags": [], "uncommon_words": [], "root_instances": []}}
+    empty: dict = {"items": [], "next_cursor": None, "facets": {"hashtags": [], "uncommon_words": [], "root_instances": []}}
 
     async with async_session() as session:
         identity_stmt = select(MastodonIdentity).where(
@@ -162,19 +163,13 @@ async def get_forum_threads(
         inst = t["root_instance_domain"]
         instance_counts[inst] = instance_counts.get(inst, 0) + 1
 
+    hashtag_facets: list[dict[str, int | str]] = [{"tag": k, "count": v} for k, v in hashtag_counts.items()]
+    word_facets: list[dict[str, int | str]] = [{"word": k, "thread_count": v} for k, v in word_counts.items() if v >= 2]
+    instance_facets: list[dict[str, int | str]] = [{"instance": k, "count": v} for k, v in instance_counts.items()]
     facets = {
-        "hashtags": sorted(
-            [{"tag": k, "count": v} for k, v in hashtag_counts.items()],
-            key=lambda x: -x["count"],
-        )[:20],
-        "uncommon_words": sorted(
-            [{"word": k, "thread_count": v} for k, v in word_counts.items() if v >= 2],
-            key=lambda x: -x["thread_count"],
-        )[:20],
-        "root_instances": sorted(
-            [{"instance": k, "count": v} for k, v in instance_counts.items()],
-            key=lambda x: -x["count"],
-        )[:20],
+        "hashtags": sorted(hashtag_facets, key=lambda x: -int(x["count"]))[:20],
+        "uncommon_words": sorted(word_facets, key=lambda x: -int(x["thread_count"]))[:20],
+        "root_instances": sorted(instance_facets, key=lambda x: -int(x["count"]))[:20],
     }
 
     # Apply facet chip filters (AND across types, OR within same type)

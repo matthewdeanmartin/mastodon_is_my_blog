@@ -352,7 +352,7 @@ async def forum_thread_summaries(
                 MAX(CASE WHEN id != root_id THEN created_at ELSE NULL END) AS latest_reply_at
             FROM posts
             GROUP BY root_id
-            HAVING COUNT(*) > 1 AND COUNT(DISTINCT author_acct) >= 2
+            HAVING COUNT(*) >= 1
         ),
         root_posts AS (
             SELECT

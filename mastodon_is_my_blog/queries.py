@@ -758,7 +758,7 @@ async def sync_user_timeline_for_identity(
                 ):
                     total_fetched += len(page)
                     page_latest = max(
-                        (to_naive_utc(s["created_at"]) for s in page if s.get("created_at")),
+                        (dt for s in page if s.get("created_at") and (dt := to_naive_utc(s["created_at"])) is not None),
                         default=None,
                     )
                     if page_latest and (latest_status_at is None or page_latest > latest_status_at):
@@ -778,7 +778,7 @@ async def sync_user_timeline_for_identity(
                 statuses = m.account_statuses(target_id, limit=200)
                 total_fetched = len(statuses)
                 latest_status_at = max(
-                    (to_naive_utc(s["created_at"]) for s in statuses if s.get("created_at")),
+                    (dt for s in statuses if s.get("created_at") and (dt := to_naive_utc(s["created_at"])) is not None),
                     default=None,
                 )
 

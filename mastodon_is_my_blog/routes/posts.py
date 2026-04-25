@@ -147,7 +147,7 @@ async def get_public_posts(
             "everyone",
         ],
     ),
-    hashtag: str | None = Query(None, description="Filter posts containing this hashtag"),
+    hashtag: str | None = None,
     limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
     before: str | None = Query(None, description="Opaque cursor from a previous page"),
     meta: MetaAccount = Depends(get_current_meta_account),

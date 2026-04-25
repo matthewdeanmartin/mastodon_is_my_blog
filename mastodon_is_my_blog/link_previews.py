@@ -5,7 +5,7 @@ import ipaddress
 import re
 import socket
 from datetime import datetime, timedelta, timezone
-from typing import Optional, cast
+from typing import cast
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -79,11 +79,11 @@ _inflight: dict[str, asyncio.Future] = {}
 
 class CardResponse(BaseModel):
     url: str  # final URL after redirects
-    title: Optional[str] = None
-    description: Optional[str] = None
-    site_name: Optional[str] = None
-    image: Optional[str] = None
-    favicon: Optional[str] = None
+    title: str | None = None
+    description: str  | None = None
+    site_name: str  | None = None
+    image: str  | None = None
+    favicon: str  | None = None
 
 
 class CardRequest(BaseModel):
@@ -178,14 +178,14 @@ async def _ensure_public_destination(raw_url: str) -> None:
 # ---- HTML parsing helpers ----
 
 
-def _clean(s: Optional[str]) -> Optional[str]:
+def _clean(s: str  | None) -> str | None:
     if not s:
         return None
     s = re.sub(r"\s+", " ", s).strip()
     return s or None
 
 
-def _meta(soup: BeautifulSoup, *, prop: str | None = None, name: str | None = None) -> Optional[str]:
+def _meta(soup: BeautifulSoup, *, prop: str | None = None, name: str | None = None) -> str | None:
     if prop:
         tag = soup.find("meta", attrs={"property": prop})
         if tag and tag.get("content"):
@@ -197,13 +197,13 @@ def _meta(soup: BeautifulSoup, *, prop: str | None = None, name: str | None = No
     return None
 
 
-def _abs_url(base: str, maybe: Optional[str]) -> Optional[str]:
+def _abs_url(base: str, maybe: str | None) -> str | None:
     if not maybe:
         return None
     return urljoin(base, maybe)
 
 
-def _favicon(base: str, soup: BeautifulSoup) -> Optional[str]:
+def _favicon(base: str, soup: BeautifulSoup) -> str | None:
     for rel in ("icon", "shortcut icon", "apple-touch-icon"):
         tag = soup.find("link", rel=lambda v, r=rel: isinstance(v, str) and r in v.lower())
         if tag and tag.get("href"):

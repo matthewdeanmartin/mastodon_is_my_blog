@@ -149,8 +149,8 @@ async def _fetch_and_cache(
                 "followers_count": acc.get("followers_count", 0),
                 "following_count": acc.get("following_count", 0),
                 "statuses_count": acc.get("statuses_count", 0),
-                "created_at": created_raw.isoformat() if hasattr(created_raw, "isoformat") else str(created_raw) if created_raw else None,
-                "last_status_at": last_status_raw.isoformat() if hasattr(last_status_raw, "isoformat") else str(last_status_raw) if last_status_raw else None,
+                "created_at": created_raw.isoformat() if isinstance(created_raw, datetime) else str(created_raw) if created_raw else None,
+                "last_status_at": last_status_raw.isoformat() if isinstance(last_status_raw, datetime) else str(last_status_raw) if last_status_raw else None,
                 "followed_by_count": len(followed_by.get(acc_id, set())),
             }
         )

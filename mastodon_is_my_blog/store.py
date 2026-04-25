@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime
-from typing import List, Optional
 
 import dotenv
 from sqlalchemy import (
@@ -86,7 +85,7 @@ class MetaAccount(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # Relationships
-    identities: Mapped[List[MastodonIdentity]] = relationship("MastodonIdentity", back_populates="meta_account", cascade="all, delete-orphan")
+    identities: Mapped[list[MastodonIdentity]] = relationship("MastodonIdentity", back_populates="meta_account", cascade="all, delete-orphan")
 
 
 class MastodonIdentity(Base):
@@ -392,7 +391,7 @@ class ContentHubGroup(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
-    terms: Mapped[List[ContentHubGroupTerm]] = relationship("ContentHubGroupTerm", back_populates="group", cascade="all, delete-orphan")
+    terms: Mapped[list[ContentHubGroupTerm]] = relationship("ContentHubGroupTerm", back_populates="group", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_hub_groups_identity", "meta_account_id", "identity_id"),
@@ -615,7 +614,7 @@ async def bootstrap_identities_from_env() -> None:
     await sync_configured_identities()
 
 
-async def get_default_identity() -> Optional[MastodonIdentity]:
+async def get_default_identity() -> MastodonIdentity | None:
     """
     Gets the first identity for the default meta account.
     Useful for backwards compatibility with single-user mode.
@@ -631,7 +630,7 @@ async def get_default_identity() -> Optional[MastodonIdentity]:
 
 
 # --- Sync State Logic ---
-async def get_last_sync(key: str = "default") -> Optional[datetime]:
+async def get_last_sync(key: str = "default") -> datetime | None:
     async with async_session() as session:
         res = await session.execute(select(AppState).where(AppState.key == key))
         state = res.scalar_one_or_none()
@@ -650,7 +649,7 @@ async def update_last_sync(key: str) -> None:
 
 
 # --- Token Helpers ---
-async def get_token(key: str = "mastodon_access_token") -> Optional[str]:
+async def get_token(key: str = "mastodon_access_token") -> str | None:
     identity = await get_default_identity()
     if identity:
         config = resolve_identity_config(

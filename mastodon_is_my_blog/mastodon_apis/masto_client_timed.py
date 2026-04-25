@@ -99,8 +99,8 @@ class TimedMastodonClient:
     def account_statuses(self, account_id: str, limit: int = 40, **kwargs):
         return self.timed_call("account_statuses", account_id, limit=limit, **kwargs)
 
-    def account_search(self, q: str, limit: int = 1):
-        return self.timed_call("account_search", q, limit=limit)
+    def account_search(self, q: str, limit: int = 1, **kwargs):
+        return self.timed_call("account_search", q, limit=limit, **kwargs)
 
     def account_follow(self, account_id: str):
         return self.timed_call("account_follow", account_id)
@@ -146,3 +146,6 @@ class TimedMastodonClient:
 
     def search(self, q: str, result_type: str = "statuses", limit: int = 40, **kwargs) -> dict:
         return self.timed_call("search", q, result_type=result_type, limit=limit, **kwargs)
+
+    def account_featured_tags(self, account_id: str) -> list:
+        return self.timed_call("account_featured_tags", account_id)

@@ -178,6 +178,7 @@ async def get_group_posts(
         posts = [p for p in posts if p.has_link]
     # "text" includes all posts
 
+    posts = list(posts)
     if shuffle:
         import random
 

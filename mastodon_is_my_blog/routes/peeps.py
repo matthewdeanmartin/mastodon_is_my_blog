@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -147,8 +147,8 @@ async def get_engagement_matrix(
 ) -> dict:
     """Return the four-quadrant engagement matrix for an identity."""
     identity = await _resolve_identity(meta.id, identity_id)
-    cutoff = datetime.utcnow() - timedelta(days=window_days)
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
+    cutoff = now - timedelta(days=window_days)
 
     async with async_session() as session:
         # --- Inbound: them→me (notifications) ---
@@ -312,7 +312,7 @@ async def get_quick_dossier(
     client = client_from_identity(identity)
 
     try:
-        results = await asyncio.to_thread(client.account_search, acct, limit=1, resolve=True)
+        results = await asyncio.to_thread(lambda: client.account_search(acct, limit=1, resolve=True))
     except Exception as exc:
         raise HTTPException(502, f"Mastodon API error: {exc}") from exc
 
@@ -369,7 +369,7 @@ async def get_dossier(
             raise HTTPException(404, f"Account {acct!r} not found in cache")
 
         # Interaction history windows
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         windows = {"30d": 30, "90d": 90, "180d": 180}
         interaction_history: dict[str, dict] = {}
         for label, days in windows.items():

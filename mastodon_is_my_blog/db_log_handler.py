@@ -38,7 +38,7 @@ class DbLogHandler(logging.Handler):
         try:
             exc_text: str | None = None
             if record.exc_info:
-                exc_text = self.formatException(record.exc_info)
+                exc_text = logging.Formatter().formatException(record.exc_info)
             with _lock:
                 con = get_connection()
                 con.execute(

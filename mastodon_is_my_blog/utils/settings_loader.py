@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Dict, NamedTuple
+from typing import NamedTuple
 
 from mastodon_is_my_blog.account_config import (
     ACCESS_TOKEN_FIELD,
@@ -22,7 +22,7 @@ class IdentityConfig(NamedTuple):
     access_token: str | None
 
 
-def load_identities_from_env() -> Dict[str, IdentityConfig]:
+def load_identities_from_env() -> dict[str, IdentityConfig]:
     """
     Scans environment variables for the pattern:
     MASTODON_ID_{NAME}_{FIELD}
@@ -34,7 +34,7 @@ def load_identities_from_env() -> Dict[str, IdentityConfig]:
     MASTODON_ID_ART_BASE_URL=https://art.social
     ...
     """
-    identities: Dict[str, Dict[str, str]] = {}
+    identities: dict[str, dict[str, str]] = {}
 
     # Regex to capture NAME and FIELD (BASE_URL, CLIENT_ID, etc)
     pattern = re.compile(r"^MASTODON_ID_([A-Z0-9]+)_([A-Z_]+)$")
@@ -66,8 +66,8 @@ def load_identities_from_env() -> Dict[str, IdentityConfig]:
     return results
 
 
-def load_identities_from_keyring() -> Dict[str, IdentityConfig]:
-    results: Dict[str, IdentityConfig] = {}
+def load_identities_from_keyring() -> dict[str, IdentityConfig]:
+    results: dict[str, IdentityConfig] = {}
 
     for account in load_configured_accounts():
         client_id = get_credential(account.name, CLIENT_ID_FIELD)
@@ -88,7 +88,7 @@ def load_identities_from_keyring() -> Dict[str, IdentityConfig]:
     return results
 
 
-def load_configured_identities() -> Dict[str, IdentityConfig]:
+def load_configured_identities() -> dict[str, IdentityConfig]:
     identities = load_identities_from_keyring()
     identities.update(load_identities_from_env())
     return identities

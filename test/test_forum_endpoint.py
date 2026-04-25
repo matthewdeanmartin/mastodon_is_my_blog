@@ -1,11 +1,15 @@
 """Tests for GET /api/forum/threads endpoint."""
 
+import json
+from collections import defaultdict
 from datetime import datetime
 from test.conftest import make_cached_account, make_identity, make_meta_account
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import select
 
+from mastodon_is_my_blog import duck as duck_module
 from mastodon_is_my_blog.routes.forum import get_forum_threads
 from mastodon_is_my_blog.store import CachedPost
 
@@ -79,6 +83,67 @@ class FakeRequest:
     app = FakeApp()
 
 
+async def build_thread_summaries_from_session(db_session, meta_id: int, identity_id: int) -> list[dict]:
+    """Replicate duck.forum_thread_summaries logic against the in-memory SQLite session."""
+    rows = (
+        await db_session.execute(
+            select(CachedPost).where(
+                CachedPost.meta_account_id == meta_id,
+                CachedPost.fetched_by_identity_id == identity_id,
+                CachedPost.is_reblog == False,  # noqa: E712
+                CachedPost.root_id.is_not(None),
+            )
+        )
+    ).scalars().all()
+
+    by_root: dict[str, list] = defaultdict(list)
+    for p in rows:
+        by_root[p.root_id].append(p)
+
+    results = []
+    for root_id, posts in by_root.items():
+        unique_authors = {p.author_acct for p in posts}
+        if len(posts) < 1:
+            continue
+
+        root_post = next((p for p in posts if p.id == root_id), posts[0])
+        replies = [p for p in posts if p.id != root_id]
+        latest_reply = max((p.created_at for p in replies), default=None)
+
+        all_tags: set[str] = set()
+        for p in posts:
+            if p.tags and p.tags != "[]":
+                try:
+                    all_tags.update(t.lower() for t in json.loads(p.tags))
+                except Exception:
+                    pass
+
+        uncommon: list[str] = []
+        if root_post.thread_uncommon_words:
+            try:
+                uncommon = json.loads(root_post.thread_uncommon_words)
+            except Exception:
+                pass
+
+        results.append({
+            "root_id": root_id,
+            "reply_count": len(replies),
+            "unique_participants": len(unique_authors),
+            "latest_reply_at": latest_reply.isoformat() if latest_reply else None,
+            "author_acct": root_post.author_acct,
+            "root_created_at": root_post.created_at.isoformat() if root_post.created_at else None,
+            "root_content": root_post.content,
+            "has_question": bool(root_post.has_question),
+            "root_tags": root_post.tags,
+            "uncommon_words": uncommon,
+            "root_is_partial": bool(root_post.root_is_partial),
+            "tags": all_tags,
+            "participants": {p.author_acct for p in posts},
+        })
+
+    return results
+
+
 async def call_endpoint(
     db_session,
     monkeypatch,
@@ -101,6 +166,15 @@ async def call_endpoint(
             return session_ctx()
 
     monkeypatch.setattr(forum_module, "async_session", WrappedFactory())
+
+    async def fake_forum_thread_summaries(meta_id, identity_id, include_content_hub=False):
+        return await build_thread_summaries_from_session(db_session, meta_id, identity_id)
+
+    async def fake_forum_friend_reply_counts(meta_id, identity_id, root_ids, following_accts):
+        return {}
+
+    monkeypatch.setattr(duck_module, "forum_thread_summaries", fake_forum_thread_summaries)
+    monkeypatch.setattr(duck_module, "forum_friend_reply_counts", fake_forum_friend_reply_counts)
 
     meta = SimpleNamespace(id=META_ID, username="test-meta")
     return await get_forum_threads(
