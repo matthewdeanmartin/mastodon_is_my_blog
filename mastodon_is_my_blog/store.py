@@ -398,6 +398,22 @@ class AppState(Base):
     last_sync: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class FriendsOfFriendsCache(Base):
+    """
+    Cached friends-of-friends expansion for the New Friends feature.
+    One row per identity. JSON blob of candidate accounts.
+    Refreshed on demand; TTL enforced in application code (6 hours).
+    """
+
+    __tablename__ = "friends_of_friends_cache"
+
+    identity_id: Mapped[int] = mapped_column(
+        ForeignKey("mastodon_identities.id"), primary_key=True
+    )
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    data_json: Mapped[str] = mapped_column(Text, default="[]")
+
+
 class ContentHubGroup(Base):
     """
     A named bundle of hashtags / search terms forming a Content Hub group.

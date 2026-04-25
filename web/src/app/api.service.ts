@@ -36,6 +36,9 @@ import {
   ApiThrottleEvent,
   ApiDataVolumePoint,
   ApiErrorRatePoint,
+  NewFriendCandidate,
+  NewFriendsCandidatesResponse,
+  NewFriendsParams,
 } from './mastodon';
 import { RawContentPost } from './content-feed.utils';
 import { Observable, throwError, timer, BehaviorSubject, of, Subject } from 'rxjs';
@@ -1124,6 +1127,46 @@ export class ApiService {
     const params = new HttpParams().set('days', days.toString());
     return this.http
       .get<ApiErrorRatePoint[]>(`${this.base}/api/observability/errors`, { params, headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  // --- New Friends ---
+
+  getNewFriendsCandidates(
+    identityId: number,
+    opts: NewFriendsParams = {},
+  ): Observable<NewFriendsCandidatesResponse> {
+    let params = new HttpParams().set('identity_id', identityId.toString());
+    if (opts.min_posts != null) params = params.set('min_posts', opts.min_posts.toString());
+    if (opts.active_since_days != null) params = params.set('active_since_days', opts.active_since_days.toString());
+    if (opts.bio_contains) params = params.set('bio_contains', opts.bio_contains);
+    if (opts.max_friends != null) params = params.set('max_friends', opts.max_friends.toString());
+    if (opts.blog_roll_filter) params = params.set('blog_roll_filter', opts.blog_roll_filter);
+    if (opts.limit != null) params = params.set('limit', opts.limit.toString());
+    if (opts.offset != null) params = params.set('offset', opts.offset.toString());
+    return this.http
+      .get<NewFriendsCandidatesResponse>(`${this.base}/api/new-friends/candidates`, {
+        params,
+        headers: this.headers,
+      })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  refreshNewFriendsCache(
+    identityId: number,
+    maxFriends: number,
+    blogRollFilter?: string,
+  ): Observable<{ status: string; candidates_fetched: number }> {
+    let params = new HttpParams()
+      .set('identity_id', identityId.toString())
+      .set('max_friends', maxFriends.toString());
+    if (blogRollFilter) params = params.set('blog_roll_filter', blogRollFilter);
+    return this.http
+      .post<{ status: string; candidates_fetched: number }>(
+        `${this.base}/api/new-friends/refresh`,
+        {},
+        { params, headers: this.headers },
+      )
       .pipe(catchError((err) => this.handleError(err)));
   }
 }

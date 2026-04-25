@@ -64,10 +64,8 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
       @if (loading) {
         <div class="loading">Loading dossier…</div>
       }
-      @if (error || quickDossier || quickDossierLoading || cacheMissMessage) {
-        @if (error) {
-          <div class="error-msg">{{ error }}</div>
-        }
+      @if (!dossier && !loading) {
+        <!-- Profile card: show whatever basic info we have while/if full dossier is absent -->
         @if (quickDossier) {
           <div class="dossier-header" style="margin-top: 12px;">
             @if (quickDossier.header) {
@@ -104,16 +102,17 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
         @if (quickDossierLoading) {
           <div style="color: #9ca3af; font-size: 0.84rem; margin-top: 8px;">Loading account info…</div>
         }
-        @if (cacheMissMessage) {
-          <div style="margin-top: 8px; color: #64748b; font-size: 0.84rem;">{{ cacheMissMessage }}</div>
+        @if (!quickDossier && !quickDossierLoading && error) {
+          <div class="error-msg">{{ error }}</div>
         }
-        <div class="catchup-prompt">
-          <p style="margin: 0 0 12px 0; font-size: 0.9rem; color: #374151;">
-            To build a dossier, first run a Deep Catch Up to download this account's posts into your
-            local cache.
+
+        <!-- Catchup prompt: always show when there is no full dossier yet -->
+        <div class="catchup-prompt" style="margin-top: 12px;">
+          <p style="margin: 0 0 8px 0; font-size: 0.9rem; color: #374151;">
+            No cached posts yet. Run a catch-up to build the full dossier.
           </p>
           <div class="catchup-limit-row" style="margin-bottom: 10px;">
-            <label for="deep-catchup-limit" style="font-size: 0.84rem; color: #374151;">Deep Catch Up limit:</label>
+            <label for="deep-catchup-limit" style="font-size: 0.84rem; color: #374151;">Limit:</label>
             <select id="deep-catchup-limit" [(ngModel)]="deepCatchupLimit" style="font-size: 0.82rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px; background: white; margin-left: 8px;">
               <option [ngValue]="null">All posts</option>
               <option [ngValue]="25">~500 posts</option>
@@ -1626,6 +1625,10 @@ export class DossierComponent implements OnInit, OnDestroy {
             this.catchupPollSub?.unsubscribe();
             this.catchupPollSub = undefined;
             this.loadDossier(acct, identityId);
+            this.loadHeatmap(acct, identityId);
+            this.loadCalendar(acct, identityId);
+            this.loadPosts(acct, identityId);
+            this.loadInteractions(acct, identityId);
           }
         },
         error: () => {
@@ -1640,7 +1643,11 @@ export class DossierComponent implements OnInit, OnDestroy {
     this.dossier = null;
     this.error = null;
     this.cacheMissMessage = null;
-    this.primeQuickDossierFromRoute(acct);
+    // Only prime from route/storage if we have nothing yet — don't blank out
+    // an already-visible profile card during a catch-up reload.
+    if (!this.quickDossier) {
+      this.primeQuickDossierFromRoute(acct);
+    }
     this.quickDossierLoading = false;
     this.api
       .getDossier(acct, identityId)
@@ -1722,28 +1729,64 @@ export class DossierComponent implements OnInit, OnDestroy {
 
   private primeQuickDossierFromRoute(acct: string): void {
     const routeAccount = this.getRouteStateAccount(acct);
-    if (!routeAccount) {
-      this.quickDossier = null;
+    if (routeAccount) {
+      this.quickDossier = {
+        id: routeAccount.id,
+        acct: this.getCanonicalAcct(routeAccount) ?? routeAccount.acct,
+        display_name: routeAccount.display_name,
+        avatar: routeAccount.avatar,
+        header: routeAccount.header ?? routeAccount.header_static ?? '',
+        url: routeAccount.url,
+        note: routeAccount.note,
+        bot: routeAccount.bot,
+        locked: Boolean(routeAccount.locked),
+        followers_count: routeAccount.followers_count ?? routeAccount.counts?.followers ?? 0,
+        following_count: routeAccount.following_count ?? routeAccount.counts?.following ?? 0,
+        statuses_count: routeAccount.statuses_count ?? routeAccount.counts?.statuses ?? 0,
+        created_at: routeAccount.created_at ?? null,
+        featured_hashtags: [],
+        fields: [],
+      };
       return;
     }
 
-    this.quickDossier = {
-      id: routeAccount.id,
-      acct: this.getCanonicalAcct(routeAccount) ?? routeAccount.acct,
-      display_name: routeAccount.display_name,
-      avatar: routeAccount.avatar,
-      header: routeAccount.header ?? routeAccount.header_static ?? '',
-      url: routeAccount.url,
-      note: routeAccount.note,
-      bot: routeAccount.bot,
-      locked: Boolean(routeAccount.locked),
-      followers_count: routeAccount.followers_count ?? routeAccount.counts?.followers ?? 0,
-      following_count: routeAccount.following_count ?? routeAccount.counts?.following ?? 0,
-      statuses_count: routeAccount.statuses_count ?? routeAccount.counts?.statuses ?? 0,
-      created_at: routeAccount.created_at ?? null,
-      featured_hashtags: [],
-      fields: [],
-    };
+    // Fallback: check localStorage hint written by new-friends page.
+    // Uses localStorage (not sessionStorage) so the hint survives the new-tab
+    // navigation that the new-friends Dossier link triggers.
+    try {
+      const raw = localStorage.getItem(`dossier_hint_${acct}`);
+      if (raw) {
+        const hint = JSON.parse(raw) as {
+          id: string; acct: string; display_name: string; avatar: string;
+          url: string; note: string; bot: boolean; locked: boolean;
+          followers_count: number; following_count: number; statuses_count: number;
+          created_at: string | null;
+        };
+        localStorage.removeItem(`dossier_hint_${acct}`);
+        this.quickDossier = {
+          id: hint.id,
+          acct: hint.acct,
+          display_name: hint.display_name,
+          avatar: hint.avatar,
+          header: '',
+          url: hint.url,
+          note: hint.note,
+          bot: hint.bot,
+          locked: hint.locked,
+          followers_count: hint.followers_count,
+          following_count: hint.following_count,
+          statuses_count: hint.statuses_count,
+          created_at: hint.created_at,
+          featured_hashtags: [],
+          fields: [],
+        };
+        return;
+      }
+    } catch {
+      // ignore storage errors
+    }
+
+    this.quickDossier = null;
   }
 
   private getRouteStateAccount(acct: string): MastodonAccount | null {

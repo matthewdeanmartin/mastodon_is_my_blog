@@ -534,3 +534,40 @@ export interface ApiErrorRatePoint {
   rate: number;
 }
 
+export interface NewFriendCandidate {
+  id: string;
+  acct: string;
+  display_name: string;
+  avatar: string;
+  url: string;
+  note: string;
+  bot: boolean;
+  locked: boolean;
+  followers_count: number;
+  following_count: number;
+  statuses_count: number;
+  created_at: string | null;
+  last_status_at: string | null;
+  followed_by_count: number;
+}
+
+export interface NewFriendsCandidatesResponse {
+  candidates: NewFriendCandidate[];
+  total: number;
+  total_downloaded: number;
+  offset: number;
+  limit: number;
+  cache_hit: boolean;
+  fetched_at: string | null;
+}
+
+export interface NewFriendsParams {
+  min_posts?: number;
+  active_since_days?: number;
+  bio_contains?: string;
+  max_friends?: number;
+  blog_roll_filter?: string;
+  limit?: number;
+  offset?: number;
+}
+

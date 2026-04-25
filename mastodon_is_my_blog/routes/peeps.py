@@ -42,14 +42,89 @@ from mastodon_is_my_blog.store import (
     CachedMyFavourite,
     CachedNotification,
     CachedPost,
+    FriendsOfFriendsCache,
     MastodonIdentity,
     MetaAccount,
     async_session,
 )
 
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/peeps", tags=["peeps"])
+
+
+async def _candidate_dossier_from_friends_cache(
+    meta_id: int, identity_id: int, acct: str
+) -> dict | None:
+    """
+    Fall back for accounts we haven't followed/cached as a CachedAccount yet.
+    The new-friends page already downloaded a thin profile into
+    FriendsOfFriendsCache.data_json — surface it here so the dossier page can
+    render the header + stats even when we have zero cached posts.
+
+    Returns a Dossier-shaped dict with empty stats sections, or None if no
+    matching candidate exists in the friends-of-friends cache.
+    """
+    async with async_session() as session:
+        cache_row = (
+            await session.execute(
+                select(FriendsOfFriendsCache).where(
+                    FriendsOfFriendsCache.identity_id == identity_id
+                )
+            )
+        ).scalar_one_or_none()
+
+    if not cache_row or not cache_row.data_json:
+        return None
+
+    try:
+        candidates = json.loads(cache_row.data_json)
+    except Exception:
+        return None
+
+    match: dict | None = None
+    for c in candidates:
+        if c.get("acct") == acct or c.get("id") == acct:
+            match = c
+            break
+    if not match:
+        return None
+
+    return {
+        "id": match.get("id", ""),
+        "acct": match.get("acct", acct),
+        "display_name": match.get("display_name", ""),
+        "avatar": match.get("avatar", ""),
+        "header": "",
+        "url": match.get("url", ""),
+        "note": match.get("note", ""),
+        "fields": [],
+        "bot": bool(match.get("bot", False)),
+        "locked": bool(match.get("locked", False)),
+        "followers_count": match.get("followers_count", 0),
+        "following_count": match.get("following_count", 0),
+        "statuses_count": match.get("statuses_count", 0),
+        "is_following": False,
+        "is_followed_by": False,
+        "post_reply_ratio": None,
+        "top_hashtags": [],
+        "featured_hashtags": [],
+        "interaction_history": {
+            "30d": {"them_to_me": 0, "me_to_them": 0},
+            "90d": {"them_to_me": 0, "me_to_them": 0},
+            "180d": {"them_to_me": 0, "me_to_them": 0},
+        },
+        "media_profile": {"total": 0, "has_media": 0, "has_video": 0, "has_link": 0},
+        "is_stale": True,
+        "created_at": match.get("created_at"),
+        "cache_info": {
+            "cached_posts": 0,
+            "oldest_cached_post_at": None,
+            "latest_cached_post_at": None,
+            "last_status_at": match.get("last_status_at"),
+        },
+    }
 
 
 async def _resolve_identity(meta_id: int, identity_id: int) -> MastodonIdentity:
@@ -320,6 +395,11 @@ async def get_dossier(
         )
         ca = (await session.execute(ca_stmt)).scalar_one_or_none()
         if not ca:
+            fallback = await _candidate_dossier_from_friends_cache(
+                meta.id, identity_id, acct
+            )
+            if fallback is not None:
+                return fallback
             raise HTTPException(404, f"Account {acct!r} not found in cache")
 
         # Interaction history windows

@@ -166,8 +166,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
           if (validStored) {
             const identity = ids.find((i) => i.id === storedId)!;
-            this.setContextIdentity(storedId!, identity.base_url);
+            // Re-apply stored identity without navigating — preserves deep links.
+            this.api.setIdentityId(storedId!, identity.base_url);
           } else if (ids.length > 0) {
+            // No stored identity: auto-select the first one and go to the feed.
             this.setContextIdentity(ids[0].id, ids[0].base_url);
           }
         },
@@ -284,9 +286,14 @@ export class AppComponent implements OnInit, OnDestroy {
   setContextIdentity(id: number, baseUrl: string) {
     this.api.setIdentityId(id, baseUrl);
     const identity = this.identities.find((i) => i.id === id);
-    this.router.navigate(['/'], {
-      queryParams: { user: identity?.acct ?? null, filter: 'storms', blog_filter: 'top_friends' },
-    });
+    // Only redirect to the home feed when the user explicitly switches identity
+    // via the chip — not during startup, which would clobber deep links.
+    const currentPath = this.router.url.split('?')[0];
+    if (currentPath === '/' || currentPath === '') {
+      this.router.navigate(['/'], {
+        queryParams: { user: identity?.acct ?? null, filter: 'storms', blog_filter: 'top_friends' },
+      });
+    }
   }
 
   // --- Data Fetching ---
@@ -360,25 +367,6 @@ export class AppComponent implements OnInit, OnDestroy {
     this.router.navigate(['/'], {
       queryParams: { user: acct, filter: 'storms' },
     });
-  }
-
-  /**
-   * Updates the 'Meta Account' context.
-   * In a real app, this would be a login screen.
-   * For dev/testing, we prompt for the ID integer.
-   */
-  switchMetaAccount() {
-    const current = this.api.getMetaAccountId() || '';
-    const newId = prompt('Enter Meta Account ID (integer) to switch context:', current);
-
-    if (newId !== null && newId !== current) {
-      if (newId.trim() === '') {
-        this.api.logout();
-      } else {
-        this.api.setMetaAccountId(newId);
-        window.location.reload();
-      }
-    }
   }
 
   // --- Navigation Actions ---

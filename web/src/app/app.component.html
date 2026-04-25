@@ -1,7 +1,6 @@
 <div class="identity-bar">
   <div class="identity-label">
-    <span class="meta-id" title="Meta Account ID">Meta: {{ currentMetaId || 'Default' }}</span>
-    <button class="switch-btn" (click)="switchMetaAccount()">Switch</button>
+    <span class="app-title">Mastodon is my Blog</span>
   </div>
 
   <div style="margin-left: 10px; font-size: 0.85rem; color: #94a3b8; margin-right: 10px">
@@ -28,7 +27,6 @@
 
 <div class="app-layout" [class.content-mode]="!isPeoplePage()">
   <div class="header">
-    <h1 style="font-size: 1.5rem; margin: 0">Mastodon is my Blog</h1>
     <nav class="main-nav">
       <a routerLink="/" routerLinkActive="active-nav" [routerLinkActiveOptions]="{ exact: true }"
         >👥 People</a
@@ -38,6 +36,7 @@
       <a routerLink="/write" routerLinkActive="active-nav">✏️ Write</a>
       <a routerLink="/analytics" routerLinkActive="active-nav">📊 Analytics</a>
       <a routerLink="/peeps" routerLinkActive="active-nav">🫂 Peeps</a>
+      <a routerLink="/new-friends" routerLinkActive="active-nav">🌱 New Friends</a>
       <a routerLink="/admin" routerLinkActive="active-nav">⚙️ Admin</a>
       <a routerLink="/observability" routerLinkActive="active-nav">📡 API</a>
     </nav>

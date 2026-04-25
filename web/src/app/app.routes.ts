@@ -15,6 +15,7 @@ import { AnalyticsComponent } from './analytics.component';
 import { PeepsComponent } from './peeps.component';
 import { DossierComponent } from './dossier.component';
 import { ObservabilityComponent } from './observability.component';
+import { NewFriendsComponent } from './new-friends.component';
 
 export const routes: Routes = [
   { path: '', component: PublicFeedComponent },
@@ -54,6 +55,9 @@ export const routes: Routes = [
   // Peeps Finder
   { path: 'peeps', component: PeepsComponent },
   { path: 'peeps/dossier/:acct', component: DossierComponent },
+
+  // New Friends
+  { path: 'new-friends', component: NewFriendsComponent },
 
   { path: '**', redirectTo: '' },
 ];
