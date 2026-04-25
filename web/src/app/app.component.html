@@ -310,6 +310,14 @@
       </button>
       <button
         class="nav-btn"
+        [class.active]="currentBlogFilter === 'parasocials'"
+        (click)="setBlogFilter('parasocials')"
+        title="People you follow who have more than 10,000 followers and don't follow you back. The celebrities — you consume their content but they don't know you exist."
+      >
+        Parasocials
+      </button>
+      <button
+        class="nav-btn"
         [class.active]="currentBlogFilter === 'other'"
         (click)="setBlogFilter('other')"
         title="People you follow who don't fit any other named category — not mutuals, not bots, didn't post in the last 30 days, no notifications from them, and you haven't replied to them."
@@ -379,10 +387,26 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+                flex: 1;
               "
             >
               {{ acc.display_name || acc.acct }}
             </span>
+            @if ((acc.cached_post_count ?? 0) > 0) {
+              <span
+                style="
+                  font-size: 0.7rem;
+                  color: #6b7280;
+                  white-space: nowrap;
+                  flex-shrink: 0;
+                "
+              >
+                @if ((acc.unseen_post_count ?? 0) > 0) {
+                  <span style="color: #6366f1; font-weight: 600">{{ acc.unseen_post_count }}</span
+                  >/
+                }{{ acc.cached_post_count }}
+              </span>
+            }
           </a>
         </div>
       }
@@ -534,6 +558,20 @@
           @if (counts.links.unseen > 0) {
             <span class="unread-badge" style="animation: none; margin-left: auto">
               {{ counts.links.unseen }}
+            </span>
+          }
+        </div>
+      </button>
+      <button
+        class="nav-btn"
+        [class.active]="currentFilter === 'books'"
+        (click)="setFilter('books')"
+      >
+        <div class="row" style="gap: 4px; justify-content: flex-start">
+          <span>Books ({{ counts.books.total }})</span>
+          @if (counts.books.unseen > 0) {
+            <span class="unread-badge" style="animation: none; margin-left: auto">
+              {{ counts.books.unseen }}
             </span>
           }
         </div>

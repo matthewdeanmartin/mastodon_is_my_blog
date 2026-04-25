@@ -140,6 +140,7 @@ def test_build_post_payload_handles_reblogs_and_reply_flags() -> None:
             "has_link": True,
             "has_job": False,
             "has_question": False,
+            "has_book": False,
         },
     ):
         payload = queries.build_post_payload(1, 2, boosted)
@@ -171,6 +172,7 @@ async def test_bulk_upsert_posts_returns_new_and_updated_counts(db_session) -> N
             "has_link": False,
             "has_job": False,
             "has_question": False,
+            "has_book": False,
         },
     ):
         result = await queries.bulk_upsert_posts(
@@ -219,6 +221,7 @@ async def test_bulk_upsert_posts_preserves_reblog_actor_identity(db_session) -> 
             "has_link": False,
             "has_job": False,
             "has_question": False,
+            "has_book": False,
         },
     ):
         await queries.bulk_upsert_posts(db_session, 1, 1, [boosted])

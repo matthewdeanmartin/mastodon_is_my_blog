@@ -336,12 +336,17 @@ def test_blogroll_endpoint_returns_accounts(
         last_status_at=datetime(2024, 1, 2, 12, 0, 0),
         cached_post_count=10,
         cached_reply_count=2,
+        followers_count=0,
     )
     monkeypatch.setattr(
         accounts,
         "async_session",
         FakeSessionFactory(
-            [FakeResult(scalar_value=identity), FakeResult(scalars_values=[account])]
+            [
+                FakeResult(scalar_value=identity),
+                FakeResult(scalars_values=[account]),
+                FakeResult(all_rows=[]),  # unseen counts query
+            ]
         ),
     )
 
@@ -358,6 +363,9 @@ def test_blogroll_endpoint_returns_accounts(
             "note": "hello",
             "bot": False,
             "last_status_at": "2024-01-02T12:00:00",
+            "cached_post_count": 10,
+            "followers_count": 0,
+            "unseen_post_count": 0,
         }
     ]
 

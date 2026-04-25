@@ -30,6 +30,7 @@ def test_analyze_content_domains_sets_flags_from_links_media_and_question() -> N
         "has_link": True,
         "has_job": False,
         "has_question": True,
+        "has_book": False,
     }
 
 

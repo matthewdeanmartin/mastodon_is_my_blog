@@ -443,6 +443,30 @@ export class AdminComponent implements OnInit, OnDestroy {
     });
   }
 
+  // --- Backfill content flags (has_question, has_book) ---
+
+  backfillingFlags = false;
+  backfillFlagsMessage: string | null = null;
+  backfillFlagsError: string | null = null;
+
+  backfillContentFlags() {
+    const identityId = this.currentIdentityId();
+    if (!identityId || this.backfillingFlags) return;
+    this.backfillingFlags = true;
+    this.backfillFlagsMessage = null;
+    this.backfillFlagsError = null;
+    this.api.backfillContentFlags(identityId).subscribe({
+      next: (r) => {
+        this.backfillingFlags = false;
+        this.backfillFlagsMessage = `Backfilled ${r['updated']} posts.`;
+      },
+      error: (err) => {
+        this.backfillingFlags = false;
+        this.backfillFlagsError = err?.error?.detail ?? 'Failed to backfill content flags';
+      },
+    });
+  }
+
   // --- Bundle management ---
 
   private currentIdentityId(): number | null {

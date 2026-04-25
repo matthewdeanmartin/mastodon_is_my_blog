@@ -122,7 +122,16 @@ async def bulk_upsert_accounts(
     for row in rows:
         account_data = row["account_data"]
         overrides = row.get("overrides") or {}
-        last_status_at = to_naive_utc(row.get("last_status_at"))
+        # Prefer explicit last_status_at; fall back to the date-only string
+        # that the Mastodon API includes on every account object.
+        explicit = row.get("last_status_at")
+        if explicit is None and account_data.get("last_status_at"):
+            raw = account_data["last_status_at"]
+            try:
+                explicit = datetime.fromisoformat(str(raw))
+            except (ValueError, TypeError):
+                explicit = None
+        last_status_at = to_naive_utc(explicit)
 
         acc_id = str(account_data["id"])
         merged[acc_id] = build_account_payload(account_data, **overrides)
@@ -244,6 +253,7 @@ def build_post_payload(
         "has_link": flags["has_link"],
         "has_job": flags["has_job"],
         "has_question": flags["has_question"],
+        "has_book": flags["has_book"],
         "tags": tags_json,
         "replies_count": status["replies_count"],
         "reblogs_count": status["reblogs_count"],
@@ -973,6 +983,8 @@ async def get_counts_optimized(
     f_vids = and_(CachedPost.is_reblog.is_(False), CachedPost.has_video.is_(True))
     f_discussions = and_(CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(True))
     f_jobs = and_(CachedPost.is_reblog.is_(False), CachedPost.has_job.is_(True))
+    f_questions = and_(CachedPost.is_reblog.is_(False), CachedPost.has_question.is_(True))
+    f_books = and_(CachedPost.is_reblog.is_(False), CachedPost.has_book.is_(True))
     f_reposts = CachedPost.is_reblog.is_(True)
     f_messages = (
         and_(
@@ -997,6 +1009,8 @@ async def get_counts_optimized(
         (f_discussions, "discussions"),
         (f_messages, "messages"),
         (f_jobs, "jobs"),
+        (f_questions, "questions"),
+        (f_books, "books"),
         (f_reposts, "reposts"),
     ]:
         sel_args.extend(filter_count(cond, name))
@@ -1032,6 +1046,8 @@ async def get_counts_optimized(
         "discussions",
         "messages",
         "jobs",
+        "questions",
+        "books",
         "reposts",
     ]
     stats: dict[str, Any] = {"user": user or "all"}

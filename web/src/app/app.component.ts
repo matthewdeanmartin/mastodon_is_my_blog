@@ -42,6 +42,7 @@ interface SidebarCounts {
   messages: CountDetail;
   links: CountDetail;
   questions: CountDetail;
+  books: CountDetail;
   everyone: CountDetail;
   reposts: CountDetail;
 }
@@ -105,6 +106,7 @@ export class AppComponent implements OnInit, OnDestroy {
     messages: emptyCount(),
     links: emptyCount(),
     questions: emptyCount(),
+    books: emptyCount(),
     everyone: emptyCount(),
     reposts: emptyCount(),
   };
@@ -340,6 +342,7 @@ export class AppComponent implements OnInit, OnDestroy {
           messages: mapCount(c['messages']),
           links: mapCount(c['links']),
           questions: mapCount(c['questions']),
+          books: mapCount(c['books']),
           everyone: mapCount(c['everyone']),
           reposts: mapCount(c['reposts']),
         };
@@ -405,9 +408,15 @@ export class AppComponent implements OnInit, OnDestroy {
 
   viewMainUser(): void {
     const identity = this.identities.find((i) => i.id === this.activeIdentityId);
-    this.router.navigate(['/'], {
-      queryParams: { user: identity?.acct ?? null, filter: 'storms' },
-    });
+    const targetAcct = identity?.acct ?? null;
+    // If the URL won't change, distinctUntilChanged blocks the feed reload — force it.
+    if (this.isViewingMainUser()) {
+      this.api.refreshNeeded$.next();
+    } else {
+      this.router.navigate(['/'], {
+        queryParams: { user: targetAcct, filter: 'storms' },
+      });
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -510,6 +519,8 @@ export class AppComponent implements OnInit, OnDestroy {
         return 'links';
       case 'questions':
         return 'questions';
+      case 'books':
+        return 'books posts';
       case 'reposts':
         return 'reposts';
       default:
@@ -540,6 +551,8 @@ export class AppComponent implements OnInit, OnDestroy {
         return this.counts.links.total;
       case 'questions':
         return this.counts.questions.total;
+      case 'books':
+        return this.counts.books.total;
       case 'reposts':
         return this.counts.reposts.total;
       default:

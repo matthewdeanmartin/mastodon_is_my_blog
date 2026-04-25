@@ -59,6 +59,7 @@ def make_post(
         has_tech=False,
         has_link=False,
         has_question=False,
+        has_book=False,
         media_attachments=media_attachments,
         tags=None,
         replies_count=0,

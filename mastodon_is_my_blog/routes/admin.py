@@ -191,6 +191,72 @@ async def recompute_post_stats(
     return {"ok": True, **result}
 
 
+@router.post("/backfill-content-flags")
+async def backfill_content_flags(
+    identity_id: int | None = None,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """
+    Re-analyse already-cached posts to populate has_question and has_book flags
+    that were added after initial ingestion. No API calls — reads only from cache.
+    """
+    from mastodon_is_my_blog.inspect_post import analyze_content_domains
+    from mastodon_is_my_blog.store import CachedPost, async_session
+    from sqlalchemy import select, update
+    import json as _json
+
+    identity = await _get_identity(meta, identity_id)
+
+    async with async_session() as session:
+        stmt = select(
+            CachedPost.id,
+            CachedPost.content,
+            CachedPost.media_attachments,
+            CachedPost.tags,
+            CachedPost.is_reply,
+        ).where(
+            CachedPost.meta_account_id == meta.id,
+            CachedPost.fetched_by_identity_id == identity.id,
+        )
+        rows = (await session.execute(stmt)).all()
+
+    updated = 0
+    batch = []
+    for row in rows:
+        media = _json.loads(row.media_attachments) if row.media_attachments else []
+        tags = _json.loads(row.tags) if row.tags else []
+        try:
+            flags = analyze_content_domains(row.content or "", media, row.is_reply, tags)
+        except Exception:
+            continue
+        batch.append({"id": row.id, "has_question": flags["has_question"], "has_book": flags["has_book"]})
+
+        if len(batch) >= 500:
+            async with async_session() as session:
+                for item in batch:
+                    await session.execute(
+                        update(CachedPost)
+                        .where(CachedPost.id == item["id"])
+                        .values(has_question=item["has_question"], has_book=item["has_book"])
+                    )
+                await session.commit()
+            updated += len(batch)
+            batch = []
+
+    if batch:
+        async with async_session() as session:
+            for item in batch:
+                await session.execute(
+                    update(CachedPost)
+                    .where(CachedPost.id == item["id"])
+                    .values(has_question=item["has_question"], has_book=item["has_book"])
+                )
+            await session.commit()
+        updated += len(batch)
+
+    return {"ok": True, "updated": updated}
+
+
 @router.post("/own-account/catchup")
 @time_async_function
 async def catchup_own_account(

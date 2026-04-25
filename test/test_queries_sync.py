@@ -274,6 +274,7 @@ async def test_sync_user_timeline_for_identity_persists_self_timeline(
                 "has_link": False,
                 "has_job": False,
                 "has_question": False,
+                "has_book": False,
             },
         ),
     ):
@@ -332,6 +333,7 @@ async def test_sync_user_timeline_for_identity_deep_syncs_search_result(
                 "has_link": False,
                 "has_job": False,
                 "has_question": False,
+                "has_book": False,
             },
         ),
     ):
@@ -399,6 +401,7 @@ async def test_sync_user_timeline_for_identity_full_history_skips_cache_cutoff(
                 "has_link": False,
                 "has_job": False,
                 "has_question": False,
+                "has_book": False,
             },
         ),
     ):

@@ -204,6 +204,23 @@
     </div>
 
     <div style="margin-bottom: 24px">
+      <h3 style="margin: 0 0 8px 0; font-size: 1rem">Backfill Content Flags</h3>
+      <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px">
+        Re-analyses cached posts to populate <code>has_question</code> and <code>has_book</code>
+        flags. Run once after upgrading to add these filters to existing posts. No API calls.
+      </div>
+      @if (backfillFlagsError) {
+        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">{{ backfillFlagsError }}</div>
+      }
+      @if (backfillFlagsMessage) {
+        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem">{{ backfillFlagsMessage }}</div>
+      }
+      <button (click)="backfillContentFlags()" [disabled]="backfillingFlags">
+        {{ backfillingFlags ? 'Backfilling...' : 'Backfill Questions & Books' }}
+      </button>
+    </div>
+
+    <div style="margin-bottom: 24px">
       <h3 style="margin: 0 0 8px 0; font-size: 1rem">Forum Topic Words (NLP Backfill)</h3>
       <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px">
         Precomputes uncommon topic words for each forum thread using spaCy. Run this once after

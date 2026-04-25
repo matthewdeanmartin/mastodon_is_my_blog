@@ -379,6 +379,7 @@ async def test_get_stop_at_id_returns_max_post_id(db) -> None:
                 has_tech=False,
                 has_link=False,
                 has_question=False,
+                has_book=False,
                 replies_count=0,
                 reblogs_count=0,
                 favourites_count=0,

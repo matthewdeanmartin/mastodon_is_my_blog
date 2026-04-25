@@ -71,6 +71,7 @@ async def get_blog_roll(
     - bots: Strictly identified as bots
     - lively: People I follow with a cached post in the last 30 days
     - graveyard: People I follow with no cached posts, or last cached post older than 90 days
+    - parasocials: I follow them, >10k followers, they don't follow me
     - other: People I follow who don't fit any other named category
     """
     async with async_session() as session:
@@ -154,8 +155,9 @@ async def get_blog_roll(
             query = query.order_by(desc(CachedAccount.last_status_at))
 
         elif filter_type == "idols":
-            # People I follow, that I reply to or boost, but who don't follow me back.
-            # They're people I look up to who don't really engage with me.
+            # People I follow, that I reply to, but who don't follow me AND haven't
+            # sent me any notifications. Once they reply/mention/favourite me they
+            # graduate out of Idols into Top Friends / Fans.
             query = query.where(CachedAccount.is_followed_by.is_(False))
             has_outbound = exists(
                 select(1).where(
@@ -167,7 +169,16 @@ async def get_blog_roll(
                     )
                 )
             )
-            query = query.where(has_outbound)
+            has_inbound_notif = exists(
+                select(1).where(
+                    and_(
+                        CachedNotification.meta_account_id == meta.id,
+                        CachedNotification.identity_id == identity_id,
+                        CachedNotification.account_id == CachedAccount.id,
+                    )
+                )
+            )
+            query = query.where(has_outbound, ~has_inbound_notif)
             query = query.order_by(desc(CachedAccount.last_status_at))
 
         elif filter_type == "lively":
@@ -184,6 +195,15 @@ async def get_blog_roll(
                 | (CachedAccount.last_status_at < cutoff)
             )
             query = query.order_by(CachedAccount.last_status_at.asc().nullsfirst())
+
+        elif filter_type == "parasocials":
+            # I follow them, they have >10k followers, they don't follow me back.
+            # These are the celebrities I consume but who don't know I exist.
+            query = query.where(
+                CachedAccount.is_followed_by.is_(False),
+                CachedAccount.followers_count > 10000,
+            )
+            query = query.order_by(desc(CachedAccount.followers_count))
 
         elif filter_type == "other":
             # People I follow who don't fall into any named category.
@@ -245,6 +265,38 @@ async def get_blog_roll(
             accounts_with_ratio.sort(key=lambda x: x[1], reverse=reverse)
             accounts = [acc for acc, _ in accounts_with_ratio[:40]]
 
+        account_ids = [a.id for a in accounts]
+
+        # Count unseen posts per account in one query
+        unseen_counts: dict[str, int] = {}
+        if account_ids:
+            from mastodon_is_my_blog.store import SeenPost
+            unseen_stmt = (
+                select(
+                    CachedPost.author_id,
+                    func.count(CachedPost.id).label("unseen"),
+                )
+                .outerjoin(
+                    SeenPost,
+                    and_(
+                        CachedPost.id == SeenPost.post_id,
+                        SeenPost.meta_account_id == meta.id,
+                    ),
+                )
+                .where(
+                    and_(
+                        CachedPost.meta_account_id == meta.id,
+                        CachedPost.fetched_by_identity_id == identity_id,
+                        CachedPost.author_id.in_(account_ids),
+                        CachedPost.content_hub_only.is_(False),
+                        SeenPost.post_id.is_(None),
+                    )
+                )
+                .group_by(CachedPost.author_id)
+            )
+            for row in (await session.execute(unseen_stmt)).all():
+                unseen_counts[row.author_id] = row.unseen
+
         # Convert to dicts
         return [
             {
@@ -258,6 +310,9 @@ async def get_blog_roll(
                 "last_status_at": (
                     a.last_status_at.isoformat() if a.last_status_at else None
                 ),
+                "cached_post_count": a.cached_post_count or 0,
+                "followers_count": a.followers_count or 0,
+                "unseen_post_count": unseen_counts.get(a.id, 0),
             }
             for a in accounts
         ]

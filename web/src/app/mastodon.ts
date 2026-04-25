@@ -59,6 +59,8 @@ export interface MastodonAccount {
   is_following?: boolean;
   is_followed_by?: boolean;
   cache_state?: AccountCacheState;
+  cached_post_count?: number;
+  unseen_post_count?: number;
 }
 
 export interface AccountCacheState {

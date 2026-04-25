@@ -185,6 +185,7 @@ def make_cached_post(
     has_link: bool = False,
     has_job: bool = False,
     has_question: bool = False,
+    has_book: bool = False,
     in_reply_to_id: str | None = None,
     in_reply_to_account_id: str | None = None,
 ) -> CachedPost:
@@ -210,6 +211,7 @@ def make_cached_post(
         has_link=has_link,
         has_job=has_job,
         has_question=has_question,
+        has_book=has_book,
         media_attachments=None,
         tags="[]",
         replies_count=0,

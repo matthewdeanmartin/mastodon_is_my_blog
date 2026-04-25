@@ -49,6 +49,7 @@ def make_thread_post(
         has_link=False,
         has_job=False,
         has_question=has_question,
+        has_book=False,
         media_attachments=None,
         tags=tags,
         replies_count=0,

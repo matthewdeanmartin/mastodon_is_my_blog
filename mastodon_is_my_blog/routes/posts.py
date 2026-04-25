@@ -152,6 +152,7 @@ async def get_public_posts(
             "software",
             "links",
             "questions",
+            "books",
             "jobs",
             "reposts",
             "everyone",
@@ -290,12 +291,16 @@ async def get_public_posts(
                 and_(CachedPost.is_reblog.is_(False), CachedPost.has_link.is_(True))
             )
         elif filter_type == "questions":
-            # Filter for posts with questions
             query = query.where(
                 and_(
                     CachedPost.is_reblog.is_(False),
+                    CachedPost.is_reply.is_(False),
                     CachedPost.has_question.is_(True),
                 )
+            )
+        elif filter_type == "books":
+            query = query.where(
+                and_(CachedPost.is_reblog.is_(False), CachedPost.has_book.is_(True))
             )
         elif filter_type == "jobs":
             query = query.where(

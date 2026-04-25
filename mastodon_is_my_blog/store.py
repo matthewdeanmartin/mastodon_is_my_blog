@@ -222,6 +222,7 @@ class CachedPost(Base):
     has_question: Mapped[bool] = mapped_column(
         Boolean, default=False
     )  # Contains questions
+    has_book: Mapped[bool] = mapped_column(Boolean, default=False)  # Book-related
 
     # Store media attachments as JSON string
     media_attachments: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -558,6 +559,11 @@ async def ensure_cached_posts_schema() -> None:
         if "actor_id" not in columns:
             await conn.execute(
                 text("ALTER TABLE cached_posts ADD COLUMN actor_id VARCHAR")
+            )
+
+        if "has_book" not in columns:
+            await conn.execute(
+                text("ALTER TABLE cached_posts ADD COLUMN has_book BOOLEAN DEFAULT 0")
             )
 
         await conn.execute(text("""

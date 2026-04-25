@@ -511,6 +511,18 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
+  backfillContentFlags(identityId?: number | null): Observable<Record<string, number>> {
+    let params = new HttpParams();
+    if (identityId != null) params = params.set('identity_id', identityId.toString());
+    return this.http
+      .post<Record<string, number>>(
+        `${this.base}/api/admin/backfill-content-flags`,
+        {},
+        { params, headers: this.headers },
+      )
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
   catchupOwnAccount(identityId?: number | null): Observable<OwnAccountCatchupResult> {
     let params = new HttpParams();
     if (identityId != null) params = params.set('identity_id', identityId.toString());

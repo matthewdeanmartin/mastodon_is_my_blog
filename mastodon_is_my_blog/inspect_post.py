@@ -79,6 +79,7 @@ def analyze_content_domains(
         "has_link": False,
         "has_job": False,
         "has_question": False,
+        "has_book": False,
     }
 
     # Check Attachments
@@ -135,6 +136,10 @@ def analyze_content_domains(
             if any(d in clean_domain for d in DOMAIN_CONFIG["news"]):
                 flags["has_news"] = True
 
+            # Check Books
+            if any(d in clean_domain for d in DOMAIN_CONFIG["books"]):
+                flags["has_book"] = True
+
             # Check Jobs (job board domains)
             if any(d in clean_domain for d in DOMAIN_CONFIG["jobs"]):
                 flags["has_job"] = True
@@ -148,6 +153,13 @@ def analyze_content_domains(
 
     if not is_reply_to_other and re.search(r"\w+\?", text_content):
         flags["has_question"] = has_human_question(text_content)
+
+    # Book detection via hashtags
+    if not flags["has_book"] and tags:
+        book_tags = {"bookstodon", "amreading", "bookstagram", "booktwt", "booktok", "readinglist", "books"}
+        lower_tags = [t.lower() for t in tags]
+        if any(t in book_tags for t in lower_tags):
+            flags["has_book"] = True
 
     # Job detection (text-based) — only if not already flagged by domain
     if not flags["has_job"]:
