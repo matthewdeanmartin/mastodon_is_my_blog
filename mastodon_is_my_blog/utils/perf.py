@@ -49,15 +49,9 @@ class PreviewCardTiming:
 
 
 # Module-level ring buffers — in-process, not persisted across restarts.
-stage_timings: collections.deque[StageTiming] = collections.deque(
-    maxlen=RING_BUFFER_SIZE
-)
-feed_timings: collections.deque[FeedQueryTiming] = collections.deque(
-    maxlen=RING_BUFFER_SIZE
-)
-card_timings: collections.deque[PreviewCardTiming] = collections.deque(
-    maxlen=RING_BUFFER_SIZE
-)
+stage_timings: collections.deque[StageTiming] = collections.deque(maxlen=RING_BUFFER_SIZE)
+feed_timings: collections.deque[FeedQueryTiming] = collections.deque(maxlen=RING_BUFFER_SIZE)
+card_timings: collections.deque[PreviewCardTiming] = collections.deque(maxlen=RING_BUFFER_SIZE)
 
 # ---------------------------------------------------------------------------
 # Preview cache counters (scaffold — real cache in Phase 1)
@@ -78,11 +72,7 @@ class PreviewCacheCounters:
             "stale": self.stale,
             "errors": self.errors,
             "total": self.hits + self.misses + self.stale + self.errors,
-            "hit_rate": (
-                round(self.hits / (self.hits + self.misses + self.stale), 3)
-                if (self.hits + self.misses + self.stale) > 0
-                else 0.0
-            ),
+            "hit_rate": (round(self.hits / (self.hits + self.misses + self.stale), 3) if (self.hits + self.misses + self.stale) > 0 else 0.0),
         }
 
 
@@ -91,9 +81,7 @@ preview_cache_counters = PreviewCacheCounters()
 
 def record_preview_hit() -> None:
     preview_cache_counters.hits += 1
-    card_timings.append(
-        PreviewCardTiming(url="<cached>", elapsed_s=0.0, cache_status="hit")
-    )
+    card_timings.append(PreviewCardTiming(url="<cached>", elapsed_s=0.0, cache_status="hit"))
 
 
 def record_preview_miss() -> None:
@@ -109,9 +97,7 @@ def record_preview_error() -> None:
 
 
 def record_card_timing(url: str, elapsed_s: float, cache_status: str = "miss") -> None:
-    card_timings.append(
-        PreviewCardTiming(url=url, elapsed_s=elapsed_s, cache_status=cache_status)
-    )
+    card_timings.append(PreviewCardTiming(url=url, elapsed_s=elapsed_s, cache_status=cache_status))
 
 
 # ---------------------------------------------------------------------------
@@ -135,9 +121,7 @@ class PerformanceLogger:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         elapsed: float = time.perf_counter() - self.start_time
         if exc_type:
-            self.logger.error(
-                f"Failed: {self.operation} after {elapsed:.3f}s - {exc_val}"
-            )
+            self.logger.error(f"Failed: {self.operation} after {elapsed:.3f}s - {exc_val}")
         else:
             self.logger.info(f"Completed: {self.operation} in {elapsed:.3f}s")
 
@@ -230,10 +214,7 @@ async def performance_middleware(request: Request, call_next):
         response = await call_next(request)
         elapsed: float = time.perf_counter() - start_time
 
-        logger.info(
-            f"Request completed: {request.method} {request.url.path} "
-            f"Status: {response.status_code} Time: {elapsed:.3f}s"
-        )
+        logger.info(f"Request completed: {request.method} {request.url.path} Status: {response.status_code} Time: {elapsed:.3f}s")
 
         if request.url.path.startswith("/api/posts"):
             feed_timings.append(
@@ -247,8 +228,5 @@ async def performance_middleware(request: Request, call_next):
         return response
     except Exception as e:
         elapsed = time.perf_counter() - start_time
-        logger.error(
-            f"Request failed: {request.method} {request.url.path} "
-            f"Error: {str(e)} Time: {elapsed:.3f}s"
-        )
+        logger.error(f"Request failed: {request.method} {request.url.path} Error: {str(e)} Time: {elapsed:.3f}s")
         raise

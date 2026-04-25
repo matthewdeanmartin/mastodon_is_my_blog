@@ -41,10 +41,7 @@ export function stormSplit(
 }
 
 /** Chain nodes parent→child in sequence, starting from parentId. */
-export function chainNodes(
-  nodes: DraftNode[],
-  parentId: string | null,
-): DraftNode[] {
+export function chainNodes(nodes: DraftNode[], parentId: string | null): DraftNode[] {
   if (nodes.length === 0) return [];
   const result = nodes.map((n, i) => ({ ...n }));
   result[0].parent_client_id = parentId;
@@ -65,7 +62,15 @@ function splitToSegments(text: string): string[] {
     // Try Intl.Segmenter for sentence splitting
     if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
       try {
-        const SegmenterCtor = (Intl as unknown as Record<string, new (l: undefined, o: { granularity: string }) => { segment(s: string): Iterable<{ segment: string }> }>)['Segmenter'];
+        const SegmenterCtor = (
+          Intl as unknown as Record<
+            string,
+            new (
+              l: undefined,
+              o: { granularity: string },
+            ) => { segment(s: string): Iterable<{ segment: string }> }
+          >
+        )['Segmenter'];
         const segmenter = new SegmenterCtor(undefined, { granularity: 'sentence' });
         for (const seg of segmenter.segment(trimmed)) {
           const s = seg.segment.trim();
@@ -115,4 +120,3 @@ function greedyPack(segments: string[], budget: number): string[] {
   if (current.trim()) chunks.push(current.trim());
   return chunks;
 }
-

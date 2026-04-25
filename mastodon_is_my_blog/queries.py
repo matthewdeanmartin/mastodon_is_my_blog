@@ -170,23 +170,19 @@ async def bulk_upsert_accounts(
             **payload,
         }
         batch_last = merged_last_status.get(acc_id)
+        prev_last = existing_last.get(acc_id)
         if batch_last is not None:
-            prev_last = existing_last.get(acc_id)
-            row_values["last_status_at"] = (
-                batch_last
-                if (prev_last is None or batch_last > prev_last)
-                else prev_last
-            )
+            row_values["last_status_at"] = batch_last if (prev_last is None or batch_last > prev_last) else prev_last
+        else:
+            # Always include the key so every row dict has uniform columns.
+            # SQLAlchemy's multi-row INSERT requires all dicts to have the same keys.
+            row_values["last_status_at"] = prev_last
         values.append(row_values)
 
     # Build the ON CONFLICT DO UPDATE statement.  The update set must exclude the
     # primary key columns; everything else is taken from excluded.*.
     insert_stmt = sqlite_insert(CachedAccount).values(values)
-    non_pk_cols = [
-        c.name
-        for c in CachedAccount.__table__.columns
-        if c.name not in ("id", "meta_account_id", "mastodon_identity_id")
-    ]
+    non_pk_cols = [c.name for c in CachedAccount.__table__.columns if c.name not in ("id", "meta_account_id", "mastodon_identity_id")]
     # Only update columns that were actually present in the incoming payload
     # (e.g. last_status_at may only appear for some callers).
     present_cols: set[str] = set()
@@ -213,9 +209,7 @@ def build_post_payload(
 
     in_reply_to_id = actual.get("in_reply_to_id")
     in_reply_to_account = actual.get("in_reply_to_account_id")
-    is_reply_to_other = in_reply_to_id is not None and str(in_reply_to_account) != str(
-        actual["account"]["id"]
-    )
+    is_reply_to_other = in_reply_to_id is not None and str(in_reply_to_account) != str(actual["account"]["id"])
 
     raw_tags = [t_tag["name"] for t_tag in status.get("tags", [])]
     tags_json = json.dumps(raw_tags)
@@ -225,9 +219,7 @@ def build_post_payload(
         is_reply_to_other,
         tags=raw_tags,
     )
-    media_json = (
-        json.dumps(actual["media_attachments"]) if actual["media_attachments"] else None
-    )
+    media_json = json.dumps(actual["media_attachments"]) if actual["media_attachments"] else None
 
     return {
         "id": str(status["id"]),
@@ -243,9 +235,7 @@ def build_post_payload(
         "is_reblog": is_reblog,
         "is_reply": is_reply_to_other,
         "in_reply_to_id": str(in_reply_to_id) if in_reply_to_id else None,
-        "in_reply_to_account_id": (
-            str(in_reply_to_account) if in_reply_to_account else None
-        ),
+        "in_reply_to_account_id": (str(in_reply_to_account) if in_reply_to_account else None),
         "has_media": flags["has_media"],
         "has_video": flags["has_video"],
         "has_news": flags["has_news"],
@@ -373,9 +363,7 @@ async def _upsert_account(
 async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[dict]:
     """Iterates through all identities for the meta account and syncs them."""
     async with async_session() as session:
-        result = await session.execute(
-            select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id)
-        )
+        result = await session.execute(select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id))
         identities = result.scalars().all()
 
     results = []
@@ -394,9 +382,7 @@ async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[di
         notif_stats = await sync_notifications_for_identity(meta.id, identity)
 
         # Sync Timeline (own posts)
-        timeline_res = await sync_user_timeline_for_identity(
-            meta.id, identity, force=force
-        )
+        timeline_res = await sync_user_timeline_for_identity(meta.id, identity, force=force)
 
         # Sync outbound favourites for Engagement Matrix
         fav_stats = await sync_my_favourites_for_identity(meta.id, identity)
@@ -412,9 +398,16 @@ async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[di
         )
 
     from mastodon_is_my_blog.mastodon_apis.api_log import purge_old_rows
+
     deleted = await asyncio.to_thread(purge_old_rows)
     if deleted:
         logger.info("Purged %d old api_call_log rows", deleted)
+
+    from mastodon_is_my_blog.db_log_handler import purge_old_rows as purge_error_log
+
+    deleted_errors = await asyncio.to_thread(purge_error_log)
+    if deleted_errors:
+        logger.info("Purged %d old error_log rows", deleted_errors)
 
     return results
 
@@ -431,8 +424,6 @@ async def sync_my_favourites_for_identity(
 
     Mirrors the shape of sync_all_notifications_for_identity.
     """
-    import asyncio
-
     async with sync_stage(f"sync_my_favourites:{identity.acct}") as t:
         m = client_from_identity(identity)
         stats = {"total": 0, "new": 0}
@@ -502,13 +493,7 @@ async def sync_friends_for_identity(meta_id: int, identity: MastodonIdentity) ->
             followers = m.account_followers(me["id"], limit=80)
             t.rows_fetched = len(following) + len(followers)
 
-            rows = [
-                {"account_data": acc, "overrides": {"is_following": True}}
-                for acc in following
-            ] + [
-                {"account_data": acc, "overrides": {"is_followed_by": True}}
-                for acc in followers
-            ]
+            rows = [{"account_data": acc, "overrides": {"is_following": True}} for acc in following] + [{"account_data": acc, "overrides": {"is_followed_by": True}} for acc in followers]
 
             async with async_session() as session:
                 await bulk_upsert_accounts(session, meta_id, identity.id, rows)
@@ -536,8 +521,6 @@ async def sync_all_following_for_identity(
     on_progress: optional callable(done: int, total: int | None, stage: str)
     cancelled: optional callable() -> bool; checked between pages
     """
-    import asyncio
-
     async with sync_stage(f"sync_all_following:{identity.acct}") as t:
         m = client_from_identity(identity)
         total_following = 0
@@ -554,18 +537,13 @@ async def sync_all_following_for_identity(
             while page:
                 if cancelled is not None and cancelled():
                     break
-                rows = [
-                    {"account_data": acc, "overrides": {"is_following": True}}
-                    for acc in page
-                ]
+                rows = [{"account_data": acc, "overrides": {"is_following": True}} for acc in page]
                 async with async_session() as session:
                     await bulk_upsert_accounts(session, meta_id, identity.id, rows)
                     await session.commit()
                 total_following += len(page)
                 if on_progress is not None:
-                    on_progress(
-                        total_following + total_followers, grand_total, "following"
-                    )
+                    on_progress(total_following + total_followers, grand_total, "following")
                 next_page = await asyncio.to_thread(m.fetch_next, page)
                 if not next_page:
                     break
@@ -577,18 +555,13 @@ async def sync_all_following_for_identity(
             while page:
                 if cancelled is not None and cancelled():
                     break
-                rows = [
-                    {"account_data": acc, "overrides": {"is_followed_by": True}}
-                    for acc in page
-                ]
+                rows = [{"account_data": acc, "overrides": {"is_followed_by": True}} for acc in page]
                 async with async_session() as session:
                     await bulk_upsert_accounts(session, meta_id, identity.id, rows)
                     await session.commit()
                 total_followers += len(page)
                 if on_progress is not None:
-                    on_progress(
-                        total_following + total_followers, grand_total, "followers"
-                    )
+                    on_progress(total_following + total_followers, grand_total, "followers")
                 next_page = await asyncio.to_thread(m.fetch_next, page)
                 if not next_page:
                     break
@@ -636,12 +609,8 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
                     await session.execute(
                         select(
                             CachedPost.author_id,
-                            func.count(CachedPost.id).label(
-                                "total"
-                            ),  # pylint: disable=not-callable
-                            func.sum(func.cast(CachedPost.is_reply, Integer)).label(
-                                "replies"
-                            ),  # pylint: disable=not-callable
+                            func.count(CachedPost.id).label("total"),  # pylint: disable=not-callable
+                            func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),  # pylint: disable=not-callable
                         )
                         .where(
                             and_(
@@ -687,8 +656,8 @@ async def recompute_account_post_stats(meta_id: int, identity: MastodonIdentity)
             await session.execute(
                 select(
                     CachedPost.author_id,
-                    func.count(CachedPost.id).label("total"),
-                    func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),
+                    func.count(CachedPost.id).label("total"),  # pylint: disable=not-callable
+                    func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),  # pylint: disable=not-callable
                 )
                 .where(
                     and_(
@@ -746,11 +715,7 @@ async def sync_user_timeline_for_identity(
     sync_key = f"timeline:{meta_id}:{identity.id}:{target_acct_desc}"
 
     last_run = await get_last_sync(sync_key)
-    if (
-        not force
-        and last_run
-        and (utc_now() - last_run) < timedelta(minutes=cooldown_minutes)
-    ):
+    if not force and last_run and (utc_now() - last_run) < timedelta(minutes=cooldown_minutes):
         return {"status": "skipped"}
 
     stage_name = f"sync_timeline:{identity.acct}:{target_acct_desc}"
@@ -782,9 +747,7 @@ async def sync_user_timeline_for_identity(
 
                 stop_at_id = None
                 if stop_at_cached:
-                    stop_at_id = await get_stop_at_id(
-                        meta_id, identity.id, target_account["acct"]
-                    )
+                    stop_at_id = await get_stop_at_id(meta_id, identity.id, target_account["acct"])
 
                 async for page in deep_fetch_user_timeline(
                     m,
@@ -807,9 +770,7 @@ async def sync_user_timeline_for_identity(
                             identity.id,
                             [{"account_data": target_account, "last_status_at": latest_status_at}],
                         )
-                        new_count, updated_count = await bulk_upsert_posts(
-                            session, meta_id, identity.id, page
-                        )
+                        new_count, updated_count = await bulk_upsert_posts(session, meta_id, identity.id, page)
                         await session.commit()
                     total_new += new_count
                     total_updated += updated_count
@@ -828,9 +789,7 @@ async def sync_user_timeline_for_identity(
                         identity.id,
                         [{"account_data": target_account, "last_status_at": latest_status_at}],
                     )
-                    total_new, total_updated = await bulk_upsert_posts(
-                        session, meta_id, identity.id, statuses
-                    )
+                    total_new, total_updated = await bulk_upsert_posts(session, meta_id, identity.id, statuses)
                     await session.commit()
 
             await update_last_sync(sync_key)
@@ -861,11 +820,7 @@ async def sync_accounts_friends_followers() -> None:
         if not meta:
             return
 
-        stmt_identity = (
-            select(MastodonIdentity)
-            .where(MastodonIdentity.meta_account_id == meta.id)
-            .limit(1)
-        )
+        stmt_identity = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id).limit(1)
         identity = (await session.execute(stmt_identity)).scalar_one_or_none()
         if not identity:
             return
@@ -882,11 +837,7 @@ async def sync_blog_roll_activity() -> None:
         if not meta:
             return
 
-        stmt_identity = (
-            select(MastodonIdentity)
-            .where(MastodonIdentity.meta_account_id == meta.id)
-            .limit(1)
-        )
+        stmt_identity = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id).limit(1)
         identity = (await session.execute(stmt_identity)).scalar_one_or_none()
         if not identity:
             return
@@ -912,18 +863,12 @@ async def sync_user_timeline(
             raise HTTPException(500, "Default meta account missing")
 
         # Get first identity
-        stmt_identity = (
-            select(MastodonIdentity)
-            .where(MastodonIdentity.meta_account_id == meta.id)
-            .limit(1)
-        )
+        stmt_identity = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id).limit(1)
         identity = (await session.execute(stmt_identity)).scalar_one_or_none()
         if not identity:
             raise HTTPException(500, "No identity found")
 
-    return await sync_user_timeline_for_identity(
-        meta_id=meta.id, identity=identity, acct=acct, force=force
-    )
+    return await sync_user_timeline_for_identity(meta_id=meta.id, identity=identity, acct=acct, force=force)
 
 
 async def get_counts_optimized(
@@ -944,19 +889,13 @@ async def get_counts_optimized(
     ]
 
     if user:
-        base_conditions.append(
-            func.coalesce(CachedPost.actor_acct, CachedPost.author_acct) == user
-        )
+        base_conditions.append(func.coalesce(CachedPost.actor_acct, CachedPost.author_acct) == user)
 
     # Helper for conditional aggregation
     def filter_count(condition, label: str):
-        total = func.sum(func.cast(condition, Integer)).label(
-            f"total_{label}"
-        )  # pylint: disable=not-callable
+        total = func.sum(func.cast(condition, Integer)).label(f"total_{label}")  # pylint: disable=not-callable
         unseen = func.sum(
-            func.cast(
-                and_(condition, SeenPost.post_id.is_(None)), Integer
-            )  # pylint: disable=not-callable
+            func.cast(and_(condition, SeenPost.post_id.is_(None)), Integer)  # pylint: disable=not-callable
         ).label(f"unseen_{label}")
         return total, unseen
 

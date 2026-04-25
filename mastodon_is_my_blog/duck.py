@@ -42,7 +42,7 @@ def _open_query_connection() -> duckdb.DuckDBPyConnection:
 
 
 def startup() -> None:
-    global SQLITE_INSTALLED
+    global SQLITE_INSTALLED  # pylint: disable=global-variable-not-assigned
     if SQLITE_INSTALLED:
         return
     con = _open_query_connection()
@@ -133,10 +133,7 @@ async def hashtag_trends(
         ORDER BY bucket_start DESC, n DESC, tag;
     """
     rows = await run(sql, [meta_id, identity_id, top])
-    return [
-        {"bucket_start": r[0].isoformat() if r[0] else None, "tag": r[1], "count": r[2]}
-        for r in rows
-    ]
+    return [{"bucket_start": r[0].isoformat() if r[0] else None, "tag": r[1], "count": r[2]} for r in rows]
 
 
 async def hashtag_counts(
@@ -410,23 +407,26 @@ async def forum_thread_summaries(
         if r[9]:
             try:
                 import json as _json
+
                 uncommon = _json.loads(r[9])
             except Exception:
                 pass
-        results.append({
-            "root_id": r[0],
-            "reply_count": int(r[1] or 0),
-            "unique_participants": int(r[2] or 0),
-            "latest_reply_at": r[3].isoformat() if r[3] else None,
-            "author_acct": r[4],
-            "root_created_at": r[5].isoformat() if r[5] else None,
-            "root_content": r[6],
-            "has_question": bool(r[7]),
-            "root_tags": r[8],
-            "uncommon_words": uncommon,
-            "root_is_partial": bool(r[10]),
-            "tags": tags_set,
-        })
+        results.append(
+            {
+                "root_id": r[0],
+                "reply_count": int(r[1] or 0),
+                "unique_participants": int(r[2] or 0),
+                "latest_reply_at": r[3].isoformat() if r[3] else None,
+                "author_acct": r[4],
+                "root_created_at": r[5].isoformat() if r[5] else None,
+                "root_content": r[6],
+                "has_question": bool(r[7]),
+                "root_tags": r[8],
+                "uncommon_words": uncommon,
+                "root_is_partial": bool(r[10]),
+                "tags": tags_set,
+            }
+        )
     return results
 
 
@@ -471,6 +471,7 @@ async def activity_calendar(
     Returns one row per day that has ≥1 post: {date, count}.
     """
     import datetime as _dt
+
     current_year = _dt.datetime.utcnow().year
     start_year = current_year - (years - 1)
     cutoff = f"{start_year}-01-01"
@@ -675,10 +676,7 @@ async def api_throttle_events(
         ORDER BY day DESC, n DESC;
     """
     rows = await run(sql)
-    return [
-        {"day": str(r[0]), "method_name": r[1], "count": int(r[2])}
-        for r in rows
-    ]
+    return [{"day": str(r[0]), "method_name": r[1], "count": int(r[2])} for r in rows]
 
 
 async def api_data_volume(

@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from mastodon_is_my_blog import duck
+from mastodon_is_my_blog.db_log_handler import DbLogHandler
 from mastodon_is_my_blog.identity_verifier import verify_all_identities
 from mastodon_is_my_blog.link_previews import close_http_client, init_http_client
 from mastodon_is_my_blog.mastodon_apis.masto_client import get_default_client
@@ -41,7 +42,10 @@ from mastodon_is_my_blog.utils.perf import performance_middleware
 
 logger = logging.getLogger(__name__)
 logging.basicConfig()
-logging.getLogger("mastodon_is_my_blog").setLevel(logging.INFO)
+_root = logging.getLogger("mastodon_is_my_blog")
+_root.setLevel(logging.INFO)
+_db_handler = DbLogHandler(level=logging.WARNING)
+_root.addHandler(_db_handler)
 
 dotenv.load_dotenv()
 
@@ -147,9 +151,7 @@ async def login():
 async def callback(code: str):
     m = await get_default_client()
     redirect_uri = f"{os.environ['APP_BASE_URL']}/auth/callback"
-    access_token = m.log_in(
-        code=code, redirect_uri=redirect_uri, scopes=["read", "write"]
-    )
+    access_token = m.log_in(code=code, redirect_uri=redirect_uri, scopes=["read", "write"])
     await set_token(access_token)
     frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:4200")
     await sync_accounts_friends_followers()

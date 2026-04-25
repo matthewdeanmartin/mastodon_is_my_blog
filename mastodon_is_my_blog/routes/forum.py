@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, select
 
 from mastodon_is_my_blog import duck
@@ -49,7 +49,6 @@ def instance_from_acct(acct: str, identity_base_url: str) -> str:
 
 @router.get("/threads")
 async def get_forum_threads(
-    request: Request,
     identity_id: int = Query(...),
     top_filter: str = Query(
         "recent",
@@ -79,9 +78,7 @@ async def get_forum_threads(
         my_acct = identity.acct
         identity_base_url = identity.api_base_url
 
-        following_stmt = select(
-            CachedAccount.acct, CachedAccount.id, CachedAccount.display_name, CachedAccount.avatar
-        ).where(
+        following_stmt = select(CachedAccount.acct, CachedAccount.id, CachedAccount.display_name, CachedAccount.avatar).where(
             and_(
                 CachedAccount.meta_account_id == meta.id,
                 CachedAccount.mastodon_identity_id == identity_id,
@@ -91,10 +88,6 @@ async def get_forum_threads(
         following_rows = (await session.execute(following_stmt)).all()
 
     following_accts: set[str] = {r.acct for r in following_rows}
-    following_info: dict[str, dict] = {
-        r.acct: {"acct": r.acct, "display_name": r.display_name, "avatar": r.avatar}
-        for r in following_rows
-    }
 
     # Fetch pre-aggregated thread summaries from DuckDB
     raw_summaries = await duck.forum_thread_summaries(meta.id, identity_id, include_content_hub)
@@ -111,34 +104,34 @@ async def get_forum_threads(
         latest_reply_dt = datetime.fromisoformat(latest_reply_str) if latest_reply_str else None
         root_created_dt = datetime.fromisoformat(t["root_created_at"]) if t["root_created_at"] else None
 
-        thread_summaries.append({
-            "root_id": t["root_id"],
-            "reply_count": t["reply_count"],
-            "unique_participant_count": t["unique_participants"],
-            "latest_reply_at": latest_reply_dt,
-            "root_created_at": root_created_dt,
-            "root_acct": root_acct,
-            "root_content": t["root_content"],
-            "root_tags_json": t["root_tags"],
-            "root_is_partial": t["root_is_partial"],
-            "root_instance_domain": root_instance_domain,
-            "tags": t["tags"],
-            "uncommon_words": t["uncommon_words"],
-            "has_question": t["has_question"],
-            "author_is_friend": root_acct in following_accts,
-            "i_am_author": i_am_author,
-            "i_am_participating": i_am_participating,
-            "friend_reply_count": 0,
-            "friend_repliers": [],
-        })
+        thread_summaries.append(
+            {
+                "root_id": t["root_id"],
+                "reply_count": t["reply_count"],
+                "unique_participant_count": t["unique_participants"],
+                "latest_reply_at": latest_reply_dt,
+                "root_created_at": root_created_dt,
+                "root_acct": root_acct,
+                "root_content": t["root_content"],
+                "root_tags_json": t["root_tags"],
+                "root_is_partial": t["root_is_partial"],
+                "root_instance_domain": root_instance_domain,
+                "tags": t["tags"],
+                "uncommon_words": t["uncommon_words"],
+                "has_question": t["has_question"],
+                "author_is_friend": root_acct in following_accts,
+                "i_am_author": i_am_author,
+                "i_am_participating": i_am_participating,
+                "friend_reply_count": 0,
+                "friend_repliers": [],
+            }
+        )
 
     # Compute friend reply counts — only needed for "friends_started" / "popular" views
     # but we compute for all so the facets are accurate
     if following_accts:
         all_root_ids = [t["root_id"] for t in thread_summaries]
-        friend_counts = await duck.forum_friend_reply_counts(
-            meta.id, identity_id, all_root_ids, following_accts
-        )
+        friend_counts = await duck.forum_friend_reply_counts(meta.id, identity_id, all_root_ids, following_accts)
         for t in thread_summaries:
             t["friend_reply_count"] = friend_counts.get(t["root_id"], 0)
 
@@ -212,9 +205,7 @@ async def get_forum_threads(
         for t in thread_summaries:
             sort_ts = t["latest_reply_at"] or t["root_created_at"]
             if not past_cursor:
-                if sort_ts is not None and (
-                    sort_ts < cursor_ts or (sort_ts == cursor_ts and t["root_id"] < cursor_rid)
-                ):
+                if sort_ts is not None and (sort_ts < cursor_ts or (sort_ts == cursor_ts and t["root_id"] < cursor_rid)):
                     past_cursor = True
                 else:
                     continue
@@ -233,24 +224,26 @@ async def get_forum_threads(
     items = []
     for t in page:
         sort_ts = t["latest_reply_at"] or t["root_created_at"]
-        items.append({
-            "root_id": t["root_id"],
-            "root_post": {
-                "id": t["root_id"],
-                "author_acct": t["root_acct"],
-                "author_display_name": "",
-                "author_avatar": "",
-                "author_instance": t["root_instance_domain"],
-                "content": t["root_content"],
-                "created_at": t["root_created_at"].isoformat() if t["root_created_at"] else None,
-                "has_question": t["has_question"],
-                "tags": [],
-            },
-            "reply_count": t["reply_count"],
-            "friend_reply_count": t["friend_reply_count"],
-            "friend_repliers": t["friend_repliers"],
-            "latest_reply_at": t["latest_reply_at"].isoformat() if t["latest_reply_at"] else None,
-            "root_is_partial": t["root_is_partial"],
-        })
+        items.append(
+            {
+                "root_id": t["root_id"],
+                "root_post": {
+                    "id": t["root_id"],
+                    "author_acct": t["root_acct"],
+                    "author_display_name": "",
+                    "author_avatar": "",
+                    "author_instance": t["root_instance_domain"],
+                    "content": t["root_content"],
+                    "created_at": t["root_created_at"].isoformat() if t["root_created_at"] else None,
+                    "has_question": t["has_question"],
+                    "tags": [],
+                },
+                "reply_count": t["reply_count"],
+                "friend_reply_count": t["friend_reply_count"],
+                "friend_repliers": t["friend_repliers"],
+                "latest_reply_at": t["latest_reply_at"].isoformat() if t["latest_reply_at"] else None,
+                "root_is_partial": t["root_is_partial"],
+            }
+        )
 
     return {"items": items, "next_cursor": next_cursor, "facets": facets}

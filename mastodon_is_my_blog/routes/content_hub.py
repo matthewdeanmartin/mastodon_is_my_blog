@@ -77,12 +77,8 @@ def group_to_dict(group: ContentHubGroup) -> dict:
         "slug": group.slug,
         "source_type": group.source_type,
         "is_read_only": group.is_read_only,
-        "last_fetched_at": (
-            group.last_fetched_at.isoformat() if group.last_fetched_at else None
-        ),
-        "terms": [
-            {"id": t.id, "term": t.term, "term_type": t.term_type} for t in group.terms
-        ],
+        "last_fetched_at": (group.last_fetched_at.isoformat() if group.last_fetched_at else None),
+        "terms": [{"id": t.id, "term": t.term, "term_type": t.term_type} for t in group.terms],
     }
 
 
@@ -114,9 +110,7 @@ async def list_groups(
 async def get_group_posts(
     group_id: int,
     identity_id: int = Query(...),
-    tab: str = Query(
-        "text", enum=["text", "videos", "jobs", "software", "news", "links"]
-    ),
+    tab: str = Query("text", enum=["text", "videos", "jobs", "software", "news", "links"]),
     limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     before: str | None = Query(None),
     shuffle: bool = Query(False),
@@ -128,11 +122,7 @@ async def get_group_posts(
     """
     async with async_session() as session:
         group = await session.get(ContentHubGroup, group_id)
-        if (
-            group is None
-            or group.meta_account_id != meta.id
-            or group.identity_id != identity_id
-        ):
+        if group is None or group.meta_account_id != meta.id or group.identity_id != identity_id:
             raise HTTPException(404, "Group not found")
 
         stale = await is_group_stale(group)
@@ -145,8 +135,7 @@ async def get_group_posts(
                 and_(
                     ContentHubPostMatch.post_id == CachedPost.id,
                     ContentHubPostMatch.meta_account_id == CachedPost.meta_account_id,
-                    ContentHubPostMatch.fetched_by_identity_id
-                    == CachedPost.fetched_by_identity_id,
+                    ContentHubPostMatch.fetched_by_identity_id == CachedPost.fetched_by_identity_id,
                     ContentHubPostMatch.group_id == group_id,
                 ),
             )
@@ -191,6 +180,7 @@ async def get_group_posts(
 
     if shuffle:
         import random
+
         random.shuffle(posts)
 
     has_more = len(posts) > limit
@@ -201,9 +191,7 @@ async def get_group_posts(
     account_info: dict[str, dict] = {}
     if author_accts:
         async with async_session() as session:
-            stmt = select(
-                CachedAccount.acct, CachedAccount.avatar, CachedAccount.display_name
-            ).where(
+            stmt = select(CachedAccount.acct, CachedAccount.avatar, CachedAccount.display_name).where(
                 CachedAccount.meta_account_id == meta.id,
                 CachedAccount.mastodon_identity_id == identity_id,
                 CachedAccount.acct.in_(author_accts),
@@ -220,13 +208,9 @@ async def get_group_posts(
             "content": p.content,
             "author_acct": p.author_acct,
             "author_avatar": account_info.get(p.author_acct, {}).get("avatar", ""),
-            "author_display_name": account_info.get(p.author_acct, {}).get(
-                "display_name", ""
-            ),
+            "author_display_name": account_info.get(p.author_acct, {}).get("display_name", ""),
             "created_at": p.created_at.isoformat(),
-            "media_attachments": (
-                json.loads(p.media_attachments) if p.media_attachments else []
-            ),
+            "media_attachments": (json.loads(p.media_attachments) if p.media_attachments else []),
             "tags": json.loads(p.tags) if p.tags else [],
             "counts": {
                 "replies": p.replies_count,
@@ -252,9 +236,7 @@ async def get_group_posts(
         "group": {
             "id": group.id,
             "name": group.name,
-            "last_fetched_at": (
-                group.last_fetched_at.isoformat() if group.last_fetched_at else None
-            ),
+            "last_fetched_at": (group.last_fetched_at.isoformat() if group.last_fetched_at else None),
         },
     }
 
@@ -268,11 +250,7 @@ async def force_refresh_group(
     """Force a refresh of a Content Hub group from Mastodon."""
     async with async_session() as session:
         group = await session.get(ContentHubGroup, group_id)
-        if (
-            group is None
-            or group.meta_account_id != meta.id
-            or group.identity_id != identity_id
-        ):
+        if group is None or group.meta_account_id != meta.id or group.identity_id != identity_id:
             raise HTTPException(404, "Group not found")
 
     identity = await resolve_identity(meta.id, identity_id)
@@ -293,47 +271,18 @@ async def get_group_people(
     """Ranked list of distinct authors posting in a Content Hub group."""
     async with async_session() as session:
         group = await session.get(ContentHubGroup, group_id)
-        if (
-            group is None
-            or group.meta_account_id != meta.id
-            or group.identity_id != identity_id
-        ):
+        if group is None or group.meta_account_id != meta.id or group.identity_id != identity_id:
             raise HTTPException(404, "Group not found")
-
-        subq = (
-            select(
-                CachedPost.author_id,
-                CachedPost.author_acct,
-            )
-            .join(
-                ContentHubPostMatch,
-                and_(
-                    ContentHubPostMatch.post_id == CachedPost.id,
-                    ContentHubPostMatch.meta_account_id == CachedPost.meta_account_id,
-                    ContentHubPostMatch.fetched_by_identity_id
-                    == CachedPost.fetched_by_identity_id,
-                    ContentHubPostMatch.group_id == group_id,
-                ),
-            )
-            .where(
-                CachedPost.meta_account_id == meta.id,
-                CachedPost.fetched_by_identity_id == identity_id,
-            )
-        )
 
         aggregated = (
             select(
                 CachedPost.author_acct,
                 CachedPost.author_id,
-                label("post_count_in_group", func.count(CachedPost.id)),
+                label("post_count_in_group", func.count(CachedPost.id)),  # pylint: disable=not-callable
                 label("last_in_group", func.max(CachedPost.created_at)),
                 label(
                     "total_engagement_in_group",
-                    func.sum(
-                        CachedPost.favourites_count
-                        + CachedPost.reblogs_count
-                        + CachedPost.replies_count
-                    ),
+                    func.sum(CachedPost.favourites_count + CachedPost.reblogs_count + CachedPost.replies_count),
                 ),
             )
             .join(
@@ -341,8 +290,7 @@ async def get_group_people(
                 and_(
                     ContentHubPostMatch.post_id == CachedPost.id,
                     ContentHubPostMatch.meta_account_id == CachedPost.meta_account_id,
-                    ContentHubPostMatch.fetched_by_identity_id
-                    == CachedPost.fetched_by_identity_id,
+                    ContentHubPostMatch.fetched_by_identity_id == CachedPost.fetched_by_identity_id,
                     ContentHubPostMatch.group_id == group_id,
                 ),
             )
@@ -358,9 +306,7 @@ async def get_group_people(
         elif sort == "engagement":
             aggregated = aggregated.order_by(desc("total_engagement_in_group"))
         else:
-            aggregated = aggregated.order_by(
-                desc("post_count_in_group"), desc("last_in_group")
-            )
+            aggregated = aggregated.order_by(desc("post_count_in_group"), desc("last_in_group"))
 
         aggregated = aggregated.limit(limit * 2)
         agg_rows = (await session.execute(aggregated)).all()
@@ -391,9 +337,7 @@ async def get_group_people(
                 "is_following": is_following,
                 "is_followed_by": ca.is_followed_by if ca else False,
                 "post_count_in_group": row.post_count_in_group,
-                "last_in_group": (
-                    row.last_in_group.isoformat() if row.last_in_group else None
-                ),
+                "last_in_group": (row.last_in_group.isoformat() if row.last_in_group else None),
                 "total_engagement_in_group": row.total_engagement_in_group or 0,
             }
         )

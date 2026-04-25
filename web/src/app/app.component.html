@@ -392,18 +392,12 @@
               {{ acc.display_name || acc.acct }}
             </span>
             @if ((acc.cached_post_count ?? 0) > 0) {
-              <span
-                style="
-                  font-size: 0.7rem;
-                  color: #6b7280;
-                  white-space: nowrap;
-                  flex-shrink: 0;
-                "
-              >
+              <span style="font-size: 0.7rem; color: #6b7280; white-space: nowrap; flex-shrink: 0">
                 @if ((acc.unseen_post_count ?? 0) > 0) {
                   <span style="color: #6366f1; font-weight: 600">{{ acc.unseen_post_count }}</span
                   >/
-                }{{ acc.cached_post_count }}
+                }
+                {{ acc.cached_post_count }}
               </span>
             }
           </a>

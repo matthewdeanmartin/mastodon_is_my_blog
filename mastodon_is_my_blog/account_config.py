@@ -84,12 +84,7 @@ def load_configured_accounts() -> list[ConfiguredAccount]:
 
 def save_configured_accounts(accounts: list[ConfiguredAccount]) -> None:
     config_path = get_accounts_config_path()
-    payload = {
-        "accounts": [
-            {"name": account.name, "base_url": account.base_url}
-            for account in sorted(accounts, key=lambda account: account.name)
-        ]
-    }
+    payload = {"accounts": [{"name": account.name, "base_url": account.base_url} for account in sorted(accounts, key=lambda account: account.name)]}
     config_path.write_text(f"{json.dumps(payload, indent=2)}\n", encoding="utf-8")
 
 
@@ -105,11 +100,7 @@ def upsert_configured_account(account: ConfiguredAccount) -> None:
 
 def remove_configured_account(name: str) -> None:
     normalized_name = normalize_account_name(name)
-    accounts = [
-        account
-        for account in load_configured_accounts()
-        if account.name != normalized_name
-    ]
+    accounts = [account for account in load_configured_accounts() if account.name != normalized_name]
     save_configured_accounts(accounts)
 
 
@@ -121,9 +112,7 @@ def list_account_summaries() -> list[ConfiguredAccountSummary]:
                 name=account.name,
                 base_url=account.base_url,
                 has_client_id=bool(get_credential(account.name, CLIENT_ID_FIELD)),
-                has_client_secret=bool(
-                    get_credential(account.name, CLIENT_SECRET_FIELD)
-                ),
+                has_client_secret=bool(get_credential(account.name, CLIENT_SECRET_FIELD)),
                 has_access_token=bool(get_credential(account.name, ACCESS_TOKEN_FIELD)),
             )
         )

@@ -201,9 +201,22 @@
         </div>
       }
 
-      <div style="margin-top: 6px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <div
+        style="
+          margin-top: 6px;
+          margin-bottom: 15px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        "
+      >
         <a [routerLink]="['/p', p.id]"><small>Read more</small></a>
-        <a [routerLink]="['/write/reply', p.id]" style="font-size: 0.8rem; color: #6b7280; text-decoration: none;">↩ Reply</a>
+        <a
+          [routerLink]="['/write/reply', p.id]"
+          style="font-size: 0.8rem; color: #6b7280; text-decoration: none"
+          >↩ Reply</a
+        >
         @if (v.counts) {
           <span class="muted" style="font-size: 0.8rem">
             {{ v.counts.replies }} replies &bull; {{ v.counts.likes }} likes

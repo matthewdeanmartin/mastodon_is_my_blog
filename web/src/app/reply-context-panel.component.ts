@@ -15,12 +15,22 @@ import { MastodonStatus } from './mastodon';
     @for (post of ancestors; track post.id) {
       <div class="card" style="opacity: 0.85; margin-bottom: 8px; padding: 12px;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <img [src]="post.account.avatar" alt="" style="width: 28px; height: 28px; border-radius: 50%;" />
+          <img
+            [src]="post.account.avatar"
+            alt=""
+            style="width: 28px; height: 28px; border-radius: 50%;"
+          />
           <div>
-            <strong style="font-size: 0.9rem;">{{ post.account.display_name || post.account.acct }}</strong>
-            <span class="muted" style="margin-left: 6px; font-size: 0.8rem;">&#64;{{ post.account.acct }}</span>
+            <strong style="font-size: 0.9rem;">{{
+              post.account.display_name || post.account.acct
+            }}</strong>
+            <span class="muted" style="margin-left: 6px; font-size: 0.8rem;"
+              >&#64;{{ post.account.acct }}</span
+            >
           </div>
-          <small class="muted" style="margin-left: auto;">{{ post.created_at | date:'short' }}</small>
+          <small class="muted" style="margin-left: auto;">{{
+            post.created_at | date: 'short'
+          }}</small>
         </div>
         <div class="post-body" [innerHTML]="processContent(post.content)"></div>
       </div>
@@ -28,15 +38,27 @@ import { MastodonStatus } from './mastodon';
     @if (target) {
       <div class="card" style="margin-bottom: 12px; padding: 12px; border-left: 4px solid #6366f1;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <img [src]="target.account.avatar" alt="" style="width: 32px; height: 32px; border-radius: 50%;" />
+          <img
+            [src]="target.account.avatar"
+            alt=""
+            style="width: 32px; height: 32px; border-radius: 50%;"
+          />
           <div>
-            <strong style="font-size: 0.95rem;">{{ target.account.display_name || target.account.acct }}</strong>
-            <span class="muted" style="margin-left: 6px; font-size: 0.8rem;">&#64;{{ target.account.acct }}</span>
+            <strong style="font-size: 0.95rem;">{{
+              target.account.display_name || target.account.acct
+            }}</strong>
+            <span class="muted" style="margin-left: 6px; font-size: 0.8rem;"
+              >&#64;{{ target.account.acct }}</span
+            >
           </div>
-          <small class="muted" style="margin-left: auto;">{{ target.created_at | date:'short' }}</small>
+          <small class="muted" style="margin-left: auto;">{{
+            target.created_at | date: 'short'
+          }}</small>
         </div>
         <div class="post-body" [innerHTML]="processContent(target.content)"></div>
-        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; font-size: 0.8rem; color: #888;">
+        <div
+          style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee; font-size: 0.8rem; color: #888;"
+        >
           Replying to this post ↑
         </div>
       </div>

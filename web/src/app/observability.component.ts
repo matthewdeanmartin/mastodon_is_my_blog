@@ -18,8 +18,16 @@ import {
 type BucketOption = 'hour' | 'day' | 'week';
 
 const CHART_COLORS = [
-  '#6366f1', '#f59e0b', '#10b981', '#ec4899', '#0ea5e9',
-  '#a855f7', '#ef4444', '#14b8a6', '#eab308', '#8b5cf6',
+  '#6366f1',
+  '#f59e0b',
+  '#10b981',
+  '#ec4899',
+  '#0ea5e9',
+  '#a855f7',
+  '#ef4444',
+  '#14b8a6',
+  '#eab308',
+  '#8b5cf6',
 ];
 
 interface BarSegment {
@@ -120,64 +128,127 @@ export class ObservabilityComponent implements OnInit, OnDestroy {
   private loadSummary(): void {
     this.summaryLoading = true;
     this.summaryError = null;
-    this.api.getObservabilitySummary().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (data) => { this.summary = data; this.summaryLoading = false; },
-      error: () => { this.summaryError = 'Failed to load summary'; this.summaryLoading = false; },
-    });
+    this.api
+      .getObservabilitySummary()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => {
+          this.summary = data;
+          this.summaryLoading = false;
+        },
+        error: () => {
+          this.summaryError = 'Failed to load summary';
+          this.summaryLoading = false;
+        },
+      });
   }
 
   private loadVolume(): void {
     this.volumeLoading = true;
     this.volumeError = null;
-    this.api.getApiVolume(this.bucket, this.days).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (data) => { this.volumePoints = data; this.volumeLoading = false; },
-      error: () => { this.volumeError = 'Failed to load volume'; this.volumeLoading = false; },
-    });
+    this.api
+      .getApiVolume(this.bucket, this.days)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => {
+          this.volumePoints = data;
+          this.volumeLoading = false;
+        },
+        error: () => {
+          this.volumeError = 'Failed to load volume';
+          this.volumeLoading = false;
+        },
+      });
   }
 
   private loadMethods(): void {
     this.methodLoading = true;
     this.methodError = null;
-    this.api.getApiByMethod(this.days).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (data) => { this.methodRows = data; this.methodLoading = false; },
-      error: () => { this.methodError = 'Failed to load method breakdown'; this.methodLoading = false; },
-    });
+    this.api
+      .getApiByMethod(this.days)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => {
+          this.methodRows = data;
+          this.methodLoading = false;
+        },
+        error: () => {
+          this.methodError = 'Failed to load method breakdown';
+          this.methodLoading = false;
+        },
+      });
   }
 
   private loadLatency(): void {
     this.latencyLoading = true;
     this.latencyError = null;
-    this.api.getApiLatency(this.selectedMethod, this.bucket, this.days).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (data) => { this.latencyPoints = data; this.latencyLoading = false; },
-      error: () => { this.latencyError = 'Failed to load latency'; this.latencyLoading = false; },
-    });
+    this.api
+      .getApiLatency(this.selectedMethod, this.bucket, this.days)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => {
+          this.latencyPoints = data;
+          this.latencyLoading = false;
+        },
+        error: () => {
+          this.latencyError = 'Failed to load latency';
+          this.latencyLoading = false;
+        },
+      });
   }
 
   private loadThrottles(): void {
     this.throttleLoading = true;
     this.throttleError = null;
-    this.api.getApiThrottles(this.days).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (data) => { this.throttleEvents = data; this.throttleLoading = false; },
-      error: () => { this.throttleError = 'Failed to load throttle events'; this.throttleLoading = false; },
-    });
+    this.api
+      .getApiThrottles(this.days)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => {
+          this.throttleEvents = data;
+          this.throttleLoading = false;
+        },
+        error: () => {
+          this.throttleError = 'Failed to load throttle events';
+          this.throttleLoading = false;
+        },
+      });
   }
 
   private loadDataVolume(): void {
     this.dataVolumeLoading = true;
     this.dataVolumeError = null;
-    this.api.getApiDataVolume(this.days).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (data) => { this.dataVolumePoints = data; this.dataVolumeLoading = false; },
-      error: () => { this.dataVolumeError = 'Failed to load data volume'; this.dataVolumeLoading = false; },
-    });
+    this.api
+      .getApiDataVolume(this.days)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => {
+          this.dataVolumePoints = data;
+          this.dataVolumeLoading = false;
+        },
+        error: () => {
+          this.dataVolumeError = 'Failed to load data volume';
+          this.dataVolumeLoading = false;
+        },
+      });
   }
 
   private loadErrors(): void {
     this.errorRateLoading = true;
     this.errorRateError = null;
-    this.api.getApiErrors(this.days).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (data) => { this.errorRatePoints = data; this.errorRateLoading = false; },
-      error: () => { this.errorRateError = 'Failed to load error rate'; this.errorRateLoading = false; },
-    });
+    this.api
+      .getApiErrors(this.days)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => {
+          this.errorRatePoints = data;
+          this.errorRateLoading = false;
+        },
+        error: () => {
+          this.errorRateError = 'Failed to load error rate';
+          this.errorRateLoading = false;
+        },
+      });
   }
 
   // --- Chart helpers ---

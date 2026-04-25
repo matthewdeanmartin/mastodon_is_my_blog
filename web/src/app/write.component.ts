@@ -17,7 +17,14 @@ type Visibility = 'public' | 'unlisted' | 'private' | 'direct';
 @Component({
   selector: 'app-write',
   standalone: true,
-  imports: [CommonModule, FormsModule, PlainTextareaEditorComponent, ReplyContextPanelComponent, LivePreviewPaneComponent, GrammarHintsComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    PlainTextareaEditorComponent,
+    ReplyContextPanelComponent,
+    LivePreviewPaneComponent,
+    GrammarHintsComponent,
+  ],
   templateUrl: 'write.component.html',
 })
 export class WriteComponent implements OnInit, OnDestroy {
@@ -173,7 +180,9 @@ export class WriteComponent implements OnInit, OnDestroy {
   // ── Storm split ────────────────────────────────────────────────────────
 
   get canSplit(): boolean {
-    return !!this.selected && this.selected.mode === 'single' && this.selected.body.trim().length > 0;
+    return (
+      !!this.selected && this.selected.mode === 'single' && this.selected.body.trim().length > 0
+    );
   }
 
   convertToStorm(): void {
@@ -235,7 +244,8 @@ export class WriteComponent implements OnInit, OnDestroy {
     if (!this.selected) return;
     const { match, replacement } = event;
     const body = this.selected.body;
-    const next = body.slice(0, match.offset) + replacement + body.slice(match.offset + match.length);
+    const next =
+      body.slice(0, match.offset) + replacement + body.slice(match.offset + match.length);
     this.selected.body = next;
     this.dirty = true;
     this.autosave$.next();

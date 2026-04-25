@@ -30,14 +30,10 @@ async def backfill(batch_size: int = 2000) -> None:
             return
 
         # Load only the columns needed for chain-walking
-        rows = (await session.execute(
-            text("SELECT id, meta_account_id, in_reply_to_id FROM cached_posts WHERE root_id IS NULL")
-        )).all()
+        rows = (await session.execute(text("SELECT id, meta_account_id, in_reply_to_id FROM cached_posts WHERE root_id IS NULL"))).all()
 
         # Also load the in_reply_to_id for already-filled posts so we can walk through them
-        all_rows = (await session.execute(
-            text("SELECT id, meta_account_id, in_reply_to_id FROM cached_posts")
-        )).all()
+        all_rows = (await session.execute(text("SELECT id, meta_account_id, in_reply_to_id FROM cached_posts"))).all()
 
     # Build lookup: (meta_account_id, id) -> in_reply_to_id
     post_map: dict[tuple[int, str], str | None] = {}
@@ -45,7 +41,7 @@ async def backfill(batch_size: int = 2000) -> None:
         post_map[(row.meta_account_id, row.id)] = row.in_reply_to_id
 
     # Compute root_id for each unfilled post
-    full_roots: list[tuple[str, int, str]] = []    # (post_id, meta_id, root_id)
+    full_roots: list[tuple[str, int, str]] = []  # (post_id, meta_id, root_id)
     partial_roots: list[tuple[str, int, str]] = []  # (post_id, meta_id, root_id)
 
     for row in rows:

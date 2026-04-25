@@ -109,9 +109,26 @@
             </div>
           }
 
-          <div style="margin-top: 6px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <a [routerLink]="['/p', p.id]" style="font-size: 0.8rem; color: #6366f1; text-decoration: none;">View thread</a>
-            <a [routerLink]="['/write/reply', p.id]" style="font-size: 0.8rem; color: #6b7280; text-decoration: none;">↩ Reply</a>
+          <div
+            style="
+              margin-top: 6px;
+              margin-bottom: 12px;
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              flex-wrap: wrap;
+            "
+          >
+            <a
+              [routerLink]="['/p', p.id]"
+              style="font-size: 0.8rem; color: #6366f1; text-decoration: none"
+              >View thread</a
+            >
+            <a
+              [routerLink]="['/write/reply', p.id]"
+              style="font-size: 0.8rem; color: #6b7280; text-decoration: none"
+              >↩ Reply</a
+            >
             <span class="muted" style="font-size: 0.8rem">
               {{ p.counts.replies }} replies &bull; {{ p.counts.likes }} likes &bull;
               {{ p.counts.reblogs }} boosts

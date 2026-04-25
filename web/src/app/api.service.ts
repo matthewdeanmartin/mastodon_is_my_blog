@@ -39,6 +39,7 @@ import {
   NewFriendCandidate,
   NewFriendsCandidatesResponse,
   NewFriendsParams,
+  ErrorLogEntry,
 } from './mastodon';
 import { RawContentPost } from './content-feed.utils';
 import { Observable, throwError, timer, BehaviorSubject, of, Subject } from 'rxjs';
@@ -506,11 +507,9 @@ export class ApiService {
     let params = new HttpParams();
     if (identityId != null) params = params.set('identity_id', identityId.toString());
     return this.http
-      .post<Record<string, number>>(
-        `${this.base}/api/admin/recompute-post-stats`,
-        {},
-        { params, headers: this.headers },
-      )
+      .post<
+        Record<string, number>
+      >(`${this.base}/api/admin/recompute-post-stats`, {}, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -518,11 +517,9 @@ export class ApiService {
     let params = new HttpParams();
     if (identityId != null) params = params.set('identity_id', identityId.toString());
     return this.http
-      .post<Record<string, number>>(
-        `${this.base}/api/admin/backfill-content-flags`,
-        {},
-        { params, headers: this.headers },
-      )
+      .post<
+        Record<string, number>
+      >(`${this.base}/api/admin/backfill-content-flags`, {}, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -835,10 +832,9 @@ export class ApiService {
       .set('years', years.toString());
     if (authorAcct) params = params.set('author_acct', authorAcct);
     return this.http
-      .get<{ date: string; count: number }[]>(
-        `${this.base}/api/analytics/activity-calendar`,
-        { params, headers: this.headers },
-      )
+      .get<
+        { date: string; count: number }[]
+      >(`${this.base}/api/analytics/activity-calendar`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -898,7 +894,10 @@ export class ApiService {
   getQuickDossier(acct: string, identityId: number): Observable<QuickDossier> {
     const params = new HttpParams().set('identity_id', identityId.toString());
     return this.http
-      .get<QuickDossier>(`${this.base}/api/peeps/dossier/${acct}/quick`, { params, headers: this.headers })
+      .get<QuickDossier>(`${this.base}/api/peeps/dossier/${acct}/quick`, {
+        params,
+        headers: this.headers,
+      })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -918,7 +917,11 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  deepFetchDossier(acct: string, identityId: number, maxPages?: number): Observable<AccountCatchupStatus> {
+  deepFetchDossier(
+    acct: string,
+    identityId: number,
+    maxPages?: number,
+  ): Observable<AccountCatchupStatus> {
     let params = new HttpParams().set('identity_id', identityId.toString());
     if (maxPages != null) params = params.set('max_pages', maxPages.toString());
     return this.http
@@ -1022,7 +1025,11 @@ export class ApiService {
 
   spellcheck(text: string, language = 'en-US'): Observable<SpellcheckOut> {
     return this.http
-      .post<SpellcheckOut>(`${this.base}/api/drafts/spellcheck`, { text, language }, { headers: this.headers })
+      .post<SpellcheckOut>(
+        `${this.base}/api/drafts/spellcheck`,
+        { text, language },
+        { headers: this.headers },
+      )
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -1056,26 +1063,37 @@ export class ApiService {
     return this.cached(
       key,
       this.http
-        .get<ForumThreadsResponse>(`${this.base}/api/forum/threads`, { params: httpParams, headers: this.headers })
+        .get<ForumThreadsResponse>(`${this.base}/api/forum/threads`, {
+          params: httpParams,
+          headers: this.headers,
+        })
         .pipe(catchError((err) => this.handleError(err))),
     );
   }
 
   getNlpBackfillStatus(): Observable<NlpBackfillStatus> {
     return this.http
-      .get<NlpBackfillStatus>(`${this.base}/api/admin/nlp-backfill/status`, { headers: this.headers })
+      .get<NlpBackfillStatus>(`${this.base}/api/admin/nlp-backfill/status`, {
+        headers: this.headers,
+      })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   startNlpBackfill(): Observable<NlpBackfillStatus> {
     return this.http
-      .post<NlpBackfillStatus>(`${this.base}/api/admin/nlp-backfill/start`, {}, { headers: this.headers })
+      .post<NlpBackfillStatus>(
+        `${this.base}/api/admin/nlp-backfill/start`,
+        {},
+        { headers: this.headers },
+      )
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   cancelNlpBackfill(): Observable<{ cancelled: boolean }> {
     return this.http
-      .delete<{ cancelled: boolean }>(`${this.base}/api/admin/nlp-backfill`, { headers: this.headers })
+      .delete<{
+        cancelled: boolean;
+      }>(`${this.base}/api/admin/nlp-backfill`, { headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -1090,14 +1108,18 @@ export class ApiService {
   getApiVolume(bucket = 'day', days = 30): Observable<ApiVolumePoint[]> {
     const params = new HttpParams().set('bucket', bucket).set('days', days.toString());
     return this.http
-      .get<ApiVolumePoint[]>(`${this.base}/api/observability/volume`, { params, headers: this.headers })
+      .get<
+        ApiVolumePoint[]
+      >(`${this.base}/api/observability/volume`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getApiByMethod(days = 30): Observable<ApiMethodRow[]> {
     const params = new HttpParams().set('days', days.toString());
     return this.http
-      .get<ApiMethodRow[]>(`${this.base}/api/observability/by-method`, { params, headers: this.headers })
+      .get<
+        ApiMethodRow[]
+      >(`${this.base}/api/observability/by-method`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -1105,28 +1127,36 @@ export class ApiService {
     let params = new HttpParams().set('bucket', bucket).set('days', days.toString());
     if (method) params = params.set('method', method);
     return this.http
-      .get<ApiLatencyPoint[]>(`${this.base}/api/observability/latency`, { params, headers: this.headers })
+      .get<
+        ApiLatencyPoint[]
+      >(`${this.base}/api/observability/latency`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getApiThrottles(days = 30): Observable<ApiThrottleEvent[]> {
     const params = new HttpParams().set('days', days.toString());
     return this.http
-      .get<ApiThrottleEvent[]>(`${this.base}/api/observability/throttles`, { params, headers: this.headers })
+      .get<
+        ApiThrottleEvent[]
+      >(`${this.base}/api/observability/throttles`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getApiDataVolume(days = 30): Observable<ApiDataVolumePoint[]> {
     const params = new HttpParams().set('days', days.toString());
     return this.http
-      .get<ApiDataVolumePoint[]>(`${this.base}/api/observability/data-volume`, { params, headers: this.headers })
+      .get<
+        ApiDataVolumePoint[]
+      >(`${this.base}/api/observability/data-volume`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
   getApiErrors(days = 30): Observable<ApiErrorRatePoint[]> {
     const params = new HttpParams().set('days', days.toString());
     return this.http
-      .get<ApiErrorRatePoint[]>(`${this.base}/api/observability/errors`, { params, headers: this.headers })
+      .get<
+        ApiErrorRatePoint[]
+      >(`${this.base}/api/observability/errors`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -1138,7 +1168,8 @@ export class ApiService {
   ): Observable<NewFriendsCandidatesResponse> {
     let params = new HttpParams().set('identity_id', identityId.toString());
     if (opts.min_posts != null) params = params.set('min_posts', opts.min_posts.toString());
-    if (opts.active_since_days != null) params = params.set('active_since_days', opts.active_since_days.toString());
+    if (opts.active_since_days != null)
+      params = params.set('active_since_days', opts.active_since_days.toString());
     if (opts.bio_contains) params = params.set('bio_contains', opts.bio_contains);
     if (opts.max_friends != null) params = params.set('max_friends', opts.max_friends.toString());
     if (opts.blog_roll_filter) params = params.set('blog_roll_filter', opts.blog_roll_filter);
@@ -1152,6 +1183,13 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
+  getErrorLog(limit = 200): Observable<ErrorLogEntry[]> {
+    const params = new HttpParams().set('limit', limit.toString());
+    return this.http
+      .get<ErrorLogEntry[]>(`${this.base}/api/admin/error-log`, { params, headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
   refreshNewFriendsCache(
     identityId: number,
     maxFriends: number,
@@ -1162,11 +1200,10 @@ export class ApiService {
       .set('max_friends', maxFriends.toString());
     if (blogRollFilter) params = params.set('blog_roll_filter', blogRollFilter);
     return this.http
-      .post<{ status: string; candidates_fetched: number }>(
-        `${this.base}/api/new-friends/refresh`,
-        {},
-        { params, headers: this.headers },
-      )
+      .post<{
+        status: string;
+        candidates_fetched: number;
+      }>(`${this.base}/api/new-friends/refresh`, {}, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 }

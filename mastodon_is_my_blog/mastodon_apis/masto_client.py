@@ -78,22 +78,10 @@ def client_from_identity(
         base_url=identity.api_base_url,
     )
 
-    client_id = (
-        configured_identity.client_id if configured_identity else identity.client_id
-    )
-    client_secret = (
-        configured_identity.client_secret
-        if configured_identity
-        else identity.client_secret
-    )
-    access_token = (
-        configured_identity.access_token
-        if configured_identity
-        else identity.access_token
-    )
-    base_url = (
-        configured_identity.base_url if configured_identity else identity.api_base_url
-    )
+    client_id = configured_identity.client_id if configured_identity else identity.client_id
+    client_secret = configured_identity.client_secret if configured_identity else identity.client_secret
+    access_token = configured_identity.access_token if configured_identity else identity.access_token
+    base_url = configured_identity.base_url if configured_identity else identity.api_base_url
 
     if PERF:
         return TimedMastodonClient(
@@ -146,9 +134,7 @@ async def client_from_identity_id(identity_id: int) -> Mastodon | TimedMastodonC
         return client_from_identity(identity)
 
 
-async def client_from_meta_account(
-    meta_account_id: int, identity_index: int = 0
-) -> Mastodon | TimedMastodonClient:
+async def client_from_meta_account(meta_account_id: int, identity_index: int = 0) -> Mastodon | TimedMastodonClient:
     """
     Creates a client for a specific meta account.
 
@@ -164,19 +150,11 @@ async def client_from_meta_account(
 
     """
     async with async_session() as session:
-        stmt = (
-            select(MastodonIdentity)
-            .where(MastodonIdentity.meta_account_id == meta_account_id)
-            .offset(identity_index)
-            .limit(1)
-        )
+        stmt = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta_account_id).offset(identity_index).limit(1)
         identity = (await session.execute(stmt)).scalar_one_or_none()
 
         if not identity:
-            raise ValueError(
-                f"No identity found for meta_account {meta_account_id} "
-                f"at index {identity_index}"
-            )
+            raise ValueError(f"No identity found for meta_account {meta_account_id} at index {identity_index}")
 
         return client_from_identity(identity)
 
@@ -190,8 +168,6 @@ async def get_default_client() -> Mastodon | TimedMastodonClient:
     if not identity:
         # We do not fallback to env vars or magic here.
         # If the DB isn't bootstrapped, the app is broken.
-        raise ValueError(
-            "Default identity not found. Ensure .env is configured and app has bootstrapped."
-        )
+        raise ValueError("Default identity not found. Ensure .env is configured and app has bootstrapped.")
 
     return client_from_identity(identity)

@@ -164,7 +164,6 @@ async def _run_loop(
 
             stop_at_id = await get_stop_at_id(job.meta_id, identity.id, account.acct)
 
-            consecutive_429s = 0
             async for page in deep_fetch_user_timeline(
                 m,
                 target_id,
@@ -209,7 +208,6 @@ async def _run_loop(
                     await bulk_upsert_posts(session, job.meta_id, identity.id, page)
                     await session.commit()
 
-            consecutive_429s = 0
             inter_account_delay_current = inter_account_delay  # reset backoff
 
         except Exception as exc:
@@ -218,9 +216,7 @@ async def _run_loop(
             # If it looks like a rate-limit exception, flag it and back off
             if getattr(exc, "retry_after", None) is not None:
                 job.rate_limited = True
-                inter_account_delay_current = min(
-                    inter_account_delay_current * 2, 120.0
-                )
+                inter_account_delay_current = min(inter_account_delay_current * 2, 120.0)
 
         job.done += 1
 

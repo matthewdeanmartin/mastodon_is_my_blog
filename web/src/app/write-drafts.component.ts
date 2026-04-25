@@ -10,7 +10,9 @@ import { Draft } from './mastodon';
   imports: [CommonModule],
   template: `
     <div class="card" style="max-width: 700px; margin: 0 auto;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;"
+      >
         <h2 style="margin: 0; font-size: 1.2rem;">Drafts</h2>
         <button (click)="newPost()">+ New post</button>
       </div>
@@ -18,7 +20,9 @@ import { Draft } from './mastodon';
       @if (loading) {
         <div class="muted" style="font-size: 0.9rem;">Loading…</div>
       } @else if (drafts.length === 0) {
-        <div class="muted" style="font-size: 0.9rem; font-style: italic;">No saved drafts. Start a new post!</div>
+        <div class="muted" style="font-size: 0.9rem; font-style: italic;">
+          No saved drafts. Start a new post!
+        </div>
         <div style="margin-top: 16px;">
           <button (click)="newPost()">+ New post</button>
         </div>
@@ -39,13 +43,15 @@ import { Draft } from './mastodon';
             (click)="openDraft(draft.id)"
           >
             <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 0.88rem; font-weight: 500; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div
+                style="font-size: 0.88rem; font-weight: 500; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+              >
                 {{ draftPreview(draft) }}
               </div>
               <div style="font-size: 0.75rem; color: #888;">
                 {{ nodeCount(draft) }} post{{ nodeCount(draft) !== 1 ? 's' : '' }}
                 &nbsp;·&nbsp;
-                {{ draft.updated_at | date:'MMM d, y h:mm a' }}
+                {{ draft.updated_at | date: 'MMM d, y h:mm a' }}
                 @if (draft.reply_to_status_id) {
                   &nbsp;·&nbsp; <span style="color: #6366f1;">reply</span>
                 }
@@ -55,11 +61,15 @@ import { Draft } from './mastodon';
               <button
                 (click)="openDraft(draft.id); $event.stopPropagation()"
                 style="font-size: 0.8rem; padding: 3px 10px;"
-              >Edit</button>
+              >
+                Edit
+              </button>
               <button
                 (click)="deleteDraft(draft.id, $event)"
                 style="font-size: 0.8rem; padding: 3px 10px; background: none; border: 1px solid #fca5a5; color: #dc2626;"
-              >Delete</button>
+              >
+                Delete
+              </button>
             </div>
           </div>
         }
@@ -76,8 +86,13 @@ export class WriteDraftsComponent implements OnInit {
 
   ngOnInit(): void {
     this.api.listDrafts().subscribe({
-      next: (d) => { this.drafts = d; this.loading = false; },
-      error: () => { this.loading = false; },
+      next: (d) => {
+        this.drafts = d;
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+      },
     });
   }
 

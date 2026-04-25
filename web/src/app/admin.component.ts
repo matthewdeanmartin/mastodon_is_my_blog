@@ -11,6 +11,7 @@ import {
   OwnAccountCatchupResult,
   BulkSyncJobStatus,
   NlpBackfillStatus,
+  ErrorLogEntry,
 } from './mastodon';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
@@ -597,5 +598,34 @@ export class AdminComponent implements OnInit, OnDestroy {
 
   termTypeLabel(t: AdminBundleTerm | TermDraft): string {
     return t.term_type === 'hashtag' ? '#' : '🔍';
+  }
+
+  // --- Error log ---
+
+  errorLog: ErrorLogEntry[] = [];
+  errorLogLoading = false;
+  errorLogError: string | null = null;
+  errorLogExpanded = false;
+
+  loadErrorLog() {
+    this.errorLogLoading = true;
+    this.errorLogError = null;
+    this.api.getErrorLog().subscribe({
+      next: (rows) => {
+        this.errorLog = rows;
+        this.errorLogLoading = false;
+        this.errorLogExpanded = true;
+      },
+      error: (err) => {
+        this.errorLogLoading = false;
+        this.errorLogError = err?.error?.detail ?? 'Failed to load error log';
+      },
+    });
+  }
+
+  levelColor(level: string): string {
+    if (level === 'CRITICAL' || level === 'ERROR') return '#dc2626';
+    if (level === 'WARNING') return '#d97706';
+    return '#64748b';
   }
 }

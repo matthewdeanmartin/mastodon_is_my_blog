@@ -75,7 +75,9 @@ interface ActiveFacets {
               }
 
               <div class="thread-meta">
-                <span class="author">{{ thread.root_post.author_display_name || thread.root_post.author_acct }}</span>
+                <span class="author">{{
+                  thread.root_post.author_display_name || thread.root_post.author_acct
+                }}</span>
                 <span class="instance muted">{{ thread.root_post.author_instance }}</span>
                 @if (thread.root_post.has_question) {
                   <span class="question-badge">?</span>
@@ -102,7 +104,10 @@ interface ActiveFacets {
                       </span>
                     </div>
                   } @else if (thread.reply_count > 0) {
-                    <span class="reply-label muted">{{ thread.reply_count }} repl{{ thread.reply_count === 1 ? 'y' : 'ies' }} (no friends yet)</span>
+                    <span class="reply-label muted"
+                      >{{ thread.reply_count }} repl{{ thread.reply_count === 1 ? 'y' : 'ies' }} (no
+                      friends yet)</span
+                    >
                   }
                 </div>
 
@@ -133,7 +138,9 @@ interface ActiveFacets {
                   (click)="toggleFacet('hashtags', h.tag)"
                 >
                   #{{ h.tag }} <span class="chip-count">{{ h.count }}</span>
-                  @if (activeFacets.hashtags.has(h.tag)) { <span class="remove">×</span> }
+                  @if (activeFacets.hashtags.has(h.tag)) {
+                    <span class="remove">×</span>
+                  }
                 </button>
               }
               @if (facets.hashtags.length === 0) {
@@ -152,7 +159,9 @@ interface ActiveFacets {
                   (click)="toggleFacet('uncommon_words', w.word)"
                 >
                   {{ w.word }} <span class="chip-count">{{ w.thread_count }}</span>
-                  @if (activeFacets.uncommon_words.has(w.word)) { <span class="remove">×</span> }
+                  @if (activeFacets.uncommon_words.has(w.word)) {
+                    <span class="remove">×</span>
+                  }
                 </button>
               }
               @if (facets.uncommon_words.length === 0) {
@@ -171,7 +180,9 @@ interface ActiveFacets {
                   (click)="toggleFacet('root_instances', inst.instance)"
                 >
                   {{ inst.instance }} <span class="chip-count">{{ inst.count }}</span>
-                  @if (activeFacets.root_instances.has(inst.instance)) { <span class="remove">×</span> }
+                  @if (activeFacets.root_instances.has(inst.instance)) {
+                    <span class="remove">×</span>
+                  }
                 </button>
               }
               @if (facets.root_instances.length === 0) {
@@ -375,7 +386,9 @@ interface ActiveFacets {
         border-radius: 8px;
         padding: 16px 20px;
         position: relative;
-        transition: box-shadow 0.15s, border-color 0.15s;
+        transition:
+          box-shadow 0.15s,
+          border-color 0.15s;
       }
 
       .thread-card:hover {
@@ -547,7 +560,11 @@ export class ForumComponent implements OnInit {
 
   setFilter(filter: string): void {
     this.currentFilter = filter;
-    this.activeFacets = { hashtags: new Set(), uncommon_words: new Set(), root_instances: new Set() };
+    this.activeFacets = {
+      hashtags: new Set(),
+      uncommon_words: new Set(),
+      root_instances: new Set(),
+    };
     this.threads = [];
     this.nextCursor = null;
     const identityId = this.api.getCurrentIdentityId();
@@ -613,9 +630,7 @@ export class ForumComponent implements OnInit {
   }
 
   formatRepliers(thread: ForumThread): string {
-    const names = thread.friend_repliers
-      .slice(0, 3)
-      .map((r) => `@${r.acct.split('@')[0]}`);
+    const names = thread.friend_repliers.slice(0, 3).map((r) => `@${r.acct.split('@')[0]}`);
     const extra = thread.friend_reply_count - names.length;
     let label = names.join(', ');
     if (extra > 0) label += ` +${extra}`;

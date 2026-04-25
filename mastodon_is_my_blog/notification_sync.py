@@ -172,9 +172,7 @@ async def sync_all_notifications_for_identity(
             raise
 
 
-async def sync_notifications_for_identity(
-    meta_id: int, identity: MastodonIdentity
-) -> dict[str, int]:
+async def sync_notifications_for_identity(meta_id: int, identity: MastodonIdentity) -> dict[str, int]:
     """
     Fetches notifications and stores them in the database.
     Also syncs accounts and timelines for mutual followers who interacted.
@@ -198,18 +196,14 @@ async def sync_notifications_for_identity(
                 "timelines_synced": 0,
             }
 
-            synced_account_ids, new_notif_count = await persist_notifications(
-                meta_id, identity, notifications, stats
-            )
+            synced_account_ids, new_notif_count = await persist_notifications(meta_id, identity, notifications, stats)
             t.rows_written = new_notif_count
 
             # Second-hop: sync timelines for top-5 mutuals by recent notification count.
             # 60-min cooldown keeps notification sync from amplifying into many API calls.
             SECOND_HOP_LIMIT = 5
             SECOND_HOP_COOLDOWN = 60
-            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
-                days=30
-            )
+            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
 
             async with async_session() as session:
                 # Rank mutuals among the accounts we just saw by recent notification count.
@@ -232,7 +226,7 @@ async def sync_notifications_for_identity(
                         CachedAccount.is_followed_by.is_(True),
                     )
                     .group_by(CachedAccount.id)
-                    .order_by(func.count(CachedNotification.id).desc())
+                    .order_by(func.count(CachedNotification.id).desc())  # pylint: disable=not-callable
                     .limit(SECOND_HOP_LIMIT)
                 )
                 top_mutuals = (await session.execute(top_mutuals_stmt)).scalars().all()
@@ -250,11 +244,10 @@ async def sync_notifications_for_identity(
                 except Exception as e:
                     logger.warning("Failed to sync timeline for %s: %s", mutual.acct, e)
 
-            t.extra = {k: v for k, v in stats.items()}
+            t.extra = dict(stats)
 
             logger.info(
-                "Notification sync for %s: %d notifications, "
-                "%d accounts synced, %d timelines synced",
+                "Notification sync for %s: %d notifications, %d accounts synced, %d timelines synced",
                 identity.acct,
                 stats["total"],
                 stats["accounts_synced"],

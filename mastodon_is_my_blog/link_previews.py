@@ -42,9 +42,7 @@ _shared_client: httpx.AsyncClient | None = None
 
 def get_http_client() -> httpx.AsyncClient:
     if _shared_client is None:
-        raise RuntimeError(
-            "HTTP client not initialized. Call init_http_client() first."
-        )
+        raise RuntimeError("HTTP client not initialized. Call init_http_client() first.")
     return _shared_client
 
 
@@ -187,9 +185,7 @@ def _clean(s: Optional[str]) -> Optional[str]:
     return s or None
 
 
-def _meta(
-    soup: BeautifulSoup, *, prop: str | None = None, name: str | None = None
-) -> Optional[str]:
+def _meta(soup: BeautifulSoup, *, prop: str | None = None, name: str | None = None) -> Optional[str]:
     if prop:
         tag = soup.find("meta", attrs={"property": prop})
         if tag and tag.get("content"):
@@ -209,9 +205,7 @@ def _abs_url(base: str, maybe: Optional[str]) -> Optional[str]:
 
 def _favicon(base: str, soup: BeautifulSoup) -> Optional[str]:
     for rel in ("icon", "shortcut icon", "apple-touch-icon"):
-        tag = soup.find(
-            "link", rel=lambda v, r=rel: isinstance(v, str) and r in v.lower()
-        )
+        tag = soup.find("link", rel=lambda v, r=rel: isinstance(v, str) and r in v.lower())
         if tag and tag.get("href"):
             return urljoin(base, cast(str, tag["href"]))
     return urljoin(base, "/favicon.ico")
@@ -248,16 +242,10 @@ async def fetch_card_from_network(url: str) -> CardResponse:
     if not title:
         title = _clean(soup.title.string if soup.title and soup.title.string else None)
 
-    description = _clean(
-        _meta(soup, prop="og:description")
-        or _meta(soup, name="twitter:description")
-        or _meta(soup, name="description")
-    )
+    description = _clean(_meta(soup, prop="og:description") or _meta(soup, name="twitter:description") or _meta(soup, name="description"))
 
     site_name = _clean(_meta(soup, prop="og:site_name"))
-    image = _abs_url(
-        final_url, _meta(soup, prop="og:image") or _meta(soup, name="twitter:image")
-    )
+    image = _abs_url(final_url, _meta(soup, prop="og:image") or _meta(soup, name="twitter:image"))
     favicon = _favicon(final_url, soup)
 
     return CardResponse(
@@ -330,17 +318,11 @@ async def fetch_card(
             asyncio.create_task(_revalidate(url, url_key))
             return stale_result
 
-        if (
-            row.status in ("error", "blocked")
-            and row.expires_at
-            and now < row.expires_at
-        ):
+        if row.status in ("error", "blocked") and row.expires_at and now < row.expires_at:
             # Negative cache still valid
             record_preview_error()
             record_card_timing(url_key, _time.perf_counter() - start, "error")
-            raise HTTPException(
-                502, f"Cached fetch failure: {row.error_reason or 'unknown'}"
-            )
+            raise HTTPException(502, f"Cached fetch failure: {row.error_reason or 'unknown'}")
 
     # Miss or expired — coalesce concurrent fetches for the same url_key
     return await _coalesced_fetch(url, url_key, start)
@@ -384,7 +366,7 @@ async def _coalesced_fetch(url: str, url_key: str, start: float) -> CardResponse
         await _persist_error(url_key, "error", str(exc))
         http_exc = HTTPException(502, "Upstream fetch failed.")
         future.set_exception(http_exc)
-        raise http_exc
+        raise http_exc from exc
     finally:
         _inflight.pop(url_key, None)
 

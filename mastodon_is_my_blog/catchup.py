@@ -94,7 +94,7 @@ async def get_catchup_queue(
         notif_count_sq = (
             select(
                 CachedNotification.account_id,
-                func.count(CachedNotification.id).label("notif_count"),
+                func.count(CachedNotification.id).label("notif_count"),  # pylint: disable=not-callable
             )
             .where(
                 and_(
@@ -141,9 +141,7 @@ async def get_catchup_queue(
             else_=4,
         ).label("priority")
 
-        notif_count_col = func.coalesce(notif_count_sq.c.notif_count, 0).label(
-            "notif_count"
-        )
+        notif_count_col = func.coalesce(notif_count_sq.c.notif_count, 0).label("notif_count")
 
         stmt = (
             select(CachedAccount, priority_col, notif_count_col)
@@ -228,23 +226,17 @@ async def deep_fetch_user_timeline(
             if max_id is not None:
                 kwargs["max_id"] = max_id
 
-            page: list[dict] = await asyncio.to_thread(
-                cast(Any, m.account_statuses), target_id, **kwargs
-            )
+            page: list[dict] = await asyncio.to_thread(cast(Any, m.account_statuses), target_id, **kwargs)
         except Exception as exc:
             # Mastodon.py raises MastodonRatelimitError on 429
             retry_after = getattr(exc, "retry_after", None)
             if retry_after is not None:
                 wait = float(retry_after)
-                logger.warning(
-                    "deep_fetch target=%s: 429, sleeping %.0fs", target_id, wait
-                )
+                logger.warning("deep_fetch target=%s: 429, sleeping %.0fs", target_id, wait)
                 await asyncio.sleep(wait)
                 # Retry the same page once — don't advance max_id
                 try:
-                    page = await asyncio.to_thread(
-                        cast(Any, m.account_statuses), target_id, **kwargs
-                    )
+                    page = await asyncio.to_thread(cast(Any, m.account_statuses), target_id, **kwargs)
                 except Exception as retry_exc:
                     logger.error(
                         "deep_fetch target=%s: retry after 429 also failed: %s",
@@ -253,9 +245,7 @@ async def deep_fetch_user_timeline(
                     )
                     break
             else:
-                logger.error(
-                    "deep_fetch target=%s: unexpected error: %s", target_id, exc
-                )
+                logger.error("deep_fetch target=%s: unexpected error: %s", target_id, exc)
                 break
 
         if not page:
@@ -289,9 +279,7 @@ async def deep_fetch_user_timeline(
         # we can inspect here, but if page is shorter than the requested limit
         # the instance has no more history to give us.
         if len(page) < 40:
-            logger.debug(
-                "deep_fetch target=%s: short page (%d), done", target_id, len(page)
-            )
+            logger.debug("deep_fetch target=%s: short page (%d), done", target_id, len(page))
             break
 
         if inter_page_delay > 0:

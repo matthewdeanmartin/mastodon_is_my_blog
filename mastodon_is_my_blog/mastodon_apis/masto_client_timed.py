@@ -144,9 +144,5 @@ class TimedMastodonClient:
     def timeline_hashtag(self, hashtag: str, limit: int = 40, **kwargs) -> list:
         return self.timed_call("timeline_hashtag", hashtag, limit=limit, **kwargs)
 
-    def search(
-        self, q: str, result_type: str = "statuses", limit: int = 40, **kwargs
-    ) -> dict:
-        return self.timed_call(
-            "search", q, result_type=result_type, limit=limit, **kwargs
-        )
+    def search(self, q: str, result_type: str = "statuses", limit: int = 40, **kwargs) -> dict:
+        return self.timed_call("search", q, result_type=result_type, limit=limit, **kwargs)

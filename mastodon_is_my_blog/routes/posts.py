@@ -35,16 +35,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
 
-async def fetch_account_info(
-    session, meta_id: int, identity_id: int, accts: set[str]
-) -> dict[str, dict]:
+async def fetch_account_info(session, meta_id: int, identity_id: int, accts: set[str]) -> dict[str, dict]:
     """Return {acct: {avatar, display_name}} for the given set of accts."""
     if not accts:
         return {}
     result = await session.execute(
-        select(
-            CachedAccount.acct, CachedAccount.avatar, CachedAccount.display_name
-        ).where(
+        select(CachedAccount.acct, CachedAccount.avatar, CachedAccount.display_name).where(
             and_(
                 CachedAccount.meta_account_id == meta_id,
                 CachedAccount.mastodon_identity_id == identity_id,
@@ -52,10 +48,7 @@ async def fetch_account_info(
             )
         )
     )
-    return {
-        row.acct: {"avatar": row.avatar, "display_name": row.display_name}
-        for row in result.all()
-    }
+    return {row.acct: {"avatar": row.avatar, "display_name": row.display_name} for row in result.all()}
 
 
 STORM_MIN_TEXT_LEN = 500
@@ -87,9 +80,7 @@ def html_text_len(html: str) -> int:
 
 
 @router.post("/read")
-async def mark_posts_as_read(
-    post_ids: list[str], meta: MetaAccount = Depends(get_current_meta_account)
-):
+async def mark_posts_as_read(post_ids: list[str], meta: MetaAccount = Depends(get_current_meta_account)):
     """
     Batch mark multiple posts as read.
     """
@@ -111,9 +102,7 @@ async def get_seen_status(
 
 
 @router.get("/unread-count")
-async def get_unread_post_count(
-    identity_id: int = Query(...), meta: MetaAccount = Depends(get_current_meta_account)
-):
+async def get_unread_post_count(identity_id: int = Query(...), meta: MetaAccount = Depends(get_current_meta_account)):
     """
     Get count of unread posts for badge display.
     """
@@ -209,9 +198,7 @@ async def get_public_posts(
         elif user:
             # Filter by the account that created the top-level timeline event.
             # For boosts, that is the boosting account rather than the original author.
-            query = query.where(
-                func.coalesce(CachedPost.actor_acct, CachedPost.author_acct) == user
-            )
+            query = query.where(func.coalesce(CachedPost.actor_acct, CachedPost.author_acct) == user)
         else:
             # No user specified: Default to posts AUTHORED by the identity itself
             # We need to look up the acct for this identity_id to be safe
@@ -227,9 +214,7 @@ async def get_public_posts(
         # Apply Type Filters
         if filter_type == "all":
             # Show roots only (hide replies to others, keep self-threads)
-            query = query.where(
-                and_(CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(False))
-            )
+            query = query.where(and_(CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(False)))
         elif filter_type == "storms":
             # not implemented yet!
             # should match get_storms method
@@ -248,9 +233,7 @@ async def get_public_posts(
             )
         elif filter_type == "discussions":
             # Only replies to others
-            query = query.where(
-                and_(CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(True))
-            )
+            query = query.where(and_(CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(True)))
         elif filter_type == "messages":
             # Posts from others replying directly to the active identity's account
             identity_stmt = select(MastodonIdentity).where(
@@ -270,26 +253,16 @@ async def get_public_posts(
             else:
                 query = query.where(false())
         elif filter_type == "pictures":
-            query = query.where(
-                and_(CachedPost.is_reblog.is_(False), CachedPost.has_media.is_(True))
-            )
+            query = query.where(and_(CachedPost.is_reblog.is_(False), CachedPost.has_media.is_(True)))
         elif filter_type == "videos":
-            query = query.where(
-                and_(CachedPost.is_reblog.is_(False), CachedPost.has_video.is_(True))
-            )
+            query = query.where(and_(CachedPost.is_reblog.is_(False), CachedPost.has_video.is_(True)))
         elif filter_type == "news":
-            query = query.where(
-                and_(CachedPost.is_reblog.is_(False), CachedPost.has_news.is_(True))
-            )
+            query = query.where(and_(CachedPost.is_reblog.is_(False), CachedPost.has_news.is_(True)))
         elif filter_type == "software":
-            query = query.where(
-                and_(CachedPost.is_reblog.is_(False), CachedPost.has_tech.is_(True))
-            )
+            query = query.where(and_(CachedPost.is_reblog.is_(False), CachedPost.has_tech.is_(True)))
         elif filter_type == "links":
             # New Filter: Posts with links
-            query = query.where(
-                and_(CachedPost.is_reblog.is_(False), CachedPost.has_link.is_(True))
-            )
+            query = query.where(and_(CachedPost.is_reblog.is_(False), CachedPost.has_link.is_(True)))
         elif filter_type == "questions":
             query = query.where(
                 and_(
@@ -299,13 +272,9 @@ async def get_public_posts(
                 )
             )
         elif filter_type == "books":
-            query = query.where(
-                and_(CachedPost.is_reblog.is_(False), CachedPost.has_book.is_(True))
-            )
+            query = query.where(and_(CachedPost.is_reblog.is_(False), CachedPost.has_book.is_(True)))
         elif filter_type == "jobs":
-            query = query.where(
-                and_(CachedPost.is_reblog.is_(False), CachedPost.has_job.is_(True))
-            )
+            query = query.where(and_(CachedPost.is_reblog.is_(False), CachedPost.has_job.is_(True)))
         elif filter_type == "reposts":
             query = query.where(CachedPost.is_reblog.is_(True))
         elif filter_type == "everyone":
@@ -315,9 +284,7 @@ async def get_public_posts(
         # Hashtag filter (additive on top of any type filter)
         if hashtag:
             tag_lower = hashtag.lower().lstrip("#")
-            query = query.where(
-                func.lower(CachedPost.tags).contains(f'"{tag_lower}"')
-            )
+            query = query.where(func.lower(CachedPost.tags).contains(f'"{tag_lower}"'))
 
         # Fetch limit+1 to detect whether a next page exists
         query = query.limit(limit + 1)
@@ -328,9 +295,7 @@ async def get_public_posts(
         rows = rows[:limit]
 
         author_accts = {p.author_acct for p, _ in rows}
-        account_info = await fetch_account_info(
-            session, meta.id, identity_id, author_accts
-        )
+        account_info = await fetch_account_info(session, meta.id, identity_id, author_accts)
 
         items = [
             {
@@ -338,14 +303,10 @@ async def get_public_posts(
                 "content": p.content,
                 "author_acct": p.author_acct,
                 "author_avatar": account_info.get(p.author_acct, {}).get("avatar", ""),
-                "author_display_name": account_info.get(p.author_acct, {}).get(
-                    "display_name", ""
-                ),
+                "author_display_name": account_info.get(p.author_acct, {}).get("display_name", ""),
                 "created_at": p.created_at.isoformat(),
                 "is_read": is_seen is not None,
-                "media_attachments": (
-                    json.loads(p.media_attachments) if p.media_attachments else []
-                ),
+                "media_attachments": (json.loads(p.media_attachments) if p.media_attachments else []),
                 "counts": {
                     "replies": p.replies_count,
                     "reblogs": p.reblogs_count,
@@ -411,9 +372,7 @@ async def get_storms(
         CachedPost.is_reblog.is_(False),
         CachedPost.content_hub_only.is_(False),
     )
-    user_filter = (
-        (CachedPost.author_acct == user) if (user and user != "everyone") else true()
-    )
+    user_filter = (CachedPost.author_acct == user) if (user and user != "everyone") else true()
 
     async with async_session() as session:
         # Subquery: post IDs that have at least one self-reply.
@@ -445,10 +404,7 @@ async def get_storms(
                     user_filter,
                     CachedPost.in_reply_to_id.is_(None),
                     CachedPost.has_link.is_(False),
-                    (
-                        (func.length(CachedPost.content) >= STORM_MIN_TEXT_LEN)
-                        | CachedPost.id.in_(self_replied_ids_sq)
-                    ),
+                    ((func.length(CachedPost.content) >= STORM_MIN_TEXT_LEN) | CachedPost.id.in_(self_replied_ids_sq)),
                 )
             )
             .order_by(desc(CachedPost.created_at), desc(CachedPost.id))
@@ -500,9 +456,7 @@ async def get_storms(
         replies = (await session.execute(replies_query)).scalars().all()
 
         root_accts = {p.author_acct for p in roots}
-        account_info = await fetch_account_info(
-            session, meta.id, identity_id, root_accts
-        )
+        account_info = await fetch_account_info(session, meta.id, identity_id, root_accts)
 
     # Build children map from the small reply set only
     children_map: dict[str, list] = {}
@@ -515,20 +469,14 @@ async def get_storms(
 
     def collect_children(parent_id: str, root_author_id: str) -> list:
         results = []
-        direct_kids = sorted(
-            children_map.get(parent_id, []), key=lambda x: x.created_at
-        )
+        direct_kids = sorted(children_map.get(parent_id, []), key=lambda x: x.created_at)
         for kid in direct_kids:
             if kid.author_id == root_author_id:
                 results.append(
                     {
                         "id": kid.id,
                         "content": kid.content,
-                        "media": (
-                            json.loads(kid.media_attachments)
-                            if kid.media_attachments
-                            else []
-                        ),
+                        "media": (json.loads(kid.media_attachments) if kid.media_attachments else []),
                         "counts": {
                             "replies": kid.replies_count,
                             "likes": kid.favourites_count,
@@ -545,15 +493,11 @@ async def get_storms(
                 "id": p.id,
                 "content": p.content,
                 "created_at": p.created_at.isoformat(),
-                "media": (
-                    json.loads(p.media_attachments) if p.media_attachments else []
-                ),
+                "media": (json.loads(p.media_attachments) if p.media_attachments else []),
                 "counts": {"replies": p.replies_count, "likes": p.favourites_count},
                 "author_acct": p.author_acct,
                 "author_avatar": account_info.get(p.author_acct, {}).get("avatar", ""),
-                "author_display_name": account_info.get(p.author_acct, {}).get(
-                    "display_name", ""
-                ),
+                "author_display_name": account_info.get(p.author_acct, {}).get("display_name", ""),
                 "is_read": p.id in seen_ids,
             },
             "branches": collect_children(p.id, p.author_id),
@@ -636,9 +580,7 @@ async def get_counts(
         )
         identity = (await session.execute(identity_stmt)).scalar_one_or_none()
         identity_account_id = identity.account_id if identity else None
-        return await get_counts_optimized(
-            session, meta.id, identity_id, user, identity_account_id
-        )
+        return await get_counts_optimized(session, meta.id, identity_id, user, identity_account_id)
 
 
 @router.get("/card", response_model=CardResponse)
@@ -679,9 +621,7 @@ async def get_post_context(post_id: str, identity_id: int = Query(...)):
 
 
 @router.get("/{post_id}")
-async def get_single_post(
-    post_id: str, meta: MetaAccount = Depends(get_current_meta_account)
-):
+async def get_single_post(post_id: str, meta: MetaAccount = Depends(get_current_meta_account)):
     """
     Get a single cached post.
     Note: We don't strictly enforce identity_id here because a post ID is unique
@@ -705,9 +645,7 @@ async def get_single_post(
             "content": post.content,
             "author_acct": post.author_acct,
             "created_at": post.created_at.isoformat(),
-            "media_attachments": (
-                json.loads(post.media_attachments) if post.media_attachments else []
-            ),
+            "media_attachments": (json.loads(post.media_attachments) if post.media_attachments else []),
             "counts": {
                 "replies": post.replies_count,
                 "reblogs": post.reblogs_count,
@@ -719,9 +657,7 @@ async def get_single_post(
 
 
 @router.post("/{post_id}/read")
-async def mark_post_as_read(
-    post_id: str, meta: MetaAccount = Depends(get_current_meta_account)
-):
+async def mark_post_as_read(post_id: str, meta: MetaAccount = Depends(get_current_meta_account)):
     """
     Called by UI mouseover. Marks a post as seen.
     """

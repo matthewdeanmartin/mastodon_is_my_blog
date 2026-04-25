@@ -66,9 +66,7 @@ async def sync_server_follow_groups(
     try:
         followed = m.followed_tags()
     except Exception as exc:
-        logger.error(
-            "Failed to fetch followed tags for identity %s: %s", identity.id, exc
-        )
+        logger.error("Failed to fetch followed tags for identity %s: %s", identity.id, exc)
         return {"created": 0, "removed": 0}
 
     # followed is a list of tag dicts: {"name": str, ...}
@@ -166,9 +164,7 @@ async def refresh_group(
         if not force and not await is_group_stale(group):
             return {"fetched": 0, "matched": 0}
 
-        stmt = select(ContentHubGroupTerm).where(
-            ContentHubGroupTerm.group_id == group_id
-        )
+        stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group_id)
         terms = (await session.execute(stmt)).scalars().all()
 
     m = client_from_identity(identity)
@@ -183,16 +179,14 @@ async def refresh_group(
                 result = m.search(term.term, result_type="statuses", limit=40)
                 statuses = result.get("statuses", [])
         except Exception as exc:
-            logger.error(
-                "Refresh failed for group %s term %s: %s", group_id, term.term, exc
-            )
+            logger.error("Refresh failed for group %s term %s: %s", group_id, term.term, exc)
             continue
 
         if not statuses:
             continue
 
         async with async_session() as session:
-            new_count, _ = await bulk_upsert_posts(
+            _, _ = await bulk_upsert_posts(
                 session,
                 meta_id,
                 identity.id,
@@ -209,13 +203,9 @@ async def refresh_group(
                     retro_match_hashtag_term,
                 )
 
-                matched = await retro_match_hashtag_term(
-                    session, meta_id, identity.id, group_id, term
-                )
+                matched = await retro_match_hashtag_term(session, meta_id, identity.id, group_id, term)
             else:
-                matched = await record_search_matches(
-                    session, meta_id, identity.id, group_id, term, post_ids
-                )
+                matched = await record_search_matches(session, meta_id, identity.id, group_id, term, post_ids)
             await session.commit()
             total_matched += matched
 
@@ -248,9 +238,7 @@ async def retro_match_new_bundle(
     """
     stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group.id)
     terms = (await session.execute(stmt)).scalars().all()
-    return await retro_match_group_hashtag_terms(
-        session, meta_id, identity_id, group.id, list(terms)
-    )
+    return await retro_match_group_hashtag_terms(session, meta_id, identity_id, group.id, list(terms))
 
 
 async def create_client_bundle(
@@ -312,11 +300,7 @@ async def update_client_bundle(
     """
     async with async_session() as session:
         group = await session.get(ContentHubGroup, group_id)
-        if (
-            group is None
-            or group.meta_account_id != meta_id
-            or group.identity_id != identity_id
-        ):
+        if group is None or group.meta_account_id != meta_id or group.identity_id != identity_id:
             raise ValueError("Bundle not found or not owned by this identity")
         if group.is_read_only:
             raise ValueError("Cannot edit a read-only server-follow group")
@@ -328,9 +312,7 @@ async def update_client_bundle(
 
         if terms_input is not None:
             # Delete existing terms
-            existing_stmt = select(ContentHubGroupTerm).where(
-                ContentHubGroupTerm.group_id == group_id
-            )
+            existing_stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group_id)
             old_terms = (await session.execute(existing_stmt)).scalars().all()
             for t in old_terms:
                 await session.delete(t)

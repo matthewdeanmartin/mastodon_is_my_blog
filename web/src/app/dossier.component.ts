@@ -18,7 +18,20 @@ import { Subject, Subscription, interval } from 'rxjs';
 import { takeUntil, switchMap } from 'rxjs/operators';
 
 const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_LABELS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 
 interface HeatmapGridCell {
   dow: number;
@@ -69,30 +82,53 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
         @if (quickDossier) {
           <div class="dossier-header" style="margin-top: 12px;">
             @if (quickDossier.header) {
-              <div class="header-banner" [style.backgroundImage]="'url(' + quickDossier.header + ')'"></div>
+              <div
+                class="header-banner"
+                [style.backgroundImage]="'url(' + quickDossier.header + ')'"
+              ></div>
             }
             <div class="header-body">
-              <img class="avatar-lg" [src]="quickDossier.avatar" [alt]="quickDossier.display_name" />
+              <img
+                class="avatar-lg"
+                [src]="quickDossier.avatar"
+                [alt]="quickDossier.display_name"
+              />
               <div class="header-info">
                 <h2>{{ quickDossier.display_name }}</h2>
                 <p class="acct-line">
-                  <a [href]="quickDossier.url" target="_blank" rel="noopener noreferrer" class="acct-link">&#64;{{ quickDossier.acct }}</a>
+                  <a
+                    [href]="quickDossier.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="acct-link"
+                    >&#64;{{ quickDossier.acct }}</a
+                  >
                 </p>
                 <div class="stat-row">
                   <span>{{ quickDossier.followers_count | number }} followers</span>
                   <span>{{ quickDossier.following_count | number }} following</span>
                   <span>{{ quickDossier.statuses_count | number }} posts</span>
                 </div>
-                @if (quickDossier.bot) { <span class="bot-badge">BOT</span> }
-                @if (quickDossier.locked) { <span class="locked-badge">🔒 Approves followers</span> }
+                @if (quickDossier.bot) {
+                  <span class="bot-badge">BOT</span>
+                }
+                @if (quickDossier.locked) {
+                  <span class="locked-badge">🔒 Approves followers</span>
+                }
               </div>
             </div>
             @if (quickDossier.featured_hashtags.length > 0) {
               <div style="padding: 8px 16px 12px;">
-                <div style="font-size: 0.78rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; margin-bottom: 6px;">Featured Hashtags</div>
+                <div
+                  style="font-size: 0.78rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; margin-bottom: 6px;"
+                >
+                  Featured Hashtags
+                </div>
                 <div class="hashtag-chips">
                   @for (ht of quickDossier.featured_hashtags; track ht.tag) {
-                    <span class="hashtag-chip featured-chip">#{{ ht.tag }} <span class="chip-count">{{ ht.uses }}</span></span>
+                    <span class="hashtag-chip featured-chip"
+                      >#{{ ht.tag }} <span class="chip-count">{{ ht.uses }}</span></span
+                    >
                   }
                 </div>
               </div>
@@ -100,7 +136,9 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
           </div>
         }
         @if (quickDossierLoading) {
-          <div style="color: #9ca3af; font-size: 0.84rem; margin-top: 8px;">Loading account info…</div>
+          <div style="color: #9ca3af; font-size: 0.84rem; margin-top: 8px;">
+            Loading account info…
+          </div>
         }
         @if (!quickDossier && !quickDossierLoading && error) {
           <div class="error-msg">{{ error }}</div>
@@ -112,8 +150,14 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
             No cached posts yet. Run a catch-up to build the full dossier.
           </p>
           <div class="catchup-limit-row" style="margin-bottom: 10px;">
-            <label for="deep-catchup-limit" style="font-size: 0.84rem; color: #374151;">Limit:</label>
-            <select id="deep-catchup-limit" [(ngModel)]="deepCatchupLimit" style="font-size: 0.82rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px; background: white; margin-left: 8px;">
+            <label for="deep-catchup-limit" style="font-size: 0.84rem; color: #374151;"
+              >Limit:</label
+            >
+            <select
+              id="deep-catchup-limit"
+              [(ngModel)]="deepCatchupLimit"
+              style="font-size: 0.82rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 8px; background: white; margin-left: 8px;"
+            >
               <option [ngValue]="null">All posts</option>
               <option [ngValue]="25">~500 posts</option>
               <option [ngValue]="50">~1,000 posts</option>
@@ -124,10 +168,20 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
             </select>
           </div>
           <div class="catchup-btn-row">
-            <button class="action-btn secondary" (click)="shallowFetchUnknown()" [disabled]="fetchBusy" title="Fetches the most recent page of posts">
+            <button
+              class="action-btn secondary"
+              (click)="shallowFetchUnknown()"
+              [disabled]="fetchBusy"
+              title="Fetches the most recent page of posts"
+            >
               {{ fetchBusy ? 'Starting…' : 'Catch Up' }}
             </button>
-            <button class="action-btn secondary" (click)="deepFetchUnknown()" [disabled]="fetchBusy" title="Walks full post history in the background">
+            <button
+              class="action-btn secondary"
+              (click)="deepFetchUnknown()"
+              [disabled]="fetchBusy"
+              title="Walks full post history in the background"
+            >
               {{ fetchBusy ? 'Starting…' : 'Deep Catch Up' }}
             </button>
           </div>
@@ -154,7 +208,9 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
             <div class="header-info">
               <h2>{{ dossier.display_name }}</h2>
               <p class="acct-line">
-                <a [href]="dossier.url" target="_blank" rel="noopener noreferrer" class="acct-link">&#64;{{ dossier.acct }}</a>
+                <a [href]="dossier.url" target="_blank" rel="noopener noreferrer" class="acct-link"
+                  >&#64;{{ dossier.acct }}</a
+                >
               </p>
               <div class="stat-row">
                 <span>{{ dossier.followers_count | number }} followers</span>
@@ -199,14 +255,14 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
                   title="Walks full post history in the background"
                 >
                   {{
-                    fetchBusy
-                      ? 'Starting…'
-                      : catchupStatus?.running
-                        ? 'Running…'
-                        : 'Deep Catch Up'
+                    fetchBusy ? 'Starting…' : catchupStatus?.running ? 'Running…' : 'Deep Catch Up'
                   }}
                 </button>
-                <select [(ngModel)]="deepCatchupLimit" style="font-size: 0.78rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 6px; background: white;" title="Limit pages fetched">
+                <select
+                  [(ngModel)]="deepCatchupLimit"
+                  style="font-size: 0.78rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 3px 6px; background: white;"
+                  title="Limit pages fetched"
+                >
                   <option [ngValue]="null">All</option>
                   <option [ngValue]="25">~500</option>
                   <option [ngValue]="50">~1k</option>
@@ -256,7 +312,9 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
                   <span class="field-name">{{ field.name }}</span>
                   <span class="field-value" [innerHTML]="sanitizeHtml(field.value)"></span>
                   @if (field.verified_at) {
-                    <span class="verified-badge" title="Verified {{ field.verified_at | date }}">✓</span>
+                    <span class="verified-badge" title="Verified {{ field.verified_at | date }}"
+                      >✓</span
+                    >
                   }
                 </div>
               }
@@ -290,25 +348,35 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
               @if (dossier.cache_info.oldest_cached_post_at) {
                 <div class="cache-cell">
                   <span class="cache-label">Oldest cached</span>
-                  <span class="cache-value">{{ dossier.cache_info.oldest_cached_post_at | date: 'mediumDate' }}</span>
+                  <span class="cache-value">{{
+                    dossier.cache_info.oldest_cached_post_at | date: 'mediumDate'
+                  }}</span>
                 </div>
               }
               @if (dossier.cache_info.latest_cached_post_at) {
                 <div class="cache-cell">
                   <span class="cache-label">Newest cached</span>
-                  <span class="cache-value">{{ dossier.cache_info.latest_cached_post_at | date: 'mediumDate' }}</span>
+                  <span class="cache-value">{{
+                    dossier.cache_info.latest_cached_post_at | date: 'mediumDate'
+                  }}</span>
                 </div>
               }
               @if (dossier.cache_info.last_status_at) {
                 <div class="cache-cell">
                   <span class="cache-label">Last post (API)</span>
-                  <span class="cache-value">{{ dossier.cache_info.last_status_at | date: 'mediumDate' }}</span>
+                  <span class="cache-value">{{
+                    dossier.cache_info.last_status_at | date: 'mediumDate'
+                  }}</span>
                 </div>
               }
               @if (cacheGapDays !== null) {
                 <div class="cache-cell">
                   <span class="cache-label">Cache gap</span>
-                  <span class="cache-value" [style.color]="cacheGapDays > 30 ? '#dc2626' : '#374151'">{{ cacheGapDays }} days behind</span>
+                  <span
+                    class="cache-value"
+                    [style.color]="cacheGapDays > 30 ? '#dc2626' : '#374151'"
+                    >{{ cacheGapDays }} days behind</span
+                  >
                 </div>
               }
             </div>
@@ -317,11 +385,19 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
 
         <!-- Posting Heatmap -->
         <div class="section">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <div
+            style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;"
+          >
             <h4 style="margin: 0;">Posting Heatmap</h4>
-            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #6b7280;">
+            <div
+              style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #6b7280;"
+            >
               <label for="heatmap-timezone-offset">Timezone offset:</label>
-              <select id="heatmap-timezone-offset" [(ngModel)]="heatmapTzOffset" style="font-size: 0.78rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 2px 6px; background: white;">
+              <select
+                id="heatmap-timezone-offset"
+                [(ngModel)]="heatmapTzOffset"
+                style="font-size: 0.78rem; border: 1px solid #d1d5db; border-radius: 6px; padding: 2px 6px; background: white;"
+              >
                 @for (tz of tzOptions; track tz.value) {
                   <option [ngValue]="tz.value">{{ tz.label }}</option>
                 }
@@ -329,7 +405,9 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
             </div>
           </div>
           @if (inferredTimezoneDescription) {
-            <div style="font-size: 0.78rem; color: #64748b; margin-bottom: 6px;">{{ inferredTimezoneDescription }}</div>
+            <div style="font-size: 0.78rem; color: #64748b; margin-bottom: 6px;">
+              {{ inferredTimezoneDescription }}
+            </div>
           }
           @if (heatmapLoading) {
             <div style="color: #9ca3af; font-size: 0.84rem;">Loading…</div>
@@ -338,7 +416,9 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
             <div style="color: #dc2626; font-size: 0.84rem;">{{ heatmapError }}</div>
           }
           @if (!heatmapLoading && heatmapCells.length === 0 && !heatmapError) {
-            <div style="color: #9ca3af; font-style: italic; font-size: 0.84rem;">No post activity in cache yet.</div>
+            <div style="color: #9ca3af; font-style: italic; font-size: 0.84rem;">
+              No post activity in cache yet.
+            </div>
           }
           @if (heatmapCells.length > 0) {
             <div class="heatmap-wrap">
@@ -355,7 +435,14 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
                     <div
                       class="heatmap-cell"
                       [style.background]="cell.color"
-                      [title]="dowLabel(cell.dow) + ' ' + shiftedHourLabel(cell.hour) + ':00 — ' + cell.count + ' posts'"
+                      [title]="
+                        dowLabel(cell.dow) +
+                        ' ' +
+                        shiftedHourLabel(cell.hour) +
+                        ':00 — ' +
+                        cell.count +
+                        ' posts'
+                      "
                     ></div>
                   }
                 </div>
@@ -371,7 +458,9 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
             <div style="color: #9ca3af; font-size: 0.84rem;">Loading…</div>
           }
           @if (!calendarLoading && calendarYears.length === 0) {
-            <div style="color: #9ca3af; font-style: italic; font-size: 0.84rem;">No activity in cache yet.</div>
+            <div style="color: #9ca3af; font-style: italic; font-size: 0.84rem;">
+              No activity in cache yet.
+            </div>
           }
           @for (yr of calendarYears; track yr.year) {
             <div style="margin-bottom: 16px;">
@@ -380,15 +469,14 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
                 <div class="calendar-months-row">
                   <div class="calendar-dow-col"></div>
                   @for (ml of yr.monthLabels; track ml.label) {
-                    <div
-                      class="calendar-month-label"
-                      [style.left.px]="ml.weekIndex * 13 + 24"
-                    >{{ ml.label }}</div>
+                    <div class="calendar-month-label" [style.left.px]="ml.weekIndex * 13 + 24">
+                      {{ ml.label }}
+                    </div>
                   }
                 </div>
                 <div class="calendar-grid">
                   <div class="calendar-dow-col">
-                    @for (d of [1,3,5]; track d) {
+                    @for (d of [1, 3, 5]; track d) {
                       <div class="calendar-dow-label">{{ dowLabel(d) }}</div>
                     }
                   </div>
@@ -452,7 +540,9 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
             <div style="color: #9ca3af; font-size: 0.84rem;">Loading…</div>
           }
           @if (!interactionsLoading && interactions.length === 0) {
-            <div style="color: #9ca3af; font-style: italic; font-size: 0.84rem;">No cached notifications from this person.</div>
+            <div style="color: #9ca3af; font-style: italic; font-size: 0.84rem;">
+              No cached notifications from this person.
+            </div>
           }
           <div class="posts-list">
             @for (n of interactions; track n.notification_id) {
@@ -465,7 +555,9 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
                 @if (n.content) {
                   <div class="post-body" [innerHTML]="sanitizeHtml(n.content)"></div>
                 } @else {
-                  <div class="post-body" style="color: #9ca3af; font-style: italic;">Post not in local cache</div>
+                  <div class="post-body" style="color: #9ca3af; font-style: italic;">
+                    Post not in local cache
+                  </div>
                 }
               </div>
             }
@@ -512,7 +604,10 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
         </div>
 
         <!-- Hashtags -->
-        @if (dossier.top_hashtags.length > 0 || (dossier.featured_hashtags && dossier.featured_hashtags.length > 0)) {
+        @if (
+          dossier.top_hashtags.length > 0 ||
+          (dossier.featured_hashtags && dossier.featured_hashtags.length > 0)
+        ) {
           <div class="section">
             <h4>Hashtags</h4>
             @if (dossier.featured_hashtags && dossier.featured_hashtags.length > 0) {
@@ -525,7 +620,9 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
                       [class.active]="activeHashtag === ht.tag"
                       (click)="filterByHashtag(ht.tag)"
                       title="{{ ht.uses }} total posts"
-                    >#{{ ht.tag }} <span class="chip-count">{{ ht.uses }}</span></button>
+                    >
+                      #{{ ht.tag }} <span class="chip-count">{{ ht.uses }}</span>
+                    </button>
                   }
                 </div>
               </div>
@@ -540,7 +637,9 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
                       [class.active]="activeHashtag === ht.tag"
                       (click)="filterByHashtag(ht.tag)"
                       title="{{ ht.count }} cached posts"
-                    >#{{ ht.tag }} <span class="chip-count">{{ ht.count }}</span></button>
+                    >
+                      #{{ ht.tag }} <span class="chip-count">{{ ht.count }}</span>
+                    </button>
                   }
                 </div>
               </div>
@@ -556,17 +655,20 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
                 class="tab-btn"
                 [class.active]="postsTab === 'recent'"
                 (click)="setPostsTab('recent')"
-              >Recent</button>
+              >
+                Recent
+              </button>
               <button
                 class="tab-btn"
                 [class.active]="postsTab === 'popular'"
                 (click)="setPostsTab('popular')"
-              >Popular</button>
+              >
+                Popular
+              </button>
               @if (activeHashtag) {
-                <button
-                  class="tab-btn active"
-                  (click)="clearHashtagFilter()"
-                >#{{ activeHashtag }} ✕</button>
+                <button class="tab-btn active" (click)="clearHashtagFilter()">
+                  #{{ activeHashtag }} ✕
+                </button>
               }
             </div>
           </div>
@@ -574,7 +676,9 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
             <div style="color: #9ca3af; font-size: 0.84rem; padding: 8px 0;">Loading posts…</div>
           }
           @if (!postsLoading && displayedPosts.length === 0) {
-            <div style="color: #9ca3af; font-style: italic; font-size: 0.84rem; padding: 8px 0;">No cached posts found.</div>
+            <div style="color: #9ca3af; font-style: italic; font-size: 0.84rem; padding: 8px 0;">
+              No cached posts found.
+            </div>
           }
           <div class="posts-list">
             @for (post of displayedPosts; track post.id) {
@@ -583,9 +687,15 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
                   <span class="post-date">{{ post.created_at | date: 'MMM d, yyyy' }}</span>
                   @if (post.counts) {
                     <span class="post-counts">
-                      @if (post.counts.replies) { 💬 {{ post.counts.replies }} }
-                      @if (post.counts.reposts) { 🔁 {{ post.counts.reposts }} }
-                      @if (post.counts.likes) { ⭐ {{ post.counts.likes }} }
+                      @if (post.counts.replies) {
+                        💬 {{ post.counts.replies }}
+                      }
+                      @if (post.counts.reposts) {
+                        🔁 {{ post.counts.reposts }}
+                      }
+                      @if (post.counts.likes) {
+                        ⭐ {{ post.counts.likes }}
+                      }
                     </span>
                   }
                   <a [routerLink]="['/p', post.id]" class="view-link">View →</a>
@@ -855,7 +965,7 @@ type PostsTab = 'recent' | 'popular' | 'hashtag';
         border: none;
       }
       .hashtag-chip.active .chip-count {
-        background: rgba(255,255,255,0.25);
+        background: rgba(255, 255, 255, 0.25);
         color: white;
       }
       .chip-count {
@@ -1262,7 +1372,7 @@ export class DossierComponent implements OnInit, OnDestroy {
 
     // Snap to nearest available tzOptions value
     const best = this.tzOptions.reduce((prev, cur) =>
-      Math.abs(cur.value - rawOffset) < Math.abs(prev.value - rawOffset) ? cur : prev
+      Math.abs(cur.value - rawOffset) < Math.abs(prev.value - rawOffset) ? cur : prev,
     );
     this.inferredTimezone = best;
     this.heatmapTzOffset = best.value;
@@ -1374,7 +1484,7 @@ export class DossierComponent implements OnInit, OnDestroy {
   }
 
   shiftedHourLabel(h: number): string {
-    const shifted = ((h + this.heatmapTzOffset) % 24 + 24) % 24;
+    const shifted = (((h + this.heatmapTzOffset) % 24) + 24) % 24;
     return this.hourLabel(shifted);
   }
 
@@ -1423,9 +1533,7 @@ export class DossierComponent implements OnInit, OnDestroy {
       });
   }
 
-  private buildCalendarYears(
-    days: { date: string; count: number }[],
-  ): CalendarYear[] {
+  private buildCalendarYears(days: { date: string; count: number }[]): CalendarYear[] {
     const countMap = new Map<string, number>();
     let maxCount = 0;
     for (const d of days) {
@@ -1590,24 +1698,23 @@ export class DossierComponent implements OnInit, OnDestroy {
     if (!id || !acct) return;
     this.fetchBusy = true;
     this.catchupError = null;
-    const req$ = mode === 'deep'
-      ? this.api.deepFetchDossier(acct, id, this.deepCatchupLimit ?? undefined)
-      : this.api.startAccountCatchup(acct, id, mode);
-    req$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (status) => {
-          this.catchupStatus = status;
-          this.fetchBusy = false;
-          if (status.running) {
-            this.startCatchupPollingUnknown(acct, id);
-          }
-        },
-        error: () => {
-          this.fetchBusy = false;
-          this.catchupError = 'Failed to start catch-up.';
-        },
-      });
+    const req$ =
+      mode === 'deep'
+        ? this.api.deepFetchDossier(acct, id, this.deepCatchupLimit ?? undefined)
+        : this.api.startAccountCatchup(acct, id, mode);
+    req$.pipe(takeUntil(this.destroy$)).subscribe({
+      next: (status) => {
+        this.catchupStatus = status;
+        this.fetchBusy = false;
+        if (status.running) {
+          this.startCatchupPollingUnknown(acct, id);
+        }
+      },
+      error: () => {
+        this.fetchBusy = false;
+        this.catchupError = 'Failed to start catch-up.';
+      },
+    });
   }
 
   private startCatchupPollingUnknown(acct: string, identityId: number): void {
@@ -1757,9 +1864,17 @@ export class DossierComponent implements OnInit, OnDestroy {
       const raw = localStorage.getItem(`dossier_hint_${acct}`);
       if (raw) {
         const hint = JSON.parse(raw) as {
-          id: string; acct: string; display_name: string; avatar: string;
-          url: string; note: string; bot: boolean; locked: boolean;
-          followers_count: number; following_count: number; statuses_count: number;
+          id: string;
+          acct: string;
+          display_name: string;
+          avatar: string;
+          url: string;
+          note: string;
+          bot: boolean;
+          locked: boolean;
+          followers_count: number;
+          following_count: number;
+          statuses_count: number;
           created_at: string | null;
         };
         localStorage.removeItem(`dossier_hint_${acct}`);
@@ -1882,25 +1997,24 @@ export class DossierComponent implements OnInit, OnDestroy {
     this.fetchBusy = true;
     this.catchupError = null;
     const acct = this.dossier.acct;
-    const req$ = mode === 'deep'
-      ? this.api.deepFetchDossier(acct, id, this.deepCatchupLimit ?? undefined)
-      : this.api.startAccountCatchup(acct, id, mode);
-    req$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (status) => {
-          this.catchupStatus = status;
-          this.fetchBusy = false;
-          if (status.running) {
-            this.startCatchupPolling(acct, id);
-          }
-        },
-        error: (e: unknown) => {
-          console.error('Fetch failed', e);
-          this.fetchBusy = false;
-          this.catchupError = 'Failed to start catch-up.';
-        },
-      });
+    const req$ =
+      mode === 'deep'
+        ? this.api.deepFetchDossier(acct, id, this.deepCatchupLimit ?? undefined)
+        : this.api.startAccountCatchup(acct, id, mode);
+    req$.pipe(takeUntil(this.destroy$)).subscribe({
+      next: (status) => {
+        this.catchupStatus = status;
+        this.fetchBusy = false;
+        if (status.running) {
+          this.startCatchupPolling(acct, id);
+        }
+      },
+      error: (e: unknown) => {
+        console.error('Fetch failed', e);
+        this.fetchBusy = false;
+        this.catchupError = 'Failed to start catch-up.';
+      },
+    });
   }
 
   cancelCatchup(): void {

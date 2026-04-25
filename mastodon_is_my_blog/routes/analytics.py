@@ -52,21 +52,17 @@ async def top_reposters(
     limit: int = Query(50, ge=1, le=500),
     meta: MetaAccount = Depends(get_current_meta_account),
 ) -> list[dict[str, Any]]:
-    return await duck.top_reposters(
-        meta.id, identity_id, window_days=window_days, limit=limit
-    )
+    return await duck.top_reposters(meta.id, identity_id, window_days=window_days, limit=limit)
 
 
 @router.get("/notification-trends")
 async def notification_trends(
     identity_id: int = Query(...),
-    type: str | None = Query(None),
+    notification_type: str | None = Query(None),
     bucket: str = Query("day", pattern="^(day|week|month)$"),
     meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict[str, list[dict[str, Any]]]:
-    return await duck.notification_trends(
-        meta.id, identity_id, notification_type=type, bucket=bucket
-    )
+    return await duck.notification_trends(meta.id, identity_id, notification_type=notification_type, bucket=bucket)
 
 
 @router.get("/activity-calendar")
@@ -76,6 +72,4 @@ async def activity_calendar(
     years: int = Query(2, ge=1, le=5),
     meta: MetaAccount = Depends(get_current_meta_account),
 ) -> list[dict[str, Any]]:
-    return await duck.activity_calendar(
-        meta.id, identity_id, author_acct=author_acct, years=years
-    )
+    return await duck.activity_calendar(meta.id, identity_id, author_acct=author_acct, years=years)

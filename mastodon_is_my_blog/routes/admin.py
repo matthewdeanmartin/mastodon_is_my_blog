@@ -2,8 +2,9 @@
 import logging
 from typing import Literal
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Query as QueryParam, Request
 from fastapi.routing import APIRouter
+from pydantic import BaseModel
 from sqlalchemy import select
 
 from mastodon_is_my_blog.account_config import (
@@ -20,6 +21,10 @@ from mastodon_is_my_blog.bulk_sync_jobs import (
     job_status,
     start_bulk_job,
 )
+from mastodon_is_my_blog.content_hub_service import (
+    create_client_bundle,
+    update_client_bundle,
+)
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
     client,
     client_from_identity,
@@ -34,6 +39,8 @@ from mastodon_is_my_blog.queries import (
     sync_user_timeline_for_identity,
 )
 from mastodon_is_my_blog.store import (
+    ContentHubGroup,
+    ContentHubGroupTerm,
     MastodonIdentity,
     MetaAccount,
     async_session,
@@ -55,9 +62,7 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 @router.post("/sync")
 @time_async_function
-async def trigger_sync(
-    force: bool = True, meta: MetaAccount = Depends(get_current_meta_account)
-) -> dict:
+async def trigger_sync(force: bool = True, meta: MetaAccount = Depends(get_current_meta_account)) -> dict:
     res = await sync_all_identities(meta, force=force)
     return {"results": res}
 
@@ -75,14 +80,12 @@ async def start_sync_all_following(
     identity = await _get_identity(meta, identity_id)
 
     async def runner(on_progress, cancelled):
-        return await sync_all_following_for_identity(
-            meta.id, identity, on_progress=on_progress, cancelled=cancelled
-        )
+        return await sync_all_following_for_identity(meta.id, identity, on_progress=on_progress, cancelled=cancelled)
 
     try:
         job = await start_bulk_job("following", meta.id, identity.id, runner)
     except ValueError as exc:
-        raise HTTPException(409, str(exc))
+        raise HTTPException(409, str(exc)) from exc
 
     return {"started": True, **job_status(job)}
 
@@ -128,14 +131,12 @@ async def start_sync_all_notifications(
     identity = await _get_identity(meta, identity_id)
 
     async def runner(on_progress, cancelled):
-        return await sync_all_notifications_for_identity(
-            meta.id, identity, on_progress=on_progress, cancelled=cancelled
-        )
+        return await sync_all_notifications_for_identity(meta.id, identity, on_progress=on_progress, cancelled=cancelled)
 
     try:
         job = await start_bulk_job("notifications", meta.id, identity.id, runner)
     except ValueError as exc:
-        raise HTTPException(409, str(exc))
+        raise HTTPException(409, str(exc)) from exc
 
     return {"started": True, **job_status(job)}
 
@@ -201,8 +202,8 @@ async def backfill_content_flags(
     that were added after initial ingestion. No API calls — reads only from cache.
     """
     from mastodon_is_my_blog.inspect_post import analyze_content_domains
-    from mastodon_is_my_blog.store import CachedPost, async_session
-    from sqlalchemy import select, update
+    from mastodon_is_my_blog.store import CachedPost
+    from sqlalchemy import update
     import json as _json
 
     identity = await _get_identity(meta, identity_id)
@@ -234,11 +235,7 @@ async def backfill_content_flags(
         if len(batch) >= 500:
             async with async_session() as session:
                 for item in batch:
-                    await session.execute(
-                        update(CachedPost)
-                        .where(CachedPost.id == item["id"])
-                        .values(has_question=item["has_question"], has_book=item["has_book"])
-                    )
+                    await session.execute(update(CachedPost).where(CachedPost.id == item["id"]).values(has_question=item["has_question"], has_book=item["has_book"]))
                 await session.commit()
             updated += len(batch)
             batch = []
@@ -246,11 +243,7 @@ async def backfill_content_flags(
     if batch:
         async with async_session() as session:
             for item in batch:
-                await session.execute(
-                    update(CachedPost)
-                    .where(CachedPost.id == item["id"])
-                    .values(has_question=item["has_question"], has_book=item["has_book"])
-                )
+                await session.execute(update(CachedPost).where(CachedPost.id == item["id"]).values(has_question=item["has_question"], has_book=item["has_book"]))
             await session.commit()
         updated += len(batch)
 
@@ -286,9 +279,7 @@ async def catchup_own_account(
 @router.get("/identities")
 async def list_identities(meta: MetaAccount = Depends(get_current_meta_account)):
     async with async_session() as session:
-        stmt = select(MastodonIdentity).where(
-            MastodonIdentity.meta_account_id == meta.id
-        )
+        stmt = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id)
         res = (await session.execute(stmt)).scalars().all()
         return [{"id": i.id, "acct": i.acct, "base_url": i.api_base_url} for i in res]
 
@@ -345,11 +336,7 @@ async def admin_status() -> dict:
         meta = (await session.execute(stmt_meta)).scalar_one_or_none()
 
         if meta:
-            stmt_identity = (
-                select(MastodonIdentity)
-                .where(MastodonIdentity.meta_account_id == meta.id)
-                .limit(1)
-            )
+            stmt_identity = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id).limit(1)
             identity = (await session.execute(stmt_identity)).scalar_one_or_none()
 
             if identity and identity_has_access_token(identity):
@@ -432,22 +419,10 @@ async def get_perf_stats(last_n: int = 50) -> dict:
     }
 
 
+
 # ---------------------------------------------------------------------------
 # Content Hub bundle CRUD
 # ---------------------------------------------------------------------------
-
-
-from fastapi import Query as QueryParam
-from pydantic import BaseModel
-
-from mastodon_is_my_blog.content_hub_service import (
-    create_client_bundle,
-    update_client_bundle,
-)
-from mastodon_is_my_blog.store import (
-    ContentHubGroup,
-    ContentHubGroupTerm,
-)
 
 
 class TermInput(BaseModel):
@@ -472,9 +447,7 @@ def group_to_dict(group: ContentHubGroup, terms: list[ContentHubGroupTerm]) -> d
         "slug": group.slug,
         "source_type": group.source_type,
         "is_read_only": group.is_read_only,
-        "last_fetched_at": (
-            group.last_fetched_at.isoformat() if group.last_fetched_at else None
-        ),
+        "last_fetched_at": (group.last_fetched_at.isoformat() if group.last_fetched_at else None),
         "created_at": group.created_at.isoformat(),
         "updated_at": group.updated_at.isoformat(),
         "terms": [
@@ -525,9 +498,7 @@ async def create_bundle(
         [{"term": t.term, "term_type": t.term_type} for t in body.terms],
     )
     async with async_session() as session:
-        stmt = select(ContentHubGroupTerm).where(
-            ContentHubGroupTerm.group_id == group.id
-        )
+        stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group.id)
         terms = (await session.execute(stmt)).scalars().all()
     return group_to_dict(group, list(terms))
 
@@ -546,19 +517,13 @@ async def update_bundle(
             identity_id,
             bundle_id,
             body.name,
-            (
-                [{"term": t.term, "term_type": t.term_type} for t in body.terms]
-                if body.terms is not None
-                else None
-            ),
+            ([{"term": t.term, "term_type": t.term_type} for t in body.terms] if body.terms is not None else None),
         )
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 
     async with async_session() as session:
-        stmt = select(ContentHubGroupTerm).where(
-            ContentHubGroupTerm.group_id == group.id
-        )
+        stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group.id)
         terms = (await session.execute(stmt)).scalars().all()
     return group_to_dict(group, list(terms))
 
@@ -572,11 +537,7 @@ async def delete_bundle(
     """Delete a client-side bundle."""
     async with async_session() as session:
         group = await session.get(ContentHubGroup, bundle_id)
-        if (
-            group is None
-            or group.meta_account_id != meta.id
-            or group.identity_id != identity_id
-        ):
+        if group is None or group.meta_account_id != meta.id or group.identity_id != identity_id:
             raise HTTPException(404, "Bundle not found")
         if group.is_read_only:
             raise HTTPException(403, "Cannot delete a read-only server-follow group")
@@ -590,35 +551,28 @@ async def delete_bundle(
 # ---------------------------------------------------------------------------
 
 NLP_JOB_KIND = "nlp_backfill"
-NLP_META_ID = 0   # not identity-scoped; use a sentinel identity_id
+NLP_META_ID = 0  # not identity-scoped; use a sentinel identity_id
 
 
 @router.get("/nlp-backfill/status")
 async def nlp_backfill_status(
     meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
-    from sqlalchemy import func, text as sa_text
+    from sqlalchemy import text as sa_text
 
     job = get_job(NLP_JOB_KIND, meta.id, NLP_META_ID)
 
     async with async_session() as session:
         total_threads = (
             await session.execute(
-                sa_text(
-                    "SELECT COUNT(DISTINCT root_id) FROM cached_posts "
-                    "WHERE meta_account_id = :mid AND root_id IS NOT NULL"
-                ),
+                sa_text("SELECT COUNT(DISTINCT root_id) FROM cached_posts WHERE meta_account_id = :mid AND root_id IS NOT NULL"),
                 {"mid": meta.id},
             )
         ).scalar() or 0
 
         done_threads = (
             await session.execute(
-                sa_text(
-                    "SELECT COUNT(*) FROM cached_posts "
-                    "WHERE meta_account_id = :mid AND root_id = id "
-                    "AND thread_uncommon_words IS NOT NULL"
-                ),
+                sa_text("SELECT COUNT(*) FROM cached_posts WHERE meta_account_id = :mid AND root_id = id AND thread_uncommon_words IS NOT NULL"),
                 {"mid": meta.id},
             )
         ).scalar() or 0
@@ -655,10 +609,7 @@ async def start_nlp_backfill(
         async with async_session() as session:
             root_rows = (
                 await session.execute(
-                    sa_text(
-                        "SELECT id, meta_account_id FROM cached_posts "
-                        "WHERE meta_account_id = :mid AND root_id = id"
-                    ),
+                    sa_text("SELECT id, meta_account_id FROM cached_posts WHERE meta_account_id = :mid AND root_id = id"),
                     {"mid": meta.id},
                 )
             ).all()
@@ -683,10 +634,7 @@ async def start_nlp_backfill(
             async with async_session() as session:
                 thread_rows = (
                     await session.execute(
-                        sa_text(
-                            "SELECT content FROM cached_posts "
-                            "WHERE meta_account_id = :mid AND root_id = :rid"
-                        ),
+                        sa_text("SELECT content FROM cached_posts WHERE meta_account_id = :mid AND root_id = :rid"),
                         {"mid": meta_id, "rid": root_id},
                     )
                 ).all()
@@ -694,16 +642,14 @@ async def start_nlp_backfill(
             combined = " ".join(r.content for r in thread_rows)
             words = uncommon_lemmas(combined, nlp)
             import json as _json
+
             updates.append({"root_id": root_id, "meta_id": meta_id, "words": _json.dumps(words)})
             done += 1
 
             if len(updates) >= batch_size:
                 async with async_session() as session:
                     await session.execute(
-                        sa_text(
-                            "UPDATE cached_posts SET thread_uncommon_words = :words "
-                            "WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"
-                        ),
+                        sa_text("UPDATE cached_posts SET thread_uncommon_words = :words WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"),
                         updates,
                     )
                     await session.commit()
@@ -714,10 +660,7 @@ async def start_nlp_backfill(
         if updates:
             async with async_session() as session:
                 await session.execute(
-                    sa_text(
-                        "UPDATE cached_posts SET thread_uncommon_words = :words "
-                        "WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"
-                    ),
+                    sa_text("UPDATE cached_posts SET thread_uncommon_words = :words WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"),
                     updates,
                 )
                 await session.commit()
@@ -754,11 +697,7 @@ async def _get_identity(meta: MetaAccount, identity_id: int | None) -> MastodonI
                 MastodonIdentity.meta_account_id == meta.id,
             )
         else:
-            stmt = (
-                select(MastodonIdentity)
-                .where(MastodonIdentity.meta_account_id == meta.id)
-                .limit(1)
-            )
+            stmt = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id).limit(1)
         identity = (await session.execute(stmt)).scalar_one_or_none()
         if not identity:
             raise HTTPException(404, "Identity not found")
@@ -781,14 +720,14 @@ async def start_catchup(
 
     Returns 409 if a job is already running for this identity.
     """
-    from mastodon_is_my_blog.catchup_runner import job_status, start_job
+    from mastodon_is_my_blog.catchup_runner import job_status, start_job  # pylint: disable=reimported,redefined-outer-name
 
     identity = await _get_identity(meta, identity_id)
 
     try:
         job = await start_job(meta, identity, mode=mode, max_accounts=max_accounts)
     except ValueError as exc:
-        raise HTTPException(409, str(exc))
+        raise HTTPException(409, str(exc)) from exc
 
     return {"started": True, **job_status(job)}
 
@@ -802,7 +741,7 @@ async def catchup_status(
     Return the status of the current or most recent catch-up job.
     Returns 404 if no job has been started for this identity.
     """
-    from mastodon_is_my_blog.catchup_runner import get_job, job_status
+    from mastodon_is_my_blog.catchup_runner import get_job, job_status  # pylint: disable=reimported,redefined-outer-name
 
     identity = await _get_identity(meta, identity_id)
     job = get_job(meta.id, identity.id)
@@ -820,13 +759,45 @@ async def cancel_catchup(
     Signal the running catch-up job to stop between accounts.
     Returns 404 if no running job exists.
     """
-    from mastodon_is_my_blog.catchup_runner import cancel_job
+    from mastodon_is_my_blog.catchup_runner import cancel_job  # pylint: disable=reimported,redefined-outer-name
 
     identity = await _get_identity(meta, identity_id)
     cancelled = cancel_job(meta.id, identity.id)
     if not cancelled:
         raise HTTPException(404, "No running catch-up job for this identity")
     return {"cancelled": True}
+
+
+@router.get("/error-log")
+async def get_error_log(limit: int = 200) -> list[dict]:
+    """Return recent WARNING/ERROR/CRITICAL log records from the error_log table."""
+    import sqlite3
+    from datetime import datetime
+
+    from mastodon_is_my_blog.db_path import get_sqlite_file_path
+
+    path = get_sqlite_file_path()
+    con = sqlite3.connect(path)
+    try:
+        rows = con.execute(
+            "SELECT id, ts, level, logger_name, message, exc_text FROM error_log ORDER BY ts DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    finally:
+        con.close()
+
+    return [
+        {
+            "id": r[0],
+            "ts": r[1],
+            "iso": datetime.utcfromtimestamp(r[1]).isoformat() + "Z",
+            "level": r[2],
+            "logger": r[3],
+            "message": r[4],
+            "exc_text": r[5],
+        }
+        for r in rows
+    ]
 
 
 @router.get("/catchup/queue")
@@ -850,9 +821,7 @@ async def catchup_queue_preview(
                 "acct": a.acct,
                 "display_name": a.display_name,
                 "is_followed_by": a.is_followed_by,
-                "last_status_at": (
-                    a.last_status_at.isoformat() if a.last_status_at else None
-                ),
+                "last_status_at": (a.last_status_at.isoformat() if a.last_status_at else None),
             }
             for a in queue
         ],

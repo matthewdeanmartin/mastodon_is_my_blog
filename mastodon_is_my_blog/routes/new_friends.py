@@ -116,9 +116,7 @@ async def _fetch_and_cache(
 
     for friend in friends_to_expand:
         try:
-            results = await asyncio.to_thread(
-                client.account_following, friend.id, limit=80
-            )
+            results = await asyncio.to_thread(client.account_following, friend.id, limit=80)
             if not results:
                 continue
             for acc in results:
@@ -160,13 +158,7 @@ async def _fetch_and_cache(
     # Persist to cache
     data_json = json.dumps(candidates)
     async with async_session() as session:
-        existing = (
-            await session.execute(
-                select(FriendsOfFriendsCache).where(
-                    FriendsOfFriendsCache.identity_id == identity.id
-                )
-            )
-        ).scalar_one_or_none()
+        existing = (await session.execute(select(FriendsOfFriendsCache).where(FriendsOfFriendsCache.identity_id == identity.id))).scalar_one_or_none()
 
         if existing:
             existing.fetched_at = datetime.utcnow()
@@ -238,13 +230,7 @@ async def get_candidates(
     identity = await resolve_identity(meta.id, identity_id)
 
     async with async_session() as session:
-        cached = (
-            await session.execute(
-                select(FriendsOfFriendsCache).where(
-                    FriendsOfFriendsCache.identity_id == identity_id
-                )
-            )
-        ).scalar_one_or_none()
+        cached = (await session.execute(select(FriendsOfFriendsCache).where(FriendsOfFriendsCache.identity_id == identity_id))).scalar_one_or_none()
 
     if cached and _is_cache_fresh(cached.fetched_at):
         try:

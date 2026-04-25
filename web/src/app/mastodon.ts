@@ -534,6 +534,16 @@ export interface ApiErrorRatePoint {
   rate: number;
 }
 
+export interface ErrorLogEntry {
+  id: number;
+  ts: number;
+  iso: string;
+  level: string;
+  logger: string;
+  message: string;
+  exc_text: string | null;
+}
+
 export interface NewFriendCandidate {
   id: string;
   acct: string;
@@ -570,4 +580,3 @@ export interface NewFriendsParams {
   limit?: number;
   offset?: number;
 }
-

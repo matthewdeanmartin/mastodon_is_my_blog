@@ -22,9 +22,7 @@ interface FacetChip {
     <div class="new-friends-page">
       <div class="page-header">
         <h2 class="page-title">🌱 New Friends</h2>
-        <p class="page-subtitle">
-          People your friends follow that you don't yet.
-        </p>
+        <p class="page-subtitle">People your friends follow that you don't yet.</p>
       </div>
 
       <!-- Controls -->
@@ -32,13 +30,7 @@ interface FacetChip {
         <div class="filter-row">
           <label>
             Max friends to scan
-            <input
-              type="number"
-              [(ngModel)]="maxFriends"
-              min="1"
-              max="500"
-              class="num-input"
-            />
+            <input type="number" [(ngModel)]="maxFriends" min="1" max="500" class="num-input" />
             <span class="hint">(each costs 1 API call — 50 = ~50 requests)</span>
           </label>
 
@@ -104,11 +96,7 @@ interface FacetChip {
       @if (displayed.length > 0 || facets.some(f => f.active)) {
         <div class="facet-bar">
           @for (facet of facets; track facet.id) {
-            <button
-              class="facet-chip"
-              [class.active]="facet.active"
-              (click)="toggleFacet(facet)"
-            >
+            <button class="facet-chip" [class.active]="facet.active" (click)="toggleFacet(facet)">
               {{ facet.label }}
             </button>
           }
@@ -122,8 +110,10 @@ interface FacetChip {
       @if (!loading && (allCandidates.length > 0 || fetchedAt)) {
         <div class="results-summary">
           @if (allCandidates.length > 0) {
-            Showing {{ displayed.length }} of {{ allCandidates.length }} candidates
-            ({{ totalDownloaded }} profiles downloaded, {{ allCandidates.length }} not yet followed)
+            Showing {{ displayed.length }} of {{ allCandidates.length }} candidates ({{
+              totalDownloaded
+            }}
+            profiles downloaded, {{ allCandidates.length }} not yet followed)
           } @else {
             {{ totalDownloaded }} profiles downloaded — all already followed, or filtered out.
           }
@@ -174,11 +164,15 @@ interface FacetChip {
               <div class="name-row">
                 <span class="display-name">{{ c.display_name || c.acct }}</span>
                 <span class="acct">&#64;{{ c.acct }}</span>
-                @if (c.bot) { <span class="badge bot">bot</span> }
-                @if (c.locked) { <span class="badge locked">🔒</span> }
+                @if (c.bot) {
+                  <span class="badge bot">bot</span>
+                }
+                @if (c.locked) {
+                  <span class="badge locked">🔒</span>
+                }
               </div>
               @if (c.note) {
-                <p class="bio">{{ c.note | slice: 0:140 }}{{ c.note.length > 140 ? '…' : '' }}</p>
+                <p class="bio">{{ c.note | slice: 0 : 140 }}{{ c.note.length > 140 ? '…' : '' }}</p>
               }
               <div class="stats-row">
                 <span>{{ c.statuses_count | number }} posts</span>
@@ -195,10 +189,21 @@ interface FacetChip {
             </div>
 
             <div class="card-actions">
-              <button class="btn-follow" (click)="followOne(c)" [disabled]="followingInProgress.has(c.id)">
+              <button
+                class="btn-follow"
+                (click)="followOne(c)"
+                [disabled]="followingInProgress.has(c.id)"
+              >
                 {{ followingInProgress.has(c.id) ? '…' : 'Follow' }}
               </button>
-              <a class="btn-dossier" [href]="dossierHref(c.acct)" target="_blank" rel="noopener" (mousedown)="storeCandidateForDossier(c)">Dossier ↗</a>
+              <a
+                class="btn-dossier"
+                [href]="dossierHref(c.acct)"
+                target="_blank"
+                rel="noopener"
+                (mousedown)="storeCandidateForDossier(c)"
+                >Dossier ↗</a
+              >
             </div>
           </div>
         }
@@ -217,71 +222,328 @@ interface FacetChip {
       }
     </div>
   `,
-  styles: [`
-    .new-friends-page { padding: 16px; max-width: 900px; }
-    .page-header { margin-bottom: 16px; }
-    .page-title { margin: 0 0 4px; font-size: 1.5rem; }
-    .page-subtitle { margin: 0; color: #6b7280; font-size: 0.9rem; }
+  styles: [
+    `
+      .new-friends-page {
+        padding: 16px;
+        max-width: 900px;
+      }
+      .page-header {
+        margin-bottom: 16px;
+      }
+      .page-title {
+        margin: 0 0 4px;
+        font-size: 1.5rem;
+      }
+      .page-subtitle {
+        margin: 0;
+        color: #6b7280;
+        font-size: 0.9rem;
+      }
 
-    .controls-panel { background: #1e293b; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
-    .filter-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 10px; align-items: flex-end; }
-    .filter-row label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: #94a3b8; }
-    .num-input { width: 70px; padding: 4px 6px; border-radius: 4px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; }
-    .num-input-sm { width: 60px; padding: 4px 6px; border-radius: 4px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; }
-    .select-input { padding: 4px 6px; border-radius: 4px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; }
-    .text-input { padding: 4px 8px; border-radius: 4px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; width: 160px; }
-    .hint { font-size: 0.75rem; color: #64748b; }
+      .controls-panel {
+        background: #1e293b;
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 16px;
+      }
+      .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 10px;
+        align-items: flex-end;
+      }
+      .filter-row label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.85rem;
+        color: #94a3b8;
+      }
+      .num-input {
+        width: 70px;
+        padding: 4px 6px;
+        border-radius: 4px;
+        border: 1px solid #334155;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .num-input-sm {
+        width: 60px;
+        padding: 4px 6px;
+        border-radius: 4px;
+        border: 1px solid #334155;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .select-input {
+        padding: 4px 6px;
+        border-radius: 4px;
+        border: 1px solid #334155;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .text-input {
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #334155;
+        background: #0f172a;
+        color: #e2e8f0;
+        width: 160px;
+      }
+      .hint {
+        font-size: 0.75rem;
+        color: #64748b;
+      }
 
-    .action-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .btn-primary { padding: 6px 14px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
-    .btn-primary:disabled { opacity: 0.5; cursor: default; }
-    .btn-secondary { padding: 6px 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
-    .btn-secondary:disabled { opacity: 0.5; }
-    .cache-info { font-size: 0.8rem; color: #64748b; }
+      .action-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .btn-primary {
+        padding: 6px 14px;
+        background: #6366f1;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .btn-secondary {
+        padding: 6px 12px;
+        background: #334155;
+        color: #e2e8f0;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+      }
+      .btn-secondary:disabled {
+        opacity: 0.5;
+      }
+      .cache-info {
+        font-size: 0.8rem;
+        color: #64748b;
+      }
 
-    .facet-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-    .facet-chip { padding: 4px 10px; border-radius: 20px; border: 1px solid #334155; background: #1e293b; color: #94a3b8; cursor: pointer; font-size: 0.8rem; }
-    .facet-chip.active { background: #4f46e5; color: white; border-color: #4f46e5; }
-    .facet-chip.clear { border-color: #6b7280; color: #6b7280; }
+      .facet-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .facet-chip {
+        padding: 4px 10px;
+        border-radius: 20px;
+        border: 1px solid #334155;
+        background: #1e293b;
+        color: #94a3b8;
+        cursor: pointer;
+        font-size: 0.8rem;
+      }
+      .facet-chip.active {
+        background: #4f46e5;
+        color: white;
+        border-color: #4f46e5;
+      }
+      .facet-chip.clear {
+        border-color: #6b7280;
+        color: #6b7280;
+      }
 
-    .results-summary { font-size: 0.85rem; color: #64748b; margin-bottom: 8px; }
+      .results-summary {
+        font-size: 0.85rem;
+        color: #64748b;
+        margin-bottom: 8px;
+      }
 
-    .bulk-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1e3a5f; border-radius: 6px; margin-bottom: 12px; flex-wrap: wrap; }
-    .btn-follow-bulk { padding: 6px 14px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; }
-    .btn-follow-bulk:disabled { opacity: 0.5; }
-    .btn-secondary-sm { padding: 4px 10px; background: #334155; color: #e2e8f0; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
-    .bulk-result { font-size: 0.85rem; color: #10b981; }
+      .bulk-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        background: #1e3a5f;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      .btn-follow-bulk {
+        padding: 6px 14px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .btn-follow-bulk:disabled {
+        opacity: 0.5;
+      }
+      .btn-secondary-sm {
+        padding: 4px 10px;
+        background: #334155;
+        color: #e2e8f0;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.8rem;
+      }
+      .bulk-result {
+        font-size: 0.85rem;
+        color: #10b981;
+      }
 
-    .loading-block { display: flex; align-items: center; gap: 12px; padding: 24px; color: #94a3b8; }
-    .spinner { width: 20px; height: 20px; border: 2px solid #334155; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+      .loading-block {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 24px;
+        color: #94a3b8;
+      }
+      .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #334155;
+        border-top-color: #6366f1;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
 
-    .candidate-list { display: flex; flex-direction: column; gap: 8px; }
-    .candidate-card { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: #1e293b; border-radius: 8px; border: 1px solid #334155; }
-    .candidate-card.selected { border-color: #4f46e5; background: #1e2a4a; }
+      .candidate-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .candidate-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px;
+        background: #1e293b;
+        border-radius: 8px;
+        border: 1px solid #334155;
+      }
+      .candidate-card.selected {
+        border-color: #4f46e5;
+        background: #1e2a4a;
+      }
 
-    .check-wrap { display: flex; align-items: center; padding-top: 2px; }
-    .avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; border: 2px solid #334155; object-fit: cover; }
+      .check-wrap {
+        display: flex;
+        align-items: center;
+        padding-top: 2px;
+      }
+      .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 2px solid #334155;
+        object-fit: cover;
+      }
 
-    .candidate-info { flex: 1; min-width: 0; }
-    .name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
-    .display-name { font-weight: 600; color: #e2e8f0; }
-    .acct { color: #64748b; font-size: 0.85rem; }
-    .badge { font-size: 0.7rem; padding: 1px 6px; border-radius: 4px; }
-    .badge.bot { background: #7c3aed; color: white; }
-    .badge.locked { background: #374151; }
-    .bio { margin: 0 0 6px; font-size: 0.85rem; color: #94a3b8; line-height: 1.4; }
-    .stats-row { display: flex; gap: 12px; font-size: 0.8rem; color: #64748b; flex-wrap: wrap; }
-    .friends-badge { color: #a78bfa; }
+      .candidate-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .name-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 4px;
+      }
+      .display-name {
+        font-weight: 600;
+        color: #e2e8f0;
+      }
+      .acct {
+        color: #64748b;
+        font-size: 0.85rem;
+      }
+      .badge {
+        font-size: 0.7rem;
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+      .badge.bot {
+        background: #7c3aed;
+        color: white;
+      }
+      .badge.locked {
+        background: #374151;
+      }
+      .bio {
+        margin: 0 0 6px;
+        font-size: 0.85rem;
+        color: #94a3b8;
+        line-height: 1.4;
+      }
+      .stats-row {
+        display: flex;
+        gap: 12px;
+        font-size: 0.8rem;
+        color: #64748b;
+        flex-wrap: wrap;
+      }
+      .friends-badge {
+        color: #a78bfa;
+      }
 
-    .card-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
-    .btn-follow { padding: 5px 12px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
-    .btn-follow:disabled { opacity: 0.5; }
-    .btn-dossier { padding: 5px 12px; background: #334155; color: #e2e8f0; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+      .card-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .btn-follow {
+        padding: 5px 12px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        white-space: nowrap;
+      }
+      .btn-follow:disabled {
+        opacity: 0.5;
+      }
+      .btn-dossier {
+        padding: 5px 12px;
+        background: #334155;
+        color: #e2e8f0;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+      }
 
-    .empty-state { text-align: center; padding: 40px; color: #64748b; }
-    .error-msg { background: #7f1d1d; color: #fca5a5; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; }
-  `],
+      .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #64748b;
+      }
+      .error-msg {
+        background: #7f1d1d;
+        color: #fca5a5;
+        padding: 10px 14px;
+        border-radius: 6px;
+        margin-bottom: 12px;
+      }
+    `,
+  ],
 })
 export class NewFriendsComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
@@ -315,7 +577,12 @@ export class NewFriendsComponent implements OnInit, OnDestroy {
     { id: 'active-30d', label: 'Active 30d', active: false, test: (c) => this.activeWithin(c, 30) },
     { id: 'active-90d', label: 'Active 90d', active: false, test: (c) => this.activeWithin(c, 90) },
     { id: 'not-locked', label: 'Not locked', active: false, test: (c) => !c.locked },
-    { id: 'multi-friend', label: '2+ friends follow', active: false, test: (c) => c.followed_by_count >= 2 },
+    {
+      id: 'multi-friend',
+      label: '2+ friends follow',
+      active: false,
+      test: (c) => c.followed_by_count >= 2,
+    },
   ];
 
   ngOnInit(): void {
@@ -459,7 +726,10 @@ export class NewFriendsComponent implements OnInit, OnDestroy {
     const promises = toFollow.map((id) => {
       const candidate = this.allCandidates.find((c) => c.id === id);
       if (!candidate) return Promise.resolve();
-      return this.api.followAccount(candidate.acct, identityId).toPromise().catch(() => null);
+      return this.api
+        .followAccount(candidate.acct, identityId)
+        .toPromise()
+        .catch(() => null);
     });
 
     Promise.all(promises).then(() => {

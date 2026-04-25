@@ -104,38 +104,26 @@ def choose_account(prompt: str) -> str:
 
 
 def save_account_interactively(existing_name: str | None = None) -> str:
-    current_client_id = (
-        get_credential(existing_name, "client_id") if existing_name else None
-    )
-    current_client_secret = (
-        get_credential(existing_name, "client_secret") if existing_name else None
-    )
-    current_access_token = (
-        get_credential(existing_name, "access_token") if existing_name else None
-    )
+    current_client_id = get_credential(existing_name, "client_id") if existing_name else None
+    current_client_secret = get_credential(existing_name, "client_secret") if existing_name else None
+    current_access_token = get_credential(existing_name, "access_token") if existing_name else None
     existing_base_url = None
 
     if existing_name:
-        summaries_by_name = {
-            summary.name: summary for summary in list_account_summaries()
-        }
+        summaries_by_name = {summary.name: summary for summary in list_account_summaries()}
         existing_summary = summaries_by_name[existing_name]
         existing_base_url = existing_summary.base_url
 
     while True:
         try:
-            account_name = normalize_account_name(
-                prompt_text("Account name", default=existing_name)
-            )
+            account_name = normalize_account_name(prompt_text("Account name", default=existing_name))
             break
         except ValueError as exc:
             print(exc)
 
     while True:
         try:
-            base_url = normalize_base_url(
-                prompt_text("Mastodon instance URL", default=existing_base_url)
-            )
+            base_url = normalize_base_url(prompt_text("Mastodon instance URL", default=existing_base_url))
             break
         except ValueError as exc:
             print(exc)
@@ -146,11 +134,7 @@ def save_account_interactively(existing_name: str | None = None) -> str:
         default=current_client_secret if current_client_secret else None,
         secret=True,
     )
-    token_prompt = (
-        "Access token (press Enter to keep the current token)"
-        if current_access_token
-        else "Access token (optional; press Enter to skip)"
-    )
+    token_prompt = "Access token (press Enter to keep the current token)" if current_access_token else "Access token (optional; press Enter to skip)"
     access_token = prompt_text(
         token_prompt,
         allow_empty=True,
@@ -194,15 +178,11 @@ def run_init_command() -> None:
             token_label = "token saved" if summary.has_access_token else "needs login"
             print(f"{index}. {summary.name} ({summary.base_url}, {token_label})")
 
-        while list_account_summaries() and prompt_yes_no(
-            "Do you want to change an existing account?"
-        ):
+        while list_account_summaries() and prompt_yes_no("Do you want to change an existing account?"):
             selected_name = choose_account("Which account do you want to change?")
             save_account_interactively(selected_name)
 
-        while list_account_summaries() and prompt_yes_no(
-            "Do you want to delete an account?"
-        ):
+        while list_account_summaries() and prompt_yes_no("Do you want to delete an account?"):
             selected_name = choose_account("Which account do you want to delete?")
             remove_configured_account(selected_name)
             delete_account_credentials(selected_name)
@@ -239,10 +219,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     command = args.command
-    if (
-        command not in {"init", "db-info", "version"}
-        and not has_configured_identities()
-    ):
+    if command not in {"init", "db-info", "version"} and not has_configured_identities():
         print("No configured Mastodon accounts found. Starting setup.")
         run_init_command()
 

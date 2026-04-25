@@ -95,9 +95,7 @@ const TAB_STYLES = `
                 {{ filter.label }}
               </button>
             }
-            <button (click)="shuffle()" class="filter-btn" [disabled]="loading">
-              🔀 Shuffle
-            </button>
+            <button (click)="shuffle()" class="filter-btn" [disabled]="loading">🔀 Shuffle</button>
             <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
               {{ refreshing ? 'Fetching...' : 'Fetch New' }}
             </button>
@@ -134,14 +132,26 @@ const TAB_STYLES = `
             </div>
             <div [innerHTML]="post.content" style="margin: 8px 0; font-size: 0.92rem;"></div>
             <div style="display: flex; gap: 10px; align-items: center;">
-              <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">View</button>
-              <a [routerLink]="['/write/reply', post.id]" style="font-size: 0.8rem; color: #6b7280; text-decoration: none;">↩ Reply</a>
+              <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">
+                View
+              </button>
+              <a
+                [routerLink]="['/write/reply', post.id]"
+                style="font-size: 0.8rem; color: #6b7280; text-decoration: none;"
+                >↩ Reply</a
+              >
             </div>
           </div>
         }
 
-        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
-          <button class="filter-btn" (click)="prevPage()" [disabled]="loading || cursorStack.length === 0">
+        <div
+          style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb;"
+        >
+          <button
+            class="filter-btn"
+            (click)="prevPage()"
+            [disabled]="loading || cursorStack.length === 0"
+          >
             ← Prev
           </button>
           <button class="filter-btn" (click)="nextPage()" [disabled]="loading || !nextCursor">
@@ -166,7 +176,7 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
   readonly filters = contentFeedFilters;
 
   nextCursor: string | null = null;
-  cursorStack: string[] = [];  // cursors for already-visited pages (enables Prev)
+  cursorStack: string[] = []; // cursors for already-visited pages (enables Prev)
 
   private currentIdentityId: number | null = null;
   private currentGroupId: number | null = null;
@@ -188,18 +198,28 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
   }
 
   private resetAndLoad(before: string | null = null, doShuffle = false): void {
-    if (!this.currentIdentityId || !this.currentGroupId) { this.posts = []; return; }
+    if (!this.currentIdentityId || !this.currentGroupId) {
+      this.posts = [];
+      return;
+    }
     this.loading = true;
-    this.api.getContentHubGroupPosts(
-      this.currentGroupId, this.currentIdentityId, 'text', before, 30, doShuffle
-    ).subscribe({
-      next: (res) => {
-        this.posts = res.items.map(hubToFeedPost);
-        this.nextCursor = res.next_cursor ?? null;
-        this.loading = false;
-      },
-      error: () => (this.loading = false),
-    });
+    this.api
+      .getContentHubGroupPosts(
+        this.currentGroupId,
+        this.currentIdentityId,
+        'text',
+        before,
+        30,
+        doShuffle,
+      )
+      .subscribe({
+        next: (res) => {
+          this.posts = res.items.map(hubToFeedPost);
+          this.nextCursor = res.next_cursor ?? null;
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
   }
 
   setFilter(filter: ContentFeedFilter): void {
@@ -225,7 +245,8 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
     if (this.cursorStack.length === 0) return;
     const cursor = this.cursorStack.pop()!;
     // prev means going back one — pop the cursor we pushed, reload from the one before it
-    const before = this.cursorStack.length > 0 ? this.cursorStack[this.cursorStack.length - 1] : null;
+    const before =
+      this.cursorStack.length > 0 ? this.cursorStack[this.cursorStack.length - 1] : null;
     this.resetAndLoad(before);
   }
 

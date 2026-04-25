@@ -17,11 +17,14 @@ import { mastodonLength } from './mastodon-length';
         @if (node.body.trim()) {
           <div
             class="card"
-            [style.border-left]="node.client_id === selectedId ? '3px solid #6366f1' : '3px solid #e1e8ed'"
+            [style.border-left]="
+              node.client_id === selectedId ? '3px solid #6366f1' : '3px solid #e1e8ed'
+            "
             style="margin-bottom: 10px; padding: 10px; font-size: 0.88rem;"
           >
             @if (node.spoiler_text) {
-              <div style="
+              <div
+                style="
                 background: #fef3c7;
                 color: #92400e;
                 font-size: 0.75rem;
@@ -29,10 +32,15 @@ import { mastodonLength } from './mastodon-length';
                 border-radius: 4px;
                 margin-bottom: 6px;
                 font-weight: 600;
-              ">CW: {{ node.spoiler_text }}</div>
+              "
+              >
+                CW: {{ node.spoiler_text }}
+              </div>
             }
             <div style="white-space: pre-wrap; word-break: break-word;">{{ node.body }}</div>
-            <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; color: #aaa;">
+            <div
+              style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; color: #aaa;"
+            >
               <span>{{ i + 1 }}/{{ nodes.length }}</span>
               <span [style.color]="mastodonLength(node.body) > 480 ? '#dc2626' : '#aaa'">
                 {{ mastodonLength(node.body) }}/500

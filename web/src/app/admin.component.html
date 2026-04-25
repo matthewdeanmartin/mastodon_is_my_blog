@@ -192,10 +192,14 @@
       </div>
 
       @if (recomputeStatsError) {
-        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">{{ recomputeStatsError }}</div>
+        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">
+          {{ recomputeStatsError }}
+        </div>
       }
       @if (recomputeStatsMessage) {
-        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem">{{ recomputeStatsMessage }}</div>
+        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem">
+          {{ recomputeStatsMessage }}
+        </div>
       }
 
       <button (click)="recomputePostStats()" [disabled]="recomputingStats">
@@ -210,10 +214,14 @@
         flags. Run once after upgrading to add these filters to existing posts. No API calls.
       </div>
       @if (backfillFlagsError) {
-        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">{{ backfillFlagsError }}</div>
+        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">
+          {{ backfillFlagsError }}
+        </div>
       }
       @if (backfillFlagsMessage) {
-        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem">{{ backfillFlagsMessage }}</div>
+        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem">
+          {{ backfillFlagsMessage }}
+        </div>
       }
       <button (click)="backfillContentFlags()" [disabled]="backfillingFlags">
         {{ backfillingFlags ? 'Backfilling...' : 'Backfill Questions & Books' }}
@@ -231,11 +239,28 @@
       @if (nlpStatus) {
         <div style="margin-bottom: 10px; font-size: 0.9rem">
           @if (nlpStatus.needs_run) {
-            <span style="color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 4px; padding: 2px 8px;">
-              {{ nlpStatus.done_threads }} / {{ nlpStatus.total_threads }} threads indexed — needs run
+            <span
+              style="
+                color: #92400e;
+                background: #fef3c7;
+                border: 1px solid #fde68a;
+                border-radius: 4px;
+                padding: 2px 8px;
+              "
+            >
+              {{ nlpStatus.done_threads }} / {{ nlpStatus.total_threads }} threads indexed — needs
+              run
             </span>
           } @else {
-            <span style="color: #166534; background: #dcfce7; border: 1px solid #bbf7d0; border-radius: 4px; padding: 2px 8px;">
+            <span
+              style="
+                color: #166534;
+                background: #dcfce7;
+                border: 1px solid #bbf7d0;
+                border-radius: 4px;
+                padding: 2px 8px;
+              "
+            >
               All {{ nlpStatus.total_threads }} threads indexed ✓
             </span>
           }
@@ -247,15 +272,30 @@
       }
 
       @if (nlpStatus?.job && !nlpStatus!.job!.finished) {
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; margin-bottom: 10px;">
+        <div
+          style="
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 14px;
+            margin-bottom: 10px;
+          "
+        >
           <div class="row" style="margin-bottom: 8px">
             <span style="font-weight: 600">Running — {{ nlpStatus!.job!.stage }}</span>
             <span class="muted" style="font-size: 0.85rem">
-              {{ nlpStatus!.job!.done }}<ng-container *ngIf="nlpStatus!.job!.total"> / {{ nlpStatus!.job!.total }}</ng-container> threads
+              {{ nlpStatus!.job!.done
+              }}<ng-container *ngIf="nlpStatus!.job!.total">
+                / {{ nlpStatus!.job!.total }}</ng-container
+              >
+              threads
             </span>
           </div>
           <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden">
-            <div [style.width.%]="nlpProgressPct" style="height: 100%; background: #6366f1; transition: width 0.4s"></div>
+            <div
+              [style.width.%]="nlpProgressPct"
+              style="height: 100%; background: #6366f1; transition: width 0.4s"
+            ></div>
           </div>
         </div>
       }
@@ -690,6 +730,87 @@
               </div>
             }
           </div>
+        </div>
+      }
+    </div>
+
+    <hr style="margin-top: 28px" />
+
+    <!-- Error log -->
+    <div style="margin-top: 24px; margin-bottom: 24px">
+      <div class="row" style="align-items: center; gap: 10px; margin-bottom: 8px">
+        <h3 style="margin: 0; font-size: 1rem; flex: 1">Error Log</h3>
+        <button
+          class="secondary"
+          style="font-size: 0.8rem"
+          (click)="loadErrorLog()"
+          [disabled]="errorLogLoading"
+        >
+          {{ errorLogLoading ? 'Loading...' : 'Load Error Log' }}
+        </button>
+      </div>
+      <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px">
+        Recent WARNING and ERROR messages written to the database. Useful for diagnosing silent
+        failures.
+      </div>
+
+      @if (errorLogError) {
+        <div style="color: #dc2626; font-size: 0.875rem; margin-bottom: 10px">
+          {{ errorLogError }}
+        </div>
+      }
+
+      @if (errorLogExpanded && errorLog.length === 0) {
+        <div class="muted" style="font-size: 0.9rem">No error log entries found.</div>
+      }
+
+      @if (errorLog.length > 0) {
+        <div
+          style="
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            font-size: 0.8rem;
+            font-family: monospace;
+          "
+        >
+          @for (entry of errorLog; track entry.id) {
+            <div
+              style="
+                padding: 8px 12px;
+                border-bottom: 1px solid #f1f5f9;
+                display: grid;
+                grid-template-columns: auto auto 1fr;
+                gap: 8px;
+                align-items: start;
+              "
+            >
+              <span
+                [style.color]="levelColor(entry.level)"
+                style="font-weight: 700; min-width: 60px"
+                >{{ entry.level }}</span
+              >
+              <span class="muted" style="white-space: nowrap">{{ entry.iso | date: 'short' }}</span>
+              <div>
+                <div style="color: #1e293b">{{ entry.message }}</div>
+                <div class="muted" style="font-size: 0.75rem">{{ entry.logger }}</div>
+                @if (entry.exc_text) {
+                  <pre
+                    style="
+                      margin: 4px 0 0;
+                      font-size: 0.7rem;
+                      white-space: pre-wrap;
+                      color: #dc2626;
+                      background: #fef2f2;
+                      padding: 6px;
+                      border-radius: 4px;
+                    "
+                    >{{ entry.exc_text }}</pre
+                  >
+                }
+              </div>
+            </div>
+          }
         </div>
       }
     </div>

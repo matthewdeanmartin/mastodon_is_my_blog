@@ -95,9 +95,7 @@ async def create_post(
         spoiler_text=payload.spoiler_text,
     )
 
-    await sync_user_timeline_for_identity(
-        meta_id=meta.id, identity=identity, force=True
-    )
+    await sync_user_timeline_for_identity(meta_id=meta.id, identity=identity, force=True)
 
     return resp
 
@@ -130,9 +128,7 @@ async def get_draft(
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     async with async_session() as session:
-        stmt = select(Draft).where(
-            and_(Draft.id == draft_id, Draft.meta_account_id == meta.id)
-        )
+        stmt = select(Draft).where(and_(Draft.id == draft_id, Draft.meta_account_id == meta.id))
         draft = (await session.execute(stmt)).scalar_one_or_none()
         if not draft:
             raise HTTPException(404, "Draft not found")
@@ -167,9 +163,7 @@ async def update_draft(
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     async with async_session() as session:
-        stmt = select(Draft).where(
-            and_(Draft.id == draft_id, Draft.meta_account_id == meta.id)
-        )
+        stmt = select(Draft).where(and_(Draft.id == draft_id, Draft.meta_account_id == meta.id))
         draft = (await session.execute(stmt)).scalar_one_or_none()
         if not draft:
             raise HTTPException(404, "Draft not found")
@@ -193,9 +187,7 @@ async def delete_draft(
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     async with async_session() as session:
-        stmt = select(Draft).where(
-            and_(Draft.id == draft_id, Draft.meta_account_id == meta.id)
-        )
+        stmt = select(Draft).where(and_(Draft.id == draft_id, Draft.meta_account_id == meta.id))
         draft = (await session.execute(stmt)).scalar_one_or_none()
         if not draft:
             raise HTTPException(404, "Draft not found")
@@ -210,9 +202,7 @@ async def split_node(
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     async with async_session() as session:
-        stmt = select(Draft).where(
-            and_(Draft.id == draft_id, Draft.meta_account_id == meta.id)
-        )
+        stmt = select(Draft).where(and_(Draft.id == draft_id, Draft.meta_account_id == meta.id))
         draft = (await session.execute(stmt)).scalar_one_or_none()
         if not draft:
             raise HTTPException(404, "Draft not found")
@@ -237,9 +227,7 @@ async def publish_draft(
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     async with async_session() as session:
-        stmt = select(Draft).where(
-            and_(Draft.id == draft_id, Draft.meta_account_id == meta.id)
-        )
+        stmt = select(Draft).where(and_(Draft.id == draft_id, Draft.meta_account_id == meta.id))
         draft = (await session.execute(stmt)).scalar_one_or_none()
         if not draft:
             raise HTTPException(404, "Draft not found")
@@ -284,22 +272,18 @@ async def publish_draft(
         await session.commit()
         await session.refresh(draft)
 
-        await sync_user_timeline_for_identity(
-            meta_id=meta.id, identity=identity, force=True
-        )
+        await sync_user_timeline_for_identity(meta_id=meta.id, identity=identity, force=True)
 
         return DraftOut.model_validate(draft)
 
 
-LANGUAGETOOL_URL = os.environ.get(
-    "LANGUAGETOOL_URL", "http://localhost:8081/v2/check"
-)
+LANGUAGETOOL_URL = os.environ.get("LANGUAGETOOL_URL", "http://localhost:8081/v2/check")
 
 
 @drafts_router.post("/spellcheck", response_model=SpellcheckOut)
 async def spellcheck(
     payload: SpellcheckIn,
-    meta: MetaAccount = Depends(get_current_meta_account),
+    meta: MetaAccount = Depends(get_current_meta_account),  # pylint: disable=unused-argument
 ):
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -309,10 +293,10 @@ async def spellcheck(
             )
             resp.raise_for_status()
             data = resp.json()
-    except httpx.ConnectError:
-        raise HTTPException(503, "LanguageTool not available")
+    except httpx.ConnectError as exc:
+        raise HTTPException(503, "LanguageTool not available") from exc
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(502, f"LanguageTool error: {exc.response.status_code}")
+        raise HTTPException(502, f"LanguageTool error: {exc.response.status_code}") from exc
 
     matches = [
         SpellcheckMatch(

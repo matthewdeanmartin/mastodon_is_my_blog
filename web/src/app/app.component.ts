@@ -81,9 +81,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const q = this.blogRollNameFilter.trim().toLowerCase();
     if (!q) return this.blogRoll;
     return this.blogRoll.filter(
-      (a) =>
-        a.acct.toLowerCase().includes(q) ||
-        (a.display_name ?? '').toLowerCase().includes(q),
+      (a) => a.acct.toLowerCase().includes(q) || (a.display_name ?? '').toLowerCase().includes(q),
     );
   }
   mainUser: MastodonAccount | null = null; // The "Profile" of the currently connected user

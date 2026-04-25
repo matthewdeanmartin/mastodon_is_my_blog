@@ -27,16 +27,33 @@
     <div *ngIf="summaryLoading" class="obs-loading">Loading…</div>
     <div *ngIf="summaryError" class="obs-error">{{ summaryError }}</div>
     <div *ngIf="summary && !summaryLoading" class="obs-cards">
-      <div class="obs-card" *ngFor="let w of [['7d', summary['7d']], ['30d', summary['30d']], ['90d', summary['90d']]]">
+      <div
+        class="obs-card"
+        *ngFor="
+          let w of [
+            ['7d', summary['7d']],
+            ['30d', summary['30d']],
+            ['90d', summary['90d']],
+          ]
+        "
+      >
         <div class="obs-card-title">{{ w[0] }}</div>
-        <div class="obs-card-row"><span>Calls</span><strong>{{ $any(w[1]).total_calls | number }}</strong></div>
-        <div class="obs-card-row"><span>Data</span><strong>{{ $any(w[1]).total_mb | number:'1.2-2' }} MB</strong></div>
-        <div class="obs-card-row"><span>Throttles</span>
+        <div class="obs-card-row">
+          <span>Calls</span><strong>{{ $any(w[1]).total_calls | number }}</strong>
+        </div>
+        <div class="obs-card-row">
+          <span>Data</span><strong>{{ $any(w[1]).total_mb | number: '1.2-2' }} MB</strong>
+        </div>
+        <div class="obs-card-row">
+          <span>Throttles</span>
           <strong [class.obs-alert]="$any(w[1]).throttle_events > 0">
             {{ $any(w[1]).throttle_events | number }}
           </strong>
         </div>
-        <div class="obs-card-row"><span>Median latency</span><strong>{{ $any(w[1]).median_latency_s | number:'1.3-3' }} s</strong></div>
+        <div class="obs-card-row">
+          <span>Median latency</span
+          ><strong>{{ $any(w[1]).median_latency_s | number: '1.3-3' }} s</strong>
+        </div>
       </div>
     </div>
   </section>
@@ -46,7 +63,9 @@
     <h3>API calls over time</h3>
     <div *ngIf="volumeLoading" class="obs-loading">Loading…</div>
     <div *ngIf="volumeError" class="obs-error">{{ volumeError }}</div>
-    <div *ngIf="!volumeLoading && volumePoints.length === 0 && !volumeError" class="obs-empty">No data yet.</div>
+    <div *ngIf="!volumeLoading && volumePoints.length === 0 && !volumeError" class="obs-empty">
+      No data yet.
+    </div>
     <div *ngIf="!volumeLoading && volumePoints.length > 0" class="obs-bar-chart">
       <div
         class="obs-bar-wrap"
@@ -54,7 +73,7 @@
         [title]="b.label + ': ' + b.value + ' calls'"
       >
         <div class="obs-bar" [style.height.%]="b.pct" [style.background]="b.color"></div>
-        <div class="obs-bar-label">{{ b.label | slice:5 }}</div>
+        <div class="obs-bar-label">{{ b.label | slice: 5 }}</div>
       </div>
     </div>
   </section>
@@ -82,12 +101,12 @@
             *ngFor="let r of methodRows; let i = index"
             [class.obs-selected]="r.method_name === selectedMethod"
             (click)="onMethodSelect(r.method_name)"
-            style="cursor:pointer"
+            style="cursor: pointer"
           >
             <td>{{ r.method_name }}</td>
             <td>{{ r.calls | number }}</td>
-            <td>{{ r.avg_elapsed_s | number:'1.3-3' }}</td>
-            <td>{{ (r.total_bytes / 1048576) | number:'1.2-2' }}</td>
+            <td>{{ r.avg_elapsed_s | number: '1.3-3' }}</td>
+            <td>{{ r.total_bytes / 1048576 | number: '1.2-2' }}</td>
             <td [class.obs-alert]="r.throttle_count > 0">{{ r.throttle_count }}</td>
             <td [class.obs-alert]="r.error_count > 0">{{ r.error_count }}</td>
           </tr>
@@ -111,7 +130,9 @@
     <h3>Latency trend{{ selectedMethod ? ' — ' + selectedMethod : ' (all methods)' }}</h3>
     <div *ngIf="latencyLoading" class="obs-loading">Loading…</div>
     <div *ngIf="latencyError" class="obs-error">{{ latencyError }}</div>
-    <div *ngIf="!latencyLoading && latencyPoints.length === 0 && !latencyError" class="obs-empty">No data yet.</div>
+    <div *ngIf="!latencyLoading && latencyPoints.length === 0 && !latencyError" class="obs-empty">
+      No data yet.
+    </div>
     <div *ngIf="!latencyLoading && latencyPoints.length > 0" class="obs-svg-wrap">
       <svg viewBox="0 0 100 60" preserveAspectRatio="none" class="obs-svg">
         <ng-container *ngFor="let s of latencySeries()">
@@ -128,7 +149,11 @@
         <span *ngFor="let s of latencySeries()" class="obs-legend-item">
           <span class="obs-dot" [style.background]="s.color"></span> {{ s.label }}
         </span>
-        <span *ngIf="selectedMethod" class="obs-legend-item obs-clickable" (click)="onMethodSelect(null)">
+        <span
+          *ngIf="selectedMethod"
+          class="obs-legend-item obs-clickable"
+          (click)="onMethodSelect(null)"
+        >
           ✕ Clear filter
         </span>
       </div>
@@ -140,15 +165,24 @@
     <h3>Data volume (MB/day)</h3>
     <div *ngIf="dataVolumeLoading" class="obs-loading">Loading…</div>
     <div *ngIf="dataVolumeError" class="obs-error">{{ dataVolumeError }}</div>
-    <div *ngIf="!dataVolumeLoading && dataVolumePoints.length === 0 && !dataVolumeError" class="obs-empty">No data yet.</div>
+    <div
+      *ngIf="!dataVolumeLoading && dataVolumePoints.length === 0 && !dataVolumeError"
+      class="obs-empty"
+    >
+      No data yet.
+    </div>
     <div *ngIf="!dataVolumeLoading && dataVolumePoints.length > 0" class="obs-bar-chart">
       <div
         class="obs-bar-wrap"
         *ngFor="let b of dataVolumeBars()"
         [title]="b.label + ': ' + b.value.toFixed(3) + ' MB'"
       >
-        <div class="obs-bar obs-bar-data" [style.height.%]="b.pct" [style.background]="b.color"></div>
-        <div class="obs-bar-label">{{ b.label | slice:5 }}</div>
+        <div
+          class="obs-bar obs-bar-data"
+          [style.height.%]="b.pct"
+          [style.background]="b.color"
+        ></div>
+        <div class="obs-bar-label">{{ b.label | slice: 5 }}</div>
       </div>
     </div>
   </section>
@@ -158,15 +192,24 @@
     <h3>Throttle events</h3>
     <div *ngIf="throttleLoading" class="obs-loading">Loading…</div>
     <div *ngIf="throttleError" class="obs-error">{{ throttleError }}</div>
-    <div *ngIf="!throttleLoading && throttleEvents.length === 0 && !throttleError" class="obs-empty obs-good">
+    <div
+      *ngIf="!throttleLoading && throttleEvents.length === 0 && !throttleError"
+      class="obs-empty obs-good"
+    >
       No throttle events. You're a good fediverse citizen.
     </div>
     <div *ngIf="!throttleLoading && throttleEvents.length > 0">
       <p class="obs-alert-banner">
-        {{ totalThrottleEvents }} throttle event{{ totalThrottleEvents === 1 ? '' : 's' }} in last {{ days }} days.
+        {{ totalThrottleEvents }} throttle event{{ totalThrottleEvents === 1 ? '' : 's' }} in last
+        {{ days }} days.
       </p>
       <table class="obs-table">
-        <thead><tr><th>Method</th><th>Total throttles</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Total throttles</th>
+          </tr>
+        </thead>
         <tbody>
           <tr *ngFor="let t of throttlesByMethod">
             <td>{{ t.method }}</td>
@@ -174,8 +217,14 @@
           </tr>
         </tbody>
       </table>
-      <table class="obs-table" style="margin-top:0.5rem">
-        <thead><tr><th>Day</th><th>Method</th><th>Count</th></tr></thead>
+      <table class="obs-table" style="margin-top: 0.5rem">
+        <thead>
+          <tr>
+            <th>Day</th>
+            <th>Method</th>
+            <th>Count</th>
+          </tr>
+        </thead>
         <tbody>
           <tr *ngFor="let e of throttleEvents">
             <td>{{ e.day }}</td>
@@ -192,7 +241,12 @@
     <h3>Error rate</h3>
     <div *ngIf="errorRateLoading" class="obs-loading">Loading…</div>
     <div *ngIf="errorRateError" class="obs-error">{{ errorRateError }}</div>
-    <div *ngIf="!errorRateLoading && errorRatePoints.length === 0 && !errorRateError" class="obs-empty">No data yet.</div>
+    <div
+      *ngIf="!errorRateLoading && errorRatePoints.length === 0 && !errorRateError"
+      class="obs-empty"
+    >
+      No data yet.
+    </div>
     <div *ngIf="!errorRateLoading && errorRatePoints.length > 0">
       <div class="obs-svg-wrap">
         <svg viewBox="0 0 100 60" preserveAspectRatio="none" class="obs-svg">
@@ -208,13 +262,20 @@
         </svg>
       </div>
       <table class="obs-table">
-        <thead><tr><th>Day</th><th>Total calls</th><th>Errors</th><th>Rate</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Day</th>
+            <th>Total calls</th>
+            <th>Errors</th>
+            <th>Rate</th>
+          </tr>
+        </thead>
         <tbody>
           <tr *ngFor="let p of errorRatePoints">
             <td>{{ p.day }}</td>
             <td>{{ p.total | number }}</td>
             <td [class.obs-alert]="p.errors > 0">{{ p.errors }}</td>
-            <td [class.obs-alert]="p.rate > 0">{{ (p.rate * 100) | number:'1.1-1' }}%</td>
+            <td [class.obs-alert]="p.rate > 0">{{ p.rate * 100 | number: '1.1-1' }}%</td>
           </tr>
         </tbody>
       </table>
@@ -223,47 +284,207 @@
 </div>
 
 <style>
-.observability-page { padding: 1rem; max-width: 900px; }
-.obs-controls { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-.obs-controls label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
-.obs-section { margin-bottom: 2rem; }
-.obs-section h3 { margin-bottom: 0.75rem; font-size: 1rem; font-weight: 600; }
-.obs-loading { color: #888; font-style: italic; }
-.obs-error { color: #ef4444; }
-.obs-empty { color: #888; font-style: italic; }
-.obs-good { color: #10b981; }
-.obs-hint { font-size: 0.8rem; color: #888; margin-bottom: 0.4rem; }
+  .observability-page {
+    padding: 1rem;
+    max-width: 900px;
+  }
+  .obs-controls {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .obs-controls label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+  }
+  .obs-section {
+    margin-bottom: 2rem;
+  }
+  .obs-section h3 {
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .obs-loading {
+    color: #888;
+    font-style: italic;
+  }
+  .obs-error {
+    color: #ef4444;
+  }
+  .obs-empty {
+    color: #888;
+    font-style: italic;
+  }
+  .obs-good {
+    color: #10b981;
+  }
+  .obs-hint {
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 0.4rem;
+  }
 
-.obs-cards { display: flex; gap: 1rem; flex-wrap: wrap; }
-.obs-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem 1rem; min-width: 160px; }
-.obs-card-title { font-weight: 700; font-size: 1rem; margin-bottom: 0.5rem; }
-.obs-card-row { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.85rem; padding: 0.15rem 0; }
+  .obs-cards {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .obs-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    min-width: 160px;
+  }
+  .obs-card-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  .obs-card-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.85rem;
+    padding: 0.15rem 0;
+  }
 
-.obs-alert { color: #ef4444; font-weight: 600; }
-.obs-alert-banner { background: #fee2e2; color: #b91c1c; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-weight: 600; }
+  .obs-alert {
+    color: #ef4444;
+    font-weight: 600;
+  }
+  .obs-alert-banner {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+  }
 
-.obs-bar-chart { display: flex; align-items: flex-end; gap: 2px; height: 120px; overflow-x: auto; padding-bottom: 1.5rem; border-bottom: 1px solid #e5e7eb; }
-.obs-bar-wrap { display: flex; flex-direction: column; align-items: center; min-width: 16px; flex: 1; height: 100%; justify-content: flex-end; }
-.obs-bar { width: 100%; min-height: 2px; border-radius: 2px 2px 0 0; transition: height 0.2s; }
-.obs-bar-label { font-size: 0.55rem; color: #888; margin-top: 2px; white-space: nowrap; transform: rotate(-45deg); transform-origin: top left; }
+  .obs-bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 120px;
+    overflow-x: auto;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .obs-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 16px;
+    flex: 1;
+    height: 100%;
+    justify-content: flex-end;
+  }
+  .obs-bar {
+    width: 100%;
+    min-height: 2px;
+    border-radius: 2px 2px 0 0;
+    transition: height 0.2s;
+  }
+  .obs-bar-label {
+    font-size: 0.55rem;
+    color: #888;
+    margin-top: 2px;
+    white-space: nowrap;
+    transform: rotate(-45deg);
+    transform-origin: top left;
+  }
 
-.obs-hbar-chart { margin-top: 1rem; }
-.obs-hbar-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; }
-.obs-hbar-label { width: 160px; font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; color: #555; }
-.obs-hbar-track { flex: 1; background: #f3f4f6; border-radius: 3px; height: 14px; }
-.obs-hbar-fill { height: 100%; border-radius: 3px; min-width: 2px; transition: width 0.3s; }
-.obs-hbar-value { width: 50px; text-align: right; font-size: 0.78rem; }
+  .obs-hbar-chart {
+    margin-top: 1rem;
+  }
+  .obs-hbar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+  }
+  .obs-hbar-label {
+    width: 160px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+    color: #555;
+  }
+  .obs-hbar-track {
+    flex: 1;
+    background: #f3f4f6;
+    border-radius: 3px;
+    height: 14px;
+  }
+  .obs-hbar-fill {
+    height: 100%;
+    border-radius: 3px;
+    min-width: 2px;
+    transition: width 0.3s;
+  }
+  .obs-hbar-value {
+    width: 50px;
+    text-align: right;
+    font-size: 0.78rem;
+  }
 
-.obs-svg-wrap { margin-bottom: 0.5rem; }
-.obs-svg { width: 100%; height: 120px; display: block; border-bottom: 1px solid #e5e7eb; }
-.obs-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8rem; margin-top: 0.25rem; }
-.obs-legend-item { display: flex; align-items: center; gap: 0.3rem; }
-.obs-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
-.obs-clickable { cursor: pointer; color: #6366f1; }
+  .obs-svg-wrap {
+    margin-bottom: 0.5rem;
+  }
+  .obs-svg {
+    width: 100%;
+    height: 120px;
+    display: block;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .obs-legend {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+  }
+  .obs-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .obs-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .obs-clickable {
+    cursor: pointer;
+    color: #6366f1;
+  }
 
-.obs-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.obs-table th { text-align: left; padding: 0.3rem 0.5rem; border-bottom: 2px solid #e5e7eb; font-weight: 600; }
-.obs-table td { padding: 0.25rem 0.5rem; border-bottom: 1px solid #f3f4f6; }
-.obs-table tr:hover td { background: #f9fafb; }
-.obs-selected td { background: #ede9fe !important; }
+  .obs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .obs-table th {
+    text-align: left;
+    padding: 0.3rem 0.5rem;
+    border-bottom: 2px solid #e5e7eb;
+    font-weight: 600;
+  }
+  .obs-table td {
+    padding: 0.25rem 0.5rem;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .obs-table tr:hover td {
+    background: #f9fafb;
+  }
+  .obs-selected td {
+    background: #ede9fe !important;
+  }
 </style>

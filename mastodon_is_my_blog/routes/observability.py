@@ -6,7 +6,7 @@ router = APIRouter(prefix="/api/observability", tags=["observability"])
 
 
 @router.get("/summary")
-async def get_summary(days: int = 7) -> dict:
+async def get_summary() -> dict:
     data7 = await duck.api_summary(days=7)
     data30 = await duck.api_summary(days=30)
     data90 = await duck.api_summary(days=90)

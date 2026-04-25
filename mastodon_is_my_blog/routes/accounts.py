@@ -133,9 +133,7 @@ async def get_blog_roll(
                             CachedNotification.account_id == CachedAccount.id,
                             CachedNotification.meta_account_id == meta.id,
                             CachedNotification.identity_id == identity_id,
-                            CachedNotification.type.in_(
-                                ["mention", "favourite", "reblog", "status"]
-                            ),
+                            CachedNotification.type.in_(["mention", "favourite", "reblog", "status"]),
                         )
                     )
                 )
@@ -190,10 +188,7 @@ async def get_blog_roll(
         elif filter_type == "graveyard":
             # People I follow whose account has gone quiet — no cached posts, or last post older than 90 days.
             cutoff = datetime.utcnow() - timedelta(days=90)
-            query = query.where(
-                (CachedAccount.last_status_at.is_(None))
-                | (CachedAccount.last_status_at < cutoff)
-            )
+            query = query.where((CachedAccount.last_status_at.is_(None)) | (CachedAccount.last_status_at < cutoff))
             query = query.order_by(CachedAccount.last_status_at.asc().nullsfirst())
 
         elif filter_type == "parasocials":
@@ -271,10 +266,11 @@ async def get_blog_roll(
         unseen_counts: dict[str, int] = {}
         if account_ids:
             from mastodon_is_my_blog.store import SeenPost
+
             unseen_stmt = (
                 select(
                     CachedPost.author_id,
-                    func.count(CachedPost.id).label("unseen"),
+                    func.count(CachedPost.id).label("unseen"),  # pylint: disable=not-callable
                 )
                 .outerjoin(
                     SeenPost,
@@ -307,9 +303,7 @@ async def get_blog_roll(
                 "url": a.url,
                 "note": a.note,
                 "bot": a.bot,
-                "last_status_at": (
-                    a.last_status_at.isoformat() if a.last_status_at else None
-                ),
+                "last_status_at": (a.last_status_at.isoformat() if a.last_status_at else None),
                 "cached_post_count": a.cached_post_count or 0,
                 "followers_count": a.followers_count or 0,
                 "unseen_post_count": unseen_counts.get(a.id, 0),
@@ -365,9 +359,7 @@ async def get_account_info(
         account = (await session.execute(stmt)).scalar_one_or_none()
 
         if not account:
-            raise HTTPException(
-                404, f"Account {acct} not found for identity {identity_id}"
-            )
+            raise HTTPException(404, f"Account {acct} not found for identity {identity_id}")
 
         # Parse fields from JSON
         fields_data = []
@@ -378,7 +370,7 @@ async def get_account_info(
                 fields_data = []
 
         post_cache_stmt = select(
-            func.count(CachedPost.id),
+            func.count(CachedPost.id),  # pylint: disable=not-callable
             func.max(CachedPost.created_at),
         ).where(
             and_(
@@ -387,26 +379,14 @@ async def get_account_info(
                 CachedPost.author_acct == acct,
             )
         )
-        cached_posts, latest_cached_post_at = (
-            await session.execute(post_cache_stmt)
-        ).one()
+        cached_posts, latest_cached_post_at = (await session.execute(post_cache_stmt)).one()
 
         now = datetime.utcnow()
         latest_cached_post_at_naive = None
         if latest_cached_post_at is not None:
-            latest_cached_post_at_naive = (
-                latest_cached_post_at.replace(tzinfo=None)
-                if latest_cached_post_at.tzinfo
-                else latest_cached_post_at
-            )
-        is_stale = latest_cached_post_at_naive is None or (
-            now - latest_cached_post_at_naive
-        ) > timedelta(days=7)
-        stale_reason = (
-            "no_cached_posts"
-            if latest_cached_post_at_naive is None
-            else ("last_cached_post_older_than_7d" if is_stale else "fresh")
-        )
+            latest_cached_post_at_naive = latest_cached_post_at.replace(tzinfo=None) if latest_cached_post_at.tzinfo else latest_cached_post_at
+        is_stale = latest_cached_post_at_naive is None or (now - latest_cached_post_at_naive) > timedelta(days=7)
+        stale_reason = "no_cached_posts" if latest_cached_post_at_naive is None else ("last_cached_post_older_than_7d" if is_stale else "fresh")
 
         return {
             "id": account.id,
@@ -419,24 +399,18 @@ async def get_account_info(
             "fields": fields_data,
             "bot": account.bot,
             "locked": account.locked,
-            "created_at": (
-                account.created_at.isoformat() if account.created_at else None
-            ),
+            "created_at": (account.created_at.isoformat() if account.created_at else None),
             "counts": {
                 "followers": account.followers_count,
                 "following": account.following_count,
                 "statuses": account.statuses_count,
             },
-            "last_status_at": (
-                account.last_status_at.isoformat() if account.last_status_at else None
-            ),
+            "last_status_at": (account.last_status_at.isoformat() if account.last_status_at else None),
             "is_following": account.is_following,
             "is_followed_by": account.is_followed_by,
             "cache_state": {
                 "cached_posts": int(cached_posts or 0),
-                "latest_cached_post_at": (
-                    latest_cached_post_at.isoformat() if latest_cached_post_at else None
-                ),
+                "latest_cached_post_at": (latest_cached_post_at.isoformat() if latest_cached_post_at else None),
                 "is_stale": is_stale,
                 "stale_reason": stale_reason,
             },
@@ -456,9 +430,7 @@ async def sync_account(
     identity = await _get_identity(meta, identity_id)
 
     # Call the identity-aware sync function
-    result = await sync_user_timeline_for_identity(
-        meta_id=meta.id, identity=identity, acct=acct, force=True
-    )
+    result = await sync_user_timeline_for_identity(meta_id=meta.id, identity=identity, acct=acct, force=True)
     return result
 
 
@@ -476,7 +448,7 @@ async def start_account_catchup(
     try:
         job = await start_account_catchup_job(meta, identity, acct, mode=mode)
     except ValueError as exc:
-        raise HTTPException(409, str(exc))
+        raise HTTPException(409, str(exc)) from exc
     return account_catchup_job_status(job)
 
 
