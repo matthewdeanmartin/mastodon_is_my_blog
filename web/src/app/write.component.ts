@@ -9,7 +9,7 @@ import { GrammarHintsComponent } from './grammar-hints.component';
 import { Draft, DraftIn, DraftNode, Identity, SpellcheckMatch } from './mastodon';
 import { stormSplit, chainNodes } from './storm-splitter';
 import { mastodonLength } from './mastodon-length';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 
 type Visibility = 'public' | 'unlisted' | 'private' | 'direct';
@@ -18,13 +18,12 @@ type Visibility = 'public' | 'unlisted' | 'private' | 'direct';
   selector: 'app-write',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     PlainTextareaEditorComponent,
     ReplyContextPanelComponent,
     LivePreviewPaneComponent,
-    GrammarHintsComponent,
-  ],
+    GrammarHintsComponent
+],
   templateUrl: 'write.component.html',
 })
 export class WriteComponent implements OnInit, OnDestroy {

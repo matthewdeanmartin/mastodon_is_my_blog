@@ -43,7 +43,7 @@ export function stormSplit(
 /** Chain nodes parent→child in sequence, starting from parentId. */
 export function chainNodes(nodes: DraftNode[], parentId: string | null): DraftNode[] {
   if (nodes.length === 0) return [];
-  const result = nodes.map((n, i) => ({ ...n }));
+  const result = nodes.map((n) => ({ ...n }));
   result[0].parent_client_id = parentId;
   for (let i = 1; i < result.length; i++) {
     result[i].parent_client_id = result[i - 1].client_id;

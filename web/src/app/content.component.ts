@@ -1,7 +1,7 @@
 // src/app/content.component.ts
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { RouterLink, RouterOutlet, Router } from '@angular/router';
-import { CommonModule } from '@angular/common';
+
 import { ApiService } from './api.service';
 import { ContentHubStateService } from './content-hub-state.service';
 import { ContentHubGroup } from './mastodon';
@@ -10,7 +10,7 @@ import { Subscription } from 'rxjs';
 @Component({
   selector: 'app-content',
   standalone: true,
-  imports: [RouterLink, RouterOutlet, CommonModule],
+  imports: [RouterLink, RouterOutlet],
   template: `
     <div class="content-layout">
       <div class="content-nav">

@@ -1,11 +1,11 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { SpellcheckMatch } from './mastodon';
 
 @Component({
   selector: 'app-grammar-hints',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
     <div>
       <div

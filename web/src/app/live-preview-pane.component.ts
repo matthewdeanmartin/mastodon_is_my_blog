@@ -1,12 +1,12 @@
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { DraftNode } from './mastodon';
 import { mastodonLength } from './mastodon-length';
 
 @Component({
   selector: 'app-live-preview-pane',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
     <div style="height: 100%;">
       @if (nodes.length === 0 || !nodes[0].body.trim()) {

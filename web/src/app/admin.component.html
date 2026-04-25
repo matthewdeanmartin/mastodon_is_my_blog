@@ -76,65 +76,67 @@
             padding: 14px;
             margin-bottom: 10px;
           "
-        >
+          >
           <div class="row" style="margin-bottom: 8px">
             <span style="font-weight: 600">Running — {{ followingJob.stage }}</span>
             <span class="muted" style="font-size: 0.85rem">
               {{ followingJob.done
-              }}<ng-container *ngIf="followingJob.total"> / {{ followingJob.total }}</ng-container>
-            </span>
-          </div>
-          <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden">
-            <div
-              [style.width.%]="followingProgressPct"
-              style="height: 100%; background: #6366f1; transition: width 0.4s"
-            ></div>
-          </div>
+              }}@if (followingJob.total) {
+              / {{ followingJob.total }}
+            }
+          </span>
         </div>
-      }
-
-      @if (followingJob && followingJob.finished && followingJob.ok && followingJob.result) {
-        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem">
-          Done. Imported {{ followingJob.result['following'] }} following +
-          {{ followingJob.result['followers'] }} followers.
+        <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden">
+          <div
+            [style.width.%]="followingProgressPct"
+            style="height: 100%; background: #6366f1; transition: width 0.4s"
+          ></div>
         </div>
-      }
-
-      @if (followingJob && followingJob.finished && !followingJob.ok) {
-        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">
-          Failed: {{ followingJob.error }}
-        </div>
-      }
-
-      <div class="row" style="gap: 8px">
-        <button
-          (click)="startSyncAllFollowing()"
-          [disabled]="followingJobLoading || (followingJob && !followingJob.finished) || undefined"
-        >
-          {{ followingJob && !followingJob.finished ? 'Running...' : 'Download All Friends' }}
-        </button>
-        @if (followingJob && !followingJob.finished) {
-          <button class="secondary" (click)="cancelSyncAllFollowing()">Stop</button>
-        }
       </div>
+    }
+
+    @if (followingJob && followingJob.finished && followingJob.ok && followingJob.result) {
+      <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem">
+        Done. Imported {{ followingJob.result['following'] }} following +
+        {{ followingJob.result['followers'] }} followers.
+      </div>
+    }
+
+    @if (followingJob && followingJob.finished && !followingJob.ok) {
+      <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">
+        Failed: {{ followingJob.error }}
+      </div>
+    }
+
+    <div class="row" style="gap: 8px">
+      <button
+        (click)="startSyncAllFollowing()"
+        [disabled]="followingJobLoading || (followingJob && !followingJob.finished) || undefined"
+        >
+        {{ followingJob && !followingJob.finished ? 'Running...' : 'Download All Friends' }}
+      </button>
+      @if (followingJob && !followingJob.finished) {
+        <button class="secondary" (click)="cancelSyncAllFollowing()">Stop</button>
+      }
+    </div>
+  </div>
+
+  <div style="margin-bottom: 24px">
+    <h3 style="margin: 0 0 8px 0; font-size: 1rem">Download All Notifications</h3>
+    <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px">
+      The regular sync only keeps the last 80 notifications. Pull your entire notification history
+      so the <strong>Readers</strong> blogroll filter can surface every person who has ever
+      reposted your content.
     </div>
 
-    <div style="margin-bottom: 24px">
-      <h3 style="margin: 0 0 8px 0; font-size: 1rem">Download All Notifications</h3>
-      <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px">
-        The regular sync only keeps the last 80 notifications. Pull your entire notification history
-        so the <strong>Readers</strong> blogroll filter can surface every person who has ever
-        reposted your content.
+    @if (notificationsJobError) {
+      <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">
+        {{ notificationsJobError }}
       </div>
+    }
 
-      @if (notificationsJobError) {
-        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">
-          {{ notificationsJobError }}
-        </div>
-      }
-
-      @if (notificationsJob && !notificationsJob.finished) {
-        <div
+    @if (notificationsJob && !notificationsJob.finished) {
+      <div
           style="
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -143,10 +145,10 @@
             margin-bottom: 10px;
           "
         >
-          <div class="row" style="margin-bottom: 4px">
-            <span style="font-weight: 600">Running — {{ notificationsJob.stage }}</span>
-            <span class="muted" style="font-size: 0.85rem"
-              >{{ notificationsJob.done }} notifications</span
+        <div class="row" style="margin-bottom: 4px">
+          <span style="font-weight: 600">Running — {{ notificationsJob.stage }}</span>
+          <span class="muted" style="font-size: 0.85rem"
+            >{{ notificationsJob.done }} notifications</span
             >
           </div>
         </div>
@@ -170,11 +172,11 @@
           [disabled]="
             notificationsJobLoading || (notificationsJob && !notificationsJob.finished) || undefined
           "
-        >
+          >
           {{
-            notificationsJob && !notificationsJob.finished
-              ? 'Running...'
-              : 'Download All Notifications'
+          notificationsJob && !notificationsJob.finished
+          ? 'Running...'
+          : 'Download All Notifications'
           }}
         </button>
         @if (notificationsJob && !notificationsJob.finished) {
@@ -247,7 +249,7 @@
                 border-radius: 4px;
                 padding: 2px 8px;
               "
-            >
+              >
               {{ nlpStatus.done_threads }} / {{ nlpStatus.total_threads }} threads indexed — needs
               run
             </span>
@@ -260,7 +262,7 @@
                 border-radius: 4px;
                 padding: 2px 8px;
               "
-            >
+              >
               All {{ nlpStatus.total_threads }} threads indexed ✓
             </span>
           }
@@ -280,79 +282,79 @@
             padding: 14px;
             margin-bottom: 10px;
           "
-        >
+          >
           <div class="row" style="margin-bottom: 8px">
             <span style="font-weight: 600">Running — {{ nlpStatus!.job!.stage }}</span>
             <span class="muted" style="font-size: 0.85rem">
               {{ nlpStatus!.job!.done
-              }}<ng-container *ngIf="nlpStatus!.job!.total">
-                / {{ nlpStatus!.job!.total }}</ng-container
-              >
-              threads
-            </span>
-          </div>
-          <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden">
-            <div
-              [style.width.%]="nlpProgressPct"
-              style="height: 100%; background: #6366f1; transition: width 0.4s"
-            ></div>
-          </div>
+              }}@if (nlpStatus!.job!.total) {
+              / {{ nlpStatus!.job!.total }}
+            }
+            threads
+          </span>
         </div>
-      }
-
-      @if (nlpStatus?.job?.finished && nlpStatus!.job!.ok) {
-        <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem">
-          Done. Indexed {{ nlpStatus!.job!.result?.['processed'] }} threads.
+        <div style="background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden">
+          <div
+            [style.width.%]="nlpProgressPct"
+            style="height: 100%; background: #6366f1; transition: width 0.4s"
+          ></div>
         </div>
-      }
-
-      @if (nlpStatus?.job?.finished && !nlpStatus!.job!.ok) {
-        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">
-          Failed: {{ nlpStatus!.job!.error }}
-        </div>
-      }
-
-      <div class="row" style="gap: 8px">
-        <button
-          (click)="startNlpBackfillJob()"
-          [disabled]="nlpJobLoading || (nlpStatus?.job && !nlpStatus!.job!.finished) || undefined"
-        >
-          {{ nlpStatus?.job && !nlpStatus!.job!.finished ? 'Running...' : 'Run NLP Backfill' }}
-        </button>
-        @if (nlpStatus?.job && !nlpStatus!.job!.finished) {
-          <button class="secondary" (click)="cancelNlpBackfillJob()">Stop</button>
-        }
       </div>
+    }
+
+    @if (nlpStatus?.job?.finished && nlpStatus!.job!.ok) {
+      <div style="color: #166534; margin-bottom: 10px; font-size: 0.9rem">
+        Done. Indexed {{ nlpStatus!.job!.result?.['processed'] }} threads.
+      </div>
+    }
+
+    @if (nlpStatus?.job?.finished && !nlpStatus!.job!.ok) {
+      <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">
+        Failed: {{ nlpStatus!.job!.error }}
+      </div>
+    }
+
+    <div class="row" style="gap: 8px">
+      <button
+        (click)="startNlpBackfillJob()"
+        [disabled]="nlpJobLoading || (nlpStatus?.job && !nlpStatus!.job!.finished) || undefined"
+        >
+        {{ nlpStatus?.job && !nlpStatus!.job!.finished ? 'Running...' : 'Run NLP Backfill' }}
+      </button>
+      @if (nlpStatus?.job && !nlpStatus!.job!.finished) {
+        <button class="secondary" (click)="cancelNlpBackfillJob()">Stop</button>
+      }
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- Catch-up section -->
+  <div style="margin-top: 24px">
+    <h3 style="margin: 0 0 12px 0; font-size: 1rem">Catch-Up</h3>
+
+    @if (catchupError) {
+      <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">{{ catchupError }}</div>
+    }
+
+    <!-- Controls -->
+    <div class="row" style="margin-bottom: 16px; gap: 8px; flex-wrap: wrap">
+      @if (!catchupStatus?.running) {
+        <button (click)="startCatchup('urgent')" [disabled]="catchupLoading">
+          {{ catchupLoading ? 'Starting...' : 'Catch Up Now (Urgent)' }}
+        </button>
+        <button class="secondary" (click)="startCatchup('trickle')" [disabled]="catchupLoading">
+          Start Trickle
+        </button>
+      }
+      @if (catchupStatus?.running) {
+        <button class="secondary" (click)="stopCatchup()">Stop</button>
+      }
     </div>
 
-    <hr />
-
-    <!-- Catch-up section -->
-    <div style="margin-top: 24px">
-      <h3 style="margin: 0 0 12px 0; font-size: 1rem">Catch-Up</h3>
-
-      @if (catchupError) {
-        <div style="color: #dc2626; margin-bottom: 10px; font-size: 0.9rem">{{ catchupError }}</div>
-      }
-
-      <!-- Controls -->
-      <div class="row" style="margin-bottom: 16px; gap: 8px; flex-wrap: wrap">
-        @if (!catchupStatus?.running) {
-          <button (click)="startCatchup('urgent')" [disabled]="catchupLoading">
-            {{ catchupLoading ? 'Starting...' : 'Catch Up Now (Urgent)' }}
-          </button>
-          <button class="secondary" (click)="startCatchup('trickle')" [disabled]="catchupLoading">
-            Start Trickle
-          </button>
-        }
-        @if (catchupStatus?.running) {
-          <button class="secondary" (click)="stopCatchup()">Stop</button>
-        }
-      </div>
-
-      <!-- Status panel -->
-      @if (catchupStatus) {
-        <div
+    <!-- Status panel -->
+    @if (catchupStatus) {
+      <div
           style="
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -361,17 +363,17 @@
             margin-bottom: 16px;
           "
         >
-          <div class="row" style="margin-bottom: 8px">
-            <span style="font-weight: 600">
-              {{ catchupStatus.running ? 'Running' : 'Finished' }} — {{ catchupStatus.mode }}
-            </span>
-            <span class="muted" style="font-size: 0.85rem">
-              {{ catchupStatus.done }}/{{ catchupStatus.total }} accounts
-            </span>
-          </div>
+        <div class="row" style="margin-bottom: 8px">
+          <span style="font-weight: 600">
+            {{ catchupStatus.running ? 'Running' : 'Finished' }} — {{ catchupStatus.mode }}
+          </span>
+          <span class="muted" style="font-size: 0.85rem">
+            {{ catchupStatus.done }}/{{ catchupStatus.total }} accounts
+          </span>
+        </div>
 
-          <!-- Progress bar -->
-          <div
+        <!-- Progress bar -->
+        <div
             style="
               background: #e2e8f0;
               border-radius: 4px;
@@ -380,37 +382,37 @@
               overflow: hidden;
             "
           >
-            <div
-              [style.width.%]="progressPct"
-              style="height: 100%; background: #6366f1; border-radius: 4px; transition: width 0.4s"
-            ></div>
-          </div>
-
-          @if (catchupStatus.current_acct) {
-            <div style="font-size: 0.85rem; margin-bottom: 6px">
-              Processing: <strong>{{ catchupStatus.current_acct }}</strong>
-            </div>
-          }
-
-          <div style="font-size: 0.8rem; color: #64748b; display: flex; gap: 16px; flex-wrap: wrap">
-            @if (catchupStatus.errors > 0) {
-              <span style="color: #dc2626">{{ catchupStatus.errors }} errors</span>
-            }
-            @if (catchupStatus.rate_limited) {
-              <span style="color: #d97706">Rate limited — backing off</span>
-            }
-            <span>Started: {{ catchupStatus.started_at | date: 'shortTime' }}</span>
-            @if (catchupStatus.finished_at) {
-              <span>Finished: {{ catchupStatus.finished_at | date: 'shortTime' }}</span>
-            }
-          </div>
+          <div
+            [style.width.%]="progressPct"
+            style="height: 100%; background: #6366f1; border-radius: 4px; transition: width 0.4s"
+          ></div>
         </div>
-      }
 
-      <!-- Queue preview -->
-      @if (catchupQueue && catchupQueue.queue.length > 0) {
-        <div>
-          <h4
+        @if (catchupStatus.current_acct) {
+          <div style="font-size: 0.85rem; margin-bottom: 6px">
+            Processing: <strong>{{ catchupStatus.current_acct }}</strong>
+          </div>
+        }
+
+        <div style="font-size: 0.8rem; color: #64748b; display: flex; gap: 16px; flex-wrap: wrap">
+          @if (catchupStatus.errors > 0) {
+            <span style="color: #dc2626">{{ catchupStatus.errors }} errors</span>
+          }
+          @if (catchupStatus.rate_limited) {
+            <span style="color: #d97706">Rate limited — backing off</span>
+          }
+          <span>Started: {{ catchupStatus.started_at | date: 'shortTime' }}</span>
+          @if (catchupStatus.finished_at) {
+            <span>Finished: {{ catchupStatus.finished_at | date: 'shortTime' }}</span>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Queue preview -->
+    @if (catchupQueue && catchupQueue.queue.length > 0) {
+      <div>
+        <h4
             style="
               margin: 0 0 8px 0;
               font-size: 0.9rem;
@@ -419,17 +421,17 @@
               letter-spacing: 0.05em;
             "
           >
-            Priority Queue (first {{ catchupQueue.queue.length }})
-          </h4>
-          <div style="border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden">
-            @for (entry of catchupQueue.queue; track entry.acct; let i = $index) {
-              <div
-                style="display: flex; align-items: center; gap: 10px; padding: 8px 12px"
-                [style.background]="i % 2 === 0 ? '#ffffff' : '#f8fafc'"
+          Priority Queue (first {{ catchupQueue.queue.length }})
+        </h4>
+        <div style="border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden">
+          @for (entry of catchupQueue.queue; track entry.acct; let i = $index) {
+            <div
+              style="display: flex; align-items: center; gap: 10px; padding: 8px 12px"
+              [style.background]="i % 2 === 0 ? '#ffffff' : '#f8fafc'"
               >
-                <span
-                  style="min-width: 20px; font-size: 0.75rem; color: #94a3b8; text-align: right"
-                  >{{ i + 1 }}</span
+              <span
+                style="min-width: 20px; font-size: 0.75rem; color: #94a3b8; text-align: right"
+                >{{ i + 1 }}</span
                 >
                 <span
                   style="
@@ -439,7 +441,7 @@
                     text-overflow: ellipsis;
                     white-space: nowrap;
                   "
-                >
+                  >
                   {{ entry.display_name || entry.acct }}
                   <span class="muted" style="font-size: 0.78rem"> &#64;{{ entry.acct }}</span>
                 </span>
@@ -453,59 +455,59 @@
                       border-radius: 3px;
                     "
                     >mutual</span
-                  >
-                }
-                @if (entry.last_status_at) {
-                  <span class="muted" style="font-size: 0.75rem; white-space: nowrap">{{
-                    entry.last_status_at | date: 'mediumDate'
-                  }}</span>
-                }
-              </div>
-            }
+                    >
+                  }
+                  @if (entry.last_status_at) {
+                    <span class="muted" style="font-size: 0.75rem; white-space: nowrap">{{
+                      entry.last_status_at | date: 'mediumDate'
+                    }}</span>
+                  }
+                </div>
+              }
+            </div>
+            <button
+              class="secondary"
+              style="margin-top: 8px; font-size: 0.8rem"
+              (click)="loadCatchupQueue()"
+              >
+              Refresh Queue
+            </button>
           </div>
-          <button
-            class="secondary"
-            style="margin-top: 8px; font-size: 0.8rem"
-            (click)="loadCatchupQueue()"
-          >
-            Refresh Queue
-          </button>
-        </div>
-      }
+        }
 
-      @if (catchupQueue && catchupQueue.queue.length === 0) {
-        <div class="muted" style="font-size: 0.9rem">No accounts in the catch-up queue.</div>
-      }
-    </div>
-
-    <hr style="margin-top: 28px" />
-
-    <!-- Content Hub bundles -->
-    <div style="margin-top: 24px">
-      <div class="row" style="margin-bottom: 12px; align-items: center; gap: 10px; flex-wrap: wrap">
-        <h3 style="margin: 0; font-size: 1rem; flex: 1">Content Hub Bundles</h3>
-        <button
-          class="secondary"
-          style="font-size: 0.8rem"
-          (click)="syncFollows()"
-          [disabled]="syncingFollows"
-        >
-          {{ syncingFollows ? 'Syncing...' : 'Sync Server Follows' }}
-        </button>
-        <button style="font-size: 0.8rem" (click)="startCreateBundle()" [disabled]="!!editState">
-          + New Bundle
-        </button>
+        @if (catchupQueue && catchupQueue.queue.length === 0) {
+          <div class="muted" style="font-size: 0.9rem">No accounts in the catch-up queue.</div>
+        }
       </div>
 
-      @if (bundlesError) {
-        <div style="color: #dc2626; font-size: 0.875rem; margin-bottom: 10px">
-          {{ bundlesError }}
-        </div>
-      }
+      <hr style="margin-top: 28px" />
 
-      <!-- Edit / Create form -->
-      @if (editState) {
-        <div
+      <!-- Content Hub bundles -->
+      <div style="margin-top: 24px">
+        <div class="row" style="margin-bottom: 12px; align-items: center; gap: 10px; flex-wrap: wrap">
+          <h3 style="margin: 0; font-size: 1rem; flex: 1">Content Hub Bundles</h3>
+          <button
+            class="secondary"
+            style="font-size: 0.8rem"
+            (click)="syncFollows()"
+            [disabled]="syncingFollows"
+            >
+            {{ syncingFollows ? 'Syncing...' : 'Sync Server Follows' }}
+          </button>
+          <button style="font-size: 0.8rem" (click)="startCreateBundle()" [disabled]="!!editState">
+            + New Bundle
+          </button>
+        </div>
+
+        @if (bundlesError) {
+          <div style="color: #dc2626; font-size: 0.875rem; margin-bottom: 10px">
+            {{ bundlesError }}
+          </div>
+        }
+
+        <!-- Edit / Create form -->
+        @if (editState) {
+          <div
           style="
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -513,21 +515,21 @@
             padding: 16px;
             margin-bottom: 16px;
           "
-        >
-          <h4 style="margin: 0 0 12px 0; font-size: 0.95rem">
-            {{ editState.bundleId === null ? 'New Bundle' : 'Edit Bundle' }}
-          </h4>
-
-          <div style="margin-bottom: 10px">
-            <label
-              for="bundle-name"
-              style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px"
-              >Name</label
             >
-            <input
-              id="bundle-name"
-              [(ngModel)]="editState.name"
-              placeholder="Bundle name"
+            <h4 style="margin: 0 0 12px 0; font-size: 0.95rem">
+              {{ editState.bundleId === null ? 'New Bundle' : 'Edit Bundle' }}
+            </h4>
+
+            <div style="margin-bottom: 10px">
+              <label
+                for="bundle-name"
+                style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px"
+                >Name</label
+                >
+                <input
+                  id="bundle-name"
+                  [(ngModel)]="editState.name"
+                  placeholder="Bundle name"
               style="
                 width: 100%;
                 padding: 6px 10px;
@@ -536,25 +538,25 @@
                 font-size: 0.875rem;
                 box-sizing: border-box;
               "
-            />
-          </div>
+                  />
+              </div>
 
-          <div style="margin-bottom: 12px">
-            <div class="row" style="margin-bottom: 6px; align-items: center">
-              <span style="font-size: 0.85rem; font-weight: 600">Terms</span>
-              <button
-                class="secondary"
-                style="font-size: 0.75rem; padding: 3px 10px"
-                (click)="addTerm()"
-              >
-                + Add term
-              </button>
-            </div>
+              <div style="margin-bottom: 12px">
+                <div class="row" style="margin-bottom: 6px; align-items: center">
+                  <span style="font-size: 0.85rem; font-weight: 600">Terms</span>
+                  <button
+                    class="secondary"
+                    style="font-size: 0.75rem; padding: 3px 10px"
+                    (click)="addTerm()"
+                    >
+                    + Add term
+                  </button>
+                </div>
 
-            @for (term of editState.terms; track $index; let i = $index) {
-              <div class="row" style="gap: 6px; margin-bottom: 6px; align-items: center">
-                <select
-                  [(ngModel)]="term.term_type"
+                @for (term of editState.terms; track $index; let i = $index) {
+                  <div class="row" style="gap: 6px; margin-bottom: 6px; align-items: center">
+                    <select
+                      [(ngModel)]="term.term_type"
                   style="
                     padding: 5px 8px;
                     border: 1px solid #d1d5db;
@@ -562,13 +564,13 @@
                     font-size: 0.8rem;
                     background: white;
                   "
-                >
-                  <option value="hashtag"># hashtag</option>
-                  <option value="search">search</option>
-                </select>
-                <input
-                  [(ngModel)]="term.term"
-                  [placeholder]="term.term_type === 'hashtag' ? 'python' : 'python jobs'"
+                      >
+                      <option value="hashtag"># hashtag</option>
+                      <option value="search">search</option>
+                    </select>
+                    <input
+                      [(ngModel)]="term.term"
+                      [placeholder]="term.term_type === 'hashtag' ? 'python' : 'python jobs'"
                   style="
                     flex: 1;
                     padding: 5px 10px;
@@ -576,59 +578,59 @@
                     border-radius: 6px;
                     font-size: 0.875rem;
                   "
-                />
-                <button
-                  class="secondary"
+                      />
+                    <button
+                      class="secondary"
                   style="
                     font-size: 0.8rem;
                     padding: 4px 10px;
                     color: #dc2626;
                     border-color: #dc2626;
                   "
-                  (click)="removeTerm(i)"
-                >
-                  &times;
+                      (click)="removeTerm(i)"
+                      >
+                      &times;
+                    </button>
+                  </div>
+                }
+
+                @if (editState.terms.length === 0) {
+                  <div class="muted" style="font-size: 0.8rem">
+                    No terms yet — add at least one hashtag or search query.
+                  </div>
+                }
+              </div>
+
+              @if (editState.error) {
+                <div style="color: #dc2626; font-size: 0.875rem; margin-bottom: 8px">
+                  {{ editState.error }}
+                </div>
+              }
+
+              <div class="row" style="gap: 8px; justify-content: flex-end">
+                <button class="secondary" (click)="cancelEdit()" [disabled]="editState.saving">
+                  Cancel
+                </button>
+                <button (click)="saveBundle()" [disabled]="editState.saving">
+                  {{ editState.saving ? 'Saving...' : 'Save' }}
                 </button>
               </div>
-            }
-
-            @if (editState.terms.length === 0) {
-              <div class="muted" style="font-size: 0.8rem">
-                No terms yet — add at least one hashtag or search query.
-              </div>
-            }
-          </div>
-
-          @if (editState.error) {
-            <div style="color: #dc2626; font-size: 0.875rem; margin-bottom: 8px">
-              {{ editState.error }}
             </div>
           }
 
-          <div class="row" style="gap: 8px; justify-content: flex-end">
-            <button class="secondary" (click)="cancelEdit()" [disabled]="editState.saving">
-              Cancel
-            </button>
-            <button (click)="saveBundle()" [disabled]="editState.saving">
-              {{ editState.saving ? 'Saving...' : 'Save' }}
-            </button>
-          </div>
-        </div>
-      }
+          <!-- Bundle list -->
+          @if (bundlesLoading) {
+            <div class="muted" style="font-size: 0.875rem">Loading...</div>
+          }
 
-      <!-- Bundle list -->
-      @if (bundlesLoading) {
-        <div class="muted" style="font-size: 0.875rem">Loading...</div>
-      }
+          @if (!bundlesLoading && bundles.length === 0 && !editState) {
+            <div class="muted" style="font-size: 0.875rem">
+              No bundles yet. Create one or sync your server-side followed hashtags.
+            </div>
+          }
 
-      @if (!bundlesLoading && bundles.length === 0 && !editState) {
-        <div class="muted" style="font-size: 0.875rem">
-          No bundles yet. Create one or sync your server-side followed hashtags.
-        </div>
-      }
-
-      @for (bundle of bundles; track bundle.id) {
-        <div
+          @for (bundle of bundles; track bundle.id) {
+            <div
           style="
             border: 1px solid #e2e8f0;
             border-radius: 8px;
@@ -636,21 +638,21 @@
             margin-bottom: 10px;
             background: white;
           "
-        >
-          <div class="row" style="align-items: flex-start; gap: 8px; flex-wrap: wrap">
-            <div style="flex: 1; min-width: 0">
-              <div class="row" style="align-items: center; gap: 6px; margin-bottom: 4px">
-                <strong
+              >
+              <div class="row" style="align-items: flex-start; gap: 8px; flex-wrap: wrap">
+                <div style="flex: 1; min-width: 0">
+                  <div class="row" style="align-items: center; gap: 6px; margin-bottom: 4px">
+                    <strong
                   style="
                     font-size: 0.95rem;
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
                   "
-                  >{{ bundle.name }}</strong
-                >
-                @if (bundle.source_type === 'server_follow') {
-                  <span
+                      >{{ bundle.name }}</strong
+                      >
+                      @if (bundle.source_type === 'server_follow') {
+                        <span
                     style="
                       font-size: 0.65rem;
                       background: #f0fdf4;
@@ -661,10 +663,10 @@
                       text-transform: uppercase;
                       white-space: nowrap;
                     "
-                    >server follow</span
-                  >
-                } @else {
-                  <span
+                          >server follow</span
+                          >
+                        } @else {
+                          <span
                     style="
                       font-size: 0.65rem;
                       background: #eef2ff;
@@ -675,13 +677,13 @@
                       text-transform: uppercase;
                       white-space: nowrap;
                     "
-                    >bundle</span
-                  >
-                }
-              </div>
-              <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px">
-                @for (term of bundle.terms; track term.id) {
-                  <span
+                            >bundle</span
+                            >
+                          }
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px">
+                          @for (term of bundle.terms; track term.id) {
+                            <span
                     style="
                       font-size: 0.75rem;
                       background: #f3f4f6;
@@ -690,31 +692,31 @@
                       border-radius: 999px;
                       color: #374151;
                     "
-                  >
-                    {{ termTypeLabel(term) }} {{ term.term }}
-                  </span>
-                }
-                @if (bundle.terms.length === 0) {
-                  <span class="muted" style="font-size: 0.75rem">No terms</span>
-                }
-              </div>
-              @if (bundle.last_fetched_at) {
-                <div class="muted" style="font-size: 0.75rem">
-                  Last fetched: {{ bundle.last_fetched_at | date: 'short' }}
-                </div>
-              }
-            </div>
-            @if (!bundle.is_read_only) {
-              <div style="display: flex; gap: 6px; flex-shrink: 0">
-                <button
-                  class="secondary"
-                  style="font-size: 0.8rem; padding: 4px 12px"
-                  (click)="startEditBundle(bundle)"
-                  [disabled]="!!editState"
-                >
-                  Edit
-                </button>
-                <button
+                              >
+                              {{ termTypeLabel(term) }} {{ term.term }}
+                            </span>
+                          }
+                          @if (bundle.terms.length === 0) {
+                            <span class="muted" style="font-size: 0.75rem">No terms</span>
+                          }
+                        </div>
+                        @if (bundle.last_fetched_at) {
+                          <div class="muted" style="font-size: 0.75rem">
+                            Last fetched: {{ bundle.last_fetched_at | date: 'short' }}
+                          </div>
+                        }
+                      </div>
+                      @if (!bundle.is_read_only) {
+                        <div style="display: flex; gap: 6px; flex-shrink: 0">
+                          <button
+                            class="secondary"
+                            style="font-size: 0.8rem; padding: 4px 12px"
+                            (click)="startEditBundle(bundle)"
+                            [disabled]="!!editState"
+                            >
+                            Edit
+                          </button>
+                          <button
                   style="
                     font-size: 0.8rem;
                     padding: 4px 12px;
@@ -722,50 +724,50 @@
                     color: #dc2626;
                     border-color: #fca5a5;
                   "
-                  (click)="deleteBundle(bundle)"
-                  [disabled]="deletingId === bundle.id"
-                >
-                  {{ deletingId === bundle.id ? '...' : 'Delete' }}
-                </button>
+                            (click)="deleteBundle(bundle)"
+                            [disabled]="deletingId === bundle.id"
+                            >
+                            {{ deletingId === bundle.id ? '...' : 'Delete' }}
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
               </div>
-            }
-          </div>
-        </div>
-      }
-    </div>
 
-    <hr style="margin-top: 28px" />
+              <hr style="margin-top: 28px" />
 
-    <!-- Error log -->
-    <div style="margin-top: 24px; margin-bottom: 24px">
-      <div class="row" style="align-items: center; gap: 10px; margin-bottom: 8px">
-        <h3 style="margin: 0; font-size: 1rem; flex: 1">Error Log</h3>
-        <button
-          class="secondary"
-          style="font-size: 0.8rem"
-          (click)="loadErrorLog()"
-          [disabled]="errorLogLoading"
-        >
-          {{ errorLogLoading ? 'Loading...' : 'Load Error Log' }}
-        </button>
-      </div>
-      <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px">
-        Recent WARNING and ERROR messages written to the database. Useful for diagnosing silent
-        failures.
-      </div>
+              <!-- Error log -->
+              <div style="margin-top: 24px; margin-bottom: 24px">
+                <div class="row" style="align-items: center; gap: 10px; margin-bottom: 8px">
+                  <h3 style="margin: 0; font-size: 1rem; flex: 1">Error Log</h3>
+                  <button
+                    class="secondary"
+                    style="font-size: 0.8rem"
+                    (click)="loadErrorLog()"
+                    [disabled]="errorLogLoading"
+                    >
+                    {{ errorLogLoading ? 'Loading...' : 'Load Error Log' }}
+                  </button>
+                </div>
+                <div class="muted" style="font-size: 0.85rem; margin-bottom: 10px">
+                  Recent WARNING and ERROR messages written to the database. Useful for diagnosing silent
+                  failures.
+                </div>
 
-      @if (errorLogError) {
-        <div style="color: #dc2626; font-size: 0.875rem; margin-bottom: 10px">
-          {{ errorLogError }}
-        </div>
-      }
+                @if (errorLogError) {
+                  <div style="color: #dc2626; font-size: 0.875rem; margin-bottom: 10px">
+                    {{ errorLogError }}
+                  </div>
+                }
 
-      @if (errorLogExpanded && errorLog.length === 0) {
-        <div class="muted" style="font-size: 0.9rem">No error log entries found.</div>
-      }
+                @if (errorLogExpanded && errorLog.length === 0) {
+                  <div class="muted" style="font-size: 0.9rem">No error log entries found.</div>
+                }
 
-      @if (errorLog.length > 0) {
-        <div
+                @if (errorLog.length > 0) {
+                  <div
           style="
             border: 1px solid #e2e8f0;
             border-radius: 6px;
@@ -773,9 +775,9 @@
             font-size: 0.8rem;
             font-family: monospace;
           "
-        >
-          @for (entry of errorLog; track entry.id) {
-            <div
+                    >
+                    @for (entry of errorLog; track entry.id) {
+                      <div
               style="
                 padding: 8px 12px;
                 border-bottom: 1px solid #f1f5f9;
@@ -784,18 +786,18 @@
                 gap: 8px;
                 align-items: start;
               "
-            >
-              <span
-                [style.color]="levelColor(entry.level)"
-                style="font-weight: 700; min-width: 60px"
-                >{{ entry.level }}</span
-              >
-              <span class="muted" style="white-space: nowrap">{{ entry.iso | date: 'short' }}</span>
-              <div>
-                <div style="color: #1e293b">{{ entry.message }}</div>
-                <div class="muted" style="font-size: 0.75rem">{{ entry.logger }}</div>
-                @if (entry.exc_text) {
-                  <pre
+                        >
+                        <span
+                          [style.color]="levelColor(entry.level)"
+                          style="font-weight: 700; min-width: 60px"
+                          >{{ entry.level }}</span
+                          >
+                          <span class="muted" style="white-space: nowrap">{{ entry.iso | date: 'short' }}</span>
+                          <div>
+                            <div style="color: #1e293b">{{ entry.message }}</div>
+                            <div class="muted" style="font-size: 0.75rem">{{ entry.logger }}</div>
+                            @if (entry.exc_text) {
+                              <pre
                     style="
                       margin: 4px 0 0;
                       font-size: 0.7rem;
@@ -805,14 +807,14 @@
                       padding: 6px;
                       border-radius: 4px;
                     "
-                    >{{ entry.exc_text }}</pre
-                  >
+                                >{{ entry.exc_text }}</pre
+                                >
+                              }
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
                 }
               </div>
-            </div>
-          }
-        </div>
-      }
-    </div>
-  }
-</div>

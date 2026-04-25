@@ -243,7 +243,7 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
 
   prevPage(): void {
     if (this.cursorStack.length === 0) return;
-    const cursor = this.cursorStack.pop()!;
+    this.cursorStack.pop();
     // prev means going back one — pop the cursor we pushed, reload from the one before it
     const before =
       this.cursorStack.length > 0 ? this.cursorStack[this.cursorStack.length - 1] : null;

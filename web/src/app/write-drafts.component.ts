@@ -40,7 +40,10 @@ import { Draft } from './mastodon';
               gap: 12px;
               cursor: pointer;
             "
+            role="button"
+            tabindex="0"
             (click)="openDraft(draft.id)"
+            (keydown.enter)="openDraft(draft.id)"
           >
             <div style="flex: 1; min-width: 0;">
               <div

@@ -366,7 +366,6 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.nlpStatus = s;
         if (s.job && !s.job.finished) this.startNlpPolling();
       },
-      error: () => {},
     });
   }
 

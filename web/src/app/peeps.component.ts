@@ -3,7 +3,7 @@ import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService } from './api.service';
-import { EngagementMatrix, PeepsEntry } from './mastodon';
+import { EngagementMatrix } from './mastodon';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -29,7 +29,7 @@ import { takeUntil } from 'rxjs/operators';
             <p class="quadrant-desc">Mutual high engagement</p>
             <div class="account-list">
               @for (entry of matrix.inner_circle; track entry.account_id) {
-                <div class="account-row" (click)="viewDossier(entry.acct)">
+                <div class="account-row" role="button" tabindex="0" (click)="viewDossier(entry.acct)" (keydown.enter)="viewDossier(entry.acct)">
                   <img class="avatar" [src]="entry.avatar" [alt]="entry.display_name" />
                   <div class="account-info">
                     <span class="display-name">{{ entry.display_name }}</span>
@@ -50,7 +50,7 @@ import { takeUntil } from 'rxjs/operators';
             <p class="quadrant-desc">They engage you; you haven't followed back</p>
             <div class="account-list">
               @for (entry of matrix.fans; track entry.account_id) {
-                <div class="account-row" (click)="viewDossier(entry.acct)">
+                <div class="account-row" role="button" tabindex="0" (click)="viewDossier(entry.acct)" (keydown.enter)="viewDossier(entry.acct)">
                   <img class="avatar" [src]="entry.avatar" [alt]="entry.display_name" />
                   <div class="account-info">
                     <span class="display-name">{{ entry.display_name }}</span>
@@ -71,7 +71,7 @@ import { takeUntil } from 'rxjs/operators';
             <p class="quadrant-desc">You engage them; they rarely engage back</p>
             <div class="account-list">
               @for (entry of matrix.idols; track entry.account_id) {
-                <div class="account-row" (click)="viewDossier(entry.acct)">
+                <div class="account-row" role="button" tabindex="0" (click)="viewDossier(entry.acct)" (keydown.enter)="viewDossier(entry.acct)">
                   <img class="avatar" [src]="entry.avatar" [alt]="entry.display_name" />
                   <div class="account-info">
                     <span class="display-name">{{ entry.display_name }}</span>
@@ -95,7 +95,7 @@ import { takeUntil } from 'rxjs/operators';
             <p class="quadrant-desc">You follow them, but they rarely interact</p>
             <div class="account-list">
               @for (entry of matrix.broadcasters; track entry.account_id) {
-                <div class="account-row" (click)="viewDossier(entry.acct)">
+                <div class="account-row" role="button" tabindex="0" (click)="viewDossier(entry.acct)" (keydown.enter)="viewDossier(entry.acct)">
                   <img class="avatar" [src]="entry.avatar" [alt]="entry.display_name" />
                   <div class="account-info">
                     <span class="display-name">{{ entry.display_name }}</span>

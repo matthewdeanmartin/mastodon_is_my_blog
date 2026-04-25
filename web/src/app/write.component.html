@@ -13,13 +13,16 @@
         color: #888;
         margin-bottom: 8px;
       "
-    >
+      >
       Posts ({{ nodes.length }})
     </div>
 
     @for (node of orderedNodes; track node.client_id; let i = $index) {
       <div
+        role="button"
+        tabindex="0"
         (click)="selectNode(node.client_id)"
+        (keydown.enter)="selectNode(node.client_id)"
         [style.margin-left.px]="nodeDepth(node) * 6"
         [style.background]="node.client_id === selectedId ? '#f0f0ff' : 'transparent'"
         style="
@@ -34,16 +37,16 @@
           align-items: center;
         "
         [style.border-color]="node.client_id === selectedId ? '#6366f1' : 'transparent'"
-      >
+        >
         <span
           style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px"
-        >
+          >
           {{ nodeLabel(node, i) }}
         </span>
         <span
           [style.color]="mastodonLength(node.body) > 480 ? '#dc2626' : '#aaa'"
           style="font-size: 0.7rem; flex-shrink: 0; margin-left: 4px"
-        >
+          >
           {{ mastodonLength(node.body) }}
         </span>
       </div>
@@ -54,7 +57,7 @@
         (click)="addSelfReply()"
         [disabled]="!selected"
         style="font-size: 0.8rem; padding: 4px 8px; width: 100%"
-      >
+        >
         + Self-reply
       </button>
 
@@ -69,7 +72,7 @@
             border: 1px solid #fca5a5;
             color: #dc2626;
           "
-        >
+          >
           Remove post
         </button>
       }
@@ -83,13 +86,17 @@
       <div
         class="row"
         style="justify-content: space-between; align-items: center; margin-bottom: 8px"
-      >
+        >
         <h2 class="post-title" style="margin: 0; font-size: 1.1rem">
           {{ replyToStatusId ? 'Write Reply' : 'Write New Post' }}
         </h2>
         <div class="row" style="gap: 8px; align-items: center">
-          <span *ngIf="saving" style="font-size: 0.8em; color: #888">Saving…</span>
-          <span *ngIf="dirty && !saving" style="font-size: 0.8em; color: #f90">Unsaved</span>
+          @if (saving) {
+            <span style="font-size: 0.8em; color: #888">Saving…</span>
+          }
+          @if (dirty && !saving) {
+            <span style="font-size: 0.8em; color: #f90">Unsaved</span>
+          }
           <button
             (click)="showPreview = !showPreview"
             style="
@@ -99,7 +106,7 @@
               border: 1px solid #ccc;
               color: #374151;
             "
-          >
+            >
             {{ showPreview ? 'Hide preview' : 'Show preview' }}
           </button>
         </div>
@@ -112,8 +119,10 @@
             [ngModel]="selected.visibility"
             (ngModelChange)="onVisibilityChange($event)"
             style="font-size: 0.8em"
-          >
-            <option *ngFor="let v of visibilityOptions" [value]="v">{{ v }}</option>
+            >
+            @for (v of visibilityOptions; track v) {
+              <option [value]="v">{{ v }}</option>
+            }
           </select>
 
           <input
@@ -122,7 +131,7 @@
             (ngModelChange)="onSpoilerChange($event)"
             placeholder="CW / spoiler text"
             style="font-size: 0.8em; flex: 1; min-width: 120px"
-          />
+            />
 
           @if (selected.mode === 'single') {
             <button
@@ -130,7 +139,7 @@
               [disabled]="!canSplit"
               style="font-size: 0.8rem; padding: 3px 10px; white-space: nowrap"
               title="Split this post into a thread using sentence boundaries"
-            >
+              >
               ⚡ Convert to storm
             </button>
             <label
@@ -141,7 +150,7 @@
                 gap: 4px;
                 white-space: nowrap;
               "
-            >
+              >
               <input type="checkbox" [(ngModel)]="addCounter" /> Add (n/N)
             </label>
           }
@@ -157,7 +166,7 @@
         <div
           class="row"
           style="margin-top: 6px; justify-content: space-between; align-items: center"
-        >
+          >
           <div class="row" style="gap: 12px; align-items: center">
             <small [style.color]="mastodonLength(selected.body) > 480 ? '#dc2626' : '#888'">
               {{ mastodonLength(selected.body) }}/500 chars
@@ -174,7 +183,7 @@
                 white-space: nowrap;
                 color: #374151;
               "
-            >
+              >
               <input type="checkbox" [(ngModel)]="ltEnabled" /> Grammar hints
             </label>
             @if (ltEnabled) {
@@ -189,7 +198,7 @@
                   color: #374151;
                   white-space: nowrap;
                 "
-              >
+                >
                 {{ grammarChecking ? 'Checking…' : 'Check grammar' }}
               </button>
             }
@@ -211,15 +220,18 @@
           border-top: 1px solid #eee;
           padding-top: 12px;
         "
-      >
+        >
         <div class="row" style="gap: 8px; align-items: center">
-          <select
-            *ngIf="identities.length > 1"
-            [(ngModel)]="selectedIdentityId"
-            style="font-size: 0.85em"
-          >
-            <option *ngFor="let id of identities" [value]="id.id">{{ id.acct }}</option>
-          </select>
+          @if (identities.length > 1) {
+            <select
+              [(ngModel)]="selectedIdentityId"
+              style="font-size: 0.85em"
+              >
+              @for (id of identities; track id) {
+                <option [value]="id.id">{{ id.acct }}</option>
+              }
+            </select>
+          }
 
           <small class="muted" style="font-size: 0.75rem">
             {{ nodes.length }} post{{ nodes.length !== 1 ? 's' : '' }}
@@ -227,31 +239,32 @@
         </div>
 
         <div class="row" style="gap: 8px">
-          <button
-            *ngIf="draft"
-            (click)="discardDraft()"
-            style="background: none; border: 1px solid #ccc; color: #374151; font-size: 0.85rem"
-          >
-            Discard
-          </button>
+          @if (draft) {
+            <button
+              (click)="discardDraft()"
+              style="background: none; border: 1px solid #ccc; color: #374151; font-size: 0.85rem"
+              >
+              Discard
+            </button>
+          }
 
           <button
             (click)="saveDraft()"
             [disabled]="!dirty || saving"
             style="background: none; border: 1px solid #ccc; color: #374151; font-size: 0.85rem"
-          >
+            >
             Save draft
           </button>
 
           <button (click)="publish()" [disabled]="!hasContent || publishing">
             {{
-              publishing
-                ? 'Publishing…'
-                : replyToStatusId
-                  ? 'Reply'
-                  : nodes.length > 1
-                    ? 'Publish thread'
-                    : 'Publish'
+            publishing
+            ? 'Publishing…'
+            : replyToStatusId
+            ? 'Reply'
+            : nodes.length > 1
+            ? 'Publish thread'
+            : 'Publish'
             }}
           </button>
         </div>
@@ -269,7 +282,7 @@
           padding: 10px 14px;
           font-size: 0.85rem;
         "
-      >
+        >
         {{ grammarError }}
       </div>
     }
@@ -296,7 +309,7 @@
             color: #888;
             margin-bottom: 10px;
           "
-        >
+          >
           Preview ({{ orderedNodes.length }} post{{ orderedNodes.length !== 1 ? 's' : '' }})
         </div>
         <app-live-preview-pane

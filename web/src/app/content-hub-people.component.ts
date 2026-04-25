@@ -1,10 +1,10 @@
 // src/app/content-hub-people.component.ts
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subject, combineLatest } from 'rxjs';
-import { takeUntil, switchMap } from 'rxjs/operators';
+import { takeUntil } from 'rxjs/operators';
 import { ApiService } from './api.service';
 import { ContentHubStateService } from './content-hub-state.service';
 import { GroupPerson } from './mastodon';
@@ -12,7 +12,7 @@ import { GroupPerson } from './mastodon';
 @Component({
   selector: 'app-content-hub-people',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   template: `
     @if (!activeGroupId) {
       <div class="no-group-prompt">

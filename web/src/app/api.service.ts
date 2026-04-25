@@ -36,7 +36,6 @@ import {
   ApiThrottleEvent,
   ApiDataVolumePoint,
   ApiErrorRatePoint,
-  NewFriendCandidate,
   NewFriendsCandidatesResponse,
   NewFriendsParams,
   ErrorLogEntry,
