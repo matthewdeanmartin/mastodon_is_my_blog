@@ -1,0 +1,263 @@
+default:
+  image: python:3.13-slim
+
+variables:
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
+  npm_config_cache: "$CI_PROJECT_DIR/.cache/npm"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  # Prevents spacy model download prompts etc.
+  PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
+
+# --------------------------------------------------------------------------- #
+# Stage ordering
+# --------------------------------------------------------------------------- #
+stages:
+  - install
+  - lint
+  - test
+  - build
+  - package-check
+
+# --------------------------------------------------------------------------- #
+# Reusable anchors
+# --------------------------------------------------------------------------- #
+.python-base: &python-base
+  before_script:
+    - pip install uv --quiet
+    - uv sync --all-extras --frozen
+  cache:
+    key: "uv-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cache/uv/
+      - .venv/
+
+.node-base: &node-base
+  image: node:22-slim
+  before_script:
+    - cd web && npm ci --prefer-offline
+  cache:
+    key: "npm-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cache/npm/
+      - web/node_modules/
+
+# --------------------------------------------------------------------------- #
+# INSTALL stage — verify deps resolve cleanly (fast gate before parallel jobs)
+# --------------------------------------------------------------------------- #
+install-backend:
+  stage: install
+  <<: *python-base
+  script:
+    - uv run python -c "import mastodon_is_my_blog"
+  cache:
+    key: "uv-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cache/uv/
+      - .venv/
+    policy: push
+
+install-frontend:
+  stage: install
+  image: node:22-slim
+  script:
+    - cd web && npm ci --prefer-offline
+  cache:
+    key: "npm-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cache/npm/
+      - web/node_modules/
+    policy: push
+
+# --------------------------------------------------------------------------- #
+# LINT stage — all jobs run in parallel
+# --------------------------------------------------------------------------- #
+ruff:
+  stage: lint
+  <<: *python-base
+  needs: [install-backend]
+  script:
+    - uv run ruff check mastodon_is_my_blog/
+
+mypy:
+  stage: lint
+  <<: *python-base
+  needs: [install-backend]
+  script:
+    - uv run mypy mastodon_is_my_blog/ --ignore-missing-imports --check-untyped-defs
+
+pylint:
+  stage: lint
+  <<: *python-base
+  needs: [install-backend]
+  script:
+    - uv run pylint mastodon_is_my_blog/ --fail-under 9.9
+  allow_failure: true  # score-based; keep as informational until threshold is tuned
+
+bandit:
+  stage: lint
+  <<: *python-base
+  needs: [install-backend]
+  script:
+    - uv run bandit -r mastodon_is_my_blog/ -ll
+  allow_failure: true
+
+codespell:
+  stage: lint
+  <<: *python-base
+  needs: [install-backend]
+  script:
+    - uv run codespell mastodon_is_my_blog/ --skip="*.json,*.lock,*.svg"
+  allow_failure: true
+
+interrogate:
+  stage: lint
+  <<: *python-base
+  needs: [install-backend]
+  script:
+    - uv run interrogate mastodon_is_my_blog/ --fail-under 50
+  allow_failure: true
+
+vermin:
+  stage: lint
+  <<: *python-base
+  needs: [install-backend]
+  script:
+    - uv run vermin --target 3.12- mastodon_is_my_blog/
+  allow_failure: true
+
+pip-audit:
+  stage: lint
+  <<: *python-base
+  needs: [install-backend]
+  script:
+    - uv run pip-audit
+
+uv-audit:
+  stage: lint
+  needs: [install-backend]
+  before_script:
+    - pip install uv --quiet
+  script:
+    - uv audit
+  cache:
+    key: "uv-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cache/uv/
+      - .venv/
+
+eslint:
+  stage: lint
+  <<: *node-base
+  needs: [install-frontend]
+  script:
+    - npx ng lint
+
+eslint-strict:
+  stage: lint
+  <<: *node-base
+  needs: [install-frontend]
+  script:
+    - npx ng lint --max-warnings 0
+  allow_failure: true
+
+prettier-check:
+  stage: lint
+  <<: *node-base
+  needs: [install-frontend]
+  script:
+    - npx prettier --check "src/**/*.{ts,html,scss}"
+
+knip:
+  stage: lint
+  <<: *node-base
+  needs: [install-frontend]
+  script:
+    - npx knip
+  allow_failure: true
+
+# --------------------------------------------------------------------------- #
+# TEST stage
+# --------------------------------------------------------------------------- #
+pytest:
+  stage: test
+  <<: *python-base
+  needs: [install-backend]
+  script:
+    - >
+      uv run pytest test -q -n 5 --dist=loadfile
+      --cov=mastodon_is_my_blog --cov-fail-under=48 --cov-branch
+      --cov-report=term:skip-covered --cov-report=xml
+      --timeout=5 --session-timeout=600
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+vitest:
+  stage: test
+  <<: *node-base
+  needs: [install-frontend]
+  script:
+    - npx ng test --no-watch --coverage
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: web/coverage/cobertura-coverage.xml
+
+# --------------------------------------------------------------------------- #
+# BUILD stage — Angular + Python wheel
+# --------------------------------------------------------------------------- #
+build-frontend:
+  stage: build
+  <<: *node-base
+  needs: [eslint, prettier-check, vitest]
+  script:
+    - npx ng build --configuration production
+  artifacts:
+    paths:
+      - web/dist/
+    expire_in: 1 hour
+
+build-wheel:
+  stage: build
+  image: python:3.13-slim
+  needs: [pytest, build-frontend]
+  before_script:
+    - pip install uv --quiet
+    - uv sync --all-extras --frozen
+    - apt-get update -qq && apt-get install -y --no-install-recommends nodejs npm
+    - npm install -g npm@latest --quiet
+    - chmod +x scripts/*.sh
+  script:
+    - |
+      # Copy already-built Angular assets into the package tree
+      mkdir -p mastodon_is_my_blog/static/browser
+      cp -r web/dist/web/browser/. mastodon_is_my_blog/static/browser/
+    - uv run python -m build --wheel --no-isolation
+  artifacts:
+    paths:
+      - dist/*.whl
+      - dist/*.tar.gz
+    expire_in: 7 days
+
+# --------------------------------------------------------------------------- #
+# PACKAGE-CHECK stage — smoke-test the built wheel
+# --------------------------------------------------------------------------- #
+wheel-smoke-test:
+  stage: package-check
+  needs: [build-wheel]
+  before_script:
+    - pip install uv --quiet
+  script:
+    - pip install dist/*.whl
+    - mastodon_is_my_blog version
+    - mastodon_is_my_blog db-info
+  artifacts:
+    when: on_failure
+    paths:
+      - dist/

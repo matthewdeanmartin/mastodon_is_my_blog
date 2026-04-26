@@ -9,7 +9,7 @@ application_derive_data:
 application_detach:
 	echo
 
-.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend lint lint-backend lint-frontend prerelease prerelease-backend prerelease-frontend clean setup db-reset
+.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend lint lint-backend lint-frontend lint-frontend-strict audit-backend prerelease prerelease-backend prerelease-frontend clean setup db-reset
 
 # Default target
 help:
@@ -174,6 +174,15 @@ lint-backend:
 lint-frontend:
 	@echo "Linting TypeScript code..."
 	cd web && ng lint
+
+lint-frontend-strict:
+	@echo "Linting TypeScript code (zero warnings)..."
+	cd web && ng lint --max-warnings 0
+
+audit-backend:
+	@echo "Auditing Python dependencies..."
+	uv run pip-audit
+	uv audit
 
 prerelease: prerelease-backend prerelease-frontend build-wheel
 	@echo "✓ Prerelease checks passed"
