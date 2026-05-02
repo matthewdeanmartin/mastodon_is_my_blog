@@ -34,15 +34,13 @@
       <div class="obs-cards">
         @for (
           w of [
-          ['7d', summary['7d']],
-          ['30d', summary['30d']],
-          ['90d', summary['90d']],
-          ]
-          ; track
-          w) {
-          <div
-            class="obs-card"
-            >
+            ['7d', summary['7d']],
+            ['30d', summary['30d']],
+            ['90d', summary['90d']],
+          ];
+          track w
+        ) {
+          <div class="obs-card">
             <div class="obs-card-title">{{ w[0] }}</div>
             <div class="obs-card-row">
               <span>Calls</span><strong>{{ $any(w[1]).total_calls | number }}</strong>
@@ -58,117 +56,246 @@
             </div>
             <div class="obs-card-row">
               <span>Median latency</span
-                ><strong>{{ $any(w[1]).median_latency_s | number: '1.3-3' }} s</strong>
-              </div>
+              ><strong>{{ $any(w[1]).median_latency_s | number: '1.3-3' }} s</strong>
             </div>
-          }
-        </div>
-      }
-    </section>
-
-    <!-- Volume over time -->
-    <section class="obs-section">
-      <h3>API calls over time</h3>
-      @if (volumeLoading) {
-        <div class="obs-loading">Loading…</div>
-      }
-      @if (volumeError) {
-        <div class="obs-error">{{ volumeError }}</div>
-      }
-      @if (!volumeLoading && volumePoints.length === 0 && !volumeError) {
-        <div class="obs-empty">
-          No data yet.
-        </div>
-      }
-      @if (!volumeLoading && volumePoints.length > 0) {
-        <div class="obs-bar-chart">
-          @for (b of volumeBars(); track b) {
-            <div
-              class="obs-bar-wrap"
-              [title]="b.label + ': ' + b.value + ' calls'"
-              >
-              <div class="obs-bar" [style.height.%]="b.pct" [style.background]="b.color"></div>
-              <div class="obs-bar-label">{{ b.label | slice: 5 }}</div>
-            </div>
-          }
-        </div>
-      }
-    </section>
-
-    <!-- Per-method breakdown -->
-    <section class="obs-section">
-      <h3>Calls by endpoint (last {{ days }} days)</h3>
-      @if (methodLoading) {
-        <div class="obs-loading">Loading…</div>
-      }
-      @if (methodError) {
-        <div class="obs-error">{{ methodError }}</div>
-      }
-      @if (!methodLoading && methodRows.length > 0) {
-        <div>
-          <p class="obs-hint">Click a row to filter the latency chart to that method.</p>
-          <table class="obs-table">
-            <thead>
-              <tr>
-                <th>Method</th>
-                <th>Calls</th>
-                <th>Avg latency (s)</th>
-                <th>Total data (MB)</th>
-                <th>Throttles</th>
-                <th>Errors</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (r of methodRows; track r; let i = $index) {
-                <tr
-                  [class.obs-selected]="r.method_name === selectedMethod"
-                  (click)="onMethodSelect(r.method_name)"
-                  style="cursor: pointer"
-                  >
-                  <td>{{ r.method_name }}</td>
-                  <td>{{ r.calls | number }}</td>
-                  <td>{{ r.avg_elapsed_s | number: '1.3-3' }}</td>
-                  <td>{{ r.total_bytes / 1048576 | number: '1.2-2' }}</td>
-                  <td [class.obs-alert]="r.throttle_count > 0">{{ r.throttle_count }}</td>
-                  <td [class.obs-alert]="r.error_count > 0">{{ r.error_count }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-          <!-- Horizontal bar chart -->
-          <div class="obs-hbar-chart">
-            @for (b of methodBars(); track b) {
-              <div class="obs-hbar-row">
-                <div class="obs-hbar-label" [title]="b.label">{{ b.label }}</div>
-                <div class="obs-hbar-track">
-                  <div class="obs-hbar-fill" [style.width.%]="b.pct" [style.background]="b.color"></div>
-                </div>
-                <div class="obs-hbar-value">{{ b.value | number }}</div>
-              </div>
-            }
           </div>
-        </div>
-      }
-    </section>
+        }
+      </div>
+    }
+  </section>
 
-    <!-- Latency trend -->
-    <section class="obs-section">
-      <h3>Latency trend{{ selectedMethod ? ' — ' + selectedMethod : ' (all methods)' }}</h3>
-      @if (latencyLoading) {
-        <div class="obs-loading">Loading…</div>
-      }
-      @if (latencyError) {
-        <div class="obs-error">{{ latencyError }}</div>
-      }
-      @if (!latencyLoading && latencyPoints.length === 0 && !latencyError) {
-        <div class="obs-empty">
-          No data yet.
+  <!-- Volume over time -->
+  <section class="obs-section">
+    <h3>API calls over time</h3>
+    @if (volumeLoading) {
+      <div class="obs-loading">Loading…</div>
+    }
+    @if (volumeError) {
+      <div class="obs-error">{{ volumeError }}</div>
+    }
+    @if (!volumeLoading && volumePoints.length === 0 && !volumeError) {
+      <div class="obs-empty">No data yet.</div>
+    }
+    @if (!volumeLoading && volumePoints.length > 0) {
+      <div class="obs-bar-chart">
+        @for (b of volumeBars(); track b) {
+          <div class="obs-bar-wrap" [title]="b.label + ': ' + b.value + ' calls'">
+            <div class="obs-bar" [style.height.%]="b.pct" [style.background]="b.color"></div>
+            <div class="obs-bar-label">{{ b.label | slice: 5 }}</div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- Per-method breakdown -->
+  <section class="obs-section">
+    <h3>Calls by endpoint (last {{ days }} days)</h3>
+    @if (methodLoading) {
+      <div class="obs-loading">Loading…</div>
+    }
+    @if (methodError) {
+      <div class="obs-error">{{ methodError }}</div>
+    }
+    @if (!methodLoading && methodRows.length > 0) {
+      <div>
+        <p class="obs-hint">Click a row to filter the latency chart to that method.</p>
+        <table class="obs-table">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Calls</th>
+              <th>Avg latency (s)</th>
+              <th>Total data (MB)</th>
+              <th>Throttles</th>
+              <th>Errors</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of methodRows; track r; let i = $index) {
+              <tr
+                [class.obs-selected]="r.method_name === selectedMethod"
+                (click)="onMethodSelect(r.method_name)"
+                style="cursor: pointer"
+              >
+                <td>{{ r.method_name }}</td>
+                <td>{{ r.calls | number }}</td>
+                <td>{{ r.avg_elapsed_s | number: '1.3-3' }}</td>
+                <td>{{ r.total_bytes / 1048576 | number: '1.2-2' }}</td>
+                <td [class.obs-alert]="r.throttle_count > 0">{{ r.throttle_count }}</td>
+                <td [class.obs-alert]="r.error_count > 0">{{ r.error_count }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <!-- Horizontal bar chart -->
+        <div class="obs-hbar-chart">
+          @for (b of methodBars(); track b) {
+            <div class="obs-hbar-row">
+              <div class="obs-hbar-label" [title]="b.label">{{ b.label }}</div>
+              <div class="obs-hbar-track">
+                <div
+                  class="obs-hbar-fill"
+                  [style.width.%]="b.pct"
+                  [style.background]="b.color"
+                ></div>
+              </div>
+              <div class="obs-hbar-value">{{ b.value | number }}</div>
+            </div>
+          }
         </div>
-      }
-      @if (!latencyLoading && latencyPoints.length > 0) {
+      </div>
+    }
+  </section>
+
+  <!-- Latency trend -->
+  <section class="obs-section">
+    <h3>Latency trend{{ selectedMethod ? ' — ' + selectedMethod : ' (all methods)' }}</h3>
+    @if (latencyLoading) {
+      <div class="obs-loading">Loading…</div>
+    }
+    @if (latencyError) {
+      <div class="obs-error">{{ latencyError }}</div>
+    }
+    @if (!latencyLoading && latencyPoints.length === 0 && !latencyError) {
+      <div class="obs-empty">No data yet.</div>
+    }
+    @if (!latencyLoading && latencyPoints.length > 0) {
+      <div class="obs-svg-wrap">
+        <svg viewBox="0 0 100 60" preserveAspectRatio="none" class="obs-svg">
+          @for (s of latencySeries(); track s) {
+            <ng-container>
+              <polyline
+                [attr.points]="svgPolyline(s.points)"
+                fill="none"
+                [attr.stroke]="s.color"
+                stroke-width="1.5"
+                vector-effect="non-scaling-stroke"
+              />
+            </ng-container>
+          }
+        </svg>
+        <div class="obs-legend">
+          @for (s of latencySeries(); track s) {
+            <span class="obs-legend-item">
+              <span class="obs-dot" [style.background]="s.color"></span> {{ s.label }}
+            </span>
+          }
+          @if (selectedMethod) {
+            <button
+              type="button"
+              class="obs-legend-item obs-clickable"
+              (click)="onMethodSelect(null)"
+            >
+              ✕ Clear filter
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </section>
+
+  <!-- Data volume -->
+  <section class="obs-section">
+    <h3>Data volume (MB/day)</h3>
+    @if (dataVolumeLoading) {
+      <div class="obs-loading">Loading…</div>
+    }
+    @if (dataVolumeError) {
+      <div class="obs-error">{{ dataVolumeError }}</div>
+    }
+    @if (!dataVolumeLoading && dataVolumePoints.length === 0 && !dataVolumeError) {
+      <div class="obs-empty">No data yet.</div>
+    }
+    @if (!dataVolumeLoading && dataVolumePoints.length > 0) {
+      <div class="obs-bar-chart">
+        @for (b of dataVolumeBars(); track b) {
+          <div class="obs-bar-wrap" [title]="b.label + ': ' + b.value.toFixed(3) + ' MB'">
+            <div
+              class="obs-bar obs-bar-data"
+              [style.height.%]="b.pct"
+              [style.background]="b.color"
+            ></div>
+            <div class="obs-bar-label">{{ b.label | slice: 5 }}</div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- Throttle events -->
+  <section class="obs-section">
+    <h3>Throttle events</h3>
+    @if (throttleLoading) {
+      <div class="obs-loading">Loading…</div>
+    }
+    @if (throttleError) {
+      <div class="obs-error">{{ throttleError }}</div>
+    }
+    @if (!throttleLoading && throttleEvents.length === 0 && !throttleError) {
+      <div class="obs-empty obs-good">No throttle events. You're a good fediverse citizen.</div>
+    }
+    @if (!throttleLoading && throttleEvents.length > 0) {
+      <div>
+        <p class="obs-alert-banner">
+          {{ totalThrottleEvents }} throttle event{{ totalThrottleEvents === 1 ? '' : 's' }} in last
+          {{ days }} days.
+        </p>
+        <table class="obs-table">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Total throttles</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of throttlesByMethod; track t) {
+              <tr>
+                <td>{{ t.method }}</td>
+                <td class="obs-alert">{{ t.total }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <table class="obs-table" style="margin-top: 0.5rem">
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Method</th>
+              <th>Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of throttleEvents; track e) {
+              <tr>
+                <td>{{ e.day }}</td>
+                <td>{{ e.method_name }}</td>
+                <td class="obs-alert">{{ e.count }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <!-- Error rate -->
+  <section class="obs-section">
+    <h3>Error rate</h3>
+    @if (errorRateLoading) {
+      <div class="obs-loading">Loading…</div>
+    }
+    @if (errorRateError) {
+      <div class="obs-error">{{ errorRateError }}</div>
+    }
+    @if (!errorRateLoading && errorRatePoints.length === 0 && !errorRateError) {
+      <div class="obs-empty">No data yet.</div>
+    }
+    @if (!errorRateLoading && errorRatePoints.length > 0) {
+      <div>
         <div class="obs-svg-wrap">
           <svg viewBox="0 0 100 60" preserveAspectRatio="none" class="obs-svg">
-            @for (s of latencySeries(); track s) {
+            @for (s of errorRateSeries(); track s) {
               <ng-container>
                 <polyline
                   [attr.points]="svgPolyline(s.points)"
@@ -176,385 +303,238 @@
                   [attr.stroke]="s.color"
                   stroke-width="1.5"
                   vector-effect="non-scaling-stroke"
-                  />
+                />
               </ng-container>
             }
           </svg>
-          <div class="obs-legend">
-            @for (s of latencySeries(); track s) {
-              <span class="obs-legend-item">
-                <span class="obs-dot" [style.background]="s.color"></span> {{ s.label }}
-              </span>
+        </div>
+        <table class="obs-table">
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Total calls</th>
+              <th>Errors</th>
+              <th>Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of errorRatePoints; track p) {
+              <tr>
+                <td>{{ p.day }}</td>
+                <td>{{ p.total | number }}</td>
+                <td [class.obs-alert]="p.errors > 0">{{ p.errors }}</td>
+                <td [class.obs-alert]="p.rate > 0">{{ p.rate * 100 | number: '1.1-1' }}%</td>
+              </tr>
             }
-            @if (selectedMethod) {
-              <button
-                type="button"
-                class="obs-legend-item obs-clickable"
-                (click)="onMethodSelect(null)"
-                >
-                ✕ Clear filter
-              </button>
-            }
-          </div>
-        </div>
-      }
-    </section>
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>
 
-    <!-- Data volume -->
-    <section class="obs-section">
-      <h3>Data volume (MB/day)</h3>
-      @if (dataVolumeLoading) {
-        <div class="obs-loading">Loading…</div>
-      }
-      @if (dataVolumeError) {
-        <div class="obs-error">{{ dataVolumeError }}</div>
-      }
-      @if (!dataVolumeLoading && dataVolumePoints.length === 0 && !dataVolumeError) {
-        <div
-          class="obs-empty"
-          >
-          No data yet.
-        </div>
-      }
-      @if (!dataVolumeLoading && dataVolumePoints.length > 0) {
-        <div class="obs-bar-chart">
-          @for (b of dataVolumeBars(); track b) {
-            <div
-              class="obs-bar-wrap"
-              [title]="b.label + ': ' + b.value.toFixed(3) + ' MB'"
-              >
-              <div
-                class="obs-bar obs-bar-data"
-                [style.height.%]="b.pct"
-                [style.background]="b.color"
-              ></div>
-              <div class="obs-bar-label">{{ b.label | slice: 5 }}</div>
-            </div>
-          }
-        </div>
-      }
-    </section>
-
-    <!-- Throttle events -->
-    <section class="obs-section">
-      <h3>Throttle events</h3>
-      @if (throttleLoading) {
-        <div class="obs-loading">Loading…</div>
-      }
-      @if (throttleError) {
-        <div class="obs-error">{{ throttleError }}</div>
-      }
-      @if (!throttleLoading && throttleEvents.length === 0 && !throttleError) {
-        <div
-          class="obs-empty obs-good"
-          >
-          No throttle events. You're a good fediverse citizen.
-        </div>
-      }
-      @if (!throttleLoading && throttleEvents.length > 0) {
-        <div>
-          <p class="obs-alert-banner">
-            {{ totalThrottleEvents }} throttle event{{ totalThrottleEvents === 1 ? '' : 's' }} in last
-            {{ days }} days.
-          </p>
-          <table class="obs-table">
-            <thead>
-              <tr>
-                <th>Method</th>
-                <th>Total throttles</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (t of throttlesByMethod; track t) {
-                <tr>
-                  <td>{{ t.method }}</td>
-                  <td class="obs-alert">{{ t.total }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-          <table class="obs-table" style="margin-top: 0.5rem">
-            <thead>
-              <tr>
-                <th>Day</th>
-                <th>Method</th>
-                <th>Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (e of throttleEvents; track e) {
-                <tr>
-                  <td>{{ e.day }}</td>
-                  <td>{{ e.method_name }}</td>
-                  <td class="obs-alert">{{ e.count }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      }
-    </section>
-
-    <!-- Error rate -->
-    <section class="obs-section">
-      <h3>Error rate</h3>
-      @if (errorRateLoading) {
-        <div class="obs-loading">Loading…</div>
-      }
-      @if (errorRateError) {
-        <div class="obs-error">{{ errorRateError }}</div>
-      }
-      @if (!errorRateLoading && errorRatePoints.length === 0 && !errorRateError) {
-        <div
-          class="obs-empty"
-          >
-          No data yet.
-        </div>
-      }
-      @if (!errorRateLoading && errorRatePoints.length > 0) {
-        <div>
-          <div class="obs-svg-wrap">
-            <svg viewBox="0 0 100 60" preserveAspectRatio="none" class="obs-svg">
-              @for (s of errorRateSeries(); track s) {
-                <ng-container>
-                  <polyline
-                    [attr.points]="svgPolyline(s.points)"
-                    fill="none"
-                    [attr.stroke]="s.color"
-                    stroke-width="1.5"
-                    vector-effect="non-scaling-stroke"
-                    />
-                </ng-container>
-              }
-            </svg>
-          </div>
-          <table class="obs-table">
-            <thead>
-              <tr>
-                <th>Day</th>
-                <th>Total calls</th>
-                <th>Errors</th>
-                <th>Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (p of errorRatePoints; track p) {
-                <tr>
-                  <td>{{ p.day }}</td>
-                  <td>{{ p.total | number }}</td>
-                  <td [class.obs-alert]="p.errors > 0">{{ p.errors }}</td>
-                  <td [class.obs-alert]="p.rate > 0">{{ p.rate * 100 | number: '1.1-1' }}%</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-      }
-    </section>
-  </div>
-
-  <style>
-    .observability-page {
+<style>
+  .observability-page {
     padding: 1rem;
     max-width: 900px;
   }
   .obs-controls {
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-}
-.obs-controls label {
-display: flex;
-align-items: center;
-gap: 0.4rem;
-font-size: 0.9rem;
-}
-.obs-section {
-margin-bottom: 2rem;
-}
-.obs-section h3 {
-margin-bottom: 0.75rem;
-font-size: 1rem;
-font-weight: 600;
-}
-.obs-loading {
-color: #888;
-font-style: italic;
-}
-.obs-error {
-color: #ef4444;
-}
-.obs-empty {
-color: #888;
-font-style: italic;
-}
-.obs-good {
-color: #10b981;
-}
-.obs-hint {
-font-size: 0.8rem;
-color: #888;
-margin-bottom: 0.4rem;
-}
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .obs-controls label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+  }
+  .obs-section {
+    margin-bottom: 2rem;
+  }
+  .obs-section h3 {
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .obs-loading {
+    color: #888;
+    font-style: italic;
+  }
+  .obs-error {
+    color: #ef4444;
+  }
+  .obs-empty {
+    color: #888;
+    font-style: italic;
+  }
+  .obs-good {
+    color: #10b981;
+  }
+  .obs-hint {
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 0.4rem;
+  }
 
-.obs-cards {
-display: flex;
-gap: 1rem;
-flex-wrap: wrap;
-}
-.obs-card {
-border: 1px solid #e5e7eb;
-border-radius: 8px;
-padding: 0.75rem 1rem;
-min-width: 160px;
-}
-.obs-card-title {
-font-weight: 700;
-font-size: 1rem;
-margin-bottom: 0.5rem;
-}
-.obs-card-row {
-display: flex;
-justify-content: space-between;
-gap: 1rem;
-font-size: 0.85rem;
-padding: 0.15rem 0;
-}
+  .obs-cards {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .obs-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    min-width: 160px;
+  }
+  .obs-card-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  .obs-card-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.85rem;
+    padding: 0.15rem 0;
+  }
 
-.obs-alert {
-color: #ef4444;
-font-weight: 600;
-}
-.obs-alert-banner {
-background: #fee2e2;
-color: #b91c1c;
-border-radius: 6px;
-padding: 0.5rem 0.75rem;
-margin-bottom: 0.75rem;
-font-weight: 600;
-}
+  .obs-alert {
+    color: #ef4444;
+    font-weight: 600;
+  }
+  .obs-alert-banner {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+  }
 
-.obs-bar-chart {
-display: flex;
-align-items: flex-end;
-gap: 2px;
-height: 120px;
-overflow-x: auto;
-padding-bottom: 1.5rem;
-border-bottom: 1px solid #e5e7eb;
-}
-.obs-bar-wrap {
-display: flex;
-flex-direction: column;
-align-items: center;
-min-width: 16px;
-flex: 1;
-height: 100%;
-justify-content: flex-end;
-}
-.obs-bar {
-width: 100%;
-min-height: 2px;
-border-radius: 2px 2px 0 0;
-transition: height 0.2s;
-}
-.obs-bar-label {
-font-size: 0.55rem;
-color: #888;
-margin-top: 2px;
-white-space: nowrap;
-transform: rotate(-45deg);
-transform-origin: top left;
-}
+  .obs-bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 120px;
+    overflow-x: auto;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .obs-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 16px;
+    flex: 1;
+    height: 100%;
+    justify-content: flex-end;
+  }
+  .obs-bar {
+    width: 100%;
+    min-height: 2px;
+    border-radius: 2px 2px 0 0;
+    transition: height 0.2s;
+  }
+  .obs-bar-label {
+    font-size: 0.55rem;
+    color: #888;
+    margin-top: 2px;
+    white-space: nowrap;
+    transform: rotate(-45deg);
+    transform-origin: top left;
+  }
 
-.obs-hbar-chart {
-margin-top: 1rem;
-}
-.obs-hbar-row {
-display: flex;
-align-items: center;
-gap: 0.5rem;
-margin-bottom: 0.3rem;
-}
-.obs-hbar-label {
-width: 160px;
-font-size: 0.78rem;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-text-align: right;
-color: #555;
-}
-.obs-hbar-track {
-flex: 1;
-background: #f3f4f6;
-border-radius: 3px;
-height: 14px;
-}
-.obs-hbar-fill {
-height: 100%;
-border-radius: 3px;
-min-width: 2px;
-transition: width 0.3s;
-}
-.obs-hbar-value {
-width: 50px;
-text-align: right;
-font-size: 0.78rem;
-}
+  .obs-hbar-chart {
+    margin-top: 1rem;
+  }
+  .obs-hbar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+  }
+  .obs-hbar-label {
+    width: 160px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+    color: #555;
+  }
+  .obs-hbar-track {
+    flex: 1;
+    background: #f3f4f6;
+    border-radius: 3px;
+    height: 14px;
+  }
+  .obs-hbar-fill {
+    height: 100%;
+    border-radius: 3px;
+    min-width: 2px;
+    transition: width 0.3s;
+  }
+  .obs-hbar-value {
+    width: 50px;
+    text-align: right;
+    font-size: 0.78rem;
+  }
 
-.obs-svg-wrap {
-margin-bottom: 0.5rem;
-}
-.obs-svg {
-width: 100%;
-height: 120px;
-display: block;
-border-bottom: 1px solid #e5e7eb;
-}
-.obs-legend {
-display: flex;
-gap: 1rem;
-flex-wrap: wrap;
-font-size: 0.8rem;
-margin-top: 0.25rem;
-}
-.obs-legend-item {
-display: flex;
-align-items: center;
-gap: 0.3rem;
-}
-.obs-dot {
-display: inline-block;
-width: 10px;
-height: 10px;
-border-radius: 50%;
-}
-.obs-clickable {
-cursor: pointer;
-color: #6366f1;
-}
+  .obs-svg-wrap {
+    margin-bottom: 0.5rem;
+  }
+  .obs-svg {
+    width: 100%;
+    height: 120px;
+    display: block;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .obs-legend {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+  }
+  .obs-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .obs-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .obs-clickable {
+    cursor: pointer;
+    color: #6366f1;
+  }
 
-.obs-table {
-width: 100%;
-border-collapse: collapse;
-font-size: 0.85rem;
-}
-.obs-table th {
-text-align: left;
-padding: 0.3rem 0.5rem;
-border-bottom: 2px solid #e5e7eb;
-font-weight: 600;
-}
-.obs-table td {
-padding: 0.25rem 0.5rem;
-border-bottom: 1px solid #f3f4f6;
-}
-.obs-table tr:hover td {
-background: #f9fafb;
-}
-.obs-selected td {
-background: #ede9fe !important;
-}
+  .obs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .obs-table th {
+    text-align: left;
+    padding: 0.3rem 0.5rem;
+    border-bottom: 2px solid #e5e7eb;
+    font-weight: 600;
+  }
+  .obs-table td {
+    padding: 0.25rem 0.5rem;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .obs-table tr:hover td {
+    background: #f9fafb;
+  }
+  .obs-selected td {
+    background: #ede9fe !important;
+  }
 </style>

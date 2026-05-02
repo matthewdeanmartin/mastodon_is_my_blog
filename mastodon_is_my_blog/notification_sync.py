@@ -4,10 +4,11 @@ Syncs notifications and stores them in the database for flexible querying.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 from sqlalchemy import and_, func, select
 
+from mastodon_is_my_blog.datetime_helpers import to_naive_utc, utc_now
 from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
 from mastodon_is_my_blog.queries import (
     bulk_upsert_accounts,
@@ -22,15 +23,6 @@ from mastodon_is_my_blog.store import (
 from mastodon_is_my_blog.utils.perf import sync_stage
 
 logger = logging.getLogger(__name__)
-
-
-def to_naive_utc(dt: datetime | None) -> datetime | None:
-    """Convert datetime to naive UTC."""
-    if dt is None:
-        return None
-    if dt.tzinfo is not None:
-        return dt.astimezone(timezone.utc).replace(tzinfo=None)
-    return dt
 
 
 async def persist_notifications(
@@ -203,7 +195,7 @@ async def sync_notifications_for_identity(meta_id: int, identity: MastodonIdenti
             # 60-min cooldown keeps notification sync from amplifying into many API calls.
             SECOND_HOP_LIMIT = 5
             SECOND_HOP_COOLDOWN = 60
-            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
+            cutoff = utc_now() - timedelta(days=30)
 
             async with async_session() as session:
                 # Rank mutuals among the accounts we just saw by recent notification count.

@@ -80,10 +80,10 @@ _inflight: dict[str, asyncio.Future] = {}
 class CardResponse(BaseModel):
     url: str  # final URL after redirects
     title: str | None = None
-    description: str  | None = None
-    site_name: str  | None = None
-    image: str  | None = None
-    favicon: str  | None = None
+    description: str | None = None
+    site_name: str | None = None
+    image: str | None = None
+    favicon: str | None = None
 
 
 class CardRequest(BaseModel):
@@ -178,7 +178,7 @@ async def _ensure_public_destination(raw_url: str) -> None:
 # ---- HTML parsing helpers ----
 
 
-def _clean(s: str  | None) -> str | None:
+def _clean(s: str | None) -> str | None:
     if not s:
         return None
     s = re.sub(r"\s+", " ", s).strip()

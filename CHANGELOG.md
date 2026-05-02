@@ -13,11 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security in case of vulnerabilities.
 
 
-## [0.4.0] - 2026-04-23
+## [0.4.0] - 2026-05-02
 
 ### Added
 
 - Observability for self monitoring API usage.
+- More post filters, more blog roll filters
+- Minimal discover new friends feature
+- Error log tracking in website
+- Discussions have reasonable groupings
+- Content has reasonable hashtag integration
+
+### Fixed
+
+- Time zone bug on certain pages.
 
 ## [0.3.0] - 2026-04-19
 

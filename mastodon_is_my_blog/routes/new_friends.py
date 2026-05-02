@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 
+from mastodon_is_my_blog.datetime_helpers import to_naive_utc, utc_now
 from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
 from mastodon_is_my_blog.queries import get_current_meta_account
 from mastodon_is_my_blog.store import (
@@ -53,10 +54,11 @@ async def resolve_identity(meta_id: int, identity_id: int) -> MastodonIdentity:
 
 
 def _is_cache_fresh(fetched_at: datetime | None) -> bool:
-    if not fetched_at:
+    # Coerce to naive UTC before subtracting — see datetime_helpers.py.
+    naive = to_naive_utc(fetched_at)
+    if naive is None:
         return False
-    age = datetime.utcnow() - fetched_at.replace(tzinfo=None) if fetched_at.tzinfo else datetime.utcnow() - fetched_at
-    return age < timedelta(hours=CACHE_TTL_HOURS)
+    return (utc_now() - naive) < timedelta(hours=CACHE_TTL_HOURS)
 
 
 async def _fetch_and_cache(
@@ -161,13 +163,13 @@ async def _fetch_and_cache(
         existing = (await session.execute(select(FriendsOfFriendsCache).where(FriendsOfFriendsCache.identity_id == identity.id))).scalar_one_or_none()
 
         if existing:
-            existing.fetched_at = datetime.utcnow()
+            existing.fetched_at = utc_now()
             existing.data_json = data_json
         else:
             session.add(
                 FriendsOfFriendsCache(
                     identity_id=identity.id,
-                    fetched_at=datetime.utcnow(),
+                    fetched_at=utc_now(),
                     data_json=data_json,
                 )
             )
@@ -188,7 +190,7 @@ def _apply_filters(
     active_since_days: int,
     bio_contains: str,
 ) -> list[dict]:
-    cutoff = datetime.utcnow() - timedelta(days=active_since_days)
+    cutoff = utc_now() - timedelta(days=active_since_days)
     bio_lower = bio_contains.lower().strip()
 
     result = []
@@ -242,7 +244,7 @@ async def get_candidates(
     else:
         candidates = await _fetch_and_cache(meta.id, identity, max_friends, blog_roll_filter)
         cache_hit = False
-        fetched_at = datetime.utcnow().isoformat()
+        fetched_at = utc_now().isoformat()
 
     # Get current following set to exclude (cache may be slightly stale)
     async with async_session() as session:

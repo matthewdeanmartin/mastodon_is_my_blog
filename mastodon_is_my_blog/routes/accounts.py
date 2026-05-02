@@ -1,7 +1,7 @@
 # mastodon_is_my_blog/routes/accounts.py
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -19,6 +19,7 @@ from mastodon_is_my_blog.account_catchup_runner import (
 from mastodon_is_my_blog.account_catchup_runner import (
     start_job as start_account_catchup_job,
 )
+from mastodon_is_my_blog.datetime_helpers import to_naive_utc, utc_now
 from mastodon_is_my_blog.queries import (
     get_current_meta_account,
     sync_user_timeline_for_identity,
@@ -181,13 +182,13 @@ async def get_blog_roll(
 
         elif filter_type == "lively":
             # People I follow who have posted recently — at least one cached post in the last 30 days.
-            cutoff = datetime.utcnow() - timedelta(days=30)
+            cutoff = utc_now() - timedelta(days=30)
             query = query.where(CachedAccount.last_status_at >= cutoff)
             query = query.order_by(desc(CachedAccount.last_status_at))
 
         elif filter_type == "graveyard":
             # People I follow whose account has gone quiet — no cached posts, or last post older than 90 days.
-            cutoff = datetime.utcnow() - timedelta(days=90)
+            cutoff = utc_now() - timedelta(days=90)
             query = query.where((CachedAccount.last_status_at.is_(None)) | (CachedAccount.last_status_at < cutoff))
             query = query.order_by(CachedAccount.last_status_at.asc().nullsfirst())
 
@@ -203,7 +204,7 @@ async def get_blog_roll(
         elif filter_type == "other":
             # People I follow who don't fall into any named category.
             # Excludes: mutuals, bots, idols (replied to non-follower), readers (reposted me)
-            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            thirty_days_ago = utc_now() - timedelta(days=30)
             is_mutual = CachedAccount.is_followed_by.is_(True)
             is_bot = CachedAccount.bot.is_(True)
             is_lively = CachedAccount.last_status_at >= thirty_days_ago
@@ -381,10 +382,9 @@ async def get_account_info(
         )
         cached_posts, latest_cached_post_at = (await session.execute(post_cache_stmt)).one()
 
-        now = datetime.utcnow()
-        latest_cached_post_at_naive = None
-        if latest_cached_post_at is not None:
-            latest_cached_post_at_naive = latest_cached_post_at.replace(tzinfo=None) if latest_cached_post_at.tzinfo else latest_cached_post_at
+        # Naive UTC arithmetic — see datetime_helpers.py for the timezone landmine.
+        now = utc_now()
+        latest_cached_post_at_naive = to_naive_utc(latest_cached_post_at)
         is_stale = latest_cached_post_at_naive is None or (now - latest_cached_post_at_naive) > timedelta(days=7)
         stale_reason = "no_cached_posts" if latest_cached_post_at_naive is None else ("last_cached_post_older_than_7d" if is_stale else "fresh")
 

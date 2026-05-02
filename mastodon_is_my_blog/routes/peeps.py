@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -28,6 +28,7 @@ from mastodon_is_my_blog.account_catchup_runner import (
 from mastodon_is_my_blog.account_catchup_runner import (
     start_job as start_account_catchup_job,
 )
+from mastodon_is_my_blog.datetime_helpers import to_naive_utc, utc_now
 from mastodon_is_my_blog.engagement_scoring import score_interactions
 from mastodon_is_my_blog.mastodon_apis.follow_actions import (
     follow_account,
@@ -132,9 +133,11 @@ async def _resolve_identity(meta_id: int, identity_id: int) -> MastodonIdentity:
 
 
 def _age_days(dt: datetime | None, now: datetime) -> float:
+    # ``now`` and ``dt`` must both be naive UTC. See datetime_helpers.py for why.
     if dt is None:
         return 0.0
-    naive_dt = dt.replace(tzinfo=None) if dt.tzinfo else dt
+    naive_dt = to_naive_utc(dt)
+    assert naive_dt is not None  # for mypy — dt is not None here
     delta = now - naive_dt
     return max(0.0, delta.total_seconds() / 86400)
 
@@ -147,7 +150,8 @@ async def get_engagement_matrix(
 ) -> dict:
     """Return the four-quadrant engagement matrix for an identity."""
     identity = await _resolve_identity(meta.id, identity_id)
-    now = datetime.now(UTC)
+    # Naive UTC — DB-sourced datetimes are naive, mixing aware breaks subtraction.
+    now = utc_now()
     cutoff = now - timedelta(days=window_days)
 
     async with async_session() as session:
@@ -368,8 +372,8 @@ async def get_dossier(
                 return fallback
             raise HTTPException(404, f"Account {acct!r} not found in cache")
 
-        # Interaction history windows
-        now = datetime.now(UTC)
+        # Interaction history windows. Naive UTC — see datetime_helpers.py.
+        now = utc_now()
         windows = {"30d": 30, "90d": 90, "180d": 180}
         interaction_history: dict[str, dict] = {}
         for label, days in windows.items():
@@ -452,7 +456,8 @@ async def get_dossier(
             CachedPost.author_acct == acct,
         )
         latest_post_at = (await session.execute(latest_stmt)).scalar_one_or_none()
-        is_stale = latest_post_at is None or (now - (latest_post_at.replace(tzinfo=None) if latest_post_at.tzinfo else latest_post_at)).days > 7
+        latest_naive = to_naive_utc(latest_post_at)
+        is_stale = latest_naive is None or (now - latest_naive).days > 7
 
         # Parse fields
         fields_data = []

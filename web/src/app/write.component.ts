@@ -22,8 +22,8 @@ type Visibility = 'public' | 'unlisted' | 'private' | 'direct';
     PlainTextareaEditorComponent,
     ReplyContextPanelComponent,
     LivePreviewPaneComponent,
-    GrammarHintsComponent
-],
+    GrammarHintsComponent,
+  ],
   templateUrl: 'write.component.html',
 })
 export class WriteComponent implements OnInit, OnDestroy {
