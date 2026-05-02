@@ -260,3 +260,7 @@ mypy:
 pylint:
 	@echo "Running pylint"
 	uv run pylint mastodon_is_my_blog --fail-under 9.9
+
+.PHONY:
+metadata:
+	uv run metametameta pep621 --name mastodon_is_my_blog --source pyproject.toml
