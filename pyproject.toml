@@ -13,8 +13,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    # "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     # web backend
@@ -38,7 +37,7 @@ dependencies = [
     "duckdb>=1.1",
     # forum topic extraction
     "wordfreq>=3.0",
-    "spacy>=3.7; python_version <= '3.13'",
+    "spacy>=3.7; python_version < '3.14'",
     "scikit-learn>=1.4",
 ]
 
@@ -82,6 +81,11 @@ include = [
 
 [dependency-groups]
 dev = [
+    "jiggle-version>=2.1.0",
+    "troml-dev-status>=0.6.0",
+    "dont-be-lazy>=0.1.2",
+    "pydoc-fork>=3.0.0",
+
     "black",
     "isort",
     "types-requests",
