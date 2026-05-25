@@ -2,56 +2,56 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-- Added for new features.
-- Changed for changes in existing functionality.
-- Deprecated for soon-to-be removed features.
-- Removed for now removed features.
-- Fixed for any bug fixes.
-- Security in case of vulnerabilities.
-
-
-## [0.4.0] - 2026-05-02
+## [0.4.0] - 2026-05-03
 
 ### Added
 
-- Observability for self monitoring API usage.
-- More post filters, more blog roll filters
-- Minimal discover new friends feature
+- Observability for self-monitoring API usage
+- More post and blog roll filters
+- Discover new friends feature
 - Error log tracking in website
-- Discussions have reasonable groupings
-- Content has reasonable hashtag integration
+- Content hashtag integration
+
+### Changed
+
+- Discussions now have reasonable groupings
 
 ### Fixed
 
-- Time zone bug on certain pages.
+- Timezone bug on certain pages
 
-## [0.3.0] - 2026-04-19
-
-### Added
-
-- Writing and reply
-- Quality of life fixes
-
-
-## [0.2.0] - 2026-04-18
+## [0.3.0] - 2026-04-20
 
 ### Added
 
-- Analytics
-- Hashtags work better
-- Quality of life fixes
+- Writing and reply functionality
+- Quality of life improvements
 
-## [0.1.0] - 2025-01-04
+## [0.2.0] - 2026-04-19
 
 ### Added
 
-- Read: Blog-like "Storms" Feed
-- Read: Forum-like "Discussion" Feed (for single discussions)
-- Read: Special Links: My Blog, Everyone's Blog, Next Blog
-- Read: Filters: Storms, Shorts, Questions, News, Cool Software, Pictures, Discussions, Links
-- Read: Prefetch caching of Blog Roll user
-- Read: Button to initialize blog with own posts
-- Write: Page to post a single post
+- Analytics support
+- Improved hashtag functionality
+- Quality of life improvements
+
+## [0.1.0] - 2026-04-17
+
+### Added
+
+- Blog-like "Storms" feed for reading
+- Forum-like "Discussion" feed for single discussions
+- Special links including My Blog, Everyone's Blog, and Next Blog
+- Post-seen tracking to mark viewed content
+- Filters for Storms, Shorts, Questions, News, Cool Software, Pictures, Discussions, and Links
+- Prefetch caching of blog roll users
+- Blog initialization with own posts
+- Page to post single content
+
+[0.4.0]: https://github.com/matthewdeanmartin/mastodon_is_my_blog/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/matthewdeanmartin/mastodon_is_my_blog/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/matthewdeanmartin/mastodon_is_my_blog/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/matthewdeanmartin/mastodon_is_my_blog/releases/tag/v0.1.0
