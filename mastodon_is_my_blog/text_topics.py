@@ -46,7 +46,9 @@ def tokens(doc_text: str, nlp: Any) -> list[Token]:
     return result
 
 
-def uncommon_lemmas(doc_text: str, nlp: Any, zipf_max: float = 4.0, min_len: int = 4) -> list[str]:
+def uncommon_lemmas(
+    doc_text: str, nlp: Any, zipf_max: float = 4.0, min_len: int = 4
+) -> list[str]:
     """Deduped lemmas with wordfreq Zipf <= zipf_max and minimum length."""
     seen: set[str] = set()
     result: list[str] = []
@@ -77,7 +79,9 @@ def entities(doc_text: str, nlp: Any) -> list[str]:
     return result
 
 
-def thread_topics(texts: list[str], nlp: Any, top_k: int = 5) -> list[str]:  # pylint: disable=unused-argument
+def thread_topics(
+    texts: list[str], nlp: Any, top_k: int = 5
+) -> list[str]:  # pylint: disable=unused-argument
     """TF-IDF over thread posts vs background corpus, return top_k terms."""
     from sklearn.feature_extraction.text import TfidfVectorizer
 

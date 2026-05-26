@@ -5,8 +5,9 @@ Revises: 010
 Create Date: 2026-04-19
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "011"
 down_revision = "010"
@@ -15,7 +16,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("cached_posts", sa.Column("thread_uncommon_words", sa.Text(), nullable=True))
+    op.add_column(
+        "cached_posts", sa.Column("thread_uncommon_words", sa.Text(), nullable=True)
+    )
 
 
 def downgrade() -> None:

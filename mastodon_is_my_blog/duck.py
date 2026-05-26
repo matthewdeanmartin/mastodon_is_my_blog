@@ -133,7 +133,10 @@ async def hashtag_trends(
         ORDER BY bucket_start DESC, n DESC, tag;
     """
     rows = await run(sql, [meta_id, identity_id, top])
-    return [{"bucket_start": r[0].isoformat() if r[0] else None, "tag": r[1], "count": r[2]} for r in rows]
+    return [
+        {"bucket_start": r[0].isoformat() if r[0] else None, "tag": r[1], "count": r[2]}
+        for r in rows
+    ]
 
 
 async def hashtag_counts(
@@ -584,7 +587,10 @@ async def api_call_volume(
         ORDER BY bucket_start;
     """
     rows = await run(sql)
-    return [{"bucket_start": r[0].isoformat() if r[0] else None, "count": int(r[1])} for r in rows]
+    return [
+        {"bucket_start": r[0].isoformat() if r[0] else None, "count": int(r[1])}
+        for r in rows
+    ]
 
 
 async def api_call_by_method(
@@ -739,7 +745,12 @@ async def api_summary(days: int = 7) -> dict[str, Any]:
     """
     rows = await run(sql)
     if not rows or rows[0][0] is None:
-        return {"total_calls": 0, "total_mb": 0.0, "throttle_events": 0, "median_latency_s": 0.0}
+        return {
+            "total_calls": 0,
+            "total_mb": 0.0,
+            "throttle_events": 0,
+            "median_latency_s": 0.0,
+        }
     r = rows[0]
     return {
         "total_calls": int(r[0] or 0),

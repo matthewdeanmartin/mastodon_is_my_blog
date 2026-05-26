@@ -48,7 +48,9 @@ class TimedMastodonClient:
             method = getattr(self.client, method_name)
             result = method(*args, **kwargs)
             elapsed: float = time.perf_counter() - start
-            self.logger.info("Mastodon API completed: %s in %.3fs", method_name, elapsed)
+            self.logger.info(
+                "Mastodon API completed: %s in %.3fs", method_name, elapsed
+            )
             try:
                 payload_bytes = len(json.dumps(result, default=str))
             except Exception:
@@ -59,13 +61,17 @@ class TimedMastodonClient:
             ok = False
             error_type = type(exc).__name__
             elapsed = time.perf_counter() - start
-            self.logger.warning("Mastodon API throttled: %s after %.3fs", method_name, elapsed)
+            self.logger.warning(
+                "Mastodon API throttled: %s after %.3fs", method_name, elapsed
+            )
             raise
         except Exception as exc:
             ok = False
             error_type = type(exc).__name__
             elapsed = time.perf_counter() - start
-            self.logger.error("Mastodon API failed: %s after %.3fs - %s", method_name, elapsed, exc)
+            self.logger.error(
+                "Mastodon API failed: %s after %.3fs - %s", method_name, elapsed, exc
+            )
             raise
         finally:
             elapsed = time.perf_counter() - start
@@ -144,8 +150,12 @@ class TimedMastodonClient:
     def timeline_hashtag(self, hashtag: str, limit: int = 40, **kwargs) -> list:
         return self.timed_call("timeline_hashtag", hashtag, limit=limit, **kwargs)
 
-    def search(self, q: str, result_type: str = "statuses", limit: int = 40, **kwargs) -> dict:
-        return self.timed_call("search", q, result_type=result_type, limit=limit, **kwargs)
+    def search(
+        self, q: str, result_type: str = "statuses", limit: int = 40, **kwargs
+    ) -> dict:
+        return self.timed_call(
+            "search", q, result_type=result_type, limit=limit, **kwargs
+        )
 
     def account_featured_tags(self, account_id: str) -> list:
         return self.timed_call("account_featured_tags", account_id)

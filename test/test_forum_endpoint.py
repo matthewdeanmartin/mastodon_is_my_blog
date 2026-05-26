@@ -30,7 +30,11 @@ def make_thread_post(
     created_at: datetime | None = None,
     tags: str = "[]",
 ) -> CachedPost:
-    rid = root_id if root_id is not None else (in_reply_to_id if in_reply_to_id else post_id)
+    rid = (
+        root_id
+        if root_id is not None
+        else (in_reply_to_id if in_reply_to_id else post_id)
+    )
     return CachedPost(
         id=post_id,
         meta_account_id=meta_account_id,
@@ -83,18 +87,24 @@ class FakeRequest:
     app = FakeApp()
 
 
-async def build_thread_summaries_from_session(db_session, meta_id: int, identity_id: int) -> list[dict]:
+async def build_thread_summaries_from_session(
+    db_session, meta_id: int, identity_id: int
+) -> list[dict]:
     """Replicate duck.forum_thread_summaries logic against the in-memory SQLite session."""
     rows = (
-        await db_session.execute(
-            select(CachedPost).where(
-                CachedPost.meta_account_id == meta_id,
-                CachedPost.fetched_by_identity_id == identity_id,
-                CachedPost.is_reblog == False,  # noqa: E712
-                CachedPost.root_id.is_not(None),
+        (
+            await db_session.execute(
+                select(CachedPost).where(
+                    CachedPost.meta_account_id == meta_id,
+                    CachedPost.fetched_by_identity_id == identity_id,
+                    CachedPost.is_reblog == False,  # noqa: E712
+                    CachedPost.root_id.is_not(None),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     by_root: dict[str, list] = defaultdict(list)
     for p in rows:
@@ -125,21 +135,25 @@ async def build_thread_summaries_from_session(db_session, meta_id: int, identity
             except Exception:
                 pass
 
-        results.append({
-            "root_id": root_id,
-            "reply_count": len(replies),
-            "unique_participants": len(unique_authors),
-            "latest_reply_at": latest_reply.isoformat() if latest_reply else None,
-            "author_acct": root_post.author_acct,
-            "root_created_at": root_post.created_at.isoformat() if root_post.created_at else None,
-            "root_content": root_post.content,
-            "has_question": bool(root_post.has_question),
-            "root_tags": root_post.tags,
-            "uncommon_words": uncommon,
-            "root_is_partial": bool(root_post.root_is_partial),
-            "tags": all_tags,
-            "participants": {p.author_acct for p in posts},
-        })
+        results.append(
+            {
+                "root_id": root_id,
+                "reply_count": len(replies),
+                "unique_participants": len(unique_authors),
+                "latest_reply_at": latest_reply.isoformat() if latest_reply else None,
+                "author_acct": root_post.author_acct,
+                "root_created_at": (
+                    root_post.created_at.isoformat() if root_post.created_at else None
+                ),
+                "root_content": root_post.content,
+                "has_question": bool(root_post.has_question),
+                "root_tags": root_post.tags,
+                "uncommon_words": uncommon,
+                "root_is_partial": bool(root_post.root_is_partial),
+                "tags": all_tags,
+                "participants": {p.author_acct for p in posts},
+            }
+        )
 
     return results
 
@@ -154,8 +168,9 @@ async def call_endpoint(
     root_instance: list | None = None,
     before: str | None = None,
 ) -> dict:
-    import mastodon_is_my_blog.routes.forum as forum_module
     from contextlib import asynccontextmanager
+
+    import mastodon_is_my_blog.routes.forum as forum_module
 
     @asynccontextmanager
     async def session_ctx():
@@ -167,14 +182,24 @@ async def call_endpoint(
 
     monkeypatch.setattr(forum_module, "async_session", WrappedFactory())
 
-    async def fake_forum_thread_summaries(meta_id, identity_id, include_content_hub=False):
-        return await build_thread_summaries_from_session(db_session, meta_id, identity_id)
+    async def fake_forum_thread_summaries(
+        meta_id, identity_id, include_content_hub=False
+    ):
+        return await build_thread_summaries_from_session(
+            db_session, meta_id, identity_id
+        )
 
-    async def fake_forum_friend_reply_counts(meta_id, identity_id, root_ids, following_accts):
+    async def fake_forum_friend_reply_counts(
+        meta_id, identity_id, root_ids, following_accts
+    ):
         return {}
 
-    monkeypatch.setattr(duck_module, "forum_thread_summaries", fake_forum_thread_summaries)
-    monkeypatch.setattr(duck_module, "forum_friend_reply_counts", fake_forum_friend_reply_counts)
+    monkeypatch.setattr(
+        duck_module, "forum_thread_summaries", fake_forum_thread_summaries
+    )
+    monkeypatch.setattr(
+        duck_module, "forum_friend_reply_counts", fake_forum_friend_reply_counts
+    )
 
     meta = SimpleNamespace(id=META_ID, username="test-meta")
     return await get_forum_threads(
@@ -203,10 +228,12 @@ async def test_empty_returns_no_items(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_root_post_appears_as_thread(db_session, monkeypatch):
-    db_session.add_all([
-        *make_meta(),
-        make_thread_post("root-1", author_acct="alice@example.social"),
-    ])
+    db_session.add_all(
+        [
+            *make_meta(),
+            make_thread_post("root-1", author_acct="alice@example.social"),
+        ]
+    )
     await db_session.commit()
 
     result = await call_endpoint(db_session, monkeypatch)
@@ -216,11 +243,18 @@ async def test_root_post_appears_as_thread(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_reply_is_grouped_under_root(db_session, monkeypatch):
-    db_session.add_all([
-        *make_meta(),
-        make_thread_post("root-1"),
-        make_thread_post("reply-1", in_reply_to_id="root-1", root_id="root-1", author_acct="bob@example.social"),
-    ])
+    db_session.add_all(
+        [
+            *make_meta(),
+            make_thread_post("root-1"),
+            make_thread_post(
+                "reply-1",
+                in_reply_to_id="root-1",
+                root_id="root-1",
+                author_acct="bob@example.social",
+            ),
+        ]
+    )
     await db_session.commit()
 
     result = await call_endpoint(db_session, monkeypatch)
@@ -232,11 +266,13 @@ async def test_reply_is_grouped_under_root(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_questions_filter(db_session, monkeypatch):
-    db_session.add_all([
-        *make_meta(),
-        make_thread_post("q-root", has_question=True),
-        make_thread_post("plain-root"),
-    ])
+    db_session.add_all(
+        [
+            *make_meta(),
+            make_thread_post("q-root", has_question=True),
+            make_thread_post("plain-root"),
+        ]
+    )
     await db_session.commit()
 
     result = await call_endpoint(db_session, monkeypatch, top_filter="questions")
@@ -247,13 +283,35 @@ async def test_questions_filter(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_friends_started_filter(db_session, monkeypatch):
-    db_session.add_all([
-        *make_meta(),
-        make_cached_account("acc-friend", meta_account_id=META_ID, identity_id=1, acct="friend@example.social", is_following=True),
-        make_cached_account("acc-stranger", meta_account_id=META_ID, identity_id=1, acct="stranger@example.social", is_following=False),
-        make_thread_post("friend-root", author_acct="friend@example.social", author_id="acc-friend"),
-        make_thread_post("stranger-root", author_acct="stranger@example.social", author_id="acc-stranger"),
-    ])
+    db_session.add_all(
+        [
+            *make_meta(),
+            make_cached_account(
+                "acc-friend",
+                meta_account_id=META_ID,
+                identity_id=1,
+                acct="friend@example.social",
+                is_following=True,
+            ),
+            make_cached_account(
+                "acc-stranger",
+                meta_account_id=META_ID,
+                identity_id=1,
+                acct="stranger@example.social",
+                is_following=False,
+            ),
+            make_thread_post(
+                "friend-root",
+                author_acct="friend@example.social",
+                author_id="acc-friend",
+            ),
+            make_thread_post(
+                "stranger-root",
+                author_acct="stranger@example.social",
+                author_id="acc-stranger",
+            ),
+        ]
+    )
     await db_session.commit()
 
     result = await call_endpoint(db_session, monkeypatch, top_filter="friends_started")
@@ -264,11 +322,13 @@ async def test_friends_started_filter(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_mine_filter(db_session, monkeypatch):
-    db_session.add_all([
-        *make_meta(),
-        make_thread_post("my-root", author_acct="me@example.social"),
-        make_thread_post("other-root", author_acct="other@example.social"),
-    ])
+    db_session.add_all(
+        [
+            *make_meta(),
+            make_thread_post("my-root", author_acct="me@example.social"),
+            make_thread_post("other-root", author_acct="other@example.social"),
+        ]
+    )
     await db_session.commit()
 
     result = await call_endpoint(db_session, monkeypatch, top_filter="mine")
@@ -279,10 +339,12 @@ async def test_mine_filter(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_partial_thread_badge(db_session, monkeypatch):
-    db_session.add_all([
-        *make_meta(),
-        make_thread_post("partial-root", root_is_partial=True),
-    ])
+    db_session.add_all(
+        [
+            *make_meta(),
+            make_thread_post("partial-root", root_is_partial=True),
+        ]
+    )
     await db_session.commit()
 
     result = await call_endpoint(db_session, monkeypatch)
@@ -292,11 +354,13 @@ async def test_partial_thread_badge(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_hashtag_facet_chip_filter(db_session, monkeypatch):
-    db_session.add_all([
-        *make_meta(),
-        make_thread_post("cats-root", tags='["cats"]'),
-        make_thread_post("dogs-root", tags='["dogs"]'),
-    ])
+    db_session.add_all(
+        [
+            *make_meta(),
+            make_thread_post("cats-root", tags='["cats"]'),
+            make_thread_post("dogs-root", tags='["dogs"]'),
+        ]
+    )
     await db_session.commit()
 
     result = await call_endpoint(db_session, monkeypatch, hashtag=["cats"])
@@ -307,12 +371,14 @@ async def test_hashtag_facet_chip_filter(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_facets_computed_over_filtered_set(db_session, monkeypatch):
-    db_session.add_all([
-        *make_meta(),
-        make_thread_post("q1", has_question=True, tags='["python"]'),
-        make_thread_post("q2", has_question=True, tags='["rust"]'),
-        make_thread_post("plain", has_question=False, tags='["java"]'),
-    ])
+    db_session.add_all(
+        [
+            *make_meta(),
+            make_thread_post("q1", has_question=True, tags='["python"]'),
+            make_thread_post("q2", has_question=True, tags='["rust"]'),
+            make_thread_post("plain", has_question=False, tags='["java"]'),
+        ]
+    )
     await db_session.commit()
 
     result = await call_endpoint(db_session, monkeypatch, top_filter="questions")
@@ -323,12 +389,19 @@ async def test_facets_computed_over_filtered_set(db_session, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_participating_filter(db_session, monkeypatch):
-    db_session.add_all([
-        *make_meta(),
-        make_thread_post("their-root", author_acct="other@example.social"),
-        make_thread_post("my-reply", in_reply_to_id="their-root", root_id="their-root", author_acct="me@example.social"),
-        make_thread_post("unrelated-root", author_acct="stranger@example.social"),
-    ])
+    db_session.add_all(
+        [
+            *make_meta(),
+            make_thread_post("their-root", author_acct="other@example.social"),
+            make_thread_post(
+                "my-reply",
+                in_reply_to_id="their-root",
+                root_id="their-root",
+                author_acct="me@example.social",
+            ),
+            make_thread_post("unrelated-root", author_acct="stranger@example.social"),
+        ]
+    )
     await db_session.commit()
 
     result = await call_endpoint(db_session, monkeypatch, top_filter="participating")

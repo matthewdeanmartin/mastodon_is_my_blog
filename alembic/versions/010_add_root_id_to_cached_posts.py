@@ -18,7 +18,10 @@ depends_on = None
 
 def upgrade() -> None:
     op.add_column("cached_posts", sa.Column("root_id", sa.String(), nullable=True))
-    op.add_column("cached_posts", sa.Column("root_is_partial", sa.Boolean(), nullable=False, server_default="0"))
+    op.add_column(
+        "cached_posts",
+        sa.Column("root_is_partial", sa.Boolean(), nullable=False, server_default="0"),
+    )
     op.create_index(
         "ix_posts_root_id",
         "cached_posts",

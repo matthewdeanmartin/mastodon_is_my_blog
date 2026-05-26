@@ -71,6 +71,7 @@ async def lifespan(_: FastAPI):
     # Load spaCy model off the event loop — it's a slow blocking import
     try:
         import asyncio
+
         from mastodon_is_my_blog.text_topics import load_spacy_model
 
         loop = asyncio.get_event_loop()
@@ -151,7 +152,9 @@ async def login():
 async def callback(code: str):
     m = await get_default_client()
     redirect_uri = f"{os.environ['APP_BASE_URL']}/auth/callback"
-    access_token = m.log_in(code=code, redirect_uri=redirect_uri, scopes=["read", "write"])
+    access_token = m.log_in(
+        code=code, redirect_uri=redirect_uri, scopes=["read", "write"]
+    )
     await set_token(access_token)
     frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:4200")
     await sync_accounts_friends_followers()

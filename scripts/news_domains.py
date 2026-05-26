@@ -40,7 +40,6 @@ import random
 import re
 import time
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 import requests
@@ -66,7 +65,7 @@ MEDIASTACK_SEARCH_TERMS = [
 MEDIASTACK_PAGE_SIZE = 100
 MEDIASTACK_SLEEP_SECONDS = 2.0
 MEDIASTACK_MAX_RETRIES = 5
-MEDIASTACK_MAX_PAGES_PER_SEARCH: Optional[int] = 1
+MEDIASTACK_MAX_PAGES_PER_SEARCH: int | None = 1
 
 DENYLIST = {
     "prnewswire.com",
@@ -118,7 +117,7 @@ NEWS_KEYWORDS = [
 ]
 
 
-def canonicalize_domain(url_or_domain: str) -> Optional[str]:
+def canonicalize_domain(url_or_domain: str) -> str | None:
     if not url_or_domain:
         return None
 
@@ -191,7 +190,7 @@ def source_quality_score(row: pd.Series) -> float:
     return min(score, 1.0)
 
 
-def normalized_tranco_score(rank: Optional[float]) -> float:
+def normalized_tranco_score(rank: float | None) -> float:
     if rank is None or pd.isna(rank):
         return 0.0
 

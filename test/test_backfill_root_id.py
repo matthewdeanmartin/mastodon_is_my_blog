@@ -1,6 +1,5 @@
 """Unit tests for backfill_root_id logic."""
 
-import asyncio
 from datetime import datetime
 
 import pytest
@@ -71,7 +70,14 @@ async def run_backfill(session_factory):
         if row.root_id is not None:
             continue
         if row.in_reply_to_id is None:
-            updates.append({"post_id": row.id, "meta_id": row.meta_account_id, "root_id": row.id, "partial": False})
+            updates.append(
+                {
+                    "post_id": row.id,
+                    "meta_id": row.meta_account_id,
+                    "root_id": row.id,
+                    "partial": False,
+                }
+            )
         else:
             current_id = row.in_reply_to_id
             meta_id = row.meta_account_id
@@ -88,13 +94,25 @@ async def run_backfill(session_factory):
                         partial = True
                     break
                 current_id = parent_reply
-            updates.append({"post_id": row.id, "meta_id": meta_id, "root_id": current_id, "partial": partial})
+            updates.append(
+                {
+                    "post_id": row.id,
+                    "meta_id": meta_id,
+                    "root_id": current_id,
+                    "partial": partial,
+                }
+            )
 
     async with session_factory() as session:
         for item in updates:
             await session.execute(
                 update(CachedPost)
-                .where(and_(CachedPost.id == item["post_id"], CachedPost.meta_account_id == item["meta_id"]))
+                .where(
+                    and_(
+                        CachedPost.id == item["post_id"],
+                        CachedPost.meta_account_id == item["meta_id"],
+                    )
+                )
                 .values(root_id=item["root_id"], root_is_partial=item["partial"])
             )
         await session.commit()
@@ -109,7 +127,9 @@ async def test_self_root(session_factory):
     await run_backfill(session_factory)
 
     async with session_factory() as session:
-        post = (await session.execute(select(CachedPost).where(CachedPost.id == "root-1"))).scalar_one()
+        post = (
+            await session.execute(select(CachedPost).where(CachedPost.id == "root-1"))
+        ).scalar_one()
         assert post.root_id == "root-1"
         assert post.root_is_partial is False
 
@@ -124,7 +144,9 @@ async def test_single_hop_reply(session_factory):
     await run_backfill(session_factory)
 
     async with session_factory() as session:
-        reply = (await session.execute(select(CachedPost).where(CachedPost.id == "reply-1"))).scalar_one()
+        reply = (
+            await session.execute(select(CachedPost).where(CachedPost.id == "reply-1"))
+        ).scalar_one()
         assert reply.root_id == "root-1"
         assert reply.root_is_partial is False
 
@@ -140,7 +162,9 @@ async def test_multi_hop_reply(session_factory):
     await run_backfill(session_factory)
 
     async with session_factory() as session:
-        deep = (await session.execute(select(CachedPost).where(CachedPost.id == "reply-2"))).scalar_one()
+        deep = (
+            await session.execute(select(CachedPost).where(CachedPost.id == "reply-2"))
+        ).scalar_one()
         assert deep.root_id == "root-1"
         assert deep.root_is_partial is False
 
@@ -156,8 +180,12 @@ async def test_partial_chain_missing_ancestor(session_factory):
     await run_backfill(session_factory)
 
     async with session_factory() as session:
-        r1 = (await session.execute(select(CachedPost).where(CachedPost.id == "reply-1"))).scalar_one()
-        r2 = (await session.execute(select(CachedPost).where(CachedPost.id == "reply-2"))).scalar_one()
+        r1 = (
+            await session.execute(select(CachedPost).where(CachedPost.id == "reply-1"))
+        ).scalar_one()
+        r2 = (
+            await session.execute(select(CachedPost).where(CachedPost.id == "reply-2"))
+        ).scalar_one()
         assert r1.root_id == "missing-root"
         assert r1.root_is_partial is True
         assert r2.root_id == "missing-root"
@@ -175,5 +203,7 @@ async def test_idempotent(session_factory):
     await run_backfill(session_factory)  # second run should be a no-op
 
     async with session_factory() as session:
-        reply = (await session.execute(select(CachedPost).where(CachedPost.id == "reply-1"))).scalar_one()
+        reply = (
+            await session.execute(select(CachedPost).where(CachedPost.id == "reply-1"))
+        ).scalar_one()
         assert reply.root_id == "root-1"

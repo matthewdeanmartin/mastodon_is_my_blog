@@ -5,8 +5,9 @@ Revises: 012
 Create Date: 2026-04-25
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "013"
 down_revision = "012"
@@ -17,7 +18,12 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "friends_of_friends_cache",
-        sa.Column("identity_id", sa.Integer(), sa.ForeignKey("mastodon_identities.id"), primary_key=True),
+        sa.Column(
+            "identity_id",
+            sa.Integer(),
+            sa.ForeignKey("mastodon_identities.id"),
+            primary_key=True,
+        ),
         sa.Column("fetched_at", sa.DateTime(), nullable=True),
         sa.Column("data_json", sa.Text(), nullable=False, server_default="[]"),
     )

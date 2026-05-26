@@ -118,7 +118,9 @@ async def _fetch_and_cache(
 
     for friend in friends_to_expand:
         try:
-            results = await asyncio.to_thread(client.account_following, friend.id, limit=80)
+            results = await asyncio.to_thread(
+                client.account_following, friend.id, limit=80
+            )
             if not results:
                 continue
             for acc in results:
@@ -151,8 +153,16 @@ async def _fetch_and_cache(
                 "followers_count": acc.get("followers_count", 0),
                 "following_count": acc.get("following_count", 0),
                 "statuses_count": acc.get("statuses_count", 0),
-                "created_at": created_raw.isoformat() if isinstance(created_raw, datetime) else str(created_raw) if created_raw else None,
-                "last_status_at": last_status_raw.isoformat() if isinstance(last_status_raw, datetime) else str(last_status_raw) if last_status_raw else None,
+                "created_at": (
+                    created_raw.isoformat()
+                    if isinstance(created_raw, datetime)
+                    else str(created_raw) if created_raw else None
+                ),
+                "last_status_at": (
+                    last_status_raw.isoformat()
+                    if isinstance(last_status_raw, datetime)
+                    else str(last_status_raw) if last_status_raw else None
+                ),
                 "followed_by_count": len(followed_by.get(acc_id, set())),
             }
         )
@@ -160,7 +170,13 @@ async def _fetch_and_cache(
     # Persist to cache
     data_json = json.dumps(candidates)
     async with async_session() as session:
-        existing = (await session.execute(select(FriendsOfFriendsCache).where(FriendsOfFriendsCache.identity_id == identity.id))).scalar_one_or_none()
+        existing = (
+            await session.execute(
+                select(FriendsOfFriendsCache).where(
+                    FriendsOfFriendsCache.identity_id == identity.id
+                )
+            )
+        ).scalar_one_or_none()
 
         if existing:
             existing.fetched_at = utc_now()
@@ -201,7 +217,9 @@ def _apply_filters(
             continue
         if c.get("last_status_at"):
             try:
-                last = datetime.fromisoformat(c["last_status_at"].replace("Z", "+00:00"))
+                last = datetime.fromisoformat(
+                    c["last_status_at"].replace("Z", "+00:00")
+                )
                 last_naive = last.replace(tzinfo=None)
                 if last_naive < cutoff:
                     continue
@@ -219,8 +237,16 @@ async def get_candidates(
     min_posts: int = Query(1, ge=0),
     active_since_days: int = Query(365, ge=1, le=3650),
     bio_contains: str = Query(""),
-    max_friends: int = Query(50, ge=1, le=500, description="Max number of your friends to expand from. Each costs 1 API call."),
-    blog_roll_filter: str | None = Query(None, description="Restrict source friends to this blogroll filter (e.g. top_friends, mutuals)"),
+    max_friends: int = Query(
+        50,
+        ge=1,
+        le=500,
+        description="Max number of your friends to expand from. Each costs 1 API call.",
+    ),
+    blog_roll_filter: str | None = Query(
+        None,
+        description="Restrict source friends to this blogroll filter (e.g. top_friends, mutuals)",
+    ),
     limit: int = Query(200, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     meta: MetaAccount = Depends(get_current_meta_account),
@@ -232,7 +258,13 @@ async def get_candidates(
     identity = await resolve_identity(meta.id, identity_id)
 
     async with async_session() as session:
-        cached = (await session.execute(select(FriendsOfFriendsCache).where(FriendsOfFriendsCache.identity_id == identity_id))).scalar_one_or_none()
+        cached = (
+            await session.execute(
+                select(FriendsOfFriendsCache).where(
+                    FriendsOfFriendsCache.identity_id == identity_id
+                )
+            )
+        ).scalar_one_or_none()
 
     if cached and _is_cache_fresh(cached.fetched_at):
         try:
@@ -242,7 +274,9 @@ async def get_candidates(
         cache_hit = True
         fetched_at = cached.fetched_at.isoformat() if cached.fetched_at else None
     else:
-        candidates = await _fetch_and_cache(meta.id, identity, max_friends, blog_roll_filter)
+        candidates = await _fetch_and_cache(
+            meta.id, identity, max_friends, blog_roll_filter
+        )
         cache_hit = False
         fetched_at = utc_now().isoformat()
 
@@ -257,7 +291,9 @@ async def get_candidates(
     already_following_ids.add(identity.account_id)
 
     total_downloaded = len(candidates)
-    filtered = _apply_filters(candidates, already_following_ids, min_posts, active_since_days, bio_contains)
+    filtered = _apply_filters(
+        candidates, already_following_ids, min_posts, active_since_days, bio_contains
+    )
 
     total = len(filtered)
     page = filtered[offset : offset + limit]
@@ -284,5 +320,7 @@ async def refresh_candidates(
     Force a cache refresh (runs synchronously; use for on-demand refresh).
     """
     identity = await resolve_identity(meta.id, identity_id)
-    candidates = await _fetch_and_cache(meta.id, identity, max_friends, blog_roll_filter)
+    candidates = await _fetch_and_cache(
+        meta.id, identity, max_friends, blog_roll_filter
+    )
     return {"status": "ok", "candidates_fetched": len(candidates)}

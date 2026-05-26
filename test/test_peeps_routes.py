@@ -50,7 +50,7 @@ def api_client(monkeypatch: pytest.MonkeyPatch, db_session_factory) -> TestClien
     monkeypatch.setattr(peeps, "async_session", db_session_factory)
 
     meta = make_meta_account(1)
-    identity = make_identity(1, meta_account_id=1)
+    _ = make_identity(1, meta_account_id=1)
 
     async def fake_meta(request=None):
         return meta

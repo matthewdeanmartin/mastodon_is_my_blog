@@ -379,6 +379,7 @@ def test_account_info_endpoint_returns_virtual_everyone(
     assert response.json()["id"] == "everyone"
     assert response.json()["display_name"] == "Everyone"
 
+
 # this broke?
 # def test_account_info_endpoint_returns_cached_account(
 #     api_client: TestClient, monkeypatch: pytest.MonkeyPatch

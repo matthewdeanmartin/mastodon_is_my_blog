@@ -106,7 +106,9 @@ async def retro_match_hashtag_term(
         }
         for pid in new_ids
     ]
-    await session.execute(sqlite_insert(ContentHubPostMatch).values(rows).prefix_with("OR IGNORE"))
+    await session.execute(
+        sqlite_insert(ContentHubPostMatch).values(rows).prefix_with("OR IGNORE")
+    )
     return len(rows)
 
 
@@ -124,7 +126,9 @@ async def retro_match_group_hashtag_terms(
     total = 0
     for term in terms:
         if term.term_type == "hashtag":
-            total += await retro_match_hashtag_term(session, meta_id, identity_id, group_id, term)
+            total += await retro_match_hashtag_term(
+                session, meta_id, identity_id, group_id, term
+            )
     return total
 
 
@@ -156,5 +160,7 @@ async def record_search_matches(
         }
         for pid in post_ids
     ]
-    await session.execute(sqlite_insert(ContentHubPostMatch).values(rows).prefix_with("OR IGNORE"))
+    await session.execute(
+        sqlite_insert(ContentHubPostMatch).values(rows).prefix_with("OR IGNORE")
+    )
     return len(rows)

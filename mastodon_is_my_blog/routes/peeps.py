@@ -13,14 +13,13 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
-
-import asyncio
 
 from mastodon_is_my_blog.account_catchup_runner import (
     job_status as account_catchup_job_status,
@@ -49,13 +48,14 @@ from mastodon_is_my_blog.store import (
     async_session,
 )
 
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/peeps", tags=["peeps"])
 
 
-async def _candidate_dossier_from_friends_cache(identity_id: int, acct: str) -> dict | None:
+async def _candidate_dossier_from_friends_cache(
+    identity_id: int, acct: str
+) -> dict | None:
     """
     Fall back for accounts we haven't followed/cached as a CachedAccount yet.
     The new-friends page already downloaded a thin profile into
@@ -66,7 +66,13 @@ async def _candidate_dossier_from_friends_cache(identity_id: int, acct: str) -> 
     matching candidate exists in the friends-of-friends cache.
     """
     async with async_session() as session:
-        cache_row = (await session.execute(select(FriendsOfFriendsCache).where(FriendsOfFriendsCache.identity_id == identity_id))).scalar_one_or_none()
+        cache_row = (
+            await session.execute(
+                select(FriendsOfFriendsCache).where(
+                    FriendsOfFriendsCache.identity_id == identity_id
+                )
+            )
+        ).scalar_one_or_none()
 
     if not cache_row or not cache_row.data_json:
         return None
@@ -216,13 +222,17 @@ async def get_engagement_matrix(
             account_id = str(r_row.in_reply_to_account_id)
             if account_id not in outbound:
                 outbound[account_id] = []
-            outbound[account_id].append({"type": "mention", "age_days": _age_days(r_row.created_at, now)})
+            outbound[account_id].append(
+                {"type": "mention", "age_days": _age_days(r_row.created_at, now)}
+            )
 
         for f_row in fav_rows:
             account_id = str(f_row.target_account_id)
             if account_id not in outbound:
                 outbound[account_id] = []
-            outbound[account_id].append({"type": "favourite", "age_days": _age_days(f_row.favourited_at, now)})
+            outbound[account_id].append(
+                {"type": "favourite", "age_days": _age_days(f_row.favourited_at, now)}
+            )
 
         # Gather all account_ids we need
         all_account_ids = set(inbound.keys()) | set(outbound.keys())
@@ -286,7 +296,13 @@ async def get_engagement_matrix(
             fans.append(entry)
         elif high_out and not high_in:
             idols.append(entry)
-        elif is_following and entry["statuses_count"] > 100 and in_s < 1.0 and post_count > 0 and (reply_count / post_count < 0.2 if post_count else True):
+        elif (
+            is_following
+            and entry["statuses_count"] > 100
+            and in_s < 1.0
+            and post_count > 0
+            and (reply_count / post_count < 0.2 if post_count else True)
+        ):
             broadcasters.append(entry)
 
     def sort_key(e: dict) -> float:
@@ -316,7 +332,9 @@ async def get_quick_dossier(
     client = client_from_identity(identity)
 
     try:
-        results = await asyncio.to_thread(lambda: client.account_search(acct, limit=1, resolve=True))
+        results = await asyncio.to_thread(
+            lambda: client.account_search(acct, limit=1, resolve=True)
+        )
     except Exception as exc:
         raise HTTPException(502, f"Mastodon API error: {exc}") from exc
 
@@ -329,7 +347,10 @@ async def get_quick_dossier(
     try:
         acc_id = str(acc["id"])
         raw_featured = await asyncio.to_thread(client.account_featured_tags, acc_id)
-        featured = [{"tag": ft.get("name", ""), "uses": ft.get("statuses_count", 0)} for ft in (raw_featured or [])]
+        featured = [
+            {"tag": ft.get("name", ""), "uses": ft.get("statuses_count", 0)}
+            for ft in (raw_featured or [])
+        ]
     except Exception:
         pass
 
@@ -378,7 +399,9 @@ async def get_dossier(
         interaction_history: dict[str, dict] = {}
         for label, days in windows.items():
             cutoff = now - timedelta(days=days)
-            in_stmt = select(func.count(CachedNotification.id)).where(  # pylint: disable=not-callable
+            in_stmt = select(
+                func.count(CachedNotification.id)
+            ).where(  # pylint: disable=not-callable
                 CachedNotification.meta_account_id == meta.id,
                 CachedNotification.identity_id == identity_id,
                 CachedNotification.account_id == ca.id,
@@ -386,7 +409,9 @@ async def get_dossier(
             )
             in_count = (await session.execute(in_stmt)).scalar_one()
 
-            out_stmt = select(func.count(CachedMyFavourite.status_id)).where(  # pylint: disable=not-callable
+            out_stmt = select(
+                func.count(CachedMyFavourite.status_id)
+            ).where(  # pylint: disable=not-callable
                 CachedMyFavourite.meta_account_id == meta.id,
                 CachedMyFavourite.identity_id == identity_id,
                 CachedMyFavourite.target_account_id == ca.id,
@@ -432,9 +457,15 @@ async def get_dossier(
         # Media profile
         media_stmt = select(
             func.count(CachedPost.id).label("total"),  # pylint: disable=not-callable
-            func.sum(CachedPost.has_media.cast(type_=__import__("sqlalchemy").Integer)).label("has_media"),
-            func.sum(CachedPost.has_video.cast(type_=__import__("sqlalchemy").Integer)).label("has_video"),
-            func.sum(CachedPost.has_link.cast(type_=__import__("sqlalchemy").Integer)).label("has_link"),
+            func.sum(
+                CachedPost.has_media.cast(type_=__import__("sqlalchemy").Integer)
+            ).label("has_media"),
+            func.sum(
+                CachedPost.has_video.cast(type_=__import__("sqlalchemy").Integer)
+            ).label("has_video"),
+            func.sum(
+                CachedPost.has_link.cast(type_=__import__("sqlalchemy").Integer)
+            ).label("has_link"),
         ).where(
             CachedPost.meta_account_id == meta.id,
             CachedPost.fetched_by_identity_id == identity_id,
@@ -475,7 +506,10 @@ async def get_dossier(
         identity = await _resolve_identity(meta.id, identity_id)
         api_client = client_from_identity(identity)
         raw_featured = await asyncio.to_thread(api_client.account_featured_tags, ca_id)
-        featured_hashtags = [{"tag": ft.get("name", ""), "uses": ft.get("statuses_count", 0)} for ft in (raw_featured or [])]
+        featured_hashtags = [
+            {"tag": ft.get("name", ""), "uses": ft.get("statuses_count", 0)}
+            for ft in (raw_featured or [])
+        ]
     except Exception:
         pass
 
@@ -495,7 +529,11 @@ async def get_dossier(
         "statuses_count": ca.statuses_count,
         "is_following": ca.is_following,
         "is_followed_by": ca.is_followed_by,
-        "post_reply_ratio": (ca.cached_post_count / max(ca.cached_reply_count, 1) if ca.cached_post_count else None),
+        "post_reply_ratio": (
+            ca.cached_post_count / max(ca.cached_reply_count, 1)
+            if ca.cached_post_count
+            else None
+        ),
         "top_hashtags": [{"tag": t, "count": c} for t, c in top_hashtags],
         "featured_hashtags": featured_hashtags,
         "interaction_history": interaction_history,
@@ -504,9 +542,15 @@ async def get_dossier(
         "created_at": ca.created_at.isoformat() if ca.created_at else None,
         "cache_info": {
             "cached_posts": total_posts,
-            "oldest_cached_post_at": oldest_post_at.isoformat() if oldest_post_at else None,
-            "latest_cached_post_at": latest_post_at.isoformat() if latest_post_at else None,
-            "last_status_at": ca.last_status_at.isoformat() if ca.last_status_at else None,
+            "oldest_cached_post_at": (
+                oldest_post_at.isoformat() if oldest_post_at else None
+            ),
+            "latest_cached_post_at": (
+                latest_post_at.isoformat() if latest_post_at else None
+            ),
+            "last_status_at": (
+                ca.last_status_at.isoformat() if ca.last_status_at else None
+            ),
         },
     }
 
@@ -588,7 +632,9 @@ async def deep_fetch_dossier(
     """Trigger a background deep catch-up of an account's posts."""
     identity = await _resolve_identity(meta.id, identity_id)
     try:
-        job = await start_account_catchup_job(meta, identity, acct, mode="deep", max_pages=max_pages)
+        job = await start_account_catchup_job(
+            meta, identity, acct, mode="deep", max_pages=max_pages
+        )
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
     return account_catchup_job_status(job)

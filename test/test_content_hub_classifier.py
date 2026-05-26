@@ -1,6 +1,5 @@
 from test.conftest import make_cached_post
 
-
 from mastodon_is_my_blog.content_hub_classifier import (
     classify_tab,
     is_jobs_post,

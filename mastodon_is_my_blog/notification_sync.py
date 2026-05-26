@@ -164,7 +164,9 @@ async def sync_all_notifications_for_identity(
             raise
 
 
-async def sync_notifications_for_identity(meta_id: int, identity: MastodonIdentity) -> dict[str, int]:
+async def sync_notifications_for_identity(
+    meta_id: int, identity: MastodonIdentity
+) -> dict[str, int]:
     """
     Fetches notifications and stores them in the database.
     Also syncs accounts and timelines for mutual followers who interacted.
@@ -188,7 +190,9 @@ async def sync_notifications_for_identity(meta_id: int, identity: MastodonIdenti
                 "timelines_synced": 0,
             }
 
-            synced_account_ids, new_notif_count = await persist_notifications(meta_id, identity, notifications, stats)
+            synced_account_ids, new_notif_count = await persist_notifications(
+                meta_id, identity, notifications, stats
+            )
             t.rows_written = new_notif_count
 
             # Second-hop: sync timelines for top-5 mutuals by recent notification count.
@@ -218,7 +222,9 @@ async def sync_notifications_for_identity(meta_id: int, identity: MastodonIdenti
                         CachedAccount.is_followed_by.is_(True),
                     )
                     .group_by(CachedAccount.id)
-                    .order_by(func.count(CachedNotification.id).desc())  # pylint: disable=not-callable
+                    .order_by(
+                        func.count(CachedNotification.id).desc()
+                    )  # pylint: disable=not-callable
                     .limit(SECOND_HOP_LIMIT)
                 )
                 top_mutuals = (await session.execute(top_mutuals_stmt)).scalars().all()

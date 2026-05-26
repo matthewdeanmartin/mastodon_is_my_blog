@@ -118,7 +118,7 @@ async def test_queue_only_includes_following(db) -> None:
 async def test_mutual_with_notification_ranks_first(db) -> None:
     """Priority 1 (mutual + notification) beats priority 2 (mutual) and priority 3."""
     recent = utc_now() - timedelta(days=5)
-    old = utc_now() - timedelta(days=60)
+    _ = utc_now() - timedelta(days=60)
 
     db.add(make_account("plain-follow", is_following=True, last_status_at=recent))
     db.add(
