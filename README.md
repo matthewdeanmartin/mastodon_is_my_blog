@@ -71,7 +71,7 @@ content and replies.
 
 ## Local Development
 
-See [SETUP.md](SETUP.md) for detailed setup instructions.
+See [SETUP.md](https://github.com/matthewdeanmartin/mastodon_is_my_blog/blob/main/SETUP.md) for detailed setup instructions.
 
 ```bash
 git clone https://github.com/matthewdeanmartin/mastodon_is_my_blog.git
@@ -127,3 +127,11 @@ I want this to be as burdensome as using a mastodon client and have a way to use
 ## License
 
 MIT
+
+## Project Links
+
+- [GitHub](https://github.com/matthewdeanmartin/mastodon_is_my_blog)
+- [PyPI](https://pypi.org/project/mastodon-is-my-blog/)
+- [Documentation](https://mastodon-is-my-blog.readthedocs.io/en/latest/)
+- [Bug Tracker](https://github.com/matthewdeanmartin/mastodon_is_my_blog/issues)
+- [Change Log](https://github.com/matthewdeanmartin/mastodon_is_my_blog/blob/main/CHANGELOG.md)
