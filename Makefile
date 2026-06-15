@@ -157,6 +157,14 @@ test-backend:
 pytest: test-backend
 	@echo "Running backend tests..."
 
+# Run the mastodon_mock-backed integration tests (no live API keys needed).
+# These boot the unpublished sibling mastodon_mock package as a local HTTP
+# server and run the blog's Mastodon client against it. Kept out of the default
+# `test` run because they require Python >=3.13 + the mastodon_mock dev dep, and
+# need a longer per-test timeout than the unit suite (they spin up a server).
+test-integration:
+	@echo "Running mastodon_mock integration tests..."
+	uv run pytest test_integration -q --tb=short --timeout=30
 
 # Run frontend tests
 test-frontend:

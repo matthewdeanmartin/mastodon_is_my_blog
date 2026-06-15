@@ -132,6 +132,12 @@ dev = [
     "codespell>=2.2.6; python_version >= '3.8'",
     "pyenchant>=3.2.2; python_version >= '3.8'",
     "build>=1.4.3",
+    # Mastodon mock server (published on PyPI) — used by test_integration/ to run
+    # the blog's Mastodon client against a stateful fake instead of live Mastodon.
+    # The [test] extra pulls in the zero-boilerplate fixtures / MockServer helper.
+    # Requires Python >=3.13 (matches the mock's requires-python); on older
+    # interpreters the integration suite skips itself.
+    "mastodon_mock[test]; python_version >= '3.13'",
 ]
 
 
