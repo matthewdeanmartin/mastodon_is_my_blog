@@ -222,12 +222,10 @@
         "
       >
         <div class="row" style="gap: 8px; align-items: center">
-          @if (identities.length > 1) {
-            <select [(ngModel)]="selectedIdentityId" style="font-size: 0.85em">
-              @for (id of identities; track id) {
-                <option [value]="id.id">{{ id.acct }}</option>
-              }
-            </select>
+          @if (selectedIdentity) {
+            <small class="muted" style="font-size: 0.8rem" title="Posting as the account selected in the top bar">
+              Posting as <strong>{{ selectedIdentity.acct }}</strong>
+            </small>
           }
 
           <small class="muted" style="font-size: 0.75rem">

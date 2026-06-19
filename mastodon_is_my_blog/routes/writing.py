@@ -107,6 +107,7 @@ async def create_post(
 
 @drafts_router.get("", response_model=list[DraftOut])
 async def list_drafts(
+    identity_id: int = Query(...),
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     async with async_session() as session:
@@ -115,6 +116,7 @@ async def list_drafts(
             .where(
                 and_(
                     Draft.meta_account_id == meta.id,
+                    Draft.identity_id == identity_id,
                     Draft.published_at.is_(None),
                 )
             )
@@ -127,11 +129,16 @@ async def list_drafts(
 @drafts_router.get("/{draft_id}", response_model=DraftOut)
 async def get_draft(
     draft_id: int,
+    identity_id: int = Query(...),
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     async with async_session() as session:
         stmt = select(Draft).where(
-            and_(Draft.id == draft_id, Draft.meta_account_id == meta.id)
+            and_(
+                Draft.id == draft_id,
+                Draft.meta_account_id == meta.id,
+                Draft.identity_id == identity_id,
+            )
         )
         draft = (await session.execute(stmt)).scalar_one_or_none()
         if not draft:
@@ -168,7 +175,11 @@ async def update_draft(
 ):
     async with async_session() as session:
         stmt = select(Draft).where(
-            and_(Draft.id == draft_id, Draft.meta_account_id == meta.id)
+            and_(
+                Draft.id == draft_id,
+                Draft.meta_account_id == meta.id,
+                Draft.identity_id == payload.identity_id,
+            )
         )
         draft = (await session.execute(stmt)).scalar_one_or_none()
         if not draft:
@@ -190,11 +201,16 @@ async def update_draft(
 @drafts_router.delete("/{draft_id}", status_code=204)
 async def delete_draft(
     draft_id: int,
+    identity_id: int = Query(...),
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     async with async_session() as session:
         stmt = select(Draft).where(
-            and_(Draft.id == draft_id, Draft.meta_account_id == meta.id)
+            and_(
+                Draft.id == draft_id,
+                Draft.meta_account_id == meta.id,
+                Draft.identity_id == identity_id,
+            )
         )
         draft = (await session.execute(stmt)).scalar_one_or_none()
         if not draft:
@@ -207,11 +223,16 @@ async def delete_draft(
 async def split_node(
     draft_id: int,
     payload: SplitNodeIn,
+    identity_id: int = Query(...),
     meta: MetaAccount = Depends(get_current_meta_account),
 ):
     async with async_session() as session:
         stmt = select(Draft).where(
-            and_(Draft.id == draft_id, Draft.meta_account_id == meta.id)
+            and_(
+                Draft.id == draft_id,
+                Draft.meta_account_id == meta.id,
+                Draft.identity_id == identity_id,
+            )
         )
         draft = (await session.execute(stmt)).scalar_one_or_none()
         if not draft:
@@ -238,7 +259,11 @@ async def publish_draft(
 ):
     async with async_session() as session:
         stmt = select(Draft).where(
-            and_(Draft.id == draft_id, Draft.meta_account_id == meta.id)
+            and_(
+                Draft.id == draft_id,
+                Draft.meta_account_id == meta.id,
+                Draft.identity_id == payload.identity_id,
+            )
         )
         draft = (await session.execute(stmt)).scalar_one_or_none()
         if not draft:
@@ -297,10 +322,9 @@ LANGUAGETOOL_URL = os.environ.get("LANGUAGETOOL_URL", "http://localhost:8081/v2/
 @drafts_router.post("/spellcheck", response_model=SpellcheckOut)
 async def spellcheck(
     payload: SpellcheckIn,
-    meta: MetaAccount = Depends(
-        get_current_meta_account
-    ),  # pylint: disable=unused-argument
+    meta: MetaAccount = Depends(get_current_meta_account),
 ):
+    # pylint: disable=unused-argument
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(

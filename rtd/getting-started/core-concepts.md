@@ -1,28 +1,22 @@
 # Core concepts
 
-Before Mastodon is My Blog (MIMB) feels intuitive, four ideas matter more than anything else.
+Before Mastodon is My Blog (MIMB) feels intuitive, three ideas matter more than anything else.
 
-## 1. Meta account
-
-The **meta account** is the local person using the app on this machine.
-
-It is not the same thing as a Mastodon account. It is MIMB's way of saying:
-
-> "These local preferences, cached items, and read states belong to this human."
-
-## 2. Identity
+## 1. Identity
 
 An **identity** is one real Mastodon account.
 
-You can have more than one identity under the same local setup, for example:
+MIMB is built for a single human with several Mastodon accounts, for example:
 
 - a main account
 - an art account
 - a work account
 
-The selected identity changes what you see because each one has different follows, activity, and topic bundles.
+You can connect as many identities as you like, mixing OAuth-connected and
+manually-keyed accounts freely. The selected identity changes what you see
+because each one has different follows, activity, and topic bundles.
 
-## 3. Cache
+## 2. Cache
 
 MIMB keeps a **local cache** so it can organize Mastodon in ways the standard interface does not.
 
@@ -34,7 +28,7 @@ That cache powers:
 - unread counts
 - bundle matching
 
-## 4. Intentional sync
+## 3. Intentional sync
 
 MIMB does not try to feel like a nonstop live stream. You refresh on purpose.
 

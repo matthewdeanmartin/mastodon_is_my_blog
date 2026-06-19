@@ -1,14 +1,22 @@
 <div class="card">
   <h2 class="post-title">Admin</h2>
 
-  @if (!status?.connected) {
-    <div>
-      <p>You are not connected to Mastodon.</p>
-      <a [href]="api.loginUrl()">
-        <button>Connect Account</button>
-      </a>
-    </div>
-  }
+  <div style="margin-bottom: 16px; position: relative">
+    @if (!status?.connected) {
+      <p>You are not connected to Mastodon yet.</p>
+    }
+    <button (click)="openConnectAccount()">
+      {{ status?.connected ? 'Connect Another Account' : 'Connect Account' }}
+    </button>
+
+    @if (showConnectAccount) {
+      <app-connect-account
+        class="connect-account-anchor connect-account-anchor--left"
+        (closed)="closeConnectAccount()"
+        (connected)="onAccountConnected()"
+      ></app-connect-account>
+    }
+  </div>
 
   @if (status?.connected) {
     <!-- Sync section -->

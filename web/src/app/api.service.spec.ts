@@ -343,9 +343,30 @@ describe('ApiService', () => {
     });
   });
 
-  describe('Login URL', () => {
-    it('should return login URL', () => {
-      expect(service.loginUrl()).toBe('http://localhost:8000/auth/login');
+  describe('Connect Account', () => {
+    it('should start OAuth connect flow', () => {
+      service.startConnectAccountOAuth('https://mastodon.social').subscribe();
+
+      const req = httpMock.expectOne((r) => r.url.includes('/api/admin/identities/oauth/start'));
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ base_url: 'https://mastodon.social' });
+      req.flush({ authorize_url: 'https://mastodon.social/oauth/authorize' });
+    });
+
+    it('should add identity via pasted API keys', () => {
+      service
+        .addIdentityApiKey('https://mastodon.social', 'cid', 'csecret', 'token')
+        .subscribe();
+
+      const req = httpMock.expectOne((r) => r.url.includes('/api/admin/identities/api-key'));
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({
+        base_url: 'https://mastodon.social',
+        client_id: 'cid',
+        client_secret: 'csecret',
+        access_token: 'token',
+      });
+      req.flush({ status: 'created', acct: 'me@mastodon.social' });
     });
   });
 

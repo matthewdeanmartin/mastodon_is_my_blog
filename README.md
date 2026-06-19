@@ -92,7 +92,7 @@ uv run mastodon_is_my_blog start --reload
 cd web && ng serve
 ```
 
-Open http://localhost:4200. If you skipped the access token during `init`, use the web login flow to finish connecting that account.
+Open http://localhost:4200. If you skipped the access token during `init`, use the "Connect Account" button in the top bar (or the Admin page) to finish connecting that account — or add more accounts at any time, via OAuth or pasted API keys.
 
 ## Static Storm Export
 

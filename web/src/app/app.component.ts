@@ -13,6 +13,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { ApiService } from './api.service';
+import { ConnectAccountComponent } from './connect-account.component';
 import {
   debounceTime,
   distinctUntilChanged,
@@ -52,7 +53,14 @@ const emptyCount = () => ({ total: 0, unseen: 0 });
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    CommonModule,
+    FormsModule,
+    ConnectAccountComponent,
+  ],
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit, OnDestroy {
@@ -151,28 +159,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     // Fetch Identities & Initialize Context
-    this.api
-      .getIdentities()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (ids) => {
-          this.identities = ids;
-
-          // Auto-select identity if none selected or invalid
-          const storedId = this.api.getStoredIdentityId();
-          const validStored = storedId && ids.find((i) => i.id === storedId);
-
-          if (validStored) {
-            const identity = ids.find((i) => i.id === storedId)!;
-            // Re-apply stored identity without navigating — preserves deep links.
-            this.api.setIdentityId(storedId!, identity.base_url);
-          } else if (ids.length > 0) {
-            // No stored identity: auto-select the first one and go to the feed.
-            this.setContextIdentity(ids[0].id, ids[0].base_url);
-          }
-        },
-        error: (e: unknown) => console.log('Could not fetch identities', e),
-      });
+    this.loadIdentities();
 
     // React to Identity Changes
     this.api.identityId$.pipe(takeUntil(this.destroy$)).subscribe((id) => {
@@ -182,16 +169,21 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Get Main User Info (For "My Blog" default view)
-    this.api.getAdminStatus().subscribe((status) => {
-      if (status.connected && status.current_user) {
-        this.mainUser = status.current_user;
-        // Set active user to main user by default
+    // Track "My Blog" (the account whose context is active in the top bar)
+    // by re-resolving it whenever the active identity changes — never a
+    // one-shot snapshot, which would go stale the moment you switch accounts.
+    this.api.identityId$.pipe(takeUntil(this.destroy$)).subscribe((identityId) => {
+      const identity = this.identities.find((i) => i.id === identityId);
+      if (!identityId || !identity) {
+        this.mainUser = null;
+        return;
+      }
+      this.fetchActiveUserInfo$(identity.acct, identityId).subscribe((info) => {
+        this.mainUser = info;
         if (!this.currentUser) {
           this.activeUserInfo = this.mainUser;
         }
-        // this.refreshCounts();
-      }
+      });
     });
 
     const selection$ = this.route.queryParams.pipe(
@@ -253,12 +245,13 @@ export class AppComponent implements OnInit, OnDestroy {
           if (sel.scope.kind === 'everyone') {
             return of(null);
           }
-          if (sel.scope.kind === 'main') {
-            return of(this.mainUser);
-          }
 
-          // kind === 'user'
-          const acct = sel.scope.acct;
+          const acct =
+            sel.scope.kind === 'main'
+              ? this.identities.find((i) => i.id === identityId)?.acct
+              : sel.scope.acct;
+          if (!acct) return of(null);
+
           return this.fetchActiveUserInfo$(acct, identityId);
         }),
       )
@@ -292,6 +285,48 @@ export class AppComponent implements OnInit, OnDestroy {
         queryParams: { user: identity?.acct ?? null, filter: 'storms', blog_filter: 'top_friends' },
       });
     }
+  }
+
+  loadIdentities(): void {
+    this.api
+      .getIdentities()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (ids) => {
+          this.identities = ids;
+
+          // Auto-select identity if none selected or invalid
+          const storedId = this.api.getStoredIdentityId();
+          const validStored = storedId && ids.find((i) => i.id === storedId);
+
+          if (validStored) {
+            const identity = ids.find((i) => i.id === storedId)!;
+            // Re-apply stored identity without navigating — preserves deep links.
+            this.api.setIdentityId(storedId!, identity.base_url);
+          } else if (ids.length > 0) {
+            // No stored identity: auto-select the first one and go to the feed.
+            this.setContextIdentity(ids[0].id, ids[0].base_url);
+          }
+        },
+        error: (e: unknown) => console.log('Could not fetch identities', e),
+      });
+  }
+
+  // --- Connect Account ---
+
+  showConnectAccount = false;
+
+  openConnectAccount(): void {
+    this.showConnectAccount = true;
+  }
+
+  closeConnectAccount(): void {
+    this.showConnectAccount = false;
+  }
+
+  onAccountConnected(): void {
+    this.showConnectAccount = false;
+    this.loadIdentities();
   }
 
   // --- Data Fetching ---

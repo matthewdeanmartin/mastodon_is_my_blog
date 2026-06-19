@@ -435,8 +435,34 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  loginUrl(): string {
-    return `${this.base}/auth/login`;
+  startConnectAccountOAuth(baseUrl: string): Observable<{ authorize_url: string }> {
+    return this.http
+      .post<{ authorize_url: string }>(
+        `${this.base}/api/admin/identities/oauth/start`,
+        { base_url: baseUrl },
+        { headers: this.headers },
+      )
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  addIdentityApiKey(
+    baseUrl: string,
+    clientId: string,
+    clientSecret: string,
+    accessToken: string,
+  ): Observable<{ status: string; acct: string }> {
+    return this.http
+      .post<{ status: string; acct: string }>(
+        `${this.base}/api/admin/identities/api-key`,
+        {
+          base_url: baseUrl,
+          client_id: clientId,
+          client_secret: clientSecret,
+          access_token: accessToken,
+        },
+        { headers: this.headers },
+      )
+      .pipe(catchError((err) => this.handleError(err)));
   }
 
   getAdminStatus(): Observable<AdminStatus> {
@@ -979,15 +1005,17 @@ export class ApiService {
 
   // --- Drafts ---
 
-  listDrafts(): Observable<Draft[]> {
+  listDrafts(identityId: number): Observable<Draft[]> {
+    const params = new HttpParams().set('identity_id', identityId);
     return this.http
-      .get<Draft[]>(`${this.base}/api/drafts`, { headers: this.headers })
+      .get<Draft[]>(`${this.base}/api/drafts`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  getDraft(id: number): Observable<Draft> {
+  getDraft(id: number, identityId: number): Observable<Draft> {
+    const params = new HttpParams().set('identity_id', identityId);
     return this.http
-      .get<Draft>(`${this.base}/api/drafts/${id}`, { headers: this.headers })
+      .get<Draft>(`${this.base}/api/drafts/${id}`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -1003,9 +1031,10 @@ export class ApiService {
       .pipe(catchError((err) => this.handleError(err)));
   }
 
-  deleteDraft(id: number): Observable<void> {
+  deleteDraft(id: number, identityId: number): Observable<void> {
+    const params = new HttpParams().set('identity_id', identityId);
     return this.http
-      .delete<void>(`${this.base}/api/drafts/${id}`, { headers: this.headers })
+      .delete<void>(`${this.base}/api/drafts/${id}`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 

@@ -9,7 +9,7 @@ Mastodon is My Blog (MIMB) is a local app that connects to your Mastodon account
 | Account list and instance URLs | Local config on your machine | Tells MIMB which Mastodon identities exist. |
 | Client ID, client secret, and access token | Your system keyring when available | These are sensitive credentials. |
 | Cached posts, account data, notifications, and read state | Local SQLite database | Powers People, Content, filters, and archive-style browsing. |
-| Chosen meta account and identity in the browser | Browser local storage | Remembers your local session context in the web UI. |
+| Chosen identity in the browser | Browser local storage | Remembers which Mastodon identity you're viewing in the web UI. |
 
 ## What stays on Mastodon
 

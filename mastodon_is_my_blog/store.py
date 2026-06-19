@@ -3,7 +3,7 @@ from __future__ import annotations
 # mastodon_is_my_blog/store.py
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import dotenv
 from sqlalchemy import (
@@ -15,6 +15,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    delete,
     event,
     func,
     insert,
@@ -37,9 +38,7 @@ logging.basicConfig()
 
 dotenv.load_dotenv()
 
-from mastodon_is_my_blog.db_path import (
-    get_default_db_url,  # pylint: disable=wrong-import-position
-)
+from mastodon_is_my_blog.db_path import get_default_db_url  # pylint: disable=wrong-import-position
 
 DB_URL = get_default_db_url()
 # Database setup
@@ -119,6 +118,24 @@ class MastodonIdentity(Base):
     meta_account: Mapped[MetaAccount] = relationship(
         "MetaAccount", back_populates="identities"
     )
+
+
+class OAuthPendingConnection(Base):
+    """
+    Bridges the OAuth app-registration step (must happen before the
+    redirect to the Mastodon instance) and the callback (a fresh request,
+    with no session, that only carries `code` and `state`).
+    """
+
+    __tablename__ = "oauth_pending_connections"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    state: Mapped[str] = mapped_column(String, unique=True, index=True)
+    meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"))
+    base_url: Mapped[str] = mapped_column(String)
+    client_id: Mapped[str] = mapped_column(String)
+    client_secret: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
 class CachedAccount(Base):
@@ -800,6 +817,57 @@ async def set_token(value: str) -> None:
             else:
                 session.add(Token(key="mastodon_access_token", value=value))
             await session.commit()
+
+
+# --- OAuth Pending Connection Helpers ---
+OAUTH_PENDING_TTL = timedelta(hours=1)
+
+
+async def create_oauth_pending_connection(
+    *,
+    state: str,
+    meta_account_id: int,
+    base_url: str,
+    client_id: str,
+    client_secret: str,
+) -> None:
+    async with async_session() as session:
+        cutoff = utc_now() - OAUTH_PENDING_TTL
+        await session.execute(
+            delete(OAuthPendingConnection).where(
+                OAuthPendingConnection.created_at < cutoff
+            )
+        )
+        session.add(
+            OAuthPendingConnection(
+                state=state,
+                meta_account_id=meta_account_id,
+                base_url=base_url,
+                client_id=client_id,
+                client_secret=client_secret,
+            )
+        )
+        await session.commit()
+
+
+async def consume_oauth_pending_connection(
+    state: str,
+) -> OAuthPendingConnection | None:
+    async with async_session() as session:
+        stmt = select(OAuthPendingConnection).where(
+            OAuthPendingConnection.state == state
+        )
+        pending = (await session.execute(stmt)).scalar_one_or_none()
+        if pending is None:
+            return None
+
+        cutoff = utc_now() - OAUTH_PENDING_TTL
+        expired = pending.created_at < cutoff
+
+        await session.delete(pending)
+        await session.commit()
+
+        return None if expired else pending
 
 
 class Draft(Base):

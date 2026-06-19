@@ -128,26 +128,37 @@ def test_spa_unknown_paths_fall_back_to_index_html(api_client: TestClient) -> No
     assert response.headers["content-type"].startswith("text/html")
 
 
-def test_login_endpoint_redirects_to_generated_authorize_url(
+def test_oauth_start_endpoint_returns_authorize_url(
     api_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     class DummyClient:
-        def auth_request_url(self, redirect_uris: str, scopes: list[str]) -> str:
+        def auth_request_url(
+            self, redirect_uris: str, scopes: list[str], state: str
+        ) -> str:
             assert redirect_uris == "https://app.example.com/auth/callback"
             assert scopes == ["read", "write"]
-            return "https://mastodon.example.com/oauth/authorize"
-
-    async def fake_get_default_client() -> DummyClient:
-        return DummyClient()
+            return f"https://mastodon.example.com/oauth/authorize?state={state}"
 
     monkeypatch.setenv("APP_BASE_URL", "https://app.example.com")
-    monkeypatch.setattr(main, "get_default_client", fake_get_default_client)
+    monkeypatch.setattr(
+        admin.Mastodon, "create_app", lambda *a, **k: ("new-id", "new-secret")
+    )
+    monkeypatch.setattr(admin, "client", lambda **kwargs: DummyClient())
 
-    response = api_client.get("/auth/login", follow_redirects=False)
+    async def fake_create_pending(**kwargs) -> None:
+        return None
 
-    assert response.status_code == 307
-    assert response.headers["location"] == (
-        "https://mastodon.example.com/oauth/authorize"
+    monkeypatch.setattr(admin, "create_oauth_pending_connection", fake_create_pending)
+
+    response = api_client.post(
+        "/api/admin/identities/oauth/start",
+        json={"base_url": "https://mastodon.example.com"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["authorize_url"].startswith(
+        "https://mastodon.example.com/oauth/authorize?state="
     )
 
 

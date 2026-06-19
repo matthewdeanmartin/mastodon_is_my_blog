@@ -1,4 +1,4 @@
-<div class="identity-bar">
+<div class="identity-bar" style="position: relative">
   <div class="identity-label">
     <span class="app-title">Mastodon is my Blog</span>
   </div>
@@ -20,9 +20,22 @@
     }
 
     @if (identities.length === 0) {
-      <div style="color: #64748b; font-style: italic">No identities found. Add one in Admin.</div>
+      <div style="color: #64748b; font-style: italic">No identities found. Add one below.</div>
     }
+
+    <button class="identity-chip" style="border-style: dashed" (click)="openConnectAccount()">
+      <span class="icon">➕</span>
+      <span>Connect Account</span>
+    </button>
   </div>
+
+  @if (showConnectAccount) {
+    <app-connect-account
+      class="connect-account-anchor"
+      (closed)="closeConnectAccount()"
+      (connected)="onAccountConnected()"
+    ></app-connect-account>
+  }
 </div>
 
 <div class="app-layout" [class.content-mode]="!isPeoplePage()">

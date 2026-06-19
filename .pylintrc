@@ -177,6 +177,7 @@ disable=raw-checker-failed,
         cyclic-import, # can't figure out how to break this.
         broad-exception-caught, # This isn't java. Don't make be guess what could be thrown.
         no-member, # orjson prob and mypy does this better
+        not-callable, # sqlalchemy.func and magic proxy objects
         global-statement, # this is how you lazy load
         import-outside-toplevel, # this is for optional libraries
 

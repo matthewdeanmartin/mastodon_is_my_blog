@@ -1,6 +1,7 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { Subject, takeUntil } from 'rxjs';
 import { ApiService } from './api.service';
 import { Draft } from './mastodon';
 
@@ -80,23 +81,38 @@ import { Draft } from './mastodon';
     </div>
   `,
 })
-export class WriteDraftsComponent implements OnInit {
+export class WriteDraftsComponent implements OnInit, OnDestroy {
   api = inject(ApiService);
   router = inject(Router);
 
   drafts: Draft[] = [];
   loading = true;
 
+  private destroy$ = new Subject<void>();
+
   ngOnInit(): void {
-    this.api.listDrafts().subscribe({
-      next: (d) => {
-        this.drafts = d;
+    this.api.identityId$.pipe(takeUntil(this.destroy$)).subscribe((identityId) => {
+      if (!identityId) {
+        this.drafts = [];
         this.loading = false;
-      },
-      error: () => {
-        this.loading = false;
-      },
+        return;
+      }
+      this.loading = true;
+      this.api.listDrafts(identityId).subscribe({
+        next: (d) => {
+          this.drafts = d;
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+        },
+      });
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   newPost(): void {
@@ -110,7 +126,9 @@ export class WriteDraftsComponent implements OnInit {
   deleteDraft(id: number, event: Event): void {
     event.stopPropagation();
     if (!confirm('Delete this draft?')) return;
-    this.api.deleteDraft(id).subscribe(() => {
+    const draft = this.drafts.find((d) => d.id === id);
+    if (!draft || draft.identity_id == null) return;
+    this.api.deleteDraft(id, draft.identity_id).subscribe(() => {
       this.drafts = this.drafts.filter((d) => d.id !== id);
     });
   }

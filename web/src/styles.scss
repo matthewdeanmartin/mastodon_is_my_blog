@@ -551,6 +551,16 @@ small {
   }
 }
 
+.connect-account-anchor {
+  position: relative;
+  display: inline-block;
+}
+
+.connect-account-anchor--left .connect-account-panel {
+  right: auto;
+  left: 0;
+}
+
 /* Adjust layout to account for sticky header */
 body {
   padding-top: 0; /* Remove top padding as header handles spacing */

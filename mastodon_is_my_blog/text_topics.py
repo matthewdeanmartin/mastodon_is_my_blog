@@ -81,9 +81,10 @@ def entities(doc_text: str, nlp: Any) -> list[str]:
 
 def thread_topics(
     texts: list[str], nlp: Any, top_k: int = 5
-) -> list[str]:  # pylint: disable=unused-argument
+) -> list[str]:
     """TF-IDF over thread posts vs background corpus, return top_k terms."""
-    from sklearn.feature_extraction.text import TfidfVectorizer
+    # pylint: disable=unused-argument
+    from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore[import-untyped]
 
     if not texts:
         return []

@@ -71,6 +71,10 @@ export class WriteComponent implements OnInit, OnDestroy {
     return this.nodes.some((n) => n.body.trim().length > 0);
   }
 
+  get selectedIdentity(): Identity | null {
+    return this.identities.find((i) => i.id === this.selectedIdentityId) ?? null;
+  }
+
   /** Ordered list for the tree nav — walk parent→child order */
   get orderedNodes(): DraftNode[] {
     return this.topoSort(this.nodes);
@@ -98,7 +102,13 @@ export class WriteComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.api.getIdentities().subscribe((ids) => {
       this.identities = ids;
-      if (ids.length) this.selectedIdentityId = ids[0].id;
+      // New drafts always post as whichever identity is active in the top
+      // bar — never silently default to the first connected account.
+      // Existing drafts (loaded below) keep whatever identity they were
+      // written for instead of being reassigned to the current context.
+      if (!this.draft) {
+        this.selectedIdentityId = this.api.getCurrentIdentityId() ?? (ids.length ? ids[0].id : null);
+      }
     });
 
     this.autosave$
@@ -109,7 +119,15 @@ export class WriteComponent implements OnInit, OnDestroy {
     const replyTo = this.route.snapshot.paramMap.get('statusId');
 
     if (draftId) {
-      this.api.getDraft(Number(draftId)).subscribe((d) => this.loadDraft(d));
+      const identityId = this.api.getCurrentIdentityId();
+      if (identityId) {
+        this.api.getDraft(Number(draftId), identityId).subscribe({
+          next: (d) => this.loadDraft(d),
+          error: () => this.router.navigate(['/write']),
+        });
+      } else {
+        this.router.navigate(['/write']);
+      }
     } else {
       if (replyTo) this.replyToStatusId = replyTo;
       this.nodes = [this.newNode(null)];
@@ -364,9 +382,9 @@ export class WriteComponent implements OnInit, OnDestroy {
   }
 
   discardDraft(): void {
-    if (!this.draft) return;
+    if (!this.draft || this.draft.identity_id == null) return;
     if (!confirm('Discard this draft?')) return;
-    this.api.deleteDraft(this.draft.id).subscribe({
+    this.api.deleteDraft(this.draft.id, this.draft.identity_id).subscribe({
       next: () => {
         this.draft = null;
         this.nodes = [this.newNode(null)];

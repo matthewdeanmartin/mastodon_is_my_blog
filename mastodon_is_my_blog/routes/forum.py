@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, select
 
 from mastodon_is_my_blog import duck
@@ -49,7 +49,6 @@ def instance_from_acct(acct: str, identity_base_url: str) -> str:
 
 @router.get("/threads")
 async def get_forum_threads(
-    request: Request,
     identity_id: int = Query(...),
     top_filter: str = Query(
         "recent",

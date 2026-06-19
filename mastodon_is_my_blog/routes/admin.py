@@ -1,11 +1,14 @@
 # mastodon_is_my_blog/routes/admin.py
 import logging
+import os
+import secrets
 from typing import Literal
 
 from fastapi import Depends, HTTPException
 from fastapi import Query as QueryParam
 from fastapi import Request
 from fastapi.routing import APIRouter
+from mastodon import Mastodon
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -14,6 +17,7 @@ from mastodon_is_my_blog.account_config import (
     build_unique_account_name,
     list_account_summaries,
     normalize_account_name,
+    normalize_base_url,
     set_account_credentials,
     upsert_configured_account,
 )
@@ -46,6 +50,7 @@ from mastodon_is_my_blog.store import (
     MastodonIdentity,
     MetaAccount,
     async_session,
+    create_oauth_pending_connection,
     get_last_sync,
     sync_configured_identities,
 )
@@ -316,22 +321,18 @@ async def list_identities(meta: MetaAccount = Depends(get_current_meta_account))
         return [{"id": i.id, "acct": i.acct, "base_url": i.api_base_url} for i in res]
 
 
-@router.post("/identities")
-async def add_identity(
+async def persist_identity(
+    meta: MetaAccount,
     base_url: str,
-    code: str,
     client_id: str,
     client_secret: str,
-    meta: MetaAccount = Depends(get_current_meta_account),
-):
+    access_token: str,
+    me: dict,
+) -> dict:
     """
-    Exchanges code for token and saves identity.
-    (Simplified OAuth flow - normally requires redirect)
+    Saves a verified Mastodon login (however it was obtained — code exchange,
+    pasted API keys, etc.) as a new or updated identity for the meta account.
     """
-    # Create temp client to exchange code
-    m = client(base_url=base_url, client_id=client_id, client_secret=client_secret)
-    access_token = m.log_in(code=code, scopes=["read", "write"])
-    me = m.account_verify_credentials()
     existing_names = {summary.name for summary in list_account_summaries()}
     preferred_name = normalize_account_name(me["acct"])
     config_name = build_unique_account_name(preferred_name, existing_names)
@@ -354,6 +355,100 @@ async def add_identity(
         new_id.account_id = str(me["id"])
         await session.commit()
     return {"status": "created", "acct": me["acct"]}
+
+
+@router.post("/identities")
+async def add_identity(
+    base_url: str,
+    code: str,
+    client_id: str,
+    client_secret: str,
+    meta: MetaAccount = Depends(get_current_meta_account),
+):
+    """
+    Exchanges code for token and saves identity.
+    (Simplified OAuth flow - normally requires redirect)
+    """
+    # Create temp client to exchange code
+    m = client(base_url=base_url, client_id=client_id, client_secret=client_secret)
+    access_token = m.log_in(code=code, scopes=["read", "write"])
+    me = m.account_verify_credentials()
+    return await persist_identity(
+        meta, base_url, client_id, client_secret, access_token, me
+    )
+
+
+class OAuthStartRequest(BaseModel):
+    base_url: str
+
+
+@router.post("/identities/oauth/start")
+async def start_identity_oauth(
+    payload: OAuthStartRequest,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """
+    Registers a new OAuth app on the target Mastodon instance and returns
+    the authorize URL to redirect the user to. The app credentials are
+    stashed server-side, keyed by `state`, until the callback completes.
+    """
+    base_url = normalize_base_url(payload.base_url)
+    redirect_uri = f"{os.environ['APP_BASE_URL']}/auth/callback"
+
+    client_id, client_secret = Mastodon.create_app(
+        client_name="mastodon_is_my_blog",
+        scopes=["read", "write"],
+        redirect_uris=redirect_uri,
+        api_base_url=base_url,
+    )
+
+    state = secrets.token_urlsafe(32)
+    await create_oauth_pending_connection(
+        state=state,
+        meta_account_id=meta.id,
+        base_url=base_url,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
+
+    m = client(base_url=base_url, client_id=client_id, client_secret=client_secret)
+    authorize_url = m.auth_request_url(
+        redirect_uris=redirect_uri, scopes=["read", "write"], state=state
+    )
+    return {"authorize_url": authorize_url}
+
+
+class AddIdentityApiKeyRequest(BaseModel):
+    base_url: str
+    client_id: str
+    client_secret: str
+    access_token: str
+
+
+@router.post("/identities/api-key")
+async def add_identity_api_key(
+    payload: AddIdentityApiKeyRequest,
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """
+    Adds an identity from manually pasted API keys (no OAuth redirect).
+    """
+    base_url = normalize_base_url(payload.base_url)
+    m = client(
+        base_url=base_url,
+        client_id=payload.client_id,
+        client_secret=payload.client_secret,
+        access_token=payload.access_token,
+    )
+    me = m.account_verify_credentials()
+    return await persist_identity(
+        meta,
+        base_url,
+        payload.client_id,
+        payload.client_secret,
+        payload.access_token,
+        me,
+    )
 
 
 @router.get("/status")
@@ -834,12 +929,10 @@ async def cancel_catchup(
     Signal the running catch-up job to stop between accounts.
     Returns 404 if no running job exists.
     """
-    from mastodon_is_my_blog.catchup_runner import (
-        cancel_job,  # pylint: disable=reimported,redefined-outer-name
-    )
+    from mastodon_is_my_blog.catchup_runner import cancel_job as cancel_catchup_job
 
     identity = await _get_identity(meta, identity_id)
-    cancelled = cancel_job(meta.id, identity.id)
+    cancelled = cancel_catchup_job(meta.id, identity.id)
     if not cancelled:
         raise HTTPException(404, "No running catch-up job for this identity")
     return {"cancelled": True}

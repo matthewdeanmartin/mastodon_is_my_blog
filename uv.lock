@@ -1776,6 +1776,7 @@ dependencies = [
     { name = "pip-system-certs" },
     { name = "platformdirs" },
     { name = "python-dotenv" },
+    { name = "pytz" },
     { name = "scikit-learn" },
     { name = "spacy", marker = "python_full_version < '3.14'" },
     { name = "sqlalchemy" },
@@ -1852,6 +1853,7 @@ requires-dist = [
     { name = "pip-system-certs", specifier = ">=5.3" },
     { name = "platformdirs", specifier = ">=4.0" },
     { name = "python-dotenv", specifier = ">=1.0" },
+    { name = "pytz", specifier = ">=2025.2" },
     { name = "scikit-learn", specifier = ">=1.4" },
     { name = "spacy", marker = "python_full_version < '3.14'", specifier = ">=3.7" },
     { name = "sqlalchemy", specifier = ">=2.0" },
@@ -3114,6 +3116,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/4e/8d/a762be14dae1c3bf280202ba3172020b2b0b4c537f94427435f19c413b72/pytokens-0.3.0.tar.gz", hash = "sha256:2f932b14ed08de5fcf0b391ace2642f858f1394c0857202959000b68ed7a458a", size = 17644, upload-time = "2025-11-05T13:36:35.34Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/84/25/d9db8be44e205a124f6c98bc0324b2bb149b7431c53877fc6d1038dddaf5/pytokens-0.3.0-py3-none-any.whl", hash = "sha256:95b2b5eaf832e469d141a378872480ede3f251a5a5041b8ec6e581d3ac71bbf3", size = 12195, upload-time = "2025-11-05T13:36:33.183Z" },
+]
+
+[[package]]
+name = "pytz"
+version = "2026.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ff/46/dd499ec9038423421951e4fad73051febaa13d2df82b4064f87af8b8c0c3/pytz-2026.2.tar.gz", hash = "sha256:0e60b47b29f21574376f218fe21abc009894a2321ea16c6754f3cad6eb7cdd6a", size = 320861, upload-time = "2026-05-04T01:35:29.667Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ec/dd/96da98f892250475bdf2328112d7468abdd4acc7b902b6af23f4ed958ea0/pytz-2026.2-py2.py3-none-any.whl", hash = "sha256:04156e608bee23d3792fd45c94ae47fae1036688e75032eea2e3bf0323d1f126", size = 510141, upload-time = "2026-05-04T01:35:27.408Z" },
 ]
 
 [[package]]

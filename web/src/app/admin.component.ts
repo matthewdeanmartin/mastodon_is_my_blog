@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { ApiService } from './api.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ConnectAccountComponent } from './connect-account.component';
 import {
   AdminStatus,
   CatchupStatus,
@@ -32,7 +33,7 @@ interface BundleEditState {
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ConnectAccountComponent],
   templateUrl: 'admin.component.html',
 })
 export class AdminComponent implements OnInit, OnDestroy {
@@ -96,6 +97,23 @@ export class AdminComponent implements OnInit, OnDestroy {
 
   refreshStatus() {
     this.api.getAdminStatus().subscribe((s) => (this.status = s));
+  }
+
+  // --- Connect Account ---
+
+  showConnectAccount = false;
+
+  openConnectAccount(): void {
+    this.showConnectAccount = true;
+  }
+
+  closeConnectAccount(): void {
+    this.showConnectAccount = false;
+  }
+
+  onAccountConnected(): void {
+    this.showConnectAccount = false;
+    this.refreshStatus();
   }
 
   sync() {

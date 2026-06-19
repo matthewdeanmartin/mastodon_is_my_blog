@@ -5,7 +5,14 @@
 - Node.js and npm (for Angular frontend)
 - A Mastodon account
 
-## Step 1: Register Your Application on Mastodon
+## Step 1: Register Your Application on Mastodon (optional)
+
+If you plan to connect via OAuth (the recommended path — see Step 4), MIMB
+registers the application on your instance automatically and you can skip
+this step entirely.
+
+This manual step is only needed if you want to add an account by pasting API
+keys directly instead:
 
 1. Log into your Mastodon instance (e.g., mastodon.social)
 2. Go to Settings → Development → New Application
@@ -62,10 +69,10 @@
 ## Step 4: Connect and Use
 
 1. Open http://localhost:4200 in your browser
-2. If you did not enter an access token during `init`, click "Connect Mastodon"
-3. Authorize the application on Mastodon
-4. You'll be redirected back to your blog console
-5. Start writing and publishing posts!
+2. If you did not enter an access token during `init`, click "Connect Account" in the top bar (or on the Admin page)
+3. Choose **OAuth** (type your instance URL, authorize on Mastodon, and you're redirected back) or **Paste API keys** (enter the client ID, client secret, and access token directly) — both work, and you can mix them across accounts
+4. Start writing and publishing posts!
+5. Click "Connect Another Account" any time to add more of your own Mastodon accounts — there's no limit, and the button stays available after the first account is connected.
 
 ## Features
 
@@ -87,11 +94,12 @@
 Make sure both frontend and backend URLs match where you're actually running the servers.
 
 ### Authentication Not Working
-1. Re-run `uv run mastodon_is_my_blog init` and double-check your client ID and secret
-2. Verify the redirect URI in Mastodon matches exactly: `http://localhost:8000/auth/callback`
-3. Check that you selected `read` and `write` scopes
+1. If you connected via OAuth, try "Connect Account" again — a stuck connection attempt expires after an hour
+2. If you connected by pasting API keys, re-run `uv run mastodon_is_my_blog init` (or re-paste the keys) and double-check your client ID and secret
+3. Verify `APP_BASE_URL` is set correctly so the redirect URI matches what your Mastodon instance expects: `<APP_BASE_URL>/auth/callback`
+4. Check that you selected `read` and `write` scopes
 
 ### Posts Not Loading
-1. Ensure you're authenticated (click Connect Mastodon if you skipped the token during setup)
+1. Ensure you're authenticated (click Connect Account if you skipped the token during setup)
 2. Check the browser console for errors
 3. Verify your backend is running on port 8000
