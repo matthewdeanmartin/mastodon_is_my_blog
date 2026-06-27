@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
+  <title id="title">Your Mastodon, as a blog</title>
+  <desc id="description">An indigo demonstration card for Mastodon is My Blog Lite</desc>
+  <rect width="1200" height="675" fill="#e0e7ff"/>
+  <circle cx="1030" cy="120" r="180" fill="#c7d2fe"/>
+  <circle cx="140" cy="610" r="240" fill="#c7d2fe"/>
+  <text x="600" y="300" text-anchor="middle" font-family="system-ui, sans-serif" font-size="76" font-weight="700" fill="#312e81">Your Mastodon,</text>
+  <text x="600" y="400" text-anchor="middle" font-family="system-ui, sans-serif" font-size="76" font-weight="700" fill="#4f46e5">as a blog.</text>
+</svg>
