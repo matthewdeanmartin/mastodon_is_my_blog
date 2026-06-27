@@ -6,7 +6,7 @@
     "start": "ng serve web",
     "build": "ng build web",
     "build:lite": "ng build lite",
-    "build:lite:pages": "ng build lite --base-href /mimb_lite/",
+    "build:lite:pages": "ng build lite --base-href /mastodon_is_my_blog/mimb_lite/",
     "start:lite": "ng serve lite",
     "watch": "ng build web --watch --configuration development",
     "test": "ng test web",
