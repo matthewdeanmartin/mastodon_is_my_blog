@@ -32,8 +32,10 @@ from mastodon_is_my_blog.routes import (
 )
 from mastodon_is_my_blog.routes.admin import persist_identity
 from mastodon_is_my_blog.static_files import get_static_dir
+from mastodon_is_my_blog import tenancy
 from mastodon_is_my_blog.store import (
     consume_oauth_pending_connection,
+    get_meta_account_by_id,
     get_or_create_default_meta_account,
     get_token,
     init_db,
@@ -55,10 +57,17 @@ dotenv.load_dotenv()
 async def lifespan(_: FastAPI):
     # Startup: Initialize database
     await init_db()
-    # Ensure default user exists for local dev
-    await get_or_create_default_meta_account()
-    # Sync configured identities from persistent config and env
-    await sync_configured_identities()
+    if tenancy.is_server_mode():
+        # Hosted mode: fail fast on missing config. Tenants (MetaAccounts)
+        # are created per authenticated session, not at startup, and the
+        # keyring/accounts.json config paths are single-machine constructs
+        # that must not be consulted here.
+        tenancy.check_server_mode_env()
+    else:
+        # Single-user mode: ensure the default user exists and mirror
+        # identities from persistent config and env
+        await get_or_create_default_meta_account()
+        await sync_configured_identities()
 
     # Verify all identities (updates acct/account_id from API)
     await verify_all_identities()
@@ -114,9 +123,16 @@ app.include_router(writing.posts_router)
 app.include_router(writing.drafts_router)
 
 # Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+def allowed_origins() -> list[str]:
+    """Single-user mode allows local dev servers; server mode is locked to
+    ALLOWED_ORIGINS (comma-separated), defaulting to APP_BASE_URL."""
+    if tenancy.is_server_mode():
+        configured = os.environ.get("ALLOWED_ORIGINS", "")
+        origins = [origin.strip() for origin in configured.split(",") if origin.strip()]
+        if not origins and os.environ.get("APP_BASE_URL"):
+            origins = [os.environ["APP_BASE_URL"].rstrip("/")]
+        return origins
+    return [
         "http://localhost:4200",
         "http://localhost:8080",
         "http://localhost:3000",
@@ -125,7 +141,12 @@ app.add_middleware(
         "http://127.0.0.1:8080",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
-    ],
+    ]
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -159,14 +180,22 @@ async def callback(code: str, state: str):
     )
     verified_me = m.account_verify_credentials()
 
-    meta = await get_or_create_default_meta_account()
+    # Bind the identity to the tenant that STARTED the flow, not the default
+    # account — pending.meta_account_id was set from the session at /oauth/start.
+    meta = await get_meta_account_by_id(pending.meta_account_id)
+    if meta is None:
+        raise HTTPException(400, "Tenant for this OAuth flow no longer exists")
     await persist_identity(
         meta, pending.base_url, pending.client_id, pending.client_secret, access_token, verified_me
     )
 
     frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:4200")
-    await sync_accounts_friends_followers()
-    await sync_user_timeline(force=True)
+    if not tenancy.is_server_mode():
+        # Single-user mode: kick an inline first sync for instant gratification.
+        # Server mode: the sync worker owns scheduling; inline sync here would
+        # run against the wrong tenant (these are default-account wrappers).
+        await sync_accounts_friends_followers()
+        await sync_user_timeline(force=True)
     return RedirectResponse(url=f"{frontend_url}/#/admin")
 
 

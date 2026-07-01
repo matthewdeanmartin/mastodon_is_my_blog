@@ -75,18 +75,6 @@ def make_meta() -> list:
     ]
 
 
-class FakeState:
-    nlp = None
-
-
-class FakeApp:
-    state = FakeState()
-
-
-class FakeRequest:
-    app = FakeApp()
-
-
 async def build_thread_summaries_from_session(
     db_session, meta_id: int, identity_id: int
 ) -> list[dict]:
@@ -203,7 +191,6 @@ async def call_endpoint(
 
     meta = SimpleNamespace(id=META_ID, username="test-meta")
     return await get_forum_threads(
-        request=FakeRequest(),
         identity_id=1,
         top_filter=top_filter,
         hashtag=hashtag or [],

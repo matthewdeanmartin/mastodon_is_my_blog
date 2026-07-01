@@ -11,6 +11,7 @@ from sqlalchemy import Integer, and_, false, func, outerjoin, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from mastodon_is_my_blog import tenancy
 from mastodon_is_my_blog.datetime_helpers import utc_now
 from mastodon_is_my_blog.inspect_post import analyze_content_domains
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
@@ -37,10 +38,37 @@ dotenv.load_dotenv()
 
 async def get_current_meta_account(request: Request) -> MetaAccount:
     """
-    Identifies the Meta Account.
-    In a real app, this would verify a JWT or Session Cookie.
-    Here, we default to the 'default' user or read a header X-Meta-Account-ID.
+    Resolve the tenant (MetaAccount) for this request.
+
+    Server mode (MIMB_MODE=server): requires a valid ``mimb_session`` cookie
+    issued by the mimb_co control plane; the tenant_id claim maps to a
+    MetaAccount here (created lazily — the control plane has already
+    authenticated and billed the user).
+
+    Single-user mode (default): the self-hosted install. No sign-in; falls
+    back to the 'default' account. The X-Meta-Account-ID header override is
+    kept for multi-user testing only.
     """
+    if tenancy.is_server_mode():
+        cookie = request.cookies.get(tenancy.SESSION_COOKIE_NAME)
+        if not cookie:
+            raise HTTPException(401, "Not signed in")
+        try:
+            claims = tenancy.verify_session_token(cookie)
+        except tenancy.SessionValidationError as exc:
+            raise HTTPException(401, "Invalid or expired session") from exc
+
+        async with async_session() as session:
+            username = tenancy.tenant_username(claims.tenant_id)
+            stmt = select(MetaAccount).where(MetaAccount.username == username)
+            meta = (await session.execute(stmt)).scalar_one_or_none()
+            if meta is None:
+                meta = MetaAccount(username=username)
+                session.add(meta)
+                await session.commit()
+                await session.refresh(meta)
+            return meta
+
     async with async_session() as session:
         # Simple header check for multi-user test capability
         header_id = request.headers.get("X-Meta-Account-ID")

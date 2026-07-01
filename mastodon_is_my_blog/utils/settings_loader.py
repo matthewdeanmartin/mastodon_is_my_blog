@@ -105,6 +105,15 @@ def resolve_identity_config(
     *,
     base_url: str | None = None,
 ) -> IdentityConfig | None:
+    # Keyring/accounts.json are single-machine constructs. In hosted
+    # (server) mode every credential lives on the identity's DB row; the
+    # base_url fallback below could otherwise hand one tenant credentials
+    # configured for a different account on the same instance.
+    from mastodon_is_my_blog.tenancy import is_server_mode
+
+    if is_server_mode():
+        return None
+
     configured_identities = load_configured_identities()
     if config_name and config_name in configured_identities:
         return configured_identities[config_name]

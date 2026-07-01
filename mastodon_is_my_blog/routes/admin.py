@@ -54,6 +54,7 @@ from mastodon_is_my_blog.store import (
     get_last_sync,
     sync_configured_identities,
 )
+from mastodon_is_my_blog.tenancy import is_server_mode
 from mastodon_is_my_blog.utils.perf import (
     card_timings,
     feed_timings,
@@ -332,7 +333,39 @@ async def persist_identity(
     """
     Saves a verified Mastodon login (however it was obtained — code exchange,
     pasted API keys, etc.) as a new or updated identity for the meta account.
+
+    Server mode writes the identity straight to the tenant's DB rows: the
+    keyring/accounts.json path below is a single-machine construct that would
+    mix every tenant's credentials into one OS keyring.
     """
+    if is_server_mode():
+        async with async_session() as session:
+            stmt = select(MastodonIdentity).where(
+                MastodonIdentity.meta_account_id == meta.id,
+                MastodonIdentity.api_base_url == base_url,
+                MastodonIdentity.acct == me["acct"],
+            )
+            identity = (await session.execute(stmt)).scalar_one_or_none()
+            if identity is None:
+                identity = MastodonIdentity(
+                    meta_account_id=meta.id,
+                    config_name=None,
+                    api_base_url=base_url,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    access_token=access_token,
+                    acct=me["acct"],
+                    account_id=str(me["id"]),
+                )
+                session.add(identity)
+            else:
+                identity.client_id = client_id
+                identity.client_secret = client_secret
+                identity.access_token = access_token
+                identity.account_id = str(me["id"])
+            await session.commit()
+        return {"status": "created", "acct": me["acct"]}
+
     existing_names = {summary.name for summary in list_account_summaries()}
     preferred_name = normalize_account_name(me["acct"])
     config_name = build_unique_account_name(preferred_name, existing_names)

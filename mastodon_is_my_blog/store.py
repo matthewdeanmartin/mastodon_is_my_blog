@@ -28,6 +28,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from mastodon_is_my_blog.account_config import normalize_base_url
 from mastodon_is_my_blog.credentials import set_credential
 from mastodon_is_my_blog.datetime_helpers import utc_now
+from mastodon_is_my_blog.secret_columns import EncryptedString
 from mastodon_is_my_blog.utils.settings_loader import (
     load_configured_identities,
     resolve_identity_config,
@@ -108,8 +109,9 @@ class MastodonIdentity(Base):
     # Credential Details
     api_base_url: Mapped[str] = mapped_column(String)  # e.g. https://mastodon.social
     client_id: Mapped[str] = mapped_column(String)
-    client_secret: Mapped[str] = mapped_column(String)
-    access_token: Mapped[str] = mapped_column(String)
+    # Encrypted at rest when TOKEN_ENCRYPTION_KEY is set (see secret_columns.py)
+    client_secret: Mapped[str] = mapped_column(EncryptedString)
+    access_token: Mapped[str] = mapped_column(EncryptedString)
 
     # Account Info
     acct: Mapped[str] = mapped_column(String)  # user@instance
@@ -134,7 +136,8 @@ class OAuthPendingConnection(Base):
     meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"))
     base_url: Mapped[str] = mapped_column(String)
     client_id: Mapped[str] = mapped_column(String)
-    client_secret: Mapped[str] = mapped_column(String)
+    # Encrypted at rest when TOKEN_ENCRYPTION_KEY is set (see secret_columns.py)
+    client_secret: Mapped[str] = mapped_column(EncryptedString)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
@@ -640,6 +643,12 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await ensure_cached_posts_schema()
+
+
+async def get_meta_account_by_id(meta_account_id: int) -> MetaAccount | None:
+    async with async_session() as session:
+        stmt = select(MetaAccount).where(MetaAccount.id == meta_account_id)
+        return (await session.execute(stmt)).scalar_one_or_none()
 
 
 async def get_or_create_default_meta_account() -> MetaAccount:

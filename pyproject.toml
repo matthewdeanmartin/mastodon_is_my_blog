@@ -39,7 +39,10 @@ dependencies = [
     "wordfreq>=3.0",
     "spacy>=3.7; python_version < '3.14'",
     "scikit-learn>=1.4",
-    "pytz>=2025.2"
+    "pytz>=2025.2",
+    # hosted (server-mode) tenancy: session validation + token encryption at rest
+    "pyjwt>=2.8",
+    "cryptography>=42.0",
 ]
 
 [project.optional-dependencies]
