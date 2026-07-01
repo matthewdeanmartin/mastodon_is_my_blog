@@ -43,12 +43,12 @@ async def verify_identity(identity_id: int) -> bool:
             identity.account_id = str(me["id"])
 
             await session.commit()
-            logger.info("Verified identity {identity_id}: %s", me["acct"])
+            logger.info("Verified identity %s: %s", identity_id, me["acct"])
             return True
 
         except Exception as e:
             logger.error("Identity verification failed: %s", e)
-            logger.error("Failed to verify identity {identity_id}: %s", e)
+            logger.error("Failed to verify identity %s: %s", identity_id, e)
             return False
 
 

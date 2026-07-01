@@ -126,6 +126,89 @@ async def test_sync_all_identities_aggregates_each_identity_result(
 
 
 @pytest.mark.asyncio
+async def test_sync_all_identities_continues_when_one_identity_fails(
+    db_session,
+    patch_async_session,
+) -> None:
+    patch_async_session(queries)
+    meta = make_meta_account(meta_id=1, username="default")
+    db_session.add(meta)
+    db_session.add_all(
+        [
+            make_identity(identity_id=1, acct="first@example.social"),
+            make_identity(identity_id=2, acct="down@example.social"),
+            make_identity(identity_id=3, acct="third@example.social"),
+        ]
+    )
+    await db_session.commit()
+
+    async def sync_friends_side_effect(meta_id: int, identity) -> None:
+        assert meta_id == 1
+        if identity.acct == "down@example.social":
+            raise RuntimeError("remote down")
+
+    sync_friends_mock = AsyncMock(side_effect=sync_friends_side_effect)
+    sync_blog_roll_mock = AsyncMock()
+    sync_timeline_mock = AsyncMock(
+        side_effect=[
+            {"status": "success", "count": 3},
+            {"status": "success", "count": 5},
+        ]
+    )
+    sync_notifications_mock = AsyncMock(
+        side_effect=[
+            {"mentions": 1},
+            {"mentions": 2},
+        ]
+    )
+    sync_favourites_mock = AsyncMock(
+        side_effect=[
+            {"total": 10, "new": 5},
+            {"total": 20, "new": 8},
+        ]
+    )
+
+    with (
+        patch.object(queries, "sync_friends_for_identity", sync_friends_mock),
+        patch.object(queries, "sync_blog_roll_for_identity", sync_blog_roll_mock),
+        patch.object(queries, "sync_user_timeline_for_identity", sync_timeline_mock),
+        patch.object(queries, "sync_my_favourites_for_identity", sync_favourites_mock),
+        patch(
+            "mastodon_is_my_blog.notification_sync.sync_notifications_for_identity",
+            sync_notifications_mock,
+        ),
+    ):
+        result = await queries.sync_all_identities(meta, force=True)
+
+    assert result == [
+        {
+            "first@example.social": {
+                "timeline": {"status": "success", "count": 3},
+                "notifications": {"mentions": 1},
+                "favourites": {"total": 10, "new": 5},
+            }
+        },
+        {
+            "down@example.social": {
+                "status": "error",
+                "error": "remote down",
+            }
+        },
+        {
+            "third@example.social": {
+                "timeline": {"status": "success", "count": 5},
+                "notifications": {"mentions": 2},
+                "favourites": {"total": 20, "new": 8},
+            }
+        },
+    ]
+    assert sync_blog_roll_mock.await_count == 2
+    assert sync_notifications_mock.await_count == 2
+    assert sync_timeline_mock.await_count == 2
+    assert sync_favourites_mock.await_count == 2
+
+
+@pytest.mark.asyncio
 async def test_sync_friends_for_identity_persists_following_and_followers(
     db_session,
     db_session_factory,

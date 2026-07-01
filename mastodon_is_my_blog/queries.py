@@ -412,36 +412,47 @@ async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[di
 
     results = []
     for identity in identities:
-        # Sync Friends (following/followers)
-        await sync_friends_for_identity(meta.id, identity)
+        try:
+            # Sync Friends (following/followers)
+            await sync_friends_for_identity(meta.id, identity)
 
-        # Sync Blog Roll (home timeline activity)
-        await sync_blog_roll_for_identity(meta.id, identity)
+            # Sync Blog Roll (home timeline activity)
+            await sync_blog_roll_for_identity(meta.id, identity)
 
-        # Sync Notifications (interactions - critical for top friends)
-        from mastodon_is_my_blog.notification_sync import (
-            sync_notifications_for_identity,
-        )
+            # Sync Notifications (interactions - critical for top friends)
+            from mastodon_is_my_blog.notification_sync import (
+                sync_notifications_for_identity,
+            )
 
-        notif_stats = await sync_notifications_for_identity(meta.id, identity)
+            notif_stats = await sync_notifications_for_identity(meta.id, identity)
 
-        # Sync Timeline (own posts)
-        timeline_res = await sync_user_timeline_for_identity(
-            meta.id, identity, force=force
-        )
+            # Sync Timeline (own posts)
+            timeline_res = await sync_user_timeline_for_identity(
+                meta.id, identity, force=force
+            )
 
-        # Sync outbound favourites for Engagement Matrix
-        fav_stats = await sync_my_favourites_for_identity(meta.id, identity)
+            # Sync outbound favourites for Engagement Matrix
+            fav_stats = await sync_my_favourites_for_identity(meta.id, identity)
 
-        results.append(
-            {
-                identity.acct: {
-                    "timeline": timeline_res,
-                    "notifications": notif_stats,
-                    "favourites": fav_stats,
+            results.append(
+                {
+                    identity.acct: {
+                        "timeline": timeline_res,
+                        "notifications": notif_stats,
+                        "favourites": fav_stats,
+                    }
                 }
-            }
-        )
+            )
+        except Exception as e:
+            logger.exception("Failed to sync identity %s", identity.acct)
+            results.append(
+                {
+                    identity.acct: {
+                        "status": "error",
+                        "error": str(e),
+                    }
+                }
+            )
 
     from mastodon_is_my_blog.mastodon_apis.api_log import purge_old_rows
 
