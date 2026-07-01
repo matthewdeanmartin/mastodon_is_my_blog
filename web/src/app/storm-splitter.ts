@@ -15,13 +15,20 @@ export function stormSplit(
 ): DraftNode[] {
   const limit = options.maxChars ?? DEFAULT_LIMIT;
   const addCounter = options.addCounter ?? false;
-  const budget = addCounter ? limit - COUNTER_SUFFIX_LEN : limit;
 
   const text = source.body.trim();
   if (!text) return [{ ...source, mode: 'manual' }];
 
   const segments = splitToSegments(text);
-  const chunks = greedyPack(segments, budget);
+  let reserve = addCounter ? COUNTER_SUFFIX_LEN : 0;
+  let chunks = greedyPack(segments, limit - reserve);
+  // With 10+ chunks the " (nn/NN)" suffix outgrows the default reserve, which
+  // would push chunks past the limit — repack with a bigger reserve until the
+  // widest possible suffix fits.
+  while (addCounter && counterSuffixLen(chunks.length) > reserve) {
+    reserve = counterSuffixLen(chunks.length);
+    chunks = greedyPack(segments, limit - reserve);
+  }
 
   if (chunks.length <= 1) {
     return [{ ...source, body: text, mode: 'manual' }];
@@ -49,6 +56,10 @@ export function chainNodes(nodes: DraftNode[], parentId: string | null): DraftNo
     result[i].parent_client_id = result[i - 1].client_id;
   }
   return result;
+}
+
+function counterSuffixLen(chunkCount: number): number {
+  return ` (${chunkCount}/${chunkCount})`.length;
 }
 
 function splitToSegments(text: string): string[] {

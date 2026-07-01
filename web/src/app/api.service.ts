@@ -72,7 +72,9 @@ class LruCache<T> {
   }
 
   set(key: string, value: T, ttlMs: number): void {
-    if (this.map.size >= this.max) {
+    if (this.map.has(key)) {
+      this.map.delete(key);
+    } else if (this.map.size >= this.max) {
       // Evict least-recently-used (first key in insertion order)
       this.map.delete(this.map.keys().next().value!);
     }

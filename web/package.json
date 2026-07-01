@@ -11,6 +11,7 @@
     "watch": "ng build web --watch --configuration development",
     "test": "ng test web",
     "test:ci": "ng test web --no-watch --coverage",
+    "test:integration": "ng test web --configuration integration --no-watch",
     "lint": "ng lint web",
     "dead-code": "knip"
   },

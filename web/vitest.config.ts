@@ -5,6 +5,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     include: ['src/**/*.spec.ts'],
+    // Integration specs need a live backend; run them via `npm run test:integration`.
+    exclude: ['**/node_modules/**', 'src/**/*.integration.spec.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

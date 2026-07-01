@@ -1,7 +1,8 @@
 // src/app/forum.component.ts
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { ApiService } from './api.service';
 import { ForumThread, ForumFacets } from './mastodon';
 
@@ -523,8 +524,9 @@ interface ActiveFacets {
     `,
   ],
 })
-export class ForumComponent implements OnInit {
+export class ForumComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
+  private identitySub?: Subscription;
 
   threads: ForumThread[] = [];
   loading = true;
@@ -550,12 +552,21 @@ export class ForumComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    const identityId = this.api.getCurrentIdentityId();
-    if (!identityId) {
-      this.loading = false;
-      return;
-    }
-    this.loadThreads(identityId, false);
+    // Subscribe rather than snapshot: the identity may arrive after init
+    // (async restore) or change while this page is open — reload either way.
+    this.identitySub = this.api.identityId$.subscribe((identityId) => {
+      if (!identityId) {
+        this.loading = false;
+        return;
+      }
+      this.threads = [];
+      this.nextCursor = null;
+      this.loadThreads(identityId, false);
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.identitySub?.unsubscribe();
   }
 
   setFilter(filter: string): void {

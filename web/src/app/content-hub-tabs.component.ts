@@ -173,7 +173,11 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
   refreshing = false;
   groupName: string | null = null;
   currentFilter: ContentFeedFilter = 'recent';
-  readonly filters = contentFeedFilters;
+  // Group posts are cached hashtag fetches with no follow-scope info, so the
+  // Following/Everyone user filters cannot apply here — only sort orders can.
+  readonly filters = contentFeedFilters.filter(
+    (f) => f.value === 'recent' || f.value === 'popular',
+  );
 
   nextCursor: string | null = null;
   cursorStack: string[] = []; // cursors for already-visited pages (enables Prev)
@@ -214,7 +218,7 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (res) => {
-          this.posts = res.items.map(hubToFeedPost);
+          this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
           this.nextCursor = res.next_cursor ?? null;
           this.loading = false;
         },

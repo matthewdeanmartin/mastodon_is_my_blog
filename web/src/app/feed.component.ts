@@ -422,7 +422,17 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private updateUnreadCount(): void {
-    this.unreadCount = this.items.length - this.seenPostIds.size;
+    // Count individual posts (storm roots + branches), not feed items, and
+    // only subtract seen ids that actually belong to the current feed.
+    let unread = 0;
+    for (const item of this.items) {
+      const ids =
+        'root' in item ? [item.root.id, ...(item.branches ?? []).map((b) => b.id)] : [item.id];
+      for (const id of ids) {
+        if (!this.seenPostIds.has(id)) unread++;
+      }
+    }
+    this.unreadCount = unread;
   }
 
   private trackSeenPosts(data: (RawContentPost | Storm)[], localBaseUrl: string | null): void {
@@ -442,9 +452,15 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     // Build view models now (before seen state arrives, isRead = false for new items).
     this.buildViewModels(data, localBaseUrl);
 
+    if (postIds.length === 0) return;
+
     this.api.getSeenPosts(postIds).subscribe({
       next: (res) => {
-        this.seenPostIds = new Set<string>(res.seen);
+        // Merge — replacing the set would drop seen state for posts from
+        // earlier pages (loadMore only queries the newest page's ids).
+        for (const id of res.seen) {
+          this.seenPostIds.add(id);
+        }
         this.rebuildReadState();
         this.updateUnreadCount();
         this.cdr.markForCheck();

@@ -337,6 +337,74 @@ describe('ApiService', () => {
     });
   });
 
+  describe('Route Cache', () => {
+    it('serves a repeated getPublicPosts call from cache (single request)', () => {
+      service.getPublicPosts(1, 'all').subscribe();
+      const req = httpMock.expectOne((r) => r.url.includes('/api/posts'));
+      req.flush({ items: [], next_cursor: null });
+
+      let secondResult: unknown = null;
+      service.getPublicPosts(1, 'all').subscribe((r) => (secondResult = r));
+
+      httpMock.expectNone((r) => r.url.includes('/api/posts'));
+      expect(secondResult).toEqual({ items: [], next_cursor: null });
+    });
+
+    it('does not share cache entries across different params', () => {
+      service.getPublicPosts(1, 'all').subscribe();
+      service.getPublicPosts(2, 'all').subscribe();
+
+      const requests = httpMock.match((r) => r.url.includes('/api/posts'));
+      expect(requests.length).toBe(2);
+      requests.forEach((r) => r.flush({ items: [], next_cursor: null }));
+    });
+
+    it('clears the cache when refreshNeeded$ fires (e.g. after a sync)', () => {
+      service.getPublicPosts(1, 'all').subscribe();
+      httpMock.expectOne((r) => r.url.includes('/api/posts')).flush({ items: [], next_cursor: null });
+
+      service.refreshNeeded$.next();
+
+      service.getPublicPosts(1, 'all').subscribe();
+      const req = httpMock.expectOne((r) => r.url.includes('/api/posts'));
+      req.flush({ items: [], next_cursor: null });
+    });
+  });
+
+  describe('Content Hub', () => {
+    it('sends tab, limit and cursor params for group posts', () => {
+      service.getContentHubGroupPosts(7, 42, 'jobs', 'cursor-1', 50).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url.includes('/api/content-hub/groups/7/posts'));
+      expect(req.request.params.get('identity_id')).toBe('42');
+      expect(req.request.params.get('tab')).toBe('jobs');
+      expect(req.request.params.get('limit')).toBe('50');
+      expect(req.request.params.get('before')).toBe('cursor-1');
+      expect(req.request.params.get('shuffle')).toBeNull();
+      req.flush({ items: [], next_cursor: null, stale: false, group: {} });
+    });
+
+    it('sends shuffle=true only when requested', () => {
+      service.getContentHubGroupPosts(7, 42, 'text', null, 30, true).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url.includes('/api/content-hub/groups/7/posts'));
+      expect(req.request.params.get('shuffle')).toBe('true');
+      expect(req.request.params.get('before')).toBeNull();
+      req.flush({ items: [], next_cursor: null, stale: false, group: {} });
+    });
+
+    it('does not cache group posts (shuffle must re-hit the server)', () => {
+      service.getContentHubGroupPosts(7, 42).subscribe();
+      httpMock
+        .expectOne((r) => r.url.includes('/api/content-hub/groups/7/posts'))
+        .flush({ items: [], next_cursor: null, stale: false, group: {} });
+
+      service.getContentHubGroupPosts(7, 42).subscribe();
+      const req = httpMock.expectOne((r) => r.url.includes('/api/content-hub/groups/7/posts'));
+      req.flush({ items: [], next_cursor: null, stale: false, group: {} });
+    });
+  });
+
   describe('Health Check', () => {
     it('should verify health check observable exists', () => {
       expect(service.serverDown$).toBeDefined();

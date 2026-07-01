@@ -83,7 +83,18 @@
             ],
             "include": [
               "src/**/*.spec.ts"
+            ],
+            "exclude": [
+              "src/**/*.integration.spec.ts"
             ]
+          },
+          "configurations": {
+            "integration": {
+              "include": [
+                "src/**/*.integration.spec.ts"
+              ],
+              "exclude": []
+            }
           }
         },
         "lint": {

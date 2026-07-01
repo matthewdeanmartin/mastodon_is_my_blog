@@ -9,7 +9,7 @@ application_derive_data:
 application_detach:
 	echo
 
-.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend lint lint-backend lint-frontend lint-frontend-strict audit-backend prerelease prerelease-backend prerelease-frontend clean setup db-reset
+.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend test-frontend-integration lint lint-backend lint-frontend lint-frontend-strict audit-backend prerelease prerelease-backend prerelease-frontend clean setup db-reset
 
 # Default target
 help:
@@ -36,9 +36,11 @@ help:
 	@echo "  make serve-blog         - Serve the Eleventy blog locally"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make test               - Run all tests"
+	@echo "  make test               - Run all tests (unit only)"
 	@echo "  make test-backend       - Run backend tests"
-	@echo "  make test-frontend      - Run frontend tests"
+	@echo "  make test-frontend      - Run frontend unit tests (no server needed)"
+	@echo "  make test-frontend-integration - Run frontend tests against a live backend"
+	@echo "  make test-integration   - Run mastodon_mock-backed backend integration tests"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean              - Remove build artifacts and caches"
@@ -168,10 +170,18 @@ test-integration:
 	@echo "Running mastodon_mock integration tests..."
 	uv run pytest test_integration -q --tb=short --timeout=30
 
-# Run frontend tests
+# Run frontend unit tests (hermetic — mocked HTTP, no backend needed).
+# Integration specs (src/**/*.integration.spec.ts) are excluded here.
 test-frontend:
-	@echo "Running frontend tests..."
+	@echo "Running frontend unit tests..."
 	cd web && ng test --watch=false
+
+# Run frontend integration tests against a LIVE backend (make dev-backend first).
+# These hit real HTTP endpoints (read-only) and auto-skip if the server at
+# http://localhost:8000 (override with MIMB_API_BASE) is unreachable.
+test-frontend-integration:
+	@echo "Running frontend integration tests (needs a running backend)..."
+	cd web && npm run test:integration
 
 # Lint code
 lint: lint-backend lint-frontend
