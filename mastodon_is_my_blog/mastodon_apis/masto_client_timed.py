@@ -1,4 +1,3 @@
-import json
 import logging
 import time
 from typing import Any
@@ -52,7 +51,9 @@ class TimedMastodonClient:
                 "Mastodon API completed: %s in %.3fs", method_name, elapsed
             )
             try:
-                payload_bytes = len(json.dumps(result, default=str))
+                # Rough size estimate; str() avoids re-serializing large
+                # responses to JSON just to count bytes.
+                payload_bytes = len(str(result))
             except Exception:
                 pass
             return result

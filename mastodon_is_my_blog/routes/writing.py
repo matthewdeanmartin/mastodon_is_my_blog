@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 
@@ -60,7 +61,8 @@ async def edit(
         raise HTTPException(400, "Empty post")
 
     m = client_from_identity(identity)
-    return m.status_update(
+    return await asyncio.to_thread(
+        m.status_update,
         status_id,
         status=payload.status,
         spoiler_text=payload.spoiler_text,
@@ -89,7 +91,8 @@ async def create_post(
         raise HTTPException(400, "Empty post")
 
     m = client_from_identity(identity)
-    resp = m.status_post(
+    resp = await asyncio.to_thread(
+        m.status_post,
         status=payload.status,
         visibility=payload.visibility,
         spoiler_text=payload.spoiler_text,
@@ -293,7 +296,8 @@ async def publish_draft(
             body = node.get("body", "").strip()
             if not body:
                 continue
-            resp = m.status_post(
+            resp = await asyncio.to_thread(
+                m.status_post,
                 status=body,
                 visibility=node.get("visibility", "public"),
                 spoiler_text=node.get("spoiler_text") or None,

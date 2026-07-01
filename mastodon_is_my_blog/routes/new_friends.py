@@ -18,11 +18,17 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 
+from mastodon_is_my_blog.blogroll import (
+    BLOGROLL_CATEGORY_TITLES,
+    BLOGROLL_NOTIFICATION_TYPES,
+    categorize_blogroll_account,
+)
 from mastodon_is_my_blog.datetime_helpers import to_naive_utc, utc_now
 from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
 from mastodon_is_my_blog.queries import get_current_meta_account
 from mastodon_is_my_blog.store import (
     CachedAccount,
+    CachedNotification,
     FriendsOfFriendsCache,
     MastodonIdentity,
     MetaAccount,
@@ -70,38 +76,64 @@ async def _fetch_and_cache(
     """
     Core fetch: get the accounts our friends follow, de-duplicate, and persist to cache.
     """
+    if blog_roll_filter and blog_roll_filter not in BLOGROLL_CATEGORY_TITLES:
+        raise HTTPException(
+            400,
+            f"Unknown blog_roll_filter {blog_roll_filter!r}; "
+            f"expected one of {sorted(BLOGROLL_CATEGORY_TITLES)}",
+        )
+
     client = client_from_identity(identity)
 
     async with async_session() as session:
-        # Get accounts we currently follow — these are our "friends" to expand from
-        if blog_roll_filter:
-            # Only expand from the subset matching the blogroll filter (active, mutuals, etc)
-            # We reuse the same filter logic as the blogroll: fetch all followed accounts
-            # and then let the blogroll filter restrict. For now we fetch all followed and
-            # the max_friends limit controls volume.
-            stmt = select(CachedAccount).where(
+        # Get accounts we currently follow — these are our "friends" to expand
+        # from. Most recently active first so the max_friends slice below
+        # spends its API budget on live accounts, not dormant ones.
+        stmt = (
+            select(CachedAccount)
+            .where(
                 CachedAccount.meta_account_id == meta_id,
                 CachedAccount.mastodon_identity_id == identity.id,
                 CachedAccount.is_following.is_(True),
             )
-        else:
-            stmt = select(CachedAccount).where(
-                CachedAccount.meta_account_id == meta_id,
-                CachedAccount.mastodon_identity_id == identity.id,
-                CachedAccount.is_following.is_(True),
-            )
+            .order_by(CachedAccount.last_status_at.desc().nulls_last())
+        )
         friends = list((await session.execute(stmt)).scalars())
+
+        if friends and blog_roll_filter:
+            # Only expand from friends in the requested blogroll category,
+            # using the same categorization as the blogroll itself.
+            notif_stmt = select(CachedNotification.account_id).where(
+                CachedNotification.meta_account_id == meta_id,
+                CachedNotification.identity_id == identity.id,
+                CachedNotification.type.in_(BLOGROLL_NOTIFICATION_TYPES),
+            )
+            interacted_accounts = {
+                (identity.id, row[0])
+                for row in (await session.execute(notif_stmt)).all()
+            }
+            expandable = [
+                f
+                for f in friends
+                if categorize_blogroll_account(
+                    f, interacted_accounts=interacted_accounts
+                )
+                == blog_roll_filter
+            ]
+        else:
+            expandable = friends
 
     if not friends:
         return []
 
-    # Build a set of account IDs we already follow — used to filter candidates
+    # Build a set of account IDs we already follow — used to filter candidates.
+    # This must cover ALL follows, not just the expandable subset.
     already_following_ids: set[str] = {f.id for f in friends}
     # Also exclude ourselves
     already_following_ids.add(identity.account_id)
 
     # Limit how many friends we expand from (controls API call volume)
-    friends_to_expand = friends[:max_friends]
+    friends_to_expand = expandable[:max_friends]
 
     logger.info(
         "new_friends: expanding %d friends (of %d total follows) for identity %d",
@@ -213,7 +245,7 @@ def _apply_filters(
     for c in candidates:
         if c["id"] in already_following_ids:
             continue
-        if c["statuses_count"] < min_posts:
+        if (c.get("statuses_count") or 0) < min_posts:
             continue
         if c.get("last_status_at"):
             try:

@@ -331,3 +331,33 @@ def test_build_blogroll_export_groups_top_friends_mutuals_and_bots() -> None:
             "last_status_at": "2026-04-08T08:00:00",
         }
     ]
+
+
+def test_bridged_bot_account_can_be_a_top_friend() -> None:
+    """Bridgy-style bridges flag real people as bots; a mutual you interact
+    with belongs in top_friends despite the bot flag."""
+    accounts = [
+        make_account(
+            account_id="bridged-1",
+            acct="pal@bsky.brid.gy",
+            display_name="Bridged Pal",
+            bot=True,
+            is_followed_by=True,
+            last_status_at=datetime(2026, 4, 10, 12, 0, 0),
+        ),
+    ]
+    notifications = [
+        make_notification(
+            notification_id="notif-1",
+            identity_id=1,
+            account_id="bridged-1",
+            account_acct="pal@bsky.brid.gy",
+            created_at=datetime(2026, 4, 10, 12, 5, 0),
+        )
+    ]
+
+    payload = build_blogroll_export(accounts=accounts, notifications=notifications)
+
+    by_id = {category["id"]: category for category in payload["categories"]}
+    assert [a["acct"] for a in by_id["top_friends"]["accounts"]] == ["pal@bsky.brid.gy"]
+    assert by_id["bots"]["accounts"] == []

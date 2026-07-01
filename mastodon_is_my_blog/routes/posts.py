@@ -1,4 +1,5 @@
 # mastodon_is_my_blog/routes/posts.py
+import asyncio
 import base64
 import json
 import logging
@@ -661,10 +662,10 @@ async def get_post_context(post_id: str, identity_id: int = Query(...)):
     try:
         # Mastodon API 'status_context' does the crawling for us
         # It returns 'ancestors' and 'descendants' list
-        context = m.status_context(post_id)
+        context = await asyncio.to_thread(m.status_context, post_id)
 
         # We also need the target post itself
-        target = m.status(post_id)
+        target = await asyncio.to_thread(m.status, post_id)
 
         return {
             "ancestors": context["ancestors"],

@@ -28,22 +28,27 @@ from mastodon_is_my_blog.store import (  # pylint: disable=wrong-import-position
     engine,
 )
 
+from mastodon_is_my_blog.blogroll import (  # pylint: disable=wrong-import-position
+    BLOGROLL_CATEGORY_PRIORITIES,
+    BLOGROLL_CATEGORY_TITLES,
+    BLOGROLL_NOTIFICATION_TYPES,
+    categorize_blogroll_account,
+)
+
+__all__ = [
+    "BLOGROLL_CATEGORY_PRIORITIES",
+    "BLOGROLL_CATEGORY_TITLES",
+    "BLOGROLL_NOTIFICATION_TYPES",
+    "categorize_blogroll_account",
+    "build_blogroll_export",
+    "build_storm_exports",
+]
+
 DEFAULT_MIN_TEXT_LENGTH = 495
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "docs-src" / "src" / "_data" / "storms.json"
 DEFAULT_BLOGROLL_OUTPUT_PATH = (
     PROJECT_ROOT / "docs-src" / "src" / "_data" / "blogroll.json"
 )
-BLOGROLL_NOTIFICATION_TYPES = frozenset({"mention", "favourite", "reblog", "status"})
-BLOGROLL_CATEGORY_TITLES = {
-    "top_friends": "Top Friends",
-    "mutuals": "Mutuals",
-    "bots": "Bots",
-}
-BLOGROLL_CATEGORY_PRIORITIES = {
-    "mutuals": 1,
-    "top_friends": 2,
-    "bots": 3,
-}
 
 
 @dataclass(frozen=True)
@@ -249,25 +254,6 @@ def build_storm_exports(
         "authors": authors,
         "storms": storms,
     }
-
-
-def categorize_blogroll_account(
-    account: CachedAccount,
-    *,
-    interacted_accounts: set[tuple[int, str]],
-) -> str | None:
-    if not account.is_following:
-        return None
-    if account.bot:
-        return "bots"
-    if (
-        account.is_followed_by
-        and (account.mastodon_identity_id, account.id) in interacted_accounts
-    ):
-        return "top_friends"
-    if account.is_followed_by:
-        return "mutuals"
-    return None
 
 
 def build_blogroll_entry(account: CachedAccount) -> dict[str, Any]:
