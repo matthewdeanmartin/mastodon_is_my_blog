@@ -11,7 +11,7 @@ __all__ = [
 ]
 
 __title__ = "mastodon-is-my-blog"
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 __description__ = "A personal Mastodon reader and blog management tool"
 __readme__ = "README.md"
 __requires_python__ = ">=3.12"
