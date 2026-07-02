@@ -116,7 +116,7 @@ dev-frontend:
 # Build Angular frontend for production only (no Python wheel)
 build:
 	@echo "Building Angular frontend for production..."
-	cd web && ng build --configuration production
+	cd web && ng build web --configuration production
 	@echo "✓ Build complete: web/dist/"
 
 # Build Angular + Python distributions (full distribution build)

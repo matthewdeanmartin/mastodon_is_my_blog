@@ -30,7 +30,7 @@ if [ "$SKIP_NG" = false ]; then
   cd "${REPO_ROOT}/web"
   pwd
   npm ci # --prefer-offline
-  npx ng build --configuration production
+  npx ng build web --configuration production
   cd "${REPO_ROOT}"
   echo "    Angular build complete."
 else
@@ -42,7 +42,7 @@ echo ""
 echo "==> Step 2: Verifying Angular output in mastodon_is_my_blog/static/browser/ ..."
 if [ ! -d "${STATIC_DEST}" ]; then
   echo "ERROR: Angular output not found: ${STATIC_DEST}"
-  echo "       Run without --skip-ng, or: cd web && ng build --configuration production"
+  echo "       Run without --skip-ng, or: cd web && ng build web --configuration production"
   exit 1
 fi
 

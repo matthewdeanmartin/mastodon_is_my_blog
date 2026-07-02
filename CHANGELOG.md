@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Write tab no longer defaults the reply/post account to the first connected identity, ignoring the account active in the top bar — it now always posts as the active account, with no separate account picker.
-- "My Blog" header and default home view no longer get stuck on whichever identity happened to load first — they now always track the account actually selected in the top bar.
-- Drafts were leaking across every connected account (any account could see, open, edit, and delete any other account's drafts) — draft list/get/update/delete/publish now require and enforce a matching `identity_id`.
+- Write tab no longer defaults the reply/post account to the first connected identity, ignoring the account active in
+  the top bar — it now always posts as the active account, with no separate account picker.
+- "My Blog" header and default home view no longer get stuck on whichever identity happened to load first — they now
+  always track the account actually selected in the top bar.
+- Drafts were leaking across every connected account (any account could see, open, edit, and delete any other account's
+  drafts) — draft list/get/update/delete/publish now require and enforce a matching `identity_id`.
 
 ## [0.4.0] - 2026-05-03
 
@@ -60,7 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Page to post single content
 
 [0.1.0]: https://github.com/matthewdeanmartin/mastodon_is_my_blog/releases/tag/v0.1.0
+
 [0.2.0]: https://github.com/matthewdeanmartin/mastodon_is_my_blog/compare/v0.1.0...v0.2.0
+
 [0.3.0]: https://github.com/matthewdeanmartin/mastodon_is_my_blog/compare/v0.2.0...v0.3.0
+
 [0.4.0]: https://github.com/matthewdeanmartin/mastodon_is_my_blog/compare/v0.3.0...v0.4.0
+
 [unreleased]: https://github.com/matthewdeanmartin/mastodon_is_my_blog/compare/v0.4.0...HEAD
