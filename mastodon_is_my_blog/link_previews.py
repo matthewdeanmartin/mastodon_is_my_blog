@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import logging
 import re
 import socket
 from datetime import datetime, timedelta, timezone
@@ -23,6 +24,7 @@ from mastodon_is_my_blog.utils.perf import (
 )
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 
 MAX_BYTES = 512_000  # hard cap on HTML bytes read (512KB)
 CONNECT_TIMEOUT = 3.0
@@ -376,6 +378,12 @@ async def _coalesced_fetch(url: str, url_key: str, start: float) -> CardResponse
         status = "blocked" if exc.status_code == 400 else "error"
         await _persist_error(url_key, status, str(exc.detail))
         future.set_exception(exc)
+        # The initiating request raises directly instead of awaiting this
+        # coalescing future. Retrieve its exception so asyncio does not emit a
+        # "Future exception was never retrieved" traceback when there were no
+        # concurrent waiters.
+        future.exception()
+        logger.debug("Link preview unavailable for %s: %s", url_key, exc.detail)
         raise
     except Exception as exc:
         elapsed = _time.perf_counter() - start
@@ -384,6 +392,8 @@ async def _coalesced_fetch(url: str, url_key: str, start: float) -> CardResponse
         await _persist_error(url_key, "error", str(exc))
         http_exc = HTTPException(502, "Upstream fetch failed.")
         future.set_exception(http_exc)
+        future.exception()
+        logger.debug("Link preview unavailable for %s: %s", url_key, exc)
         raise http_exc from exc
     finally:
         _inflight.pop(url_key, None)

@@ -568,7 +568,11 @@ export interface NewFriendsCandidatesResponse {
   offset: number;
   limit: number;
   cache_hit: boolean;
+  cache_fresh: boolean;
   fetched_at: string | null;
+  scan_complete: boolean;
+  scanned_friends: number;
+  total_friends: number;
 }
 
 export interface NewFriendsParams {

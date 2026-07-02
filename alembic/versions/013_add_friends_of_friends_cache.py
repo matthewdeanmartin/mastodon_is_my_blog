@@ -16,6 +16,9 @@ depends_on = None
 
 
 def upgrade() -> None:
+    inspector = sa.inspect(op.get_bind())
+    if "friends_of_friends_cache" in inspector.get_table_names():
+        return
     op.create_table(
         "friends_of_friends_cache",
         sa.Column(

@@ -59,7 +59,6 @@ async def fetch_account_info(
     }
 
 
-STORM_MIN_TEXT_LEN = 500
 DEFAULT_PAGE_LIMIT = 30
 MAX_PAGE_LIMIT = 100
 
@@ -143,7 +142,7 @@ async def get_public_posts(
         "all",
         enum=[
             "all",
-            "storm",
+            "storms",
             "shorts",
             "discussions",
             "messages",
@@ -232,15 +231,27 @@ async def get_public_posts(
                 and_(CachedPost.is_reblog.is_(False), CachedPost.is_reply.is_(False))
             )
         elif filter_type == "storms":
-            # not implemented yet!
-            # should match get_storms method
-            pass
+            child = CachedPost.__table__.alias("storm_child")
+            query = query.where(
+                CachedPost.is_reblog.is_(False),
+                CachedPost.in_reply_to_id.is_(None),
+                select(child.c.id)
+                .where(
+                    child.c.meta_account_id == CachedPost.meta_account_id,
+                    child.c.fetched_by_identity_id == CachedPost.fetched_by_identity_id,
+                    child.c.in_reply_to_id == CachedPost.id,
+                    child.c.author_id == CachedPost.author_id,
+                    child.c.is_reblog.is_(False),
+                )
+                .exists(),
+            )
         elif filter_type == "shorts":
             # Short text posts: no links, not a reply, not a reblog, no video, short text
             # Images are allowed — a short post can have a picture; Pictures filter handles media-heavy posts
             query = query.where(
                 and_(
                     CachedPost.is_reply.is_(False),
+                    CachedPost.in_reply_to_id.is_(None),
                     CachedPost.is_reblog.is_(False),
                     CachedPost.has_video.is_(False),
                     CachedPost.has_link.is_(False),
@@ -396,12 +407,12 @@ async def get_storms(
     """
     Returns 'Tweet Storms' visible to the specific identity.
 
-    A storm is a root post (no parent, no link) that either:
-    - Has at least one self-reply (same author replied to themselves), OR
-    - Is long (>= STORM_MIN_TEXT_LEN chars of text)
+    A storm is a root post with at least one direct self-reply. Further
+    self-replies form branches; replies by other people do not stop the root
+    from being a storm and are not included in its blog-like rendering.
 
     Instead of loading the full timeline, we:
-    1. Find candidate roots via a subquery (self-replied-to posts) + long-post filter
+    1. Find roots that have a direct self-reply
     2. Load only roots + their reply descendants
     """
     scope = and_(
@@ -435,7 +446,8 @@ async def get_storms(
             .scalar_subquery()
         )
 
-        # Roots: no parent, no link, and either long or has a self-reply
+        # A top-level post only becomes a storm when its author replies to it.
+        # Links are allowed: their presence says nothing about the reply graph.
         roots_query = (
             select(CachedPost)
             .where(
@@ -443,11 +455,7 @@ async def get_storms(
                     scope,
                     user_filter,
                     CachedPost.in_reply_to_id.is_(None),
-                    CachedPost.has_link.is_(False),
-                    (
-                        (func.length(CachedPost.content) >= STORM_MIN_TEXT_LEN)
-                        | CachedPost.id.in_(self_replied_ids_sq)
-                    ),
+                    CachedPost.id.in_(self_replied_ids_sq),
                 )
             )
             .order_by(desc(CachedPost.created_at), desc(CachedPost.id))

@@ -126,7 +126,9 @@ export class ApiService {
   private currentIdentityBaseUrl: string | null = localStorage.getItem(this.IDENTITY_BASE_URL_KEY);
 
   constructor() {
-    this.startHealthCheck();
+    // Health polling powered the Angular "server down" popup.  That popup is
+    // currently disabled, so leave polling off with it instead of issuing a
+    // status request every ten seconds.
     this.refreshNeeded$.subscribe(() => this.routeCache.clear());
   }
 
@@ -439,11 +441,9 @@ export class ApiService {
 
   startConnectAccountOAuth(baseUrl: string): Observable<{ authorize_url: string }> {
     return this.http
-      .post<{ authorize_url: string }>(
-        `${this.base}/api/admin/identities/oauth/start`,
-        { base_url: baseUrl },
-        { headers: this.headers },
-      )
+      .post<{
+        authorize_url: string;
+      }>(`${this.base}/api/admin/identities/oauth/start`, { base_url: baseUrl }, { headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
@@ -1224,15 +1224,26 @@ export class ApiService {
     identityId: number,
     maxFriends: number,
     blogRollFilter?: string,
-  ): Observable<{ status: string; candidates_fetched: number }> {
+    maxDurationSeconds = 30,
+  ): Observable<{
+    status: string;
+    candidates_fetched: number;
+    scan_complete: boolean;
+    scanned_friends: number;
+    total_friends: number;
+  }> {
     let params = new HttpParams()
       .set('identity_id', identityId.toString())
-      .set('max_friends', maxFriends.toString());
+      .set('max_friends', maxFriends.toString())
+      .set('max_duration_seconds', maxDurationSeconds.toString());
     if (blogRollFilter) params = params.set('blog_roll_filter', blogRollFilter);
     return this.http
       .post<{
         status: string;
         candidates_fetched: number;
+        scan_complete: boolean;
+        scanned_friends: number;
+        total_friends: number;
       }>(`${this.base}/api/new-friends/refresh`, {}, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }

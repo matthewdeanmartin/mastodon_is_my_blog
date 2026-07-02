@@ -44,7 +44,6 @@ __all__ = [
     "build_storm_exports",
 ]
 
-DEFAULT_MIN_TEXT_LENGTH = 495
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "docs-src" / "src" / "_data" / "storms.json"
 DEFAULT_BLOGROLL_OUTPUT_PATH = (
     PROJECT_ROOT / "docs-src" / "src" / "_data" / "blogroll.json"
@@ -159,7 +158,6 @@ def build_storm_exports(
     *,
     identities: Sequence[MastodonIdentity],
     posts: Sequence[CachedPost],
-    min_text_length: int = DEFAULT_MIN_TEXT_LENGTH,
 ) -> dict[str, Any]:
     identity_by_author_id = {
         str(identity.account_id): identity for identity in identities
@@ -206,7 +204,9 @@ def build_storm_exports(
         ]
         clean_text = clean_mastodon_text(root.content)
         cleaned_length = len(clean_text)
-        if cleaned_length < min_text_length and not branches:
+        # A long standalone post is still standalone: only a self-reply edge
+        # turns a root into a storm.
+        if not branches:
             continue
 
         created_at = root.created_at.date().isoformat()
@@ -249,7 +249,6 @@ def build_storm_exports(
 
     return {
         "generated_at": datetime.now(UTC).isoformat(),
-        "min_text_length": min_text_length,
         "storm_count": len(storms),
         "authors": authors,
         "storms": storms,
@@ -341,9 +340,7 @@ def build_blogroll_export(
     }
 
 
-async def load_storm_export_data(
-    *, min_text_length: int = DEFAULT_MIN_TEXT_LENGTH
-) -> dict[str, Any]:
+async def load_storm_export_data() -> dict[str, Any]:
     async with async_session() as session:
         identities = (
             (
@@ -355,9 +352,7 @@ async def load_storm_export_data(
             .all()
         )
         if not identities:
-            return build_storm_exports(
-                identities=[], posts=[], min_text_length=min_text_length
-            )
+            return build_storm_exports(identities=[], posts=[])
         posts = (
             (
                 await session.execute(
@@ -372,9 +367,7 @@ async def load_storm_export_data(
             .all()
         )
 
-    return build_storm_exports(
-        identities=identities, posts=posts, min_text_length=min_text_length
-    )
+    return build_storm_exports(identities=identities, posts=posts)
 
 
 async def load_blogroll_export_data() -> dict[str, Any]:
@@ -426,10 +419,9 @@ def write_json_export(output_path: Path, payload: dict[str, Any]) -> None:
 async def run_export(
     output_path: Path,
     *,
-    min_text_length: int = DEFAULT_MIN_TEXT_LENGTH,
     blogroll_output_path: Path = DEFAULT_BLOGROLL_OUTPUT_PATH,
 ) -> None:
-    storm_payload = await load_storm_export_data(min_text_length=min_text_length)
+    storm_payload = await load_storm_export_data()
     blogroll_payload = await load_blogroll_export_data()
     write_json_export(output_path, storm_payload)
     write_json_export(blogroll_output_path, blogroll_payload)
@@ -442,12 +434,6 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_OUTPUT_PATH,
         help="Path to the generated storms.json file.",
-    )
-    parser.add_argument(
-        "--min-text-length",
-        type=int,
-        default=DEFAULT_MIN_TEXT_LENGTH,
-        help="Minimum cleaned text length for long single-post storms.",
     )
     parser.add_argument(
         "--blogroll-output",
@@ -463,7 +449,6 @@ async def main() -> None:
     try:
         await run_export(
             args.output,
-            min_text_length=args.min_text_length,
             blogroll_output_path=args.blogroll_output,
         )
     finally:

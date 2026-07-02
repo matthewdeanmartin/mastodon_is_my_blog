@@ -118,6 +118,7 @@
       <aside class="filter-panel">
         <div class="panel-title"><span>View</span></div>
         <button [class.active]="filter() === 'recent'" type="button" (click)="setFilter('recent')">Recent</button>
+        <button [class.active]="filter() === 'storms'" type="button" (click)="setFilter('storms')">Storms</button>
         <button [class.active]="filter() === 'shorts'" type="button" (click)="setFilter('shorts')">Short text</button>
         <button [class.active]="filter() === 'replies'" type="button" (click)="setFilter('replies')">Discussions</button>
         <button [class.active]="filter() === 'media'" type="button" (click)="setFilter('media')">Pictures & video</button>

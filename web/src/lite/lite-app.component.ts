@@ -16,6 +16,7 @@ import { LiteMastodonService } from './lite-mastodon.service';
 import { LiteOAuthService } from './lite-oauth.service';
 import { LiteStorageService } from './lite-storage.service';
 import { LiteAccount, LiteConnection, LiteFilter, LitePage, LiteStatus } from './lite.models';
+import { buildLiteStorms } from './lite-storms';
 
 @Component({
   selector: 'app-lite-root',
@@ -48,6 +49,7 @@ export class LiteAppComponent implements OnInit {
   readonly filterLabel = computed(() => {
     const labels: Record<LiteFilter, string> = {
       recent: 'Recent',
+      storms: 'Storms',
       shorts: 'Short text',
       replies: 'Discussions',
       media: 'Media',
@@ -58,6 +60,9 @@ export class LiteAppComponent implements OnInit {
   });
   readonly visibleStatuses = computed(() => {
     const filter = this.filter();
+    if (filter === 'storms') {
+      return buildLiteStorms(this.statuses()).flatMap((storm) => [storm.root, ...storm.replies]);
+    }
     return this.statuses().filter((status) => {
       const content = this.displayStatus(status);
       if (filter === 'shorts') return textLength(content.content) < 500 && !hasLink(content);
@@ -129,7 +134,7 @@ export class LiteAppComponent implements OnInit {
       return;
     }
     if (page === 'about') return;
-    this.filter.set('recent');
+    this.filter.set(page === 'me' ? 'storms' : 'recent');
     if (page === 'home') {
       await this.loadHome();
     } else {
@@ -285,8 +290,10 @@ function errorMessage(error: unknown): string {
     if (error.status === 0) {
       return 'The instance did not allow this browser request. Check the domain or try another instance.';
     }
-    if (error.status === 401) return 'This connection is no longer authorized. Disconnect and connect again.';
-    if (error.status === 429) return 'The instance asked Lite to slow down. Please wait before refreshing.';
+    if (error.status === 401)
+      return 'This connection is no longer authorized. Disconnect and connect again.';
+    if (error.status === 429)
+      return 'The instance asked Lite to slow down. Please wait before refreshing.';
     return `The instance returned HTTP ${error.status}.`;
   }
   if (error instanceof DOMException && error.name === 'QuotaExceededError') {

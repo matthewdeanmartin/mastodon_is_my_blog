@@ -106,8 +106,11 @@ async def get_forum_threads(
     following_accts: set[str] = {r.acct for r in following_rows}
 
     # Fetch pre-aggregated thread summaries from DuckDB
+    # Aggregate friend counts in the same DuckDB scan as the thread summaries.
+    # The old path attached/scanned SQLite twice and built a potentially huge
+    # root-id IN clause for the second query.
     raw_summaries = await duck.forum_thread_summaries(
-        meta.id, identity_id, include_content_hub
+        meta.id, identity_id, include_content_hub, following_accts
     )
 
     thread_summaries = []
@@ -146,20 +149,10 @@ async def get_forum_threads(
                 "author_is_friend": root_acct in following_accts,
                 "i_am_author": i_am_author,
                 "i_am_participating": i_am_participating,
-                "friend_reply_count": 0,
+                "friend_reply_count": t["friend_reply_count"],
                 "friend_repliers": [],
             }
         )
-
-    # Compute friend reply counts — only needed for "friends_started" / "popular" views
-    # but we compute for all so the facets are accurate
-    if following_accts:
-        all_root_ids = [t["root_id"] for t in thread_summaries]
-        friend_counts = await duck.forum_friend_reply_counts(
-            meta.id, identity_id, all_root_ids, following_accts
-        )
-        for t in thread_summaries:
-            t["friend_reply_count"] = friend_counts.get(t["root_id"], 0)
 
     # Build friend replier avatars for display (top 5 per thread)
     # Only do this for the page we'll actually serve to avoid O(N) work

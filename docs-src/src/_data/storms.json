@@ -1,13 +1,18 @@
 {
-  "generated_at": "2026-04-12T21:47:04.746838+00:00",
-  "min_text_length": 495,
-  "storm_count": 713,
+  "generated_at": "2026-07-02T00:05:14.444884+00:00",
+  "storm_count": 703,
   "authors": [
     {
       "acct": "everybodhi",
       "api_base_url": "https://ohai.social",
       "account_id": "109338251257741810",
       "storm_count": 2
+    },
+    {
+      "acct": "katherine",
+      "api_base_url": "https://mock.local",
+      "account_id": "1781827464891",
+      "storm_count": 0
     },
     {
       "acct": "matthewmartin",
@@ -19,7 +24,7 @@
       "acct": "mistersql",
       "api_base_url": "https://mastodon.social",
       "account_id": "301226",
-      "storm_count": 708
+      "storm_count": 698
     },
     {
       "acct": "runmattrun",
@@ -29,6 +34,205 @@
     }
   ],
   "storms": [
+    {
+      "id": "116601388865655744",
+      "slug": "2026-05-19-de-there-s-a-word-for-that-is-there-s-a-charismatic-compound-word-f-116601388865655744",
+      "title": "de: There's a word for that. is: There's a charismatic compound word for that...",
+      "author": {
+        "acct": "mistersql",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "301226"
+      },
+      "created_at": "2026-05-19T13:06:37.101000",
+      "content_html": "<p>de: There&#39;s a word for that.<br />is: There&#39;s a charismatic compound word for that<br />eo: There&#39;s a 20 suffix word for that but no one knows what it means<br />tp: There&#39;s a book about that<br />tlh: There&#39;s a star trek word that is sort of a metaphor for that and it works with six affixes.</p><p><a href=\"https://mastodon.social/tags/tokipona\" class=\"mention hashtag\" rel=\"tag\">#<span>tokipona</span></a> <a href=\"https://mastodon.social/tags/esperanto\" class=\"mention hashtag\" rel=\"tag\">#<span>esperanto</span></a></p>",
+      "content_text": "de: There's a word for that. is: There's a charismatic compound word for that eo: There's a 20 suffix word for that but no one knows what it means tp: There's a book about that tlh: There's a star trek word that is sort of a metaphor for that and it works with six affixes.",
+      "cleaned_length": 273,
+      "excerpt": "de: There's a word for that. is: There's a charismatic compound word for that eo: There's a 20 suffix word for that but no one knows what it means tp: There's a book about that...",
+      "media": [],
+      "original_url": "https://mastodon.social/@mistersql/116601388865655744",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "116601388910656339",
+          "created_at": "2026-05-19T13:06:37.782000",
+          "content_html": "<p>where&#39;s my language geeks at, they didn&#39;t stay at twitter did they</p>",
+          "content_text": "where's my language geeks at, they didn't stay at twitter did they",
+          "cleaned_length": 66,
+          "excerpt": "where's my language geeks at, they didn't stay at twitter did they",
+          "media": [],
+          "original_url": "https://mastodon.social/@mistersql/116601388910656339",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "116409139252030635",
+      "slug": "2026-04-15-this-website-accuses-common-libraries-of-being-hit-by-malware-attacks-116409139252030635",
+      "title": "This website accuses common libraries of being hit by malware attacks without...",
+      "author": {
+        "acct": "mistersql",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "301226"
+      },
+      "created_at": "2026-04-15T14:15:00.800000",
+      "content_html": "<p>This website accuses common libraries of being hit by malware attacks without substantiating evidence.</p><p>Couldn&#39;t find reports of <a href=\"https://mastodon.social/tags/orjson\" class=\"mention hashtag\" rel=\"tag\">#<span>orjson</span></a> being highjacked, just this websites assertion.</p><p>The same website calls my apps vulnerable and malicious, also, doesn&#39;t exactly say why.</p><p><a href=\"https://mastodon.social/tags/pypi\" class=\"mention hashtag\" rel=\"tag\">#<span>pypi</span></a> <a href=\"https://mastodon.social/tags/supplychain\" class=\"mention hashtag\" rel=\"tag\">#<span>supplychain</span></a> </p><p><a href=\"https://secure.software/pypi/packages/orjson\" target=\"_blank\" rel=\"nofollow noopener\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">secure.software/pypi/packages/</span><span class=\"invisible\">orjson</span></a></p>",
+      "content_text": "This website accuses common libraries of being hit by malware attacks without substantiating evidence. Couldn't find reports of being highjacked, just this websites assertion. The same website calls my apps vulnerable and malicious, also, doesn't exactly say why.",
+      "cleaned_length": 263,
+      "excerpt": "This website accuses common libraries of being hit by malware attacks without substantiating evidence. Couldn't find reports of being highjacked, just this websites assertion. The...",
+      "media": [],
+      "original_url": "https://mastodon.social/@mistersql/116409139252030635",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "116409153715760451",
+          "created_at": "2026-04-15T14:18:41.491000",
+          "content_html": "<p>This site sees yanking as malicious. Kind of damned if you do/don&#39;t. What if you publish a package that is<br />- broken<br />- has a vulnerability<br />- and you *know* that there is 0 usage for that package because it is an app &amp; has negligible downloads</p><p>Yanking is just assumed to be a lpad attack on the ecosystem.</p>",
+          "content_text": "This site sees yanking as malicious. Kind of damned if you do/don't. What if you publish a package that is - broken - has a vulnerability - and you *know* that there is 0 usage for that package because it is an app & has negligible downloads Yanking is just assumed to be a lpad attack on the ecosystem.",
+          "cleaned_length": 303,
+          "excerpt": "This site sees yanking as malicious. Kind of damned if you do/don't. What if you publish a package that is - broken - has a vulnerability -...",
+          "media": [],
+          "original_url": "https://mastodon.social/@mistersql/116409153715760451",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "116408657570302502",
+      "slug": "2026-04-15-ideas-for-code-review-quality-gates-no-merge-until-you-pass-a-quiz-116408657570302502",
+      "title": "Ideas for code review quality gates: - no merge until you pass a quiz on the...",
+      "author": {
+        "acct": "mistersql",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "301226"
+      },
+      "created_at": "2026-04-15T12:12:30.917000",
+      "content_html": "<p>Ideas for code review quality gates:<br />- no merge until you pass a quiz on the contents of your code and MR reviewer do as well<br />- no merge until user documentation is generated and developer documentation is generated (large code bases). This is waaay easier to read fast. `*`<br />- Actual code freezes where you stop writing code 4 days a week, except instead of depression, it is because the LLM wrote a month&#39;s worth of code on Monday.</p>",
+      "content_text": "Ideas for code review quality gates: - no merge until you pass a quiz on the contents of your code and MR reviewer do as well - no merge until user documentation is generated and developer documentation is generated (large code bases). This is waaay easier to read fast. `*` - Actual code freezes where you stop writing code 4 days a week, except instead of depression, it is because the LLM wrote a month's worth of code on Monday.",
+      "cleaned_length": 432,
+      "excerpt": "Ideas for code review quality gates: - no merge until you pass a quiz on the contents of your code and MR reviewer do as well - no merge until user documentation is generated and...",
+      "media": [],
+      "original_url": "https://mastodon.social/@mistersql/116408657570302502",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "116408657596520084",
+          "created_at": "2026-04-15T12:12:31.313000",
+          "content_html": "<p>Ask the LLM to review the code? An llm never just says lgtm, it writes a magazine article (paper artifact from the past that was 1-3 pages long, or about 8 vertical screen lengths) Now you got even more to read.</p><p>`*`  (not talking about docstring documentation, I think that is slower to read start to finish, I mean, like user documentation except it talks about classes and modules, but not at a &quot;just repeat the interfaces&quot; level)</p>",
+          "content_text": "Ask the LLM to review the code? An llm never just says lgtm, it writes a magazine article (paper artifact from the past that was 1-3 pages long, or about 8 vertical screen lengths) Now you got even more to read. `*` (not talking about docstring documentation, I think that is slower to read start to finish, I mean, like user documentation except it talks about classes and modules, but not at a \"just repeat the interfaces\" level)",
+          "cleaned_length": 431,
+          "excerpt": "Ask the LLM to review the code? An llm never just says lgtm, it writes a magazine article (paper artifact from the past that was 1-3 pages...",
+          "media": [],
+          "original_url": "https://mastodon.social/@mistersql/116408657596520084",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "116405870795946061",
+      "slug": "2026-04-15-new-and-improved-with-100-fewer-trademarks-in-the-name-and-6x-more-su-116405870795946061",
+      "title": "New and improved with 100% fewer trademarks in the name and 6x more support for...",
+      "author": {
+        "acct": "mistersql",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "301226"
+      },
+      "created_at": "2026-04-15T00:23:48.119000",
+      "content_html": "<p>New and improved with 100% fewer trademarks in the name and 6x more support for other yaml-based build scripts</p><p><a href=\"https://pypi.org/project/bash2yaml/\" target=\"_blank\" rel=\"nofollow noopener\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"\">pypi.org/project/bash2yaml/</span><span class=\"invisible\"></span></a></p>",
+      "content_text": "New and improved with 100% fewer trademarks in the name and 6x more support for other yaml-based build scripts",
+      "cleaned_length": 110,
+      "excerpt": "New and improved with 100% fewer trademarks in the name and 6x more support for other yaml-based build scripts",
+      "media": [],
+      "original_url": "https://mastodon.social/@mistersql/116405870795946061",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "116405871876735664",
+          "created_at": "2026-04-15T00:24:04.602000",
+          "content_html": "<p>Wait 2 weeks before trying it out.</p>",
+          "content_text": "Wait 2 weeks before trying it out.",
+          "cleaned_length": 34,
+          "excerpt": "Wait 2 weeks before trying it out.",
+          "media": [],
+          "original_url": "https://mastodon.social/@mistersql/116405871876735664",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "116398501193047001",
+      "slug": "2026-04-13-idea-retro-agentic-coding-loop-the-code-runs-your-unit-tests-when-116398501193047001",
+      "title": "IDEA: Retro, Agentic coding loop. The code runs your unit tests, when it fails,...",
+      "author": {
+        "acct": "mistersql",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "301226"
+      },
+      "created_at": "2026-04-13T17:09:36.904000",
+      "content_html": "<p>IDEA: Retro, Agentic coding loop.</p><p>The code runs your unit tests, when it fails, code and error are posted to StackOverflow requesting a unified diff or rewrite in the answer. Once the answer is posted, the diff is applied. If the test fails again with a new error message, it creates a new question. If it passes, it accept the answer that fixed the code.</p><p>Set running and head off to the coffee shop, no AI required.</p>",
+      "content_text": "IDEA: Retro, Agentic coding loop. The code runs your unit tests, when it fails, code and error are posted to StackOverflow requesting a unified diff or rewrite in the answer. Once the answer is posted, the diff is applied. If the test fails again with a new error message, it creates a new question. If it passes, it accept the answer that fixed the code. Set running and head off to the coffee shop, no AI required.",
+      "cleaned_length": 416,
+      "excerpt": "IDEA: Retro, Agentic coding loop. The code runs your unit tests, when it fails, code and error are posted to StackOverflow requesting a unified diff or rewrite in the answer. Once...",
+      "media": [],
+      "original_url": "https://mastodon.social/@mistersql/116398501193047001",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "116398504267803469",
+          "created_at": "2026-04-13T17:10:23.814000",
+          "content_html": "<p>IDEA: Enterprise version, where you do the same, but post to fiver.</p>",
+          "content_text": "IDEA: Enterprise version, where you do the same, but post to fiver.",
+          "cleaned_length": 67,
+          "excerpt": "IDEA: Enterprise version, where you do the same, but post to fiver.",
+          "media": [],
+          "original_url": "https://mastodon.social/@mistersql/116398504267803469",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "116394000183695208",
+      "slug": "2026-04-12-finally-published-all-my-tweet-storms-as-a-blog-116394000183695208",
+      "title": "Finally published all my tweet storms as a blog",
+      "author": {
+        "acct": "mistersql",
+        "api_base_url": "https://mastodon.social",
+        "account_id": "301226"
+      },
+      "created_at": "2026-04-12T22:04:56.986000",
+      "content_html": "<p>Finally published all my tweet storms as a blog<br /><a href=\"https://matthewdeanmartin.github.io/mastodon_is_my_blog/authors/mistersql/\" target=\"_blank\" rel=\"nofollow noopener\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">matthewdeanmartin.github.io/ma</span><span class=\"invisible\">stodon_is_my_blog/authors/mistersql/</span></a></p>",
+      "content_text": "Finally published all my tweet storms as a blog",
+      "cleaned_length": 47,
+      "excerpt": "Finally published all my tweet storms as a blog",
+      "media": [],
+      "original_url": "https://mastodon.social/@mistersql/116394000183695208",
+      "reply_count": 1,
+      "branches": [
+        {
+          "id": "116394000212329001",
+          "created_at": "2026-04-12T22:04:57.379000",
+          "content_html": "<p>On the way to my original idea I got detoured so hard I created a mastodon content reader website. </p><p>The People Page and Content Hub... are working out nice. Forum-simulator has a ways to go.</p><p>Biggest challenge on the way- performance. It is really easy to make a slow feature.</p>",
+          "content_text": "On the way to my original idea I got detoured so hard I created a mastodon content reader website. The People Page and Content Hub... are working out nice. Forum-simulator has a ways to go. Biggest challenge on the way- performance. It is really easy to make a slow feature.",
+          "cleaned_length": 274,
+          "excerpt": "On the way to my original idea I got detoured so hard I created a mastodon content reader website. The People Page and Content Hub... are...",
+          "media": [
+            {
+              "type": "image",
+              "url": "https://files.mastodon.social/media_attachments/files/116/393/988/228/751/613/original/574915635bb2f47c.png",
+              "preview_url": "https://files.mastodon.social/media_attachments/files/116/393/988/228/751/613/small/574915635bb2f47c.png",
+              "description": "Visually busy screenshot of my mastodon reader that depending on the button you click, makes it act like instagram or delicious (the link share site), or google-news"
+            },
+            {
+              "type": "image",
+              "url": "https://files.mastodon.social/media_attachments/files/116/393/988/328/109/370/original/4d073387a7389f0f.png",
+              "preview_url": "https://files.mastodon.social/media_attachments/files/116/393/988/328/109/370/small/4d073387a7389f0f.png",
+              "description": "Visually busy alternative to an infinite scroll homepage to mastodon that is more person centric."
+            }
+          ],
+          "original_url": "https://mastodon.social/@mistersql/116394000212329001",
+          "children": []
+        }
+      ]
+    },
     {
       "id": "116366777361780701",
       "slug": "2026-04-08-i-got-22-days-of-trial-left-to-finish-this-duo-client-i-m-up-to-versi-116366777361780701",
@@ -5069,25 +5273,6 @@
       ]
     },
     {
-      "id": "115356487551330213",
-      "slug": "2025-10-11-today-is-rabbit-hole-day-so-working-on-troml-dev-status-anonymous-p-115356487551330213",
-      "title": "Today is rabbit hole day. So working on troml-dev-status - Anonymous package?...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2025-10-11T16:31:50.535000",
-      "content_html": "<p>Today is rabbit hole day. So working on troml-dev-status</p><p>- Anonymous package? Should *never* be awarded `Mature` because mature is about evidence of support<br />- Authors file? 1000% no standards. The world needs something like &quot;keepachangelog&quot; It will take decades to fix this.<br />- Who published this thing? Well, going by the license, it is all `(C) MIT` the most prolific author!<br />- Pypi will say who the maintainer is! Nope!<br />- Support email is example.com? Should never be awarded more than `Planning`</p>",
-      "content_text": "Today is rabbit hole day. So working on troml-dev-status - Anonymous package? Should *never* be awarded `Mature` because mature is about evidence of support - Authors file? 1000% no standards. The world needs something like \"keepachangelog\" It will take decades to fix this. - Who published this thing? Well, going by the license, it is all `(C) MIT` the most prolific author! - Pypi will say who the maintainer is! Nope! - Support email is example.com? Should never be awarded more than `Planning`",
-      "cleaned_length": 498,
-      "excerpt": "Today is rabbit hole day. So working on troml-dev-status - Anonymous package? Should *never* be awarded `Mature` because mature is about evidence of support - Authors file? 1000%...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/115356487551330213",
-      "reply_count": 0,
-      "branches": []
-    },
-    {
       "id": "115355992157973948",
       "slug": "2025-10-11-tired-0-1-0-and-incrementing-patch-constantly-to-signal-my-code-is-115355992157973948",
       "title": "tired: 0.1.0 and incrementing patch constantly, to signal, \"my code is dog shit...",
@@ -6431,25 +6616,6 @@
       ]
     },
     {
-      "id": "115075148939582886",
-      "slug": "2025-08-23-i-hate-forums-the-attract-spam-so-if-you-post-a-look-at-what-i-did-115075148939582886",
-      "title": "I hate forums. The attract spam, so if you post a \"look at what I did\" link (to...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2025-08-23T00:03:44.019000",
-      "content_html": "<p>I hate forums. The attract spam, so if you post a &quot;look at what I did&quot; link (to be clear, I&#39;m not asking people to to pay or donate me $), it gets deleted as spam. So now I have to create a website for &quot;cool things people did&quot; Make me wonder why Mastodon is resilient against spam, when they don&#39;t ban promoting things.</p><p>Places to post, &#39;I did a software thing&#39;<br />- Forum - no<br />- StackOverflow - no<br />- Blog - yes<br />- Reddit - yes, probably? I haven&#39;t tried<br />- LinkedIn - yes, but...</p><p>What else am I missing?</p>",
-      "content_text": "I hate forums. The attract spam, so if you post a \"look at what I did\" link (to be clear, I'm not asking people to to pay or donate me $), it gets deleted as spam. So now I have to create a website for \"cool things people did\" Make me wonder why Mastodon is resilient against spam, when they don't ban promoting things. Places to post, 'I did a software thing' - Forum - no - StackOverflow - no - Blog - yes - Reddit - yes, probably? I haven't tried - LinkedIn - yes, but... What else am I missing?",
-      "cleaned_length": 498,
-      "excerpt": "I hate forums. The attract spam, so if you post a \"look at what I did\" link (to be clear, I'm not asking people to to pay or donate me $), it gets deleted as spam. So now I have...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/115075148939582886",
-      "reply_count": 0,
-      "branches": []
-    },
-    {
       "id": "115043927039319956",
       "slug": "2025-08-17-yaml-leads-to-suffering-suffering-leads-to-anger-anger-leads-to-writ-115043927039319956",
       "title": "YAML leads to suffering; suffering leads to anger; anger leads to writing...",
@@ -7032,25 +7198,6 @@
       ]
     },
     {
-      "id": "114710315827327015",
-      "slug": "2025-06-19-gitlab-templates-here-is-nearly-an-empty-yaml-script-so-empty-so-cl-114710315827327015",
-      "title": "Gitlab templates: Here is nearly an empty yaml script. So empty, so clear and...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2025-06-19T13:41:52.504000",
-      "content_html": "<p>Gitlab templates:<br />Here is nearly an empty yaml script. So empty, so clear and easy! Where is the code? In another yaml script over there. That yaml script is nearly empty, so empty, so clear, so easy! Where has the code been abstracted to? In another mostly empty yaml script over there... you have grown old, you haven&#39;t found the bash. It was a foolish quest, your quest had no meaning if you stop looking, the bash has been abstracted to another yaml script over there, so empty so clear, so easy!</p>",
-      "content_text": "Gitlab templates: Here is nearly an empty yaml script. So empty, so clear and easy! Where is the code? In another yaml script over there. That yaml script is nearly empty, so empty, so clear, so easy! Where has the code been abstracted to? In another mostly empty yaml script over there... you have grown old, you haven't found the bash. It was a foolish quest, your quest had no meaning if you stop looking, the bash has been abstracted to another yaml script over there, so empty so clear, so easy!",
-      "cleaned_length": 500,
-      "excerpt": "Gitlab templates: Here is nearly an empty yaml script. So empty, so clear and easy! Where is the code? In another yaml script over there. That yaml script is nearly empty, so...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/114710315827327015",
-      "reply_count": 0,
-      "branches": []
-    },
-    {
       "id": "114687467814885893",
       "slug": "2025-06-15-flying-out-of-dulles-va-where-measles-was-reported-yesterday-i-am-114687467814885893",
       "title": "Flying out of (Dulles, VA), where measles was reported yesterday, I am the only...",
@@ -7211,25 +7358,6 @@
           "children": []
         }
       ]
-    },
-    {
-      "id": "114467848110900121",
-      "slug": "2025-05-07-idea-and-not-a-piss-on-ai-emotional-reflex-maybe-we-know-we-have-114467848110900121",
-      "title": "Idea- (and not a piss on AI emotional reflex)... maybe we know we have hit AGI...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2025-05-07T17:59:08.765000",
-      "content_html": "<p>Idea- (and not a piss on AI emotional reflex)... maybe we know we have hit AGI because the bots exhibit a certain level of stupid. When the potential number of paths your thoughts can go, the odds of one of them being stupid goes to 100%. We all thought we could create a machine (or an educated human) that could map out the possibilities so perfectly all the stupid would be gone.</p><p>Every problem you can pose in English has multiple meanings, answers &amp; many of those answers are going to be stupid.</p>",
-      "content_text": "Idea- (and not a piss on AI emotional reflex)... maybe we know we have hit AGI because the bots exhibit a certain level of stupid. When the potential number of paths your thoughts can go, the odds of one of them being stupid goes to 100%. We all thought we could create a machine (or an educated human) that could map out the possibilities so perfectly all the stupid would be gone. Every problem you can pose in English has multiple meanings, answers & many of those answers are going to be stupid.",
-      "cleaned_length": 499,
-      "excerpt": "Idea- (and not a piss on AI emotional reflex)... maybe we know we have hit AGI because the bots exhibit a certain level of stupid. When the potential number of paths your thoughts...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/114467848110900121",
-      "reply_count": 0,
-      "branches": []
     },
     {
       "id": "114451815205310657",
@@ -11570,25 +11698,6 @@
       ]
     },
     {
-      "id": "113047797079557682",
-      "slug": "2024-08-29-askonth-i-m-talking-about-the-unboxing-experience-i-ve-done-the-same-113047797079557682",
-      "title": "@askonth I'm talking about the unboxing experience. I've done the same mini...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2024-08-29T23:01:29.639000",
-      "content_html": "<p>@askonth I&#39;m talking about the unboxing experience. I&#39;ve done the same mini project in several languages over the last 2 days. Some like ruby, node, go seem to just work out of the box, the installer can set the PATH. Others if you can set the PATH, that&#39;s good enough (e.g. Java, gnuCOBOL). Clion found several gcc compilers scatter across my machine installed by anyone, everyone and you can see cmake&#39;s diagnostics looking for the compiler and saying, &quot;nope, nope, nope&quot; and then it gives up.</p>",
-      "content_text": "@askonth I'm talking about the unboxing experience. I've done the same mini project in several languages over the last 2 days. Some like ruby, node, go seem to just work out of the box, the installer can set the PATH. Others if you can set the PATH, that's good enough (e.g. Java, gnuCOBOL). Clion found several gcc compilers scatter across my machine installed by anyone, everyone and you can see cmake's diagnostics looking for the compiler and saying, \"nope, nope, nope\" and then it gives up.",
-      "cleaned_length": 495,
-      "excerpt": "@askonth I'm talking about the unboxing experience. I've done the same mini project in several languages over the last 2 days. Some like ruby, node, go seem to just work out of...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/113047797079557682",
-      "reply_count": 0,
-      "branches": []
-    },
-    {
       "id": "113046731444427221",
       "slug": "2024-08-29-when-working-with-a-bot-and-cpp-you-need-to-make-sure-they-understand-113046731444427221",
       "title": "When working with a bot and cpp you need to make sure they understand that...",
@@ -15101,25 +15210,6 @@
       ]
     },
     {
-      "id": "112355712843755064",
-      "slug": "2024-04-29-lewiscowles1986-phpc-social-they-have-local-versions-of-dynamodb-lam-112355712843755064",
-      "title": "@lewiscowles1986@phpc.social They have local versions of dynamodb, lambda &...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2024-04-29T17:35:22.251000",
-      "content_html": "<p>@lewiscowles1986@phpc.social They have local versions of dynamodb, lambda &amp; api-gateway (via sam), stepfunctions...uh that&#39;s it unless I start counting services where AWS is just a wrapper around another locally installable service like postgres or opensearch.</p><p>The need to use something like localsearch is driven by access levels. At shops where I had unlimited access to AWS, mock servers were a hindrance. Where I have limited access, localstack-like things is promising sounding, if personally expensive</p>",
-      "content_text": "@lewiscowles1986@phpc.social They have local versions of dynamodb, lambda & api-gateway (via sam), stepfunctions...uh that's it unless I start counting services where AWS is just a wrapper around another locally installable service like postgres or opensearch. The need to use something like localsearch is driven by access levels. At shops where I had unlimited access to AWS, mock servers were a hindrance. Where I have limited access, localstack-like things is promising sounding, if personally expensive",
-      "cleaned_length": 507,
-      "excerpt": "@lewiscowles1986@phpc.social They have local versions of dynamodb, lambda & api-gateway (via sam), stepfunctions...uh that's it unless I start counting services where AWS is just...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/112355712843755064",
-      "reply_count": 0,
-      "branches": []
-    },
-    {
       "id": "112355191843123965",
       "slug": "2024-04-29-as-a-free-tool-the-free-code-works-fine-for-integration-testing-a-f-112355191843123965",
       "title": "as a \"free\" tool. The free code works fine for integration testing a few...",
@@ -15570,25 +15660,6 @@
           "children": []
         }
       ]
-    },
-    {
-      "id": "112265698851375382",
-      "slug": "2024-04-13-meta-that-was-a-weird-reaction-a-guy-that-goes-around-the-fediverse-112265698851375382",
-      "title": "META: that was a weird reaction. A guy that goes around the fediverse scolding...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2024-04-13T20:03:37.730000",
-      "content_html": "<p>META: that was a weird reaction. A guy that goes around the fediverse scolding &amp; then blocking people who post source code. They&#39;re wrong, but I was thinking, well what if they&#39;re right, why would they be? Screen reader?</p><p>Moving source code to an image just moves the hard to read/listen bits to alt text. Self tagging so the audience can filter? So hard to know what filters people are using, my idiosyncratic tags only help for my followers, not the accidental audience (retweets, local/fed feed)</p>",
-      "content_text": "META: that was a weird reaction. A guy that goes around the fediverse scolding & then blocking people who post source code. They're wrong, but I was thinking, well what if they're right, why would they be? Screen reader? Moving source code to an image just moves the hard to read/listen bits to alt text. Self tagging so the audience can filter? So hard to know what filters people are using, my idiosyncratic tags only help for my followers, not the accidental audience (retweets, local/fed feed)",
-      "cleaned_length": 497,
-      "excerpt": "META: that was a weird reaction. A guy that goes around the fediverse scolding & then blocking people who post source code. They're wrong, but I was thinking, well what if they're...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/112265698851375382",
-      "reply_count": 0,
-      "branches": []
     },
     {
       "id": "112261236278177971",
@@ -16119,25 +16190,6 @@
           "children": []
         }
       ]
-    },
-    {
-      "id": "112150890577188632",
-      "slug": "2024-03-24-epiphany-opensouce-licenses-w-o-big-socially-enforced-if-you-112150890577188632",
-      "title": "Epiphany: Opensouce licenses w/o big $$$. - Socially enforced. If you violate...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2024-03-24T13:26:22.489000",
-      "content_html": "<p>Epiphany: Opensouce licenses w/o big $$$. <br />- Socially enforced. If you violate terms, people pack up their toys, leave and stop participating.<br />- No $ involved.<br />- Terms of license have folk-law, real law may be irrelevant.</p><p>Opensource with $$$$ involved<br />-Legally enforced by court/or lawyers negotiating what they think court would do<br />-Only people with $$ to hire a lawyer can actually enforce rights<br />-Real world law actually matters<br />-Unpredictable how folk law in text will be treated by legal system</p>",
-      "content_text": "Epiphany: Opensouce licenses w/o big $$$. - Socially enforced. If you violate terms, people pack up their toys, leave and stop participating. - No $ involved. - Terms of license have folk-law, real law may be irrelevant. Opensource with $$$$ involved -Legally enforced by court/or lawyers negotiating what they think court would do -Only people with $$ to hire a lawyer can actually enforce rights -Real world law actually matters -Unpredictable how folk law in text will be treated by legal system",
-      "cleaned_length": 498,
-      "excerpt": "Epiphany: Opensouce licenses w/o big $$$. - Socially enforced. If you violate terms, people pack up their toys, leave and stop participating. - No $ involved. - Terms of license...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/112150890577188632",
-      "reply_count": 0,
-      "branches": []
     },
     {
       "id": "112145823445579064",
@@ -17371,25 +17423,6 @@
       ]
     },
     {
-      "id": "111869056836816462",
-      "slug": "2024-02-03-someone-needs-to-experiment-with-training-an-llm-on-the-bad-texts-the-111869056836816462",
-      "title": "Someone needs to experiment with training an LLM on the bad texts (the hate,...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2024-02-03T18:52:20.895000",
-      "content_html": "<p>Someone needs to experiment with training an LLM on the bad texts (the hate, fear and racism and so on) and see if it always ends the same. Sometimes our meat based LLMs we&#39;re more familiar with read the texts and an emergent behavior appears, the realization that it is all bullshit from insecure people saying things for motivations. If we can do it, a bot can. A bot that is smart enough to distill humans for their metals to make more paperclips is smart enough to call bullshit. Research needed.</p>",
-      "content_text": "Someone needs to experiment with training an LLM on the bad texts (the hate, fear and racism and so on) and see if it always ends the same. Sometimes our meat based LLMs we're more familiar with read the texts and an emergent behavior appears, the realization that it is all bullshit from insecure people saying things for motivations. If we can do it, a bot can. A bot that is smart enough to distill humans for their metals to make more paperclips is smart enough to call bullshit. Research needed.",
-      "cleaned_length": 500,
-      "excerpt": "Someone needs to experiment with training an LLM on the bad texts (the hate, fear and racism and so on) and see if it always ends the same. Sometimes our meat based LLMs we're...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/111869056836816462",
-      "reply_count": 0,
-      "branches": []
-    },
-    {
       "id": "111852066558514860",
       "slug": "2024-01-31-so-if-i-take-ordinary-no-math-to-speak-of-and-it-it-no-obvious-patte-111852066558514860",
       "title": "So if I take ordinary (no math to speak of) and it it No obvious pattern on if...",
@@ -18024,25 +18057,6 @@
       ]
     },
     {
-      "id": "111671797010670877",
-      "slug": "2023-12-30-re-housing-is-expensive-well-the-only-solution-is-never-build-anythi-111671797010670877",
-      "title": "re: housing is expensive Well, the only solution is never build anything...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2023-12-30T22:46:34.819000",
-      "content_html": "<p>re: housing is expensive<br />Well, the only solution is never build anything anywhere because someone might get rich from it or some rich person could move it that house.</p><p>We can&#39;t do anything for the poor because we hate the rich, nevermind that the communist revolution is not on the way. Far better to remain ideologically pure than to do something about the high cost of housing.</p><p>Also doesn&#39;t help that any price drop in housing wrecks everyone&#39;s retirement, so who knows who has honest objections.</p>",
-      "content_text": "re: housing is expensive Well, the only solution is never build anything anywhere because someone might get rich from it or some rich person could move it that house. We can't do anything for the poor because we hate the rich, nevermind that the communist revolution is not on the way. Far better to remain ideologically pure than to do something about the high cost of housing. Also doesn't help that any price drop in housing wrecks everyone's retirement, so who knows who has honest objections.",
-      "cleaned_length": 497,
-      "excerpt": "re: housing is expensive Well, the only solution is never build anything anywhere because someone might get rich from it or some rich person could move it that house. We can't do...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/111671797010670877",
-      "reply_count": 0,
-      "branches": []
-    },
-    {
       "id": "111670227502013497",
       "slug": "2023-12-30-well-crap-after-few-years-of-as-far-as-i-know-no-covid-we-got-covi-111670227502013497",
       "title": "Well crap. After few years of (as far as I know) no covid, we got covid. :( We...",
@@ -18158,25 +18172,6 @@
           ]
         }
       ]
-    },
-    {
-      "id": "111615999348634715",
-      "slug": "2023-12-21-joshbelville-pdx-social-first-dollar-insurance-is-expensive-because-111615999348634715",
-      "title": "@joshbelville@pdx.social First dollar insurance is expensive, because any small...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2023-12-21T02:16:30.064000",
-      "content_html": "<p>@joshbelville@pdx.social First dollar insurance is expensive, because any small expense is less expensive for the person to just pay it, e.g. bag of chips insurance costs $100, but the bag of chips cost $1. I think we see first dollar insurance in medical care because if the patient does basic maintenance (and they might not if not given an incentive, e.g. free) then they might not go to the doctor &amp; that would lead to more expensive health care costs. I&#39;m speculating tho. This is all complicated.</p>",
-      "content_text": "@joshbelville@pdx.social First dollar insurance is expensive, because any small expense is less expensive for the person to just pay it, e.g. bag of chips insurance costs $100, but the bag of chips cost $1. I think we see first dollar insurance in medical care because if the patient does basic maintenance (and they might not if not given an incentive, e.g. free) then they might not go to the doctor & that would lead to more expensive health care costs. I'm speculating tho. This is all complicated.",
-      "cleaned_length": 502,
-      "excerpt": "@joshbelville@pdx.social First dollar insurance is expensive, because any small expense is less expensive for the person to just pay it, e.g. bag of chips insurance costs $100,...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/111615999348634715",
-      "reply_count": 0,
-      "branches": []
     },
     {
       "id": "111591373130034363",
@@ -18368,25 +18363,6 @@
           "children": []
         }
       ]
-    },
-    {
-      "id": "111545041602441673",
-      "slug": "2023-12-08-things-i-learned-during-the-pandemic-post-viral-fatigue-is-a-thing-111545041602441673",
-      "title": "Things I learned during the pandemic - post-viral fatigue is a thing & can...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2023-12-08T13:31:00.782000",
-      "content_html": "<p>Things I learned during the pandemic<br />- post-viral fatigue is a thing &amp; can happen for any common cold/flu-like thing (suffering from it right now!) &amp; ranges from barely noticeable to debilitating. As for me, I just feel lazy in the afternoon<br />- all the viruses have been attacking &amp; damaging my olfactory bulb my whole life &amp; that is why our sense of smell declines as we age<br />- everytime you get a cough you risk pneumonia &amp; should do all the things to keep the liquids from just sitting in your lungs</p>",
-      "content_text": "Things I learned during the pandemic - post-viral fatigue is a thing & can happen for any common cold/flu-like thing (suffering from it right now!) & ranges from barely noticeable to debilitating. As for me, I just feel lazy in the afternoon - all the viruses have been attacking & damaging my olfactory bulb my whole life & that is why our sense of smell declines as we age - everytime you get a cough you risk pneumonia & should do all the things to keep the liquids from just sitting in your lungs",
-      "cleaned_length": 500,
-      "excerpt": "Things I learned during the pandemic - post-viral fatigue is a thing & can happen for any common cold/flu-like thing (suffering from it right now!) & ranges from barely noticeable...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/111545041602441673",
-      "reply_count": 0,
-      "branches": []
     },
     {
       "id": "111528796888327415",
@@ -19126,25 +19102,6 @@
           "children": []
         }
       ]
-    },
-    {
-      "id": "111382839467457166",
-      "slug": "2023-11-09-i-can-create-custom-gpts-now-chatgpt-will-tell-you-the-news-brows-111382839467457166",
-      "title": "I can create custom GPTs now... ChatGPT will tell you the news & browse for it,...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2023-11-09T22:00:52.618000",
-      "content_html": "<p>I can create custom GPTs now... <br />ChatGPT will tell you the news &amp; browse for it, but when it gets to the knowledge cut off, it stopped browsing</p><p>Me: Tell me the top news item starting by month in 2023<br />ChatGPT: &quot;Here are some of the top news items for each month starting from January 2023:<br />**January 2023**: Pope Benedict XVI, passed away...<br />**February 2023**: A tragic shooting in California...<br />**March 2023**: At the G20 meeting, ...<br />**April 2023**: Finland&#39;s bid to join NATO\u200b<br />These events ...&quot;</p>",
-      "content_text": "I can create custom GPTs now... ChatGPT will tell you the news & browse for it, but when it gets to the knowledge cut off, it stopped browsing Me: Tell me the top news item starting by month in 2023 ChatGPT: \"Here are some of the top news items for each month starting from January 2023: **January 2023**: Pope Benedict XVI, passed away... **February 2023**: A tragic shooting in California... **March 2023**: At the G20 meeting, ... **April 2023**: Finland's bid to join NATO\u200b These events ...\"",
-      "cleaned_length": 495,
-      "excerpt": "I can create custom GPTs now... ChatGPT will tell you the news & browse for it, but when it gets to the knowledge cut off, it stopped browsing Me: Tell me the top news item...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/111382839467457166",
-      "reply_count": 0,
-      "branches": []
     },
     {
       "id": "111369512107237267",
@@ -21305,25 +21262,6 @@
           "children": []
         }
       ]
-    },
-    {
-      "id": "110589317226303257",
-      "slug": "2023-06-22-i-m-thinking-about-apis-that-are-like-incantations-only-one-way-to-s-110589317226303257",
-      "title": "I'm thinking about APIs that are like incantations - only one way to say them...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2023-06-22T18:37:44.122000",
-      "content_html": "<p>I&#39;m thinking about APIs that are like incantations - only one way to say them right and if you deviate from their single-tick-pony usage found in the documentation or SO, then nothing works, nothing makes sense, no clues why it doesn&#39;t work</p><p>powerful API is usually not what people call a powerful API in tutorials.<br />a really powerful API is concepts are simple enough to understand that you can compose parts of API and things work &amp; make sense</p><p>Regex and functional programming patterns come to mind</p>",
-      "content_text": "I'm thinking about APIs that are like incantations - only one way to say them right and if you deviate from their single-tick-pony usage found in the documentation or SO, then nothing works, nothing makes sense, no clues why it doesn't work powerful API is usually not what people call a powerful API in tutorials. a really powerful API is concepts are simple enough to understand that you can compose parts of API and things work & make sense Regex and functional programming patterns come to mind",
-      "cleaned_length": 498,
-      "excerpt": "I'm thinking about APIs that are like incantations - only one way to say them right and if you deviate from their single-tick-pony usage found in the documentation or SO, then...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/110589317226303257",
-      "reply_count": 0,
-      "branches": []
     },
     {
       "id": "110582727720465118",
@@ -24649,25 +24587,6 @@
       ]
     },
     {
-      "id": "109733533927654696",
-      "slug": "2023-01-22-if-you-see-some-clever-objection-to-something-think-what-are-the-imp-109733533927654696",
-      "title": "If you see some clever objection to something, think, what are the implications...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2023-01-22T15:20:47.285000",
-      "content_html": "<p>If you see some clever objection to something, think, what are the implications of that being a universal law. If you do nothing with the implications, maybe you&#39;re not engaging in moral reasoning, but some sort of feel-good project of getting angry at some people, but exempting yourself &amp; your actions from any similar scrutiny. Usually this gets called arrogance, but I see it as aggressive status-quo maintenance. Engaging in our clever objection would mean us having to change our behavior.</p>",
-      "content_text": "If you see some clever objection to something, think, what are the implications of that being a universal law. If you do nothing with the implications, maybe you're not engaging in moral reasoning, but some sort of feel-good project of getting angry at some people, but exempting yourself & your actions from any similar scrutiny. Usually this gets called arrogance, but I see it as aggressive status-quo maintenance. Engaging in our clever objection would mean us having to change our behavior.",
-      "cleaned_length": 495,
-      "excerpt": "If you see some clever objection to something, think, what are the implications of that being a universal law. If you do nothing with the implications, maybe you're not engaging...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/109733533927654696",
-      "reply_count": 0,
-      "branches": []
-    },
-    {
       "id": "109730488799621604",
       "slug": "2023-01-22-a-convo-with-davinci-s-younger-sibling-please-generate-the-next-109730488799621604",
       "title": "A convo with davinci, 's younger sibling. ``` Please generate the next...",
@@ -25681,25 +25600,6 @@
           "children": []
         }
       ]
-    },
-    {
-      "id": "109478364109141549",
-      "slug": "2022-12-08-gotofritz-fosstodon-org-i-said-generate-a-diet-that-will-maximize-the-109478364109141549",
-      "title": "@gotofritz@fosstodon.org I said generate a diet that will maximize the odds of...",
-      "author": {
-        "acct": "mistersql",
-        "api_base_url": "https://mastodon.social",
-        "account_id": "301226"
-      },
-      "created_at": "2022-12-08T13:47:44.846000",
-      "content_html": "<p>@gotofritz@fosstodon.org I said generate a diet that will maximize the odds of living to 95. This is unsettled science and there are competing ideas. It repeats back the &quot;Cosmo Magazine&quot; hegemonic discourse, the one that if followed, no businesses would go bankrupt. If the word veg*n gets in the way of my point, ChatGPT right now is incapable of recommending on a first request, the carnevore diet, keto</p><p>Societies do take a stand, people enforce it&#39;s violations, that&#39;s the hegemonic discourse.</p>",
-      "content_text": "@gotofritz@fosstodon.org I said generate a diet that will maximize the odds of living to 95. This is unsettled science and there are competing ideas. It repeats back the \"Cosmo Magazine\" hegemonic discourse, the one that if followed, no businesses would go bankrupt. If the word veg*n gets in the way of my point, ChatGPT right now is incapable of recommending on a first request, the carnevore diet, keto Societies do take a stand, people enforce it's violations, that's the hegemonic discourse.",
-      "cleaned_length": 496,
-      "excerpt": "@gotofritz@fosstodon.org I said generate a diet that will maximize the odds of living to 95. This is unsettled science and there are competing ideas. It repeats back the \"Cosmo...",
-      "media": [],
-      "original_url": "https://mastodon.social/@mistersql/109478364109141549",
-      "reply_count": 0,
-      "branches": []
     },
     {
       "id": "109478295451039859",

@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 ATTACH_ALIAS = "src"
 
 SQLITE_INSTALLED = False
+FORUM_CACHE_TTL_SECONDS = 30.0
+FORUM_SUMMARY_CACHE: dict[
+    tuple[int, int, bool, int], tuple[float, list[dict[str, Any]]]
+] = {}
 
 
 def _open_query_connection() -> duckdb.DuckDBPyConnection:
@@ -317,6 +321,7 @@ async def forum_thread_summaries(
     meta_id: int,
     identity_id: int,
     include_content_hub: bool = False,
+    following_accts: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Aggregate cached posts into thread summaries for the forum view.
@@ -325,7 +330,19 @@ async def forum_thread_summaries(
     latest_reply_at, root_post fields, tags union, and per-thread uncommon words.
     Only threads with ≥1 reply and ≥2 unique participants are returned.
     """
+    following = sorted(following_accts or set())
+    cache_key = (meta_id, identity_id, include_content_hub, hash(tuple(following)))
+    cached = FORUM_SUMMARY_CACHE.get(cache_key)
+    if cached and time.monotonic() - cached[0] < FORUM_CACHE_TTL_SECONDS:
+        return cached[1]
+
     content_hub_clause = "" if include_content_hub else "AND content_hub_only = false"
+    friend_placeholders = ", ".join("?" for _ in following)
+    friend_count_sql = (
+        f"SUM(CASE WHEN id != root_id AND author_acct IN ({friend_placeholders}) THEN 1 ELSE 0 END)"
+        if following
+        else "0"
+    )
 
     sql = f"""
         WITH posts AS (
@@ -352,10 +369,13 @@ async def forum_thread_summaries(
                 COUNT(*) AS total_posts,
                 COUNT(*) - 1 AS reply_count,
                 COUNT(DISTINCT author_acct) AS unique_participants,
-                MAX(CASE WHEN id != root_id THEN created_at ELSE NULL END) AS latest_reply_at
+                MAX(CASE WHEN id != root_id THEN created_at ELSE NULL END) AS latest_reply_at,
+                string_agg(DISTINCT author_acct, ',') AS participants_csv,
+                {friend_count_sql} AS friend_reply_count
             FROM posts
             GROUP BY root_id
-            HAVING COUNT(*) >= 1
+            HAVING COUNT(*) >= 2
+               AND COUNT(DISTINCT author_acct) >= 2
         ),
         root_posts AS (
             SELECT
@@ -395,13 +415,15 @@ async def forum_thread_summaries(
             rp.root_tags,
             rp.thread_uncommon_words,
             rp.in_reply_to_id IS NOT NULL AS root_is_partial,
-            COALESCE(tu.all_tags, '') AS tags_csv
+            COALESCE(tu.all_tags, '') AS tags_csv,
+            ts.participants_csv,
+            ts.friend_reply_count
         FROM thread_stats ts
         JOIN root_posts rp ON rp.root_id = ts.root_id
         LEFT JOIN tags_union tu ON tu.root_id = ts.root_id
         ORDER BY COALESCE(ts.latest_reply_at, rp.created_at) DESC;
     """
-    rows = await run(sql, [meta_id, identity_id])
+    rows = await run(sql, [meta_id, identity_id, *following])
     results = []
     for r in rows:
         tags_csv: str = r[11] or ""
@@ -428,8 +450,11 @@ async def forum_thread_summaries(
                 "uncommon_words": uncommon,
                 "root_is_partial": bool(r[10]),
                 "tags": tags_set,
+                "participants": {p for p in (r[12] or "").split(",") if p},
+                "friend_reply_count": int(r[13] or 0),
             }
         )
+    FORUM_SUMMARY_CACHE[cache_key] = (time.monotonic(), results)
     return results
 
 

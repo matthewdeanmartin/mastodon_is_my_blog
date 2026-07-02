@@ -74,8 +74,16 @@ interface FacetChip {
         </div>
 
         <div class="action-row">
+          <label>
+            Work per click
+            <select [(ngModel)]="maxDurationSeconds" class="select-input">
+              <option [ngValue]="30">Stop after 30 seconds</option>
+              <option [ngValue]="60">Stop after 1 minute</option>
+              <option [ngValue]="300">Stop after 5 minutes</option>
+            </select>
+          </label>
           <button class="btn-primary" (click)="loadFresh()" [disabled]="loading">
-            {{ loading ? 'Fetching…' : '⬇ Download / Refresh' }}
+            {{ loading ? 'Fetching…' : scanComplete ? '⬇ Download / Refresh' : '▶ Resume scan' }}
           </button>
           <button class="btn-secondary" (click)="applyFilters()" [disabled]="loading">
             Apply Filters
@@ -84,6 +92,11 @@ interface FacetChip {
             <span class="cache-info">
               {{ cacheHit ? 'Cached' : 'Fresh fetch' }} · {{ fetchedAt | date: 'short' }}
             </span>
+          }
+          @if (!scanComplete) {
+            <span class="cache-info"
+              >Paused at {{ scannedFriends }} / {{ totalFriends }} friends</span
+            >
           }
         </div>
       </div>
@@ -555,6 +568,7 @@ export class NewFriendsComponent implements OnInit, OnDestroy {
   minPosts = 1;
   activeSinceDays = 365;
   bioContains = '';
+  maxDurationSeconds = 30;
 
   // Data state
   loading = false;
@@ -564,6 +578,9 @@ export class NewFriendsComponent implements OnInit, OnDestroy {
   fetchedAt: string | null = null;
   cacheHit = false;
   totalDownloaded = 0;
+  scanComplete = true;
+  scannedFriends = 0;
+  totalFriends = 0;
 
   // Selection state
   selectedIds = new Set<string>();
@@ -627,6 +644,9 @@ export class NewFriendsComponent implements OnInit, OnDestroy {
           this.totalDownloaded = resp.total_downloaded;
           this.fetchedAt = resp.fetched_at;
           this.cacheHit = resp.cache_hit;
+          this.scanComplete = resp.scan_complete;
+          this.scannedFriends = resp.scanned_friends;
+          this.totalFriends = resp.total_friends;
           this.applyFacets();
           this.loading = false;
         },
@@ -644,7 +664,12 @@ export class NewFriendsComponent implements OnInit, OnDestroy {
     this.error = null;
     this.bulkFollowResult = null;
     this.api
-      .refreshNewFriendsCache(identityId, this.maxFriends, this.blogRollFilter || undefined)
+      .refreshNewFriendsCache(
+        identityId,
+        this.maxFriends,
+        this.blogRollFilter || undefined,
+        this.maxDurationSeconds,
+      )
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => this.loadCached(identityId),

@@ -7,7 +7,6 @@ from mastodon_is_my_blog.store import (
     MastodonIdentity,
 )
 from mastodon_is_my_blog.storm_export import (
-    DEFAULT_MIN_TEXT_LENGTH,
     build_blogroll_export,
     build_storm_exports,
     clean_mastodon_text,
@@ -137,7 +136,7 @@ def test_clean_mastodon_text_strips_html_links_mentions_and_hashtags() -> None:
     assert clean_mastodon_text(html) == "Hello stays out. done."
 
 
-def test_build_storm_exports_keeps_long_public_roots_and_self_reply_chains() -> None:
+def test_build_storm_exports_only_keeps_public_self_reply_chains() -> None:
     identity = make_identity(
         identity_id=1,
         acct="mistersql",
@@ -179,11 +178,10 @@ def test_build_storm_exports_keeps_long_public_roots_and_self_reply_chains() -> 
     payload = build_storm_exports(
         identities=[identity],
         posts=[root, short_root, self_reply, private_root],
-        min_text_length=DEFAULT_MIN_TEXT_LENGTH,
     )
 
-    assert payload["storm_count"] == 2
-    assert [storm["id"] for storm in payload["storms"]] == ["root-2", "root-1"]
+    assert payload["storm_count"] == 1
+    assert [storm["id"] for storm in payload["storms"]] == ["root-2"]
     assert payload["storms"][0]["reply_count"] == 1
     assert payload["storms"][0]["branches"][0]["id"] == "reply-2"
     assert payload["authors"] == [
@@ -191,7 +189,7 @@ def test_build_storm_exports_keeps_long_public_roots_and_self_reply_chains() -> 
             "acct": "mistersql",
             "api_base_url": "https://mastodon.social",
             "account_id": "301226",
-            "storm_count": 2,
+            "storm_count": 1,
         }
     ]
 
@@ -230,7 +228,6 @@ def test_build_storm_exports_ignores_replies_from_other_authors() -> None:
     payload = build_storm_exports(
         identities=[own_identity],
         posts=[root, own_reply, other_reply],
-        min_text_length=DEFAULT_MIN_TEXT_LENGTH,
     )
 
     assert payload["storm_count"] == 1
@@ -293,8 +290,7 @@ def test_build_blogroll_export_groups_top_friends_mutuals_and_bots() -> None:
     payload = build_blogroll_export(accounts=accounts, notifications=notifications)
 
     assert payload["warning"] == (
-        "This is anonymous access so I don't know your base Mastodon instance; "
-        "all links go to mastodon.social."
+        "This is anonymous access so I don't know your base Mastodon instance; all links go to mastodon.social."
     )
     assert [category["id"] for category in payload["categories"]] == [
         "top_friends",

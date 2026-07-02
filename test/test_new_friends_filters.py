@@ -169,7 +169,9 @@ class TestFetchAndCacheBlogrollFilter:
     @pytest.mark.asyncio
     async def test_no_filter_expands_all_follows_most_active_first(self, db_session):
         await seed_blogroll(db_session)
-        await _fetch_and_cache(1, make_identity(), max_friends=50, blog_roll_filter=None)
+        await _fetch_and_cache(
+            1, make_identity(), max_friends=50, blog_roll_filter=None
+        )
         assert self.client.expanded == ["tf-1", "mu-1", "bot-1", "fo-1"]
 
     @pytest.mark.asyncio
@@ -228,3 +230,38 @@ class TestFetchAndCacheBlogrollFilter:
             )
         ).scalar_one()
         assert [c["id"] for c in json.loads(cached.data_json)] == ["cand-1"]
+
+    @pytest.mark.asyncio
+    async def test_timed_scan_checkpoints_and_resumes(self, db_session):
+        await seed_blogroll(db_session)
+
+        first = await _fetch_and_cache(
+            1,
+            make_identity(),
+            max_friends=2,
+            blog_roll_filter=None,
+            max_duration_seconds=0,
+        )
+        assert first == []
+        checkpoint = (
+            await db_session.execute(
+                select(FriendsOfFriendsCache).where(
+                    FriendsOfFriendsCache.identity_id == 1
+                )
+            )
+        ).scalar_one()
+        await db_session.refresh(checkpoint)
+        assert checkpoint.scan_complete is False
+        assert checkpoint.next_friend_index == 0
+
+        await _fetch_and_cache(
+            1,
+            make_identity(),
+            max_friends=2,
+            blog_roll_filter=None,
+            max_duration_seconds=30,
+        )
+        await db_session.refresh(checkpoint)
+        assert checkpoint.scan_complete is True
+        assert checkpoint.next_friend_index == 2
+        assert self.client.expanded == ["tf-1", "mu-1"]

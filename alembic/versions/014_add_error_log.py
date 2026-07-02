@@ -16,16 +16,23 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "error_log",
-        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("ts", sa.Float(), nullable=False),
-        sa.Column("level", sa.Text(), nullable=False),
-        sa.Column("logger_name", sa.Text(), nullable=False),
-        sa.Column("message", sa.Text(), nullable=False),
-        sa.Column("exc_text", sa.Text(), nullable=True),
-    )
-    op.create_index("ix_error_log_ts", "error_log", ["ts"])
+    inspector = sa.inspect(op.get_bind())
+    if "error_log" not in inspector.get_table_names():
+        op.create_table(
+            "error_log",
+            sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+            sa.Column("ts", sa.Float(), nullable=False),
+            sa.Column("level", sa.Text(), nullable=False),
+            sa.Column("logger_name", sa.Text(), nullable=False),
+            sa.Column("message", sa.Text(), nullable=False),
+            sa.Column("exc_text", sa.Text(), nullable=True),
+        )
+        op.create_index("ix_error_log_ts", "error_log", ["ts"])
+        return
+
+    index_names = {index["name"] for index in inspector.get_indexes("error_log")}
+    if "ix_error_log_ts" not in index_names:
+        op.create_index("ix_error_log_ts", "error_log", ["ts"])
 
 
 def downgrade() -> None:

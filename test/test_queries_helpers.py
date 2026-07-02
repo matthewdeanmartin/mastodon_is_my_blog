@@ -261,7 +261,14 @@ async def test_get_counts_optimized_returns_totals_and_unseen(db_session) -> Non
             ),
             make_cached_post(
                 post_id="storm-1",
-                content="x" * 700,
+                content="storm root",
+                has_link=True,
+            ),
+            make_cached_post(
+                post_id="storm-reply-1",
+                in_reply_to_id="storm-1",
+                has_link=True,
+                content="storm self reply",
             ),
             make_cached_post(
                 post_id="news-1",
@@ -282,7 +289,7 @@ async def test_get_counts_optimized_returns_totals_and_unseen(db_session) -> Non
     stats = await queries.get_counts_optimized(db_session, 1, 1)
 
     assert stats["user"] == "all"
-    assert stats["everyone"] == {"total": 4, "unseen": 3}
+    assert stats["everyone"] == {"total": 5, "unseen": 4}
     assert stats["shorts"] == {"total": 2, "unseen": 1}
     assert stats["storms"] == {"total": 1, "unseen": 1}
     assert stats["news"] == {"total": 1, "unseen": 1}

@@ -7,7 +7,7 @@ from typing import Any
 
 import dotenv
 from fastapi import HTTPException, Request
-from sqlalchemy import Integer, and_, false, func, outerjoin, select
+from sqlalchemy import Integer, and_, exists, false, func, outerjoin, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1037,18 +1037,26 @@ async def get_counts_optimized(
     # Define our filters matching the UI categories
     f_shorts = and_(
         CachedPost.is_reply.is_(False),
+        CachedPost.in_reply_to_id.is_(None),
         CachedPost.is_reblog.is_(False),
         CachedPost.has_media.is_(False),
         CachedPost.has_link.is_(False),
         func.length(CachedPost.content) < 500,
     )
-    # Storm count approximation: roots that are long enough to qualify.
-    # Self-reply chains can't be counted efficiently in SQL; length >= 500 catches most.
+    storm_reply = CachedPost.__table__.alias("storm_reply")
     f_storms = and_(
         CachedPost.is_reblog.is_(False),
         CachedPost.in_reply_to_id.is_(None),
-        CachedPost.has_link.is_(False),
-        func.length(CachedPost.content) >= 500,
+        exists(
+            select(1).where(
+                storm_reply.c.meta_account_id == CachedPost.meta_account_id,
+                storm_reply.c.fetched_by_identity_id
+                == CachedPost.fetched_by_identity_id,
+                storm_reply.c.in_reply_to_id == CachedPost.id,
+                storm_reply.c.author_id == CachedPost.author_id,
+                storm_reply.c.is_reblog.is_(False),
+            )
+        ),
     )
     f_news = and_(CachedPost.is_reblog.is_(False), CachedPost.has_news.is_(True))
     f_software = and_(CachedPost.is_reblog.is_(False), CachedPost.has_tech.is_(True))

@@ -13,9 +13,11 @@ import asyncio
 import json
 import logging
 import re
+import time
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from mastodon.errors import MastodonError
 from sqlalchemy import select
 
 from mastodon_is_my_blog.blogroll import (
@@ -40,6 +42,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/new-friends", tags=["new-friends"])
 
 CACHE_TTL_HOURS = 6
+DEFAULT_SCAN_SECONDS = 30
 HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
@@ -67,20 +70,85 @@ def _is_cache_fresh(fetched_at: datetime | None) -> bool:
     return (utc_now() - naive) < timedelta(hours=CACHE_TTL_HOURS)
 
 
+async def save_scan_progress(
+    identity_id: int,
+    candidates: list[dict],
+    source_friend_ids: list[str],
+    next_friend_index: int,
+    max_friends: int,
+    blog_roll_filter: str | None,
+    complete: bool,
+) -> None:
+    """Commit a scan checkpoint so cancellation or restart can resume it."""
+    async with async_session() as session:
+        existing = (
+            await session.execute(
+                select(FriendsOfFriendsCache).where(
+                    FriendsOfFriendsCache.identity_id == identity_id
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            existing = FriendsOfFriendsCache(identity_id=identity_id)
+            session.add(existing)
+        existing.fetched_at = utc_now()
+        existing.data_json = json.dumps(candidates)
+        existing.source_friend_ids_json = json.dumps(source_friend_ids)
+        existing.next_friend_index = next_friend_index
+        existing.scan_max_friends = max_friends
+        existing.scan_blog_roll_filter = blog_roll_filter
+        existing.scan_complete = complete
+        await session.commit()
+
+
+def candidate_from_account(acc: dict, followed_by_ids: set[str]) -> dict:
+    created_raw = acc.get("created_at")
+    last_status_raw = acc.get("last_status_at")
+    return {
+        "id": str(acc.get("id", "")),
+        "acct": acc.get("acct", ""),
+        "display_name": acc.get("display_name", ""),
+        "avatar": acc.get("avatar", ""),
+        "url": acc.get("url", ""),
+        "note": strip_html(acc.get("note", "")),
+        "bot": bool(acc.get("bot", False)),
+        "locked": bool(acc.get("locked", False)),
+        "followers_count": acc.get("followers_count", 0),
+        "following_count": acc.get("following_count", 0),
+        "statuses_count": acc.get("statuses_count", 0),
+        "created_at": (
+            created_raw.isoformat()
+            if isinstance(created_raw, datetime)
+            else str(created_raw) if created_raw else None
+        ),
+        "last_status_at": (
+            last_status_raw.isoformat()
+            if isinstance(last_status_raw, datetime)
+            else str(last_status_raw) if last_status_raw else None
+        ),
+        "followed_by_ids": sorted(followed_by_ids),
+        "followed_by_count": len(followed_by_ids),
+    }
+
+
 async def _fetch_and_cache(
     meta_id: int,
     identity: MastodonIdentity,
     max_friends: int,
     blog_roll_filter: str | None,
+    max_duration_seconds: int = DEFAULT_SCAN_SECONDS,
 ) -> list[dict]:
     """
-    Core fetch: get the accounts our friends follow, de-duplicate, and persist to cache.
+    Fetch friends-of-friends with durable per-friend checkpoints.
+
+    An incomplete scan with the same inputs resumes at its next friend. A
+    completed scan (or changed inputs) starts over. Work stops at the duration
+    limit and the partial result remains readable.
     """
     if blog_roll_filter and blog_roll_filter not in BLOGROLL_CATEGORY_TITLES:
         raise HTTPException(
             400,
-            f"Unknown blog_roll_filter {blog_roll_filter!r}; "
-            f"expected one of {sorted(BLOGROLL_CATEGORY_TITLES)}",
+            f"Unknown blog_roll_filter {blog_roll_filter!r}; expected one of {sorted(BLOGROLL_CATEGORY_TITLES)}",
         )
 
     client = client_from_identity(identity)
@@ -124,6 +192,9 @@ async def _fetch_and_cache(
             expandable = friends
 
     if not friends:
+        await save_scan_progress(
+            identity.id, [], [], 0, max_friends, blog_roll_filter, True
+        )
         return []
 
     # Build a set of account IDs we already follow — used to filter candidates.
@@ -132,8 +203,43 @@ async def _fetch_and_cache(
     # Also exclude ourselves
     already_following_ids.add(identity.account_id)
 
-    # Limit how many friends we expand from (controls API call volume)
+    # Limit how many friends we expand from (controls API call volume).
     friends_to_expand = expandable[:max_friends]
+    source_friend_ids = [friend.id for friend in friends_to_expand]
+
+    async with async_session() as session:
+        cached = (
+            await session.execute(
+                select(FriendsOfFriendsCache).where(
+                    FriendsOfFriendsCache.identity_id == identity.id
+                )
+            )
+        ).scalar_one_or_none()
+
+    can_resume = bool(
+        cached
+        and not cached.scan_complete
+        and cached.scan_max_friends == max_friends
+        and cached.scan_blog_roll_filter == blog_roll_filter
+        and json.loads(cached.source_friend_ids_json or "[]") == source_friend_ids
+    )
+    candidate_map: dict[str, dict]
+    if can_resume and cached is not None:
+        candidates = json.loads(cached.data_json or "[]")
+        candidate_map = {candidate["id"]: candidate for candidate in candidates}
+        next_friend_index = cached.next_friend_index
+    else:
+        candidate_map = {}
+        next_friend_index = 0
+        await save_scan_progress(
+            identity.id,
+            [],
+            source_friend_ids,
+            next_friend_index,
+            max_friends,
+            blog_roll_filter,
+            not source_friend_ids,
+        )
 
     logger.info(
         "new_friends: expanding %d friends (of %d total follows) for identity %d",
@@ -142,86 +248,57 @@ async def _fetch_and_cache(
         identity.id,
     )
 
-    # For each friend, fetch who they follow — one API call per friend
-    # We run these sequentially (not concurrent) to be polite to the instance.
-    # Each call fetches up to 80 accounts (one page); deep pagination not needed here.
-    candidate_map: dict[str, dict] = {}  # mastodon_id -> account dict
-    followed_by: dict[str, set[str]] = {}  # mastodon_id -> set of our friends' ids
-
-    for friend in friends_to_expand:
+    # Sequential calls respect the instance and give us a natural checkpoint.
+    deadline = time.monotonic() + max_duration_seconds
+    for index in range(next_friend_index, len(friends_to_expand)):
+        friend = friends_to_expand[index]
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
         try:
-            results = await asyncio.to_thread(
-                client.account_following, friend.id, limit=80
+            results = await asyncio.wait_for(
+                asyncio.to_thread(client.account_following, friend.id, limit=80),
+                timeout=remaining,
             )
-            if not results:
-                continue
             for acc in results:
                 acc_id = str(acc.get("id", ""))
                 if not acc_id or acc_id in already_following_ids:
                     continue
-                if acc_id not in candidate_map:
-                    candidate_map[acc_id] = acc
-                if acc_id not in followed_by:
-                    followed_by[acc_id] = set()
-                followed_by[acc_id].add(friend.id)
-        except Exception as exc:
+                existing_candidate = candidate_map.get(acc_id)
+                followed_by_ids = set(
+                    existing_candidate.get("followed_by_ids", [])
+                    if existing_candidate
+                    else []
+                )
+                followed_by_ids.add(friend.id)
+                candidate_map[acc_id] = candidate_from_account(acc, followed_by_ids)
+        except TimeoutError:
+            break
+        except MastodonError as exc:
             logger.warning("Failed to get following for %s: %s", friend.acct, exc)
-
-    # Build serialisable candidate list
-    candidates: list[dict] = []
-    for acc_id, acc in candidate_map.items():
-        created_raw = acc.get("created_at")
-        last_status_raw = acc.get("last_status_at")
-        candidates.append(
-            {
-                "id": acc_id,
-                "acct": acc.get("acct", ""),
-                "display_name": acc.get("display_name", ""),
-                "avatar": acc.get("avatar", ""),
-                "url": acc.get("url", ""),
-                "note": strip_html(acc.get("note", "")),
-                "bot": bool(acc.get("bot", False)),
-                "locked": bool(acc.get("locked", False)),
-                "followers_count": acc.get("followers_count", 0),
-                "following_count": acc.get("following_count", 0),
-                "statuses_count": acc.get("statuses_count", 0),
-                "created_at": (
-                    created_raw.isoformat()
-                    if isinstance(created_raw, datetime)
-                    else str(created_raw) if created_raw else None
-                ),
-                "last_status_at": (
-                    last_status_raw.isoformat()
-                    if isinstance(last_status_raw, datetime)
-                    else str(last_status_raw) if last_status_raw else None
-                ),
-                "followed_by_count": len(followed_by.get(acc_id, set())),
-            }
+        next_friend_index = index + 1
+        candidates = list(candidate_map.values())
+        await save_scan_progress(
+            identity.id,
+            candidates,
+            source_friend_ids,
+            next_friend_index,
+            max_friends,
+            blog_roll_filter,
+            next_friend_index >= len(friends_to_expand),
         )
 
-    # Persist to cache
-    data_json = json.dumps(candidates)
-    async with async_session() as session:
-        existing = (
-            await session.execute(
-                select(FriendsOfFriendsCache).where(
-                    FriendsOfFriendsCache.identity_id == identity.id
-                )
-            )
-        ).scalar_one_or_none()
-
-        if existing:
-            existing.fetched_at = utc_now()
-            existing.data_json = data_json
-        else:
-            session.add(
-                FriendsOfFriendsCache(
-                    identity_id=identity.id,
-                    fetched_at=utc_now(),
-                    data_json=data_json,
-                )
-            )
-        await session.commit()
+    candidates = list(candidate_map.values())
+    # Save the timeout checkpoint even when no request completed in this run.
+    await save_scan_progress(
+        identity.id,
+        candidates,
+        source_friend_ids,
+        next_friend_index,
+        max_friends,
+        blog_roll_filter,
+        next_friend_index >= len(friends_to_expand),
+    )
 
     logger.info(
         "new_friends: cached %d candidates for identity %d",
@@ -298,19 +375,24 @@ async def get_candidates(
             )
         ).scalar_one_or_none()
 
-    if cached and _is_cache_fresh(cached.fetched_at):
-        try:
-            candidates = json.loads(cached.data_json)
-        except Exception:
-            candidates = []
+    if cached:
+        candidates = json.loads(cached.data_json or "[]")
         cache_hit = True
         fetched_at = cached.fetched_at.isoformat() if cached.fetched_at else None
+        cache_fresh = _is_cache_fresh(cached.fetched_at)
+        scan_complete = cached.scan_complete
+        scanned_friends = cached.next_friend_index
+        total_friends = len(json.loads(cached.source_friend_ids_json or "[]"))
     else:
-        candidates = await _fetch_and_cache(
-            meta.id, identity, max_friends, blog_roll_filter
-        )
+        # Reads are deliberately cheap. Scanning is an explicit POST operation,
+        # never a surprise side effect of opening the page or applying filters.
+        candidates = []
         cache_hit = False
-        fetched_at = utc_now().isoformat()
+        fetched_at = None
+        cache_fresh = False
+        scan_complete = True
+        scanned_friends = 0
+        total_friends = 0
 
     # Get current following set to exclude (cache may be slightly stale)
     async with async_session() as session:
@@ -328,7 +410,10 @@ async def get_candidates(
     )
 
     total = len(filtered)
-    page = filtered[offset : offset + limit]
+    page = [
+        {key: value for key, value in candidate.items() if key != "followed_by_ids"}
+        for candidate in filtered[offset : offset + limit]
+    ]
 
     return {
         "candidates": page,
@@ -337,7 +422,11 @@ async def get_candidates(
         "offset": offset,
         "limit": limit,
         "cache_hit": cache_hit,
+        "cache_fresh": cache_fresh,
         "fetched_at": fetched_at,
+        "scan_complete": scan_complete,
+        "scanned_friends": scanned_friends,
+        "total_friends": total_friends,
     }
 
 
@@ -346,6 +435,12 @@ async def refresh_candidates(
     identity_id: int = Query(...),
     max_friends: int = Query(50, ge=1, le=500),
     blog_roll_filter: str | None = Query(None),
+    max_duration_seconds: int = Query(
+        DEFAULT_SCAN_SECONDS,
+        ge=1,
+        le=300,
+        description="Stop and checkpoint after this many seconds; call again to resume.",
+    ),
     meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
     """
@@ -353,6 +448,24 @@ async def refresh_candidates(
     """
     identity = await resolve_identity(meta.id, identity_id)
     candidates = await _fetch_and_cache(
-        meta.id, identity, max_friends, blog_roll_filter
+        meta.id,
+        identity,
+        max_friends,
+        blog_roll_filter,
+        max_duration_seconds=max_duration_seconds,
     )
-    return {"status": "ok", "candidates_fetched": len(candidates)}
+    async with async_session() as session:
+        cached = (
+            await session.execute(
+                select(FriendsOfFriendsCache).where(
+                    FriendsOfFriendsCache.identity_id == identity_id
+                )
+            )
+        ).scalar_one()
+    return {
+        "status": "complete" if cached.scan_complete else "partial",
+        "candidates_fetched": len(candidates),
+        "scan_complete": cached.scan_complete,
+        "scanned_friends": cached.next_friend_index,
+        "total_friends": len(json.loads(cached.source_friend_ids_json or "[]")),
+    }

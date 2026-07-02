@@ -66,5 +66,5 @@ export interface TokenResponse {
   scope: string;
 }
 
-export type LiteFilter = 'recent' | 'shorts' | 'replies' | 'media' | 'links' | 'boosts';
+export type LiteFilter = 'recent' | 'storms' | 'shorts' | 'replies' | 'media' | 'links' | 'boosts';
 export type LitePage = 'home' | 'me' | 'media' | 'links' | 'about';

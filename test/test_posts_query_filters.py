@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from mastodon_is_my_blog.routes import posts
@@ -259,22 +259,18 @@ async def test_filter_category_true_flags(in_memory_session) -> None:
 
 
 @pytest.mark.asyncio
-async def test_storms_scope_returns_nonzero_results(in_memory_session) -> None:
-    """
-    Regression: storms scope and_(meta==1, identity==1, is_reblog.is_(False))
-    must not silently drop to 0 rows when posts exist.
-    """
-    for i in range(3):
-        in_memory_session.add(
+async def test_storms_scope_requires_a_self_reply(in_memory_session) -> None:
+    in_memory_session.add_all(
+        [
+            make_post("storm", author_id="author", in_reply_to_id=None),
+            make_post("self-reply", author_id="author", in_reply_to_id="storm"),
+            make_post("long-standalone", author_id="author", content="x" * 1000),
+            make_post("other-root", author_id="other", in_reply_to_id=None),
             make_post(
-                f"storm-{i}",
-                meta_account_id=1,
-                fetched_by_identity_id=1,
-                in_reply_to_id=None,
-                has_link=False,
-                content="<p>" + "x" * 600 + "</p>",  # Long enough for storm
-            )
-        )
+                "reply-to-other", author_id="author", in_reply_to_id="other-root"
+            ),
+        ]
+    )
     await in_memory_session.flush()
 
     scope = and_(
@@ -283,23 +279,23 @@ async def test_storms_scope_returns_nonzero_results(in_memory_session) -> None:
         CachedPost.is_reblog.is_(False),
     )
 
-    roots_query = (
-        select(CachedPost)
-        .where(
-            and_(
-                scope,
-                CachedPost.in_reply_to_id.is_(None),
-                CachedPost.has_link.is_(False),
-                func.length(CachedPost.content) >= 500,
-            )
-        )
-        .order_by(desc(CachedPost.created_at))
+    parent = CachedPost.__table__.alias("parent")
+    child = CachedPost.__table__.alias("child")
+    self_replied_ids = (
+        select(parent.c.id)
+        .join(child, child.c.in_reply_to_id == parent.c.id)
+        .where(child.c.author_id == parent.c.author_id)
+    )
+    roots_query = select(CachedPost).where(
+        scope,
+        CachedPost.in_reply_to_id.is_(None),
+        CachedPost.id.in_(self_replied_ids),
     )
 
     result = await in_memory_session.execute(roots_query)
     roots = result.scalars().all()
 
-    assert len(roots) == 3
+    assert [root.id for root in roots] == ["storm"]
 
 
 @pytest.mark.asyncio

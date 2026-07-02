@@ -171,11 +171,15 @@ async def call_endpoint(
     monkeypatch.setattr(forum_module, "async_session", WrappedFactory())
 
     async def fake_forum_thread_summaries(
-        meta_id, identity_id, include_content_hub=False
+        meta_id, identity_id, include_content_hub=False, following_accts=None
     ):
-        return await build_thread_summaries_from_session(
+        summaries = await build_thread_summaries_from_session(
             db_session, meta_id, identity_id
         )
+        for summary in summaries:
+            summary.setdefault("participants", set())
+            summary.setdefault("friend_reply_count", 0)
+        return summaries
 
     async def fake_forum_friend_reply_counts(
         meta_id, identity_id, root_ids, following_accts

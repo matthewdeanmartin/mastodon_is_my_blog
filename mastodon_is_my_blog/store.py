@@ -39,7 +39,9 @@ logging.basicConfig()
 
 dotenv.load_dotenv()
 
-from mastodon_is_my_blog.db_path import get_default_db_url  # pylint: disable=wrong-import-position
+from mastodon_is_my_blog.db_path import (
+    get_default_db_url,
+)  # pylint: disable=wrong-import-position
 
 DB_URL = get_default_db_url()
 # Database setup
@@ -189,6 +191,16 @@ class CachedAccount(Base):
     cached_post_count: Mapped[int] = mapped_column(Integer, default=0)
     cached_reply_count: Mapped[int] = mapped_column(Integer, default=0)
 
+    __table_args__ = (
+        Index(
+            "ix_accounts_meta_identity_following_activity",
+            "meta_account_id",
+            "mastodon_identity_id",
+            "is_following",
+            "last_status_at",
+        ),
+    )
+
 
 class CachedPost(Base):
     __tablename__ = "cached_posts"
@@ -305,6 +317,13 @@ class CachedPost(Base):
         Index(
             "ix_posts_root_id",
             "meta_account_id",
+            "root_id",
+            "created_at",
+        ),
+        Index(
+            "ix_posts_identity_root",
+            "meta_account_id",
+            "fetched_by_identity_id",
             "root_id",
             "created_at",
         ),
@@ -433,6 +452,11 @@ class FriendsOfFriendsCache(Base):
     )
     fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     data_json: Mapped[str] = mapped_column(Text, default="[]")
+    source_friend_ids_json: Mapped[str] = mapped_column(Text, default="[]")
+    next_friend_index: Mapped[int] = mapped_column(Integer, default=0)
+    scan_max_friends: Mapped[int] = mapped_column(Integer, default=0)
+    scan_blog_roll_filter: Mapped[str | None] = mapped_column(String, nullable=True)
+    scan_complete: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class ContentHubGroup(Base):
@@ -621,12 +645,16 @@ async def ensure_cached_posts_schema() -> None:
                 text("ALTER TABLE cached_posts ADD COLUMN has_book BOOLEAN DEFAULT 0")
             )
 
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
                 UPDATE cached_posts
                 SET actor_acct = COALESCE(actor_acct, author_acct),
                     actor_id = COALESCE(actor_id, author_id)
                 WHERE actor_acct IS NULL OR actor_id IS NULL
-                """))
+                """
+            )
+        )
         await conn.execute(
             text(
                 "CREATE INDEX IF NOT EXISTS ix_posts_meta_actor ON cached_posts (meta_account_id, actor_acct, created_at)"
