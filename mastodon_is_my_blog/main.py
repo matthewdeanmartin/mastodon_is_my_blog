@@ -122,6 +122,13 @@ app.include_router(posts.router)
 app.include_router(writing.posts_router)
 app.include_router(writing.drafts_router)
 
+if tenancy.is_server_mode():
+    # Control-plane hand-off API (spec/paid_hosting/control_plane_handoff.md).
+    # Never mounted in local mode, so self-hosted installs 404 on /internal/*.
+    from mastodon_is_my_blog.routes import internal
+
+    app.include_router(internal.router)
+
 # Add CORS middleware
 def allowed_origins() -> list[str]:
     """Single-user mode allows local dev servers; server mode is locked to

@@ -34,6 +34,9 @@ SERVER_MODE_REQUIRED_ENV = (
     "SESSION_SIGNING_KEY",
     "TOKEN_ENCRYPTION_KEY",
     "APP_BASE_URL",
+    # Bearer secret for the /internal control-plane hand-off API — server
+    # mode is useless without a control plane that can reach it.
+    "HANDOFF_SHARED_SECRET",
 )
 
 

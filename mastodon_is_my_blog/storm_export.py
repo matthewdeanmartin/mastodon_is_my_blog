@@ -340,47 +340,44 @@ def build_blogroll_export(
     }
 
 
-async def load_storm_export_data() -> dict[str, Any]:
+async def load_storm_export_data(
+    *, meta_account_id: int | None = None
+) -> dict[str, Any]:
+    """Load storm data for export. meta_account_id scopes to one tenant in
+    hosted (server) mode; None keeps the single-user local behavior."""
     async with async_session() as session:
-        identities = (
-            (
-                await session.execute(
-                    select(MastodonIdentity).order_by(MastodonIdentity.acct)
-                )
+        identity_stmt = select(MastodonIdentity).order_by(MastodonIdentity.acct)
+        if meta_account_id is not None:
+            identity_stmt = identity_stmt.where(
+                MastodonIdentity.meta_account_id == meta_account_id
             )
-            .scalars()
-            .all()
-        )
+        identities = (await session.execute(identity_stmt)).scalars().all()
         if not identities:
             return build_storm_exports(identities=[], posts=[])
-        posts = (
-            (
-                await session.execute(
-                    select(CachedPost).where(
-                        CachedPost.author_id.in_(
-                            [str(identity.account_id) for identity in identities]
-                        )
-                    )
-                )
+        posts_stmt = select(CachedPost).where(
+            CachedPost.author_id.in_(
+                [str(identity.account_id) for identity in identities]
             )
-            .scalars()
-            .all()
         )
+        if meta_account_id is not None:
+            posts_stmt = posts_stmt.where(
+                CachedPost.meta_account_id == meta_account_id
+            )
+        posts = (await session.execute(posts_stmt)).scalars().all()
 
     return build_storm_exports(identities=identities, posts=posts)
 
 
-async def load_blogroll_export_data() -> dict[str, Any]:
+async def load_blogroll_export_data(
+    *, meta_account_id: int | None = None
+) -> dict[str, Any]:
     async with async_session() as session:
-        identities = (
-            (
-                await session.execute(
-                    select(MastodonIdentity).order_by(MastodonIdentity.acct)
-                )
+        identity_stmt = select(MastodonIdentity).order_by(MastodonIdentity.acct)
+        if meta_account_id is not None:
+            identity_stmt = identity_stmt.where(
+                MastodonIdentity.meta_account_id == meta_account_id
             )
-            .scalars()
-            .all()
-        )
+        identities = (await session.execute(identity_stmt)).scalars().all()
         identity_ids = [identity.id for identity in identities]
         if not identity_ids:
             return build_blogroll_export(accounts=[], notifications=[])
