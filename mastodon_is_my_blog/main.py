@@ -216,7 +216,13 @@ async def callback(code: str, state: str):
         client_secret=pending.client_secret,
     )
     access_token = m.log_in(
-        code=code, redirect_uri=redirect_uri, scopes=["read", "write"]
+        code=code,
+        redirect_uri=redirect_uri,
+        scopes=["read", "write"],
+        # Same escape hatch as oauth/start: Mastodon.py rejects http OAuth
+        # endpoints by default; plain http is legit for dev against
+        # mastodon_mock (make dev-mock).
+        allow_http=pending.base_url.startswith("http://"),
     )
     verified_me = m.account_verify_credentials()
 

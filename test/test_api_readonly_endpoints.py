@@ -133,10 +133,12 @@ def test_oauth_start_endpoint_returns_authorize_url(
 ) -> None:
     class DummyClient:
         def auth_request_url(
-            self, redirect_uris: str, scopes: list[str], state: str
+            self, redirect_uris: str, scopes: list[str], state: str, allow_http: bool
         ) -> str:
             assert redirect_uris == "https://app.example.com/auth/callback"
             assert scopes == ["read", "write"]
+            # https instance in this test, so the dev http escape hatch is off
+            assert allow_http is False
             return f"https://mastodon.example.com/oauth/authorize?state={state}"
 
     monkeypatch.setenv("APP_BASE_URL", "https://app.example.com")

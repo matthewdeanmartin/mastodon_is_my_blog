@@ -446,7 +446,13 @@ async def start_identity_oauth(
 
     m = client(base_url=base_url, client_id=client_id, client_secret=client_secret)
     authorize_url = m.auth_request_url(
-        redirect_uris=redirect_uri, scopes=["read", "write"], state=state
+        redirect_uris=redirect_uri,
+        scopes=["read", "write"],
+        state=state,
+        # Mastodon.py hard-rejects http authorize URLs by default. Plain-http
+        # instances are legitimate here: normalize_base_url allows http:// for
+        # local dev against mastodon_mock (make dev-mock, localhost:3000).
+        allow_http=base_url.startswith("http://"),
     )
     return {"authorize_url": authorize_url}
 

@@ -9,7 +9,7 @@ application_derive_data:
 application_detach:
 	echo
 
-.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-server-mode dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend test-frontend-integration lint lint-backend lint-frontend lint-frontend-strict audit-backend prerelease prerelease-backend prerelease-frontend clean setup db-reset
+.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-server-mode dev-mock dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend test-frontend-integration lint lint-backend lint-frontend lint-frontend-strict audit-backend prerelease prerelease-backend prerelease-frontend clean setup db-reset
 
 # Default target
 help:
@@ -123,7 +123,21 @@ dev-server-mode:
 	HANDOFF_SHARED_SECRET=$${HANDOFF_SHARED_SECRET:-dev-handoff-secret} \
 	EXPORT_DIR=$${EXPORT_DIR:-exports} \
 	ACCOUNT_PORTAL_URL=$${ACCOUNT_PORTAL_URL:-http://localhost:8051} \
+	FRONTEND_URL=$${FRONTEND_URL:-http://localhost:8000} \
 	uv run uvicorn mastodon_is_my_blog.main:app --host 127.0.0.1 --port 8000
+# FRONTEND_URL is pinned because a local-dev .env (FRONTEND_URL=:4200 for
+# ng serve) would otherwise leak into server mode via load_dotenv and send
+# the post-OAuth redirect to the wrong app.
+
+# Run a seeded fake Mastodon instance (the mastodon_mock test dep) for dev.
+# Too early to point dev at mastodon.social: Connect Account in the product UI
+# works against http://localhost:3000 instead — full OAuth (app registration,
+# account-picker authorize page, code exchange) with zero live credentials.
+# --demo seeds a small community; state is in-memory, reset on restart.
+# Part of mimb_co's `make serve-hosted` stack.
+dev-mock:
+	@echo "Starting mastodon_mock (seeded demo Mastodon) on http://localhost:3000"
+	uv run mastodon_mock serve --in-memory --demo --host 127.0.0.1 --port 3000
 
 # Run frontend development server
 dev-frontend:
