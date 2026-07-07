@@ -209,6 +209,72 @@ async def trigger_rebuild_blog(tenant_id: int, body: JobRef) -> dict:
     return {"status": "started"}
 
 
+class ConnectMockIdentity(JobRef):
+    """Dev-stack demo wiring: which mock instance and which seeded account."""
+
+    base_url: str = "http://localhost:3000"
+    username: str = "ada"
+
+
+@router.post("/tenants/{tenant_id}/connect-mock-identity")
+async def connect_mock_identity(tenant_id: int, body: ConnectMockIdentity) -> dict:
+    """Connect a mastodon_mock account to the tenant WITHOUT the browser OAuth
+    dance, then sync it and build the blog — all synchronously (the mock is
+    local and small). This is how `mimb-co seed-demo` gets a demo blog with
+    real content instead of an empty shell.
+
+    Works only against mastodon_mock: its authorization codes are the
+    self-describing `mockcode_{username}` (routers/oauth.py in that repo), so
+    the exchange below fails against any real instance. Localhost-only as a
+    second guard — this must never become a way to skip real consent.
+    """
+    import httpx
+
+    from mastodon_is_my_blog.blog_build import build_tenant_blog
+    from mastodon_is_my_blog.routes.admin import persist_identity
+
+    base_url = body.base_url.rstrip("/")
+    if not (base_url.startswith("http://localhost") or base_url.startswith("http://127.")):
+        raise HTTPException(400, "connect-mock-identity only works against a local mastodon_mock")
+
+    username = tenancy.tenant_username(tenant_id)
+    meta, _ = await tenant_export.get_or_create_meta_account(username)
+
+    async with httpx.AsyncClient(timeout=30) as http:
+        app_resp = await http.post(
+            f"{base_url}/api/v1/apps",
+            data={"client_name": "mimb-demo", "redirect_uris": "urn:ietf:wg:oauth:2.0:oob", "scopes": "read write"},
+        )
+        app_resp.raise_for_status()
+        app_info = app_resp.json()
+        token_resp = await http.post(
+            f"{base_url}/oauth/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": f"mockcode_{body.username}",
+                "client_id": app_info["client_id"],
+            },
+        )
+        if token_resp.status_code != 200:
+            raise HTTPException(502, f"mock token exchange failed for {body.username!r}: {token_resp.text[:200]}")
+        access_token = token_resp.json()["access_token"]
+        me_resp = await http.get(
+            f"{base_url}/api/v1/accounts/verify_credentials",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        me_resp.raise_for_status()
+        me = me_resp.json()
+
+    await persist_identity(meta, base_url, app_info["client_id"], app_info["client_secret"], access_token, me)
+    await sync_all_identities(meta, force=True)
+    built = await build_tenant_blog(tenant_id, meta.id)
+    logger.info(
+        "mock identity connected tenant_id=%s acct=%s job_id=%s builder=%s",
+        tenant_id, me.get("acct"), body.job_id, built["builder"],
+    )
+    return {"acct": me.get("acct"), "synced": True, "blog_path": built["blog_path"], "builder": built["builder"]}
+
+
 @router.post("/tenants/{tenant_id}/export")
 async def export_tenant(tenant_id: int, body: JobRef) -> dict:
     """Build the export bundle synchronously (fine at current scale): a zip of
