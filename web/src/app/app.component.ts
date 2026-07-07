@@ -25,7 +25,7 @@ import {
   filter,
 } from 'rxjs/operators';
 import { of, Subject, Subscription, combineLatest, interval } from 'rxjs';
-import { AccountCatchupStatus, Identity, MastodonAccount } from './mastodon';
+import { AccountCatchupStatus, Identity, MastodonAccount, Whoami } from './mastodon';
 
 interface CountDetail {
   total: number;
@@ -72,6 +72,10 @@ export class AppComponent implements OnInit, OnDestroy {
   currentFilter = 'storms';
   currentBlogFilter = 'top_friends';
   blogRollNameFilter = '';
+
+  // Hosted-mode tenant identity ("signed in as …"); null in local mode,
+  // where there is no sign-in and nothing to show.
+  whoami: Whoami | null = null;
 
   // Identities State
   identities: Identity[] = [];
@@ -160,6 +164,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Fetch Identities & Initialize Context
     this.loadIdentities();
+    this.loadWhoami();
 
     // React to Identity Changes
     this.api.identityId$.pipe(takeUntil(this.destroy$)).subscribe((id) => {
@@ -309,6 +314,20 @@ export class AppComponent implements OnInit, OnDestroy {
           }
         },
         error: (e: unknown) => console.log('Could not fetch identities', e),
+      });
+  }
+
+  loadWhoami(): void {
+    this.api
+      .getWhoami()
+      .pipe(
+        takeUntil(this.destroy$),
+        // 401 = hosted mode with no/expired session; every data call will
+        // fail the same way, so there is no identity to display.
+        catchError(() => of(null)),
+      )
+      .subscribe((who) => {
+        this.whoami = who && who.mode === 'server' ? who : null;
       });
   }
 

@@ -4,7 +4,7 @@ import os
 from contextlib import asynccontextmanager
 
 import dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -165,6 +165,39 @@ async def status() -> dict:
     return {"status": "up"}
 
 
+@app.get("/api/whoami")
+async def whoami(request: Request) -> dict:
+    """Who is signed in, and which tenant is this request scoped to?
+
+    Server mode: echoes the mimb_session claims (email + tenant_id) so the UI
+    can show "signed in as …" — on localhost/subdomains cookies are shared
+    across the control-plane apps and the product server, so without this
+    surface two accounts render identical pages and nobody can tell whose
+    blog is whose. account_url points back at the mimb_co account page for
+    "manage account / sign out".
+
+    Local (self-hosted single-user) mode: there is no sign-in; everything is
+    the 'default' account and the UI should not render an identity bar entry.
+    """
+    if tenancy.is_server_mode():
+        cookie = request.cookies.get(tenancy.SESSION_COOKIE_NAME)
+        if not cookie:
+            raise HTTPException(401, "Not signed in")
+        try:
+            claims = tenancy.verify_session_token(cookie)
+        except tenancy.SessionValidationError as exc:
+            raise HTTPException(401, "Invalid or expired session") from exc
+        return {
+            "mode": "server",
+            "email": claims.email,
+            "tenant_id": claims.tenant_id,
+            "account_url": os.environ.get(
+                "ACCOUNT_PORTAL_URL", "http://localhost:8051"
+            ).rstrip("/"),
+        }
+    return {"mode": "local", "email": None, "tenant_id": None, "account_url": None}
+
+
 @app.get("/auth/callback")
 async def callback(code: str, state: str):
     """
@@ -196,7 +229,14 @@ async def callback(code: str, state: str):
         meta, pending.base_url, pending.client_id, pending.client_secret, access_token, verified_me
     )
 
-    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:4200")
+    # In server mode the SPA is served by this very app, so the post-OAuth
+    # landing defaults to APP_BASE_URL (required env there) — the :4200
+    # default is the local-dev ng-serve split only.
+    frontend_url = os.environ.get("FRONTEND_URL") or (
+        os.environ["APP_BASE_URL"].rstrip("/")
+        if tenancy.is_server_mode()
+        else "http://localhost:4200"
+    )
     if not tenancy.is_server_mode():
         # Single-user mode: kick an inline first sync for instant gratification.
         # Server mode: the sync worker owns scheduling; inline sync here would

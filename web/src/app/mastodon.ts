@@ -101,6 +101,15 @@ export interface Identity {
   base_url: string;
 }
 
+// GET /api/whoami — hosted-mode identity surface. mode 'local' means the
+// self-hosted single-user install (no sign-in, nothing to display).
+export interface Whoami {
+  mode: 'local' | 'server';
+  email: string | null;
+  tenant_id: number | null;
+  account_url: string | null;
+}
+
 export interface MastodonContext {
   ancestors: MastodonStatus[];
   descendants: MastodonStatus[];

@@ -29,6 +29,32 @@
     </button>
   </div>
 
+  @if (whoami) {
+    <div
+      style="
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        color: #94a3b8;
+        white-space: nowrap;
+      "
+    >
+      <span
+        >Signed in as <strong style="color: #e2e8f0">{{ whoami.email || 'unknown' }}</strong> ·
+        tenant {{ whoami.tenant_id }}</span
+      >
+      @if (whoami.account_url) {
+        <a
+          [href]="whoami.account_url + '/#/account'"
+          style="color: #6366f1"
+          >Manage account</a
+        >
+      }
+    </div>
+  }
+
   @if (showConnectAccount) {
     <app-connect-account
       class="connect-account-anchor"

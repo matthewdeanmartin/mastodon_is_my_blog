@@ -122,6 +122,7 @@ dev-server-mode:
 	APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} \
 	HANDOFF_SHARED_SECRET=$${HANDOFF_SHARED_SECRET:-dev-handoff-secret} \
 	EXPORT_DIR=$${EXPORT_DIR:-exports} \
+	ACCOUNT_PORTAL_URL=$${ACCOUNT_PORTAL_URL:-http://localhost:8051} \
 	uv run uvicorn mastodon_is_my_blog.main:app --host 127.0.0.1 --port 8000
 
 # Run frontend development server

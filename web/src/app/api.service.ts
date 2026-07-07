@@ -39,6 +39,7 @@ import {
   NewFriendsCandidatesResponse,
   NewFriendsParams,
   ErrorLogEntry,
+  Whoami,
 } from './mastodon';
 import { RawContentPost } from './content-feed.utils';
 import { Observable, throwError, timer, BehaviorSubject, of, Subject } from 'rxjs';
@@ -428,6 +429,14 @@ export class ApiService {
         params,
         headers: this.headers,
       })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  // --- Session / Tenancy ---
+
+  getWhoami(): Observable<Whoami> {
+    return this.http
+      .get<Whoami>(`${this.base}/api/whoami`, { headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
   }
 
