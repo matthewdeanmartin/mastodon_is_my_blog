@@ -15,6 +15,7 @@ from mastodon_is_my_blog.identity_verifier import verify_all_identities
 from mastodon_is_my_blog.link_previews import close_http_client, init_http_client
 from mastodon_is_my_blog.mastodon_apis.masto_client import client, get_default_client
 from mastodon_is_my_blog.queries import (
+    get_current_meta_account,
     sync_accounts_friends_followers,
     sync_user_timeline,
 )
@@ -187,6 +188,11 @@ async def whoami(request: Request) -> dict:
             claims = tenancy.verify_session_token(cookie)
         except tenancy.SessionValidationError as exc:
             raise HTTPException(401, "Invalid or expired session") from exc
+        # Same enabled gate as every data route (get_current_meta_account) —
+        # otherwise a disabled tenant's UI still says "signed in" while every
+        # other call 403s. This also lazily provisions, which is fine: the
+        # control plane authenticated them.
+        await get_current_meta_account(request)
         return {
             "mode": "server",
             "email": claims.email,
