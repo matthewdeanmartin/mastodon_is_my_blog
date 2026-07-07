@@ -222,3 +222,8 @@ mastodon_is_my_blog/static/browser/
 /app.db-shm
 /app_6_2026.db
 /app_bakcup7_2_2026.db
+
+# hosted-mode dev tenants db (make dev-server-mode)
+mimb_server.db
+mimb_server.db-shm
+mimb_server.db-wal

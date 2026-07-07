@@ -9,7 +9,7 @@ application_derive_data:
 application_detach:
 	echo
 
-.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend test-frontend-integration lint lint-backend lint-frontend lint-frontend-strict audit-backend prerelease prerelease-backend prerelease-frontend clean setup db-reset
+.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-server-mode dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend test-frontend-integration lint lint-backend lint-frontend lint-frontend-strict audit-backend prerelease prerelease-backend prerelease-frontend clean setup db-reset
 
 # Default target
 help:
@@ -107,6 +107,22 @@ dev:
 dev-backend:
 	@echo "Starting FastAPI server on http://localhost:8000"
 	uvicorn mastodon_is_my_blog.main:app --reload --host 0.0.0.0 --port 8000
+
+# Run the backend as the HOSTED multi-tenant product server (MIMB_MODE=server),
+# wired for the mimb_co control plane (spec/paid_hosting/hosted_wiring.md).
+# All values are LOCAL DEV defaults; override via environment for anything real.
+# Uses a separate tenants db (mimb_server.db) so your local app.db stays yours.
+# Pair with `make serve-hosted` in C:\github\mimb_co.
+dev-server-mode:
+	@echo "Starting mimb product server (server mode) on http://localhost:8000"
+	MIMB_MODE=server \
+	DB_URL="sqlite+aiosqlite:///mimb_server.db" \
+	SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-dev-insecure-signing-key-change-me} \
+	TOKEN_ENCRYPTION_KEY=$${TOKEN_ENCRYPTION_KEY:-FzAkGyqDKck9qAqt4gcqV1ekRkLHECau1ztHVgT-Iig=} \
+	APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} \
+	HANDOFF_SHARED_SECRET=$${HANDOFF_SHARED_SECRET:-dev-handoff-secret} \
+	EXPORT_DIR=$${EXPORT_DIR:-exports} \
+	uv run uvicorn mastodon_is_my_blog.main:app --host 127.0.0.1 --port 8000
 
 # Run frontend development server
 dev-frontend:

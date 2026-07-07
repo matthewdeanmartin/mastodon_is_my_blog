@@ -402,6 +402,53 @@ async def test_export_unprovisioned_tenant_404(client):
     assert response.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_admin_upgrade_migrates_and_reports_version(client, monkeypatch):
+    calls = []
+
+    async def fake_init_db():
+        calls.append(True)
+
+    import mastodon_is_my_blog.store as store_module
+
+    monkeypatch.setattr(store_module, "init_db", fake_init_db)
+
+    response = await client.post("/internal/admin/upgrade", json={"job_id": 31}, headers=AUTH)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "upgraded"
+    assert body["version"]
+    assert body["steps"]
+    assert calls  # the in-band migration actually ran
+
+    # Like everything on /internal: no bearer, no service.
+    response = await client.post("/internal/admin/upgrade", json={"job_id": 31})
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_export_download_streams_the_zip(client, two_tenants_seeded):
+    await client.post("/internal/tenants/1/export", json={"job_id": 21}, headers=AUTH)
+
+    response = await client.get("/internal/tenants/1/exports/21/download", headers=AUTH)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert response.content[:2] == b"PK"  # zip magic
+
+    # Wrong job id: nothing built under that name.
+    response = await client.get("/internal/tenants/1/exports/999/download", headers=AUTH)
+    assert response.status_code == 404
+
+    # Path-traversal shaped job ids are rejected: dotted ids hit our 400
+    # guard, and encoded slashes never even match the route (404).
+    response = await client.get("/internal/tenants/1/exports/../download", headers=AUTH)
+    assert response.status_code in (400, 404)
+    response = await client.get(
+        "/internal/tenants/1/exports/..%2F..%2Fetc/download", headers=AUTH
+    )
+    assert response.status_code in (400, 404)
+
+
 # --- Purge: isolation + idempotency (§6 items 1, 3) ---
 
 

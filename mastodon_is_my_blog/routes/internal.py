@@ -76,6 +76,26 @@ async def health() -> dict:
     return {"mode": tenancy.get_mode(), "ok": True}
 
 
+@router.post("/admin/upgrade")
+async def upgrade_server(body: JobRef) -> dict:
+    """Upgrade this product server — LOCAL version of the op.
+
+    Locally, "upgrade" means: the operator already has the new code running
+    (pip/uv upgrade + restart is outside the process), so this endpoint does
+    the in-band half — re-run idempotent schema migration and report what
+    version is actually serving. The cloud version of this op will be an
+    image rollout with real Alembic steps; the control-plane contract (one
+    POST, returns version + steps) is what stays stable.
+    """
+    from mastodon_is_my_blog.__about__ import __version__
+    from mastodon_is_my_blog.store import init_db
+
+    await init_db()
+    steps = ["schema migrated (idempotent create_all)"]
+    logger.info("server upgrade requested job_id=%s -> version=%s", body.job_id, __version__)
+    return {"status": "upgraded", "version": __version__, "steps": steps}
+
+
 @router.post("/tenants/{tenant_id}/provision")
 async def provision_tenant(tenant_id: int, body: JobRef) -> dict:
     username = tenancy.tenant_username(tenant_id)
@@ -159,6 +179,29 @@ async def export_tenant(tenant_id: int, body: JobRef) -> dict:
         tenant_id, body.job_id, zip_path, size,
     )
     return {"download_path": str(zip_path), "bytes": size}
+
+
+@router.get("/tenants/{tenant_id}/exports/{job_id}/download")
+async def download_tenant_export(tenant_id: int, job_id: str) -> "FileResponse":
+    """Stream a previously built export bundle to the control plane.
+
+    The zip lives on THIS server's disk (EXPORT_DIR); mimb_co's customer-facing
+    GET /api/export/{job_id}/download proxies through here so the customer
+    never talks to this service directly. Naming must match
+    tenant_export.build_tenant_export_zip: export_tenant_{tid}_{job_id}.zip.
+    """
+    from fastapi.responses import FileResponse
+
+    if not job_id.replace("_", "").replace("-", "").isalnum():
+        raise HTTPException(400, "invalid job id")
+    zip_path = get_export_dir() / f"export_tenant_{tenant_id}_{job_id}.zip"
+    if not zip_path.is_file():
+        raise HTTPException(404, "export bundle not found — build it via POST .../export first")
+    return FileResponse(
+        zip_path,
+        media_type="application/zip",
+        filename=f"mimb_export_tenant_{tenant_id}.zip",
+    )
 
 
 @router.delete("/tenants/{tenant_id}")
