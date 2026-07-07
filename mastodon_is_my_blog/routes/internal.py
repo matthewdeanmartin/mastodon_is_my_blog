@@ -169,9 +169,11 @@ async def trigger_tenant_sync(tenant_id: int, body: JobRef) -> dict:
 
 
 async def rebuild_blog_for_tenant(tenant_id: int, meta_account_id: int) -> None:
-    """Produce the storm/blogroll export payloads and stash them under
-    EXPORT_DIR. The Eleventy build + object-storage upload is Phase 2
-    (server_side.md); this payload is its input."""
+    """Produce the storm/blogroll export payloads under EXPORT_DIR (the export
+    bundle picks them up) and build the tenant's static blog from them
+    (blog_build.py — Eleventy when available, plain HTML otherwise), served at
+    /blogs/tenant_{id}/."""
+    from mastodon_is_my_blog.blog_build import build_tenant_blog
     from mastodon_is_my_blog.storm_export import (
         load_blogroll_export_data,
         load_storm_export_data,
@@ -183,7 +185,11 @@ async def rebuild_blog_for_tenant(tenant_id: int, meta_account_id: int) -> None:
     blogroll = await load_blogroll_export_data(meta_account_id=meta_account_id)
     write_json_export(out_dir / "storms.json", storms)
     write_json_export(out_dir / "blogroll.json", blogroll)
-    logger.info("blog payload rebuilt for tenant_id=%s at %s", tenant_id, out_dir)
+    built = await build_tenant_blog(tenant_id, meta_account_id)
+    logger.info(
+        "blog rebuilt for tenant_id=%s payloads=%s static=%s (%s)",
+        tenant_id, out_dir, built["blog_path"], built["builder"],
+    )
 
 
 @router.post("/tenants/{tenant_id}/rebuild-blog", status_code=202)

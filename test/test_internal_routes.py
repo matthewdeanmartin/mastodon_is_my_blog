@@ -337,9 +337,14 @@ async def test_rebuild_blog_payload_written(
 ):
     patch_async_session(tenant_export, storm_export)
     monkeypatch.setenv("EXPORT_DIR", str(tmp_path))
+    # Keep the test off the real Eleventy project: fallback renderer path.
+    monkeypatch.setenv("ELEVENTY_SITE_DIR", str(tmp_path / "no-eleventy"))
+    monkeypatch.setenv("BLOG_DIR", str(tmp_path / "blogs"))
     await internal.rebuild_blog_for_tenant(1, 1)
     out_dir = tmp_path / "blog_tenant_1"
     assert (out_dir / "storms.json").exists()
+    # The static blog got built too (fallback here; Eleventy in real deploys).
+    assert (tmp_path / "blogs" / "tenant_1" / "index.html").exists()
     assert (out_dir / "blogroll.json").exists()
     storms = (out_dir / "storms.json").read_text(encoding="utf-8")
     assert "tenant one storm root" in storms

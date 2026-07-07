@@ -130,6 +130,15 @@ if tenancy.is_server_mode():
 
     app.include_router(internal.router)
 
+    # Published static blogs (blog_build.py): /blogs/tenant_{id}/. The blogs
+    # themselves are public by design — that's the product. Per-tenant
+    # subdomains/custom domains are a later phase in front of this same tree.
+    from mastodon_is_my_blog.blog_build import blog_output_root
+
+    blogs_root = blog_output_root()
+    blogs_root.mkdir(parents=True, exist_ok=True)
+    app.mount("/blogs", StaticFiles(directory=blogs_root, html=True), name="blogs")
+
 # Add CORS middleware
 def allowed_origins() -> list[str]:
     """Single-user mode allows local dev servers; server mode is locked to

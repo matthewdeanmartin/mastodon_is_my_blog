@@ -227,3 +227,7 @@ mastodon_is_my_blog/static/browser/
 mimb_server.db
 mimb_server.db-shm
 mimb_server.db-wal
+
+# hosted-mode artifacts (server_side.md): export bundles + built static blogs
+exports/
+blogs/
