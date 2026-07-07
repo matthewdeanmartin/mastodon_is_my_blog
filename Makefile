@@ -115,6 +115,12 @@ dev-backend:
 # Pair with `make serve-hosted` in C:\github\mimb_co.
 dev-server-mode:
 	@echo "Starting mimb product server (server mode) on http://localhost:8000"
+	@if [ -f mimb_server.db ]; then \
+	  mkdir -p backups; \
+	  cp mimb_server.db "backups/mimb_server.$$(date +%Y%m%d-%H%M%S).db"; \
+	  ls -1t backups/mimb_server.*.db 2>/dev/null | tail -n +11 | xargs -r rm --; \
+	  echo "backed up mimb_server.db -> backups/"; \
+	fi
 	MIMB_MODE=server \
 	DB_URL="sqlite+aiosqlite:///mimb_server.db" \
 	SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-dev-insecure-signing-key-change-me} \

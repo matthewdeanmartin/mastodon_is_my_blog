@@ -231,3 +231,4 @@ mimb_server.db-wal
 # hosted-mode artifacts (server_side.md): export bundles + built static blogs
 exports/
 blogs/
+backups/
