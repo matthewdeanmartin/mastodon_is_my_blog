@@ -209,6 +209,74 @@ async def test_auth_callback_consumes_pending_connection_and_persists_identity(
         assert pending is None
 
 
+def test_auth_callback_server_mode_spawns_first_sync(
+    monkeypatch: pytest.MonkeyPatch, db_session_factory
+) -> None:
+    """Server mode must kick a tenant-scoped background sync after connect —
+    otherwise every page is an empty state until the next scheduled sync
+    (sprint-05 testing feedback)."""
+    from mastodon_is_my_blog.routes import internal
+
+    from mastodon_is_my_blog.secret_columns import generate_key
+
+    monkeypatch.setenv("MIMB_MODE", "server")
+    # Server-mode writes encrypt credential columns (incl. the pending row).
+    monkeypatch.setenv("TOKEN_ENCRYPTION_KEY", generate_key())
+    monkeypatch.setenv("APP_BASE_URL", "https://app.example.com")
+    monkeypatch.setenv("SESSION_SIGNING_KEY", "test-signing-key-0123456789abcdef")
+    monkeypatch.setenv("HANDOFF_SHARED_SECRET", "test-handoff-secret")
+    monkeypatch.delenv("FRONTEND_URL", raising=False)
+    monkeypatch.setattr(main, "client", lambda **kwargs: DummyClient(**kwargs))
+    monkeypatch.setattr(main, "init_db", async_noop)
+    monkeypatch.setattr(main, "get_or_create_default_meta_account", async_noop)
+    monkeypatch.setattr(main, "sync_configured_identities", async_noop)
+    monkeypatch.setattr(main, "verify_all_identities", async_noop)
+    monkeypatch.setattr(admin, "async_session", db_session_factory)
+    monkeypatch.setattr("mastodon_is_my_blog.store.async_session", db_session_factory)
+
+    tenant_meta = MetaAccount(id=9, username="tenant_9")
+
+    async def fake_get_meta(meta_id: int) -> MetaAccount:
+        assert meta_id == 9
+        return tenant_meta
+
+    monkeypatch.setattr(main, "get_meta_account_by_id", fake_get_meta)
+
+    spawned: list[str] = []
+
+    def fake_spawn(coro, *, label: str) -> None:
+        spawned.append(label)
+        coro.close()
+
+    monkeypatch.setattr(internal, "spawn_background", fake_spawn)
+
+    import asyncio
+
+    async def seed() -> None:
+        async with db_session_factory() as session:
+            session.add(
+                OAuthPendingConnection(
+                    state="srv123",
+                    meta_account_id=9,
+                    base_url="https://example.social",
+                    client_id="client-id",
+                    client_secret="client-secret",
+                )
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+
+    with TestClient(main.app) as client:
+        response = client.get(
+            "/auth/callback?code=somecode&state=srv123", follow_redirects=False
+        )
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "https://app.example.com/#/admin"
+    assert spawned == ["first-sync-tenant_9"]
+
+
 def test_auth_callback_rejects_unknown_state(
     monkeypatch: pytest.MonkeyPatch, db_session_factory
 ) -> None:

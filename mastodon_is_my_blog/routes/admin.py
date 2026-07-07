@@ -520,16 +520,17 @@ async def add_identity_api_key(
 
 
 @router.get("/status")
-async def admin_status() -> dict:
-    """Get connection status and current user info"""
-    # Try to get default identity
+async def admin_status(meta: MetaAccount = Depends(get_current_meta_account)) -> dict:
+    """Get connection status and current user info.
+
+    Resolves the tenant like every other route — it used to hardcode the
+    'default' MetaAccount, so hosted tenants always read as not-connected
+    right after a successful Connect Account (sprint-05 testing).
+    """
     current_user = None
     connected = False
 
     async with async_session() as session:
-        stmt_meta = select(MetaAccount).where(MetaAccount.username == "default")
-        meta = (await session.execute(stmt_meta)).scalar_one_or_none()
-
         if meta:
             stmt_identity = (
                 select(MastodonIdentity)

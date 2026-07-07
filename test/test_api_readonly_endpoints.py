@@ -227,7 +227,6 @@ def test_admin_identities_returns_serialized_identities(
 def test_admin_status_returns_connection_summary(
     api_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    meta = SimpleNamespace(id=7, username="default")
     identity = SimpleNamespace(id=2, access_token="token")
 
     class DummyClient:
@@ -242,12 +241,13 @@ def test_admin_status_returns_connection_summary(
     async def fake_get_last_sync() -> datetime:
         return datetime(2024, 1, 2, 3, 4, 5)
 
+    # The meta account now arrives via the get_current_meta_account dependency
+    # (overridden by the api_client fixture); only the identity lookup hits
+    # the session.
     monkeypatch.setattr(
         admin,
         "async_session",
-        FakeSessionFactory(
-            [FakeResult(scalar_value=meta), FakeResult(scalar_value=identity)]
-        ),
+        FakeSessionFactory([FakeResult(scalar_value=identity)]),
     )
     monkeypatch.setattr(admin, "client_from_identity", lambda identity: DummyClient())
     monkeypatch.setattr(admin, "get_last_sync", fake_get_last_sync)

@@ -260,10 +260,24 @@ async def callback(code: str, state: str):
     )
     if not tenancy.is_server_mode():
         # Single-user mode: kick an inline first sync for instant gratification.
-        # Server mode: the sync worker owns scheduling; inline sync here would
-        # run against the wrong tenant (these are default-account wrappers).
         await sync_accounts_friends_followers()
         await sync_user_timeline(force=True)
+    else:
+        # Server mode: same instant gratification, tenant-scoped and in the
+        # background (a full first sync can take a minute; the redirect must
+        # not wait). Without this every page is an empty state until the
+        # control plane's next scheduled sync (sprint-05 testing).
+        from mastodon_is_my_blog.queries import sync_all_identities
+        from mastodon_is_my_blog.routes.internal import spawn_background
+
+        async def first_sync_and_build() -> None:
+            from mastodon_is_my_blog.blog_build import build_tenant_blog
+
+            await sync_all_identities(meta, force=True)
+            if meta.username.startswith("tenant_"):
+                await build_tenant_blog(int(meta.username.removeprefix("tenant_")), meta.id)
+
+        spawn_background(first_sync_and_build(), label=f"first-sync-{meta.username}")
     return RedirectResponse(url=f"{frontend_url}/#/admin")
 
 
