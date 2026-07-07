@@ -107,6 +107,36 @@ async def provision_tenant(tenant_id: int, body: JobRef) -> dict:
     return {"meta_account_id": meta.id, "created": created}
 
 
+class LimitsPush(JobRef):
+    """The control plane's neutral per-tenant limits (see MetaAccount). This
+    server never sees plan names or lifecycle states — enabled + ceilings is
+    the whole vocabulary. None means unlimited."""
+
+    enabled: bool = True
+    max_identities: int | None = None
+    max_storage_bytes: int | None = None
+
+
+@router.put("/tenants/{tenant_id}/limits")
+async def push_tenant_limits(tenant_id: int, body: LimitsPush) -> dict:
+    username = tenancy.tenant_username(tenant_id)
+    meta = await tenant_export.set_tenant_limits(
+        username,
+        enabled=body.enabled,
+        max_identities=body.max_identities,
+        max_storage_bytes=body.max_storage_bytes,
+    )
+    logger.info(
+        "limits pushed tenant_id=%s job_id=%s enabled=%s max_identities=%s max_storage_bytes=%s",
+        tenant_id, body.job_id, meta.enabled, meta.max_identities, meta.max_storage_bytes,
+    )
+    return {
+        "enabled": meta.enabled,
+        "max_identities": meta.max_identities,
+        "max_storage_bytes": meta.max_storage_bytes,
+    }
+
+
 @router.post("/tenants/{tenant_id}/sync", status_code=202)
 async def trigger_tenant_sync(tenant_id: int, body: JobRef) -> dict:
     """Kick the existing in-process sync for the tenant's identities and
@@ -116,6 +146,18 @@ async def trigger_tenant_sync(tenant_id: int, body: JobRef) -> dict:
     meta = await tenant_export.get_tenant_meta_account(username)
     if meta is None:
         return {"status": "skipped", "reason": "tenant not provisioned"}
+    if meta.enabled is False:
+        return {"status": "skipped", "reason": "tenant disabled"}
+    if meta.max_storage_bytes is not None:
+        # Pause-don't-delete on storage breach: existing data stays, new
+        # syncs stop until the limit rises or usage falls.
+        usage = await tenant_export.tenant_usage_bytes(meta.id)
+        if usage >= meta.max_storage_bytes:
+            logger.info(
+                "sync skipped tenant_id=%s: usage %s >= limit %s",
+                tenant_id, usage, meta.max_storage_bytes,
+            )
+            return {"status": "skipped", "reason": "storage limit exceeded"}
     identity_ids = await tenant_export.tenant_identity_ids(meta.id)
     if not identity_ids:
         return {"status": "skipped", "reason": "no connected identities"}

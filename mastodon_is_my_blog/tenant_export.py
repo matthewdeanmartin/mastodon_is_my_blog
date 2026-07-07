@@ -82,6 +82,30 @@ async def get_or_create_meta_account(username: str) -> tuple[MetaAccount, bool]:
         return meta, True
 
 
+async def set_tenant_limits(
+    username: str,
+    *,
+    enabled: bool,
+    max_identities: int | None,
+    max_storage_bytes: int | None,
+) -> MetaAccount:
+    """Store the control plane's neutral limits push. Get-or-create: a suspend
+    or plan change can arrive before the tenant ever visits this server.
+    """
+    async with async_session() as session:
+        stmt = select(MetaAccount).where(MetaAccount.username == username)
+        meta = (await session.execute(stmt)).scalar_one_or_none()
+        if meta is None:
+            meta = MetaAccount(username=username)
+            session.add(meta)
+        meta.enabled = enabled
+        meta.max_identities = max_identities
+        meta.max_storage_bytes = max_storage_bytes
+        await session.commit()
+        await session.refresh(meta)
+        return meta
+
+
 async def tenant_identity_ids(meta_account_id: int) -> list[int]:
     async with async_session() as session:
         stmt = select(MastodonIdentity.id).where(

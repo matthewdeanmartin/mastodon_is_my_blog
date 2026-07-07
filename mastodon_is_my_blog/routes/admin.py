@@ -322,6 +322,29 @@ async def list_identities(meta: MetaAccount = Depends(get_current_meta_account))
         return [{"id": i.id, "acct": i.acct, "base_url": i.api_base_url} for i in res]
 
 
+async def ensure_identity_capacity(meta: MetaAccount, *, base_url: str | None = None, acct: str | None = None) -> None:
+    """Enforce the control plane's max_identities limit (server mode; None =
+    unlimited). Re-authorizing an already-connected identity (same instance +
+    acct) is always allowed — the limit only gates NEW connections.
+    """
+    if not is_server_mode() or meta.max_identities is None:
+        return
+    async with async_session() as session:
+        stmt = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id)
+        identities = (await session.execute(stmt)).scalars().all()
+    if base_url is not None:
+        # acct unknown (OAuth start): same-instance means possible re-auth, so
+        # give benefit of the doubt — persist_identity re-checks with the acct.
+        if any(i.api_base_url == base_url and (acct is None or i.acct == acct) for i in identities):
+            return
+    if len(identities) >= meta.max_identities:
+        raise HTTPException(
+            403,
+            f"Your plan allows {meta.max_identities} connected account(s). "
+            "Disconnect one or upgrade your plan to connect another.",
+        )
+
+
 async def persist_identity(
     meta: MetaAccount,
     base_url: str,
@@ -339,6 +362,9 @@ async def persist_identity(
     mix every tenant's credentials into one OS keyring.
     """
     if is_server_mode():
+        # The authoritative gate: OAuth start also checks, but the callback
+        # and pasted-API-key paths both land here.
+        await ensure_identity_capacity(meta, base_url=base_url, acct=me["acct"])
         async with async_session() as session:
             stmt = select(MastodonIdentity).where(
                 MastodonIdentity.meta_account_id == meta.id,
@@ -426,6 +452,9 @@ async def start_identity_oauth(
     stashed server-side, keyed by `state`, until the callback completes.
     """
     base_url = normalize_base_url(payload.base_url)
+    # Fail before the OAuth dance, not after — a full authorize round-trip
+    # that ends in 403 is a miserable way to learn about a plan limit.
+    await ensure_identity_capacity(meta, base_url=base_url)
     redirect_uri = f"{os.environ['APP_BASE_URL']}/auth/callback"
 
     client_id, client_secret = Mastodon.create_app(

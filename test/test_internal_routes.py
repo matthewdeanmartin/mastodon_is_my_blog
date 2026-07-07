@@ -150,6 +150,7 @@ async def test_all_routes_403_without_secret(client):
         ("GET", "/internal/tenants/1/usage", None),
         ("POST", "/internal/tenants/1/provision", {"job_id": 1}),
         ("POST", "/internal/tenants/1/sync", {"job_id": 1}),
+        ("PUT", "/internal/tenants/1/limits", {"job_id": 1}),
         ("POST", "/internal/tenants/1/rebuild-blog", {"job_id": 1}),
         ("POST", "/internal/tenants/1/export", {"job_id": 1}),
         ("DELETE", "/internal/tenants/1", {"job_id": 1}),
@@ -234,6 +235,82 @@ async def test_sync_starts_for_connected_tenant(client, two_tenants_seeded, monk
     monkeypatch.setattr(internal, "sync_all_identities", AsyncMock(return_value=[]))
     response = await client.post(
         "/internal/tenants/1/sync", json={"job_id": 3}, headers=AUTH
+    )
+    assert response.status_code == 202
+    assert response.json() == {"status": "started"}
+
+
+# --- Neutral limits push (sprint 04: suspension + quotas) ---
+
+
+@pytest.mark.asyncio
+async def test_limits_push_creates_meta_account_and_stores_values(client):
+    # Push before the tenant ever visits: get-or-create.
+    response = await client.put(
+        "/internal/tenants/11/limits",
+        json={"job_id": 1, "enabled": False, "max_identities": 2, "max_storage_bytes": 1000},
+        headers=AUTH,
+    )
+    assert response.status_code == 200
+    assert response.json() == {"enabled": False, "max_identities": 2, "max_storage_bytes": 1000}
+
+    meta = await tenant_export.get_tenant_meta_account("tenant_11")
+    assert meta is not None
+    assert meta.enabled is False
+    assert meta.max_identities == 2
+
+    # A second push (unsuspend, plan upgrade) overwrites.
+    response = await client.put(
+        "/internal/tenants/11/limits",
+        json={"job_id": 2, "enabled": True, "max_identities": 5, "max_storage_bytes": None},
+        headers=AUTH,
+    )
+    assert response.json() == {"enabled": True, "max_identities": 5, "max_storage_bytes": None}
+
+
+@pytest.mark.asyncio
+async def test_sync_skipped_when_disabled(client, two_tenants_seeded):
+    await client.put(
+        "/internal/tenants/1/limits",
+        json={"job_id": 1, "enabled": False},
+        headers=AUTH,
+    )
+    response = await client.post(
+        "/internal/tenants/1/sync", json={"job_id": 2}, headers=AUTH
+    )
+    assert response.status_code == 202
+    assert response.json() == {"status": "skipped", "reason": "tenant disabled"}
+
+
+@pytest.mark.asyncio
+async def test_sync_skipped_over_storage_limit(client, two_tenants_seeded):
+    # Tenant 1 has cached posts; a 1-byte ceiling is instantly exceeded.
+    # Pause-don't-delete: the response says why, nothing is removed.
+    await client.put(
+        "/internal/tenants/1/limits",
+        json={"job_id": 1, "enabled": True, "max_storage_bytes": 1},
+        headers=AUTH,
+    )
+    response = await client.post(
+        "/internal/tenants/1/sync", json={"job_id": 2}, headers=AUTH
+    )
+    assert response.status_code == 202
+    assert response.json() == {"status": "skipped", "reason": "storage limit exceeded"}
+
+    usage = await client.get("/internal/tenants/1/usage", headers=AUTH)
+    assert usage.json()["bytes"] > 0  # data intact
+
+
+@pytest.mark.asyncio
+async def test_sync_runs_under_storage_limit(client, two_tenants_seeded, monkeypatch):
+    monkeypatch.setattr(internal, "sync_all_identities", AsyncMock(return_value=[]))
+    await client.put(
+        "/internal/tenants/1/limits",
+        json={"job_id": 1, "enabled": True, "max_storage_bytes": 10_000_000},
+        headers=AUTH,
+    )
+    response = await client.post(
+        "/internal/tenants/1/sync", json={"job_id": 2}, headers=AUTH
     )
     assert response.status_code == 202
     assert response.json() == {"status": "started"}

@@ -155,6 +155,19 @@ class TestGetCurrentMetaAccountServerMode:
             )
         assert [row.username for row in rows] == ["tenant_7"]
 
+    async def test_disabled_tenant_is_403(self, db_session):
+        # The control plane pushed enabled=False (suspension); a valid session
+        # cookie must not get through.
+        db_session.add(MetaAccount(id=7, username="tenant_7", enabled=False))
+        await db_session.commit()
+        request = StubRequest(
+            cookies={tenancy.SESSION_COOKIE_NAME: make_session_token(tenant_id=7)}
+        )
+        with pytest.raises(HTTPException) as excinfo:
+            await queries.get_current_meta_account(request)
+        assert excinfo.value.status_code == 403
+        assert "suspended" in excinfo.value.detail.lower()
+
     async def test_tenants_resolve_to_distinct_accounts(self):
         request_a = StubRequest(
             cookies={tenancy.SESSION_COOKIE_NAME: make_session_token(tenant_id=1)}

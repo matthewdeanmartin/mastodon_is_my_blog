@@ -88,6 +88,15 @@ class MetaAccount(Base):
     username: Mapped[str] = mapped_column(String, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
+    # Neutral per-tenant limits, pushed by the control plane via
+    # PUT /internal/tenants/{id}/limits (control_plane_handoff.md). This
+    # server never learns plan names or lifecycle states — just whether the
+    # account is enabled and what its ceilings are. NULL means unlimited
+    # (which is also what every local-mode install gets).
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    max_identities: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_storage_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # Relationships
     identities: Mapped[list[MastodonIdentity]] = relationship(
         "MastodonIdentity", back_populates="meta_account", cascade="all, delete-orphan"
@@ -667,10 +676,32 @@ async def ensure_cached_posts_schema() -> None:
         )
 
 
+async def ensure_meta_accounts_schema() -> None:
+    """create_all never adds columns to existing tables; backfill the neutral
+    limit columns (sprint 04) onto pre-existing DBs. DEFAULT 1 on `enabled`
+    keeps every existing account working."""
+    async with engine.begin() as conn:
+        result = await conn.execute(text("PRAGMA table_info(meta_accounts)"))
+        columns = {row[1] for row in result}
+        if "enabled" not in columns:
+            await conn.execute(
+                text("ALTER TABLE meta_accounts ADD COLUMN enabled BOOLEAN DEFAULT 1")
+            )
+        if "max_identities" not in columns:
+            await conn.execute(
+                text("ALTER TABLE meta_accounts ADD COLUMN max_identities INTEGER")
+            )
+        if "max_storage_bytes" not in columns:
+            await conn.execute(
+                text("ALTER TABLE meta_accounts ADD COLUMN max_storage_bytes INTEGER")
+            )
+
+
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await ensure_cached_posts_schema()
+    await ensure_meta_accounts_schema()
 
 
 async def get_meta_account_by_id(meta_account_id: int) -> MetaAccount | None:

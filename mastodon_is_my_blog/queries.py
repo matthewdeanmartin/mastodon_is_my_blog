@@ -67,6 +67,12 @@ async def get_current_meta_account(request: Request) -> MetaAccount:
                 session.add(meta)
                 await session.commit()
                 await session.refresh(meta)
+            if meta.enabled is False:
+                # The control plane disabled this tenant (its side calls it
+                # suspension; this server only knows "not enabled"). A valid
+                # session cookie does not override it. None (a row predating
+                # the limits push) means enabled.
+                raise HTTPException(403, "This account is suspended.")
             return meta
 
     async with async_session() as session:
