@@ -51,6 +51,16 @@ async def client(monkeypatch, patch_async_session, tmp_path):
         yield http
 
 
+@pytest.fixture(autouse=True)
+def reset_sync_debounce():
+    """The sync→rebuild debounce set is module-global; clear it around every
+    test so a background task that hasn't drained can't leak 'already_running'
+    into the next test (tenant 1 is reused across the module)."""
+    internal.syncing_tenants.clear()
+    yield
+    internal.syncing_tenants.clear()
+
+
 @pytest_asyncio.fixture
 async def two_tenants_seeded(db_session):
     """MetaAccounts tenant_1 / tenant_2 with distinct identities and posts.
@@ -238,6 +248,49 @@ async def test_sync_starts_for_connected_tenant(client, two_tenants_seeded, monk
     )
     assert response.status_code == 202
     assert response.json() == {"status": "started"}
+
+
+def test_count_new_posts_sums_timeline_new():
+    results = [
+        {"a@x": {"timeline": {"status": "success", "count": 5, "new": 3}}},
+        {"b@x": {"timeline": {"status": "skipped"}, "notifications": {}}},
+        {"c@x": {"status": "error", "error": "boom"}},  # no timeline key
+        {"d@x": {"timeline": {"new": 2}}},
+    ]
+    assert internal.count_new_posts(results) == 5
+
+
+@pytest.mark.asyncio
+async def test_sync_rebuilds_blog_only_when_new_posts(monkeypatch):
+    """After a control-plane sync, the blog rebuilds iff new own-posts landed —
+    so content published after Connect Account shows up without a manual rebuild."""
+    rebuilt: list[int] = []
+
+    async def fake_rebuild(tenant_id, meta_account_id):
+        rebuilt.append(tenant_id)
+
+    meta = make_meta_account(meta_id=7)
+    monkeypatch.setattr(internal, "rebuild_blog_for_tenant", fake_rebuild)
+
+    # No new posts -> no rebuild.
+    monkeypatch.setattr(
+        internal, "sync_all_identities",
+        AsyncMock(return_value=[{"a@x": {"timeline": {"new": 0}}}]),
+    )
+    internal.syncing_tenants.add(1)
+    await internal.sync_and_maybe_rebuild(1, meta)
+    assert rebuilt == []
+    assert 1 not in internal.syncing_tenants  # released even without a rebuild
+
+    # New posts -> rebuild fires once.
+    monkeypatch.setattr(
+        internal, "sync_all_identities",
+        AsyncMock(return_value=[{"a@x": {"timeline": {"new": 4}}}]),
+    )
+    internal.syncing_tenants.add(1)
+    await internal.sync_and_maybe_rebuild(1, meta)
+    assert rebuilt == [1]
+    assert 1 not in internal.syncing_tenants
 
 
 # --- Neutral limits push (sprint 04: suspension + quotas) ---

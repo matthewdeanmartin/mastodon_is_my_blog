@@ -919,7 +919,7 @@ async def sync_user_timeline_for_identity(
             t.rows_skipped = 0
             t.extra["new"] = total_new
             t.extra["updated"] = total_updated
-            return {"status": "success", "count": total_fetched}
+            return {"status": "success", "count": total_fetched, "new": total_new}
 
         except Exception as e:
             logger.error(e)

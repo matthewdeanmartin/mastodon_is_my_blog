@@ -363,7 +363,7 @@ async def test_sync_user_timeline_for_identity_persists_self_timeline(
     ):
         result = await queries.sync_user_timeline_for_identity(1, identity)
 
-    assert result == {"status": "success", "count": 1}
+    assert result == {"status": "success", "count": 1, "new": 1}
     assert await store.get_last_sync("timeline:1:1:self") is not None
 
 
@@ -434,7 +434,7 @@ async def test_sync_user_timeline_for_identity_deep_syncs_search_result(
             await session.execute(select(func.count()).select_from(store.CachedPost))
         ).scalar_one()
 
-    assert result == {"status": "success", "count": 2}
+    assert result == {"status": "success", "count": 2, "new": 2}
     assert post_count == 2
 
 
@@ -495,7 +495,7 @@ async def test_sync_user_timeline_for_identity_full_history_skips_cache_cutoff(
             stop_at_cached=False,
         )
 
-    assert result == {"status": "success", "count": 1}
+    assert result == {"status": "success", "count": 1, "new": 1}
     assert received_stop_ids == [None]
 
 

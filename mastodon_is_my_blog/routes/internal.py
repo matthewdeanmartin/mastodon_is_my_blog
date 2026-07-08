@@ -71,6 +71,47 @@ def spawn_background(coro, *, label: str) -> None:
     task.add_done_callback(background_tasks.discard)
 
 
+def count_new_posts(sync_results: list[dict]) -> int:
+    """Sum the newly-ingested own-post count across a sync_all_identities run.
+
+    sync_all_identities returns [{acct: {"timeline": {"new": N, ...}, ...}}, ...];
+    only the timeline (own posts) feeds the blog, so that's the only "new" we
+    count when deciding whether a resync warrants a rebuild."""
+    total = 0
+    for entry in sync_results:
+        for identity_result in entry.values():
+            timeline = identity_result.get("timeline")
+            if isinstance(timeline, dict):
+                total += int(timeline.get("new", 0) or 0)
+    return total
+
+
+# Coalesce overlapping sync→rebuild work: if a tenant's sync is already running,
+# don't stack a second one behind it — the in-flight run will pick up whatever
+# the caller wanted synced. (Sync is triggered per-tenant but syncs every
+# identity, so one run already covers the whole tenant.)
+syncing_tenants: set[int] = set()
+
+
+async def sync_and_maybe_rebuild(tenant_id: int, meta) -> None:
+    """Sync every identity for the tenant, then rebuild its blog only if the
+    sync ingested new own-posts — so new content published after Connect
+    Account appears without waiting for an explicit rebuild-blog handoff."""
+    try:
+        results = await sync_all_identities(meta, force=True)
+        new_posts = count_new_posts(results)
+        if new_posts:
+            logger.info(
+                "sync ingested %s new posts for tenant_id=%s -> rebuilding blog",
+                new_posts, tenant_id,
+            )
+            await rebuild_blog_for_tenant(tenant_id, meta.id)
+        else:
+            logger.info("sync brought no new posts for tenant_id=%s; skipping rebuild", tenant_id)
+    finally:
+        syncing_tenants.discard(tenant_id)
+
+
 @router.get("/health")
 async def health() -> dict:
     return {"mode": tenancy.get_mode(), "ok": True}
@@ -161,8 +202,14 @@ async def trigger_tenant_sync(tenant_id: int, body: JobRef) -> dict:
     identity_ids = await tenant_export.tenant_identity_ids(meta.id)
     if not identity_ids:
         return {"status": "skipped", "reason": "no connected identities"}
+    if tenant_id in syncing_tenants:
+        # A sync for this tenant is already in flight; it covers all identities,
+        # so coalesce rather than stack a redundant run behind it.
+        logger.info("sync already running tenant_id=%s job_id=%s; coalescing", tenant_id, body.job_id)
+        return {"status": "already_running"}
+    syncing_tenants.add(tenant_id)
     spawn_background(
-        sync_all_identities(meta, force=True), label=f"sync-tenant-{tenant_id}"
+        sync_and_maybe_rebuild(tenant_id, meta), label=f"sync-tenant-{tenant_id}"
     )
     logger.info("sync started tenant_id=%s job_id=%s", tenant_id, body.job_id)
     return {"status": "started"}
