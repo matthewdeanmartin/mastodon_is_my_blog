@@ -50,6 +50,13 @@ jobs:
           # decision follows [defaults].skip_ci (default true).
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git"
           VERSION="${RELEASE_VERSION#v}"
+          CURRENT_VERSION=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          if [ "$CURRENT_VERSION" = "$VERSION" ]; then
+            echo "Release version ${VERSION} is already prepared; skipping changelog/version bump."
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "branch=${BASE_BRANCH}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           # --json is a global flag, so it must precede the `release-bump`
           # subcommand (argparse rejects it if placed after).
           uv run kaclm --json release-bump \
