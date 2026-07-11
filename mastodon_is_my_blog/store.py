@@ -580,6 +580,26 @@ class CachedMyFavourite(Base):
     )
 
 
+class MutedAccount(Base):
+    """
+    Accounts the user muted or blocked from inside the app (Content Hub / Forum).
+
+    Keyed by acct rather than account id because hashtag/search content is often
+    authored by strangers who have no CachedAccount row. The remote Mastodon
+    mute/block is attempted too, but this local record is what keeps already-cached
+    content out of the feeds.
+    """
+
+    __tablename__ = "muted_accounts"
+
+    meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"), primary_key=True)
+    mastodon_identity_id: Mapped[int] = mapped_column(ForeignKey("mastodon_identities.id"), primary_key=True)
+    acct: Mapped[str] = mapped_column(String, primary_key=True)
+
+    level: Mapped[str] = mapped_column(String(10), default="mute")  # mute | block
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+
 async def ensure_cached_posts_schema() -> None:
     async with engine.begin() as conn:
         result = await conn.execute(text("PRAGMA table_info(cached_posts)"))

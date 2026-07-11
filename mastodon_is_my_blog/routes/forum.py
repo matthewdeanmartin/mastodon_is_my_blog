@@ -14,6 +14,7 @@ from mastodon_is_my_blog.store import (
     CachedAccount,
     MastodonIdentity,
     MetaAccount,
+    MutedAccount,
     async_session,
 )
 
@@ -103,6 +104,14 @@ async def get_forum_threads(
         )
         following_rows = (await session.execute(following_stmt)).all()
 
+        muted_stmt = select(MutedAccount.acct).where(
+            and_(
+                MutedAccount.meta_account_id == meta.id,
+                MutedAccount.mastodon_identity_id == identity_id,
+            )
+        )
+        muted_accts: set[str] = set((await session.execute(muted_stmt)).scalars().all())
+
     following_accts: set[str] = {r.acct for r in following_rows}
 
     # Fetch pre-aggregated thread summaries from DuckDB
@@ -114,6 +123,8 @@ async def get_forum_threads(
     thread_summaries = []
     for t in raw_summaries:
         root_acct = t["author_acct"]
+        if root_acct in muted_accts:
+            continue
         root_instance_domain = instance_from_acct(root_acct, identity_base_url)
 
         i_am_author = root_acct == my_acct

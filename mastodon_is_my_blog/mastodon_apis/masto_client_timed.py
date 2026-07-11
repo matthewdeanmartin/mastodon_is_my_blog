@@ -109,6 +109,18 @@ class TimedMastodonClient:
     def account_unfollow(self, account_id: str):
         return self.timed_call("account_unfollow", account_id)
 
+    def account_mute(self, account_id: str):
+        return self.timed_call("account_mute", account_id)
+
+    def account_unmute(self, account_id: str):
+        return self.timed_call("account_unmute", account_id)
+
+    def account_block(self, account_id: str):
+        return self.timed_call("account_block", account_id)
+
+    def account_unblock(self, account_id: str):
+        return self.timed_call("account_unblock", account_id)
+
     def favourites(self, limit: int = 40, **kwargs):
         return self.timed_call("favourites", limit=limit, **kwargs)
 

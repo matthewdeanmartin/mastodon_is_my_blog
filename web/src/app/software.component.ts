@@ -56,6 +56,16 @@ const SHARED_STYLES = `
     font-weight: 600;
     white-space: nowrap;
   }
+  .mute-btn {
+    padding: 3px 10px;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: #6b7280;
+    cursor: pointer;
+  }
+  .mute-btn:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
 `;
 
 // ---------------------------------------------------------------------------
@@ -104,6 +114,7 @@ function hubToFeedPost(p: ContentHubPost): ContentFeedPost {
             </button>
           }
           @if (groupId !== null) {
+            <button (click)="shuffle()" class="filter-btn" [disabled]="loading">🔀 Shuffle</button>
             <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
               {{ refreshing ? 'Fetching...' : 'Fetch New' }}
             </button>
@@ -252,6 +263,7 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
             </button>
           }
           @if (groupId !== null) {
+            <button (click)="shuffle()" class="filter-btn" [disabled]="loading">🔀 Shuffle</button>
             <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
               {{ refreshing ? 'Fetching...' : 'Fetch New' }}
             </button>
@@ -412,6 +424,7 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
             </button>
           }
           @if (groupId !== null) {
+            <button (click)="shuffle()" class="filter-btn" [disabled]="loading">🔀 Shuffle</button>
             <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
               {{ refreshing ? 'Fetching...' : 'Fetch New' }}
             </button>

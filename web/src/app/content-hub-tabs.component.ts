@@ -63,6 +63,19 @@ const TAB_STYLES = `
   .no-group {
     padding: 40px 20px; text-align: center; color: #9ca3af;
   }
+  .mute-btn {
+    margin-left: auto;
+    padding: 3px 10px;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: #6b7280;
+    cursor: pointer;
+  }
+  .mute-btn + .mute-btn { margin-left: 0; }
+  .mute-btn:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+  .block-btn:hover { background: #fee2e2; }
 `;
 
 // ---------------------------------------------------------------------------
@@ -140,6 +153,20 @@ const TAB_STYLES = `
                 style="font-size: 0.8rem; color: #6b7280; text-decoration: none;"
                 >↩ Reply</a
               >
+              <button
+                (click)="mute(post.author_acct, 'mute')"
+                class="mute-btn"
+                title="Mute this user — hide their posts from your feeds"
+              >
+                🔇 Mute
+              </button>
+              <button
+                (click)="mute(post.author_acct, 'block')"
+                class="mute-btn block-btn"
+                title="Block this user — hide their posts and block them on your Mastodon server"
+              >
+                🚫 Block
+              </button>
             </div>
           </div>
         }
@@ -272,6 +299,19 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
     this.router.navigate(['/p', id]);
   }
 
+  mute(acct: string, level: 'mute' | 'block'): void {
+    const identityId = this.api.getCurrentIdentityId();
+    if (!identityId) return;
+    const verb = level === 'block' ? 'Block' : 'Mute';
+    if (!confirm(`${verb} @${acct}? Their posts disappear from your feeds.`)) return;
+    this.api.muteAccount(acct, identityId, level).subscribe({
+      next: () => {
+        this.posts = this.posts.filter((p) => p.author_acct !== acct);
+      },
+      error: (e: unknown) => console.error(`${verb} failed`, e),
+    });
+  }
+
   getPopularityScore(post: ContentFeedPost): number {
     return getPopularityScore(post);
   }
@@ -303,6 +343,7 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
             </button>
           }
           @if (groupId !== null) {
+            <button (click)="shuffle()" class="filter-btn" [disabled]="loading">🔀 Shuffle</button>
             <button (click)="fetchNew()" class="filter-btn" [disabled]="loading || refreshing">
               {{ refreshing ? 'Fetching...' : 'Fetch New' }}
             </button>
@@ -339,9 +380,25 @@ export class ContentHubTextComponent implements OnInit, OnDestroy {
             </div>
           </div>
           <div [innerHTML]="post.content" style="margin: 8px 0; font-size: 0.92rem;"></div>
-          <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">
-            View
-          </button>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button (click)="viewPost(post.id)" class="secondary" style="font-size: 0.8rem;">
+              View
+            </button>
+            <button
+              (click)="mute(post.author_acct, 'mute')"
+              class="mute-btn"
+              title="Mute this user — hide their posts from your feeds"
+            >
+              🔇 Mute
+            </button>
+            <button
+              (click)="mute(post.author_acct, 'block')"
+              class="mute-btn block-btn"
+              title="Block this user — hide their posts and block them on your Mastodon server"
+            >
+              🚫 Block
+            </button>
+          </div>
         </div>
       }
     </div>
@@ -377,10 +434,10 @@ export class ContentHubJobsComponent implements OnInit, OnDestroy {
     this.sub?.unsubscribe();
   }
 
-  private load(identityId: number, groupId: number | null): void {
+  private load(identityId: number, groupId: number | null, doShuffle = false): void {
     this.loading = true;
     if (groupId !== null) {
-      this.api.getContentHubGroupPosts(groupId, identityId, 'jobs', null, 100).subscribe({
+      this.api.getContentHubGroupPosts(groupId, identityId, 'jobs', null, 100, doShuffle).subscribe({
         next: (res) => {
           this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
           this.loading = false;
@@ -417,6 +474,25 @@ export class ContentHubJobsComponent implements OnInit, OnDestroy {
         this.load(identityId, group.id);
       },
       error: () => (this.refreshing = false),
+    });
+  }
+
+  shuffle(): void {
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (identityId && group) this.load(identityId, group.id, true);
+  }
+
+  mute(acct: string, level: 'mute' | 'block'): void {
+    const identityId = this.api.getCurrentIdentityId();
+    if (!identityId) return;
+    const verb = level === 'block' ? 'Block' : 'Mute';
+    if (!confirm(`${verb} @${acct}? Their posts disappear from your feeds.`)) return;
+    this.api.muteAccount(acct, identityId, level).subscribe({
+      next: () => {
+        this.posts = this.posts.filter((p) => p.author_acct !== acct);
+      },
+      error: (e: unknown) => console.error(`${verb} failed`, e),
     });
   }
 

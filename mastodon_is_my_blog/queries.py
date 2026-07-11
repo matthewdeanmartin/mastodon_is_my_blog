@@ -7,7 +7,7 @@ from typing import Any
 
 import dotenv
 from fastapi import HTTPException, Request
-from sqlalchemy import Integer, and_, exists, false, func, outerjoin, select
+from sqlalchemy import Integer, and_, exists, false, func, outerjoin, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mastodon_is_my_blog import tenancy
@@ -648,45 +648,7 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
                 t.rows_written = len(rows)
 
             # Recompute post stats for all accounts seen in this identity's cached posts.
-            # Single GROUP BY query; results written back to cached_accounts.
-            async with async_session() as session:
-                stats_rows = (
-                    await session.execute(
-                        select(
-                            CachedPost.author_id,
-                            func.count(CachedPost.id).label("total"),  # pylint: disable=not-callable
-                            func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),  # pylint: disable=not-callable
-                        )
-                        .where(
-                            and_(
-                                CachedPost.meta_account_id == meta_id,
-                                CachedPost.fetched_by_identity_id == identity.id,
-                            )
-                        )
-                        .group_by(CachedPost.author_id)
-                    )
-                ).all()
-
-                if stats_rows:
-                    author_ids = [row.author_id for row in stats_rows]
-                    accounts_res = await session.execute(
-                        select(CachedAccount).where(
-                            and_(
-                                CachedAccount.meta_account_id == meta_id,
-                                CachedAccount.mastodon_identity_id == identity.id,
-                                CachedAccount.id.in_(author_ids),
-                            )
-                        )
-                    )
-                    accounts_by_id = {a.id: a for a in accounts_res.scalars().all()}
-
-                    for row in stats_rows:
-                        acc = accounts_by_id.get(row.author_id)
-                        if acc:
-                            acc.cached_post_count = row.total or 0
-                            acc.cached_reply_count = row.replies or 0
-
-                    await session.commit()
+            await recompute_account_post_stats(meta_id, identity)
 
         except Exception as e:
             logger.error(e)
@@ -695,47 +657,49 @@ async def sync_blog_roll_for_identity(meta_id: int, identity: MastodonIdentity) 
 
 
 async def recompute_account_post_stats(meta_id: int, identity: MastodonIdentity) -> dict:
-    """Recompute cached_post_count and cached_reply_count for all accounts in this identity."""
+    """Recompute cached_post_count and cached_reply_count for all accounts in this identity.
+
+    Runs as a single UPDATE ... FROM against the aggregated per-author counts.
+    Loading the author ids into an IN clause fails on large datasets — asyncpg
+    caps a statement at 32767 bind parameters.
+    """
+    stats_subq = (
+        select(
+            CachedPost.author_id.label("author_id"),
+            func.count(CachedPost.id).label("total"),  # pylint: disable=not-callable
+            func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),  # pylint: disable=not-callable
+        )
+        .where(
+            and_(
+                CachedPost.meta_account_id == meta_id,
+                CachedPost.fetched_by_identity_id == identity.id,
+            )
+        )
+        .group_by(CachedPost.author_id)
+        .subquery()
+    )
+
     async with async_session() as session:
-        stats_rows = (
-            await session.execute(
-                select(
-                    CachedPost.author_id,
-                    func.count(CachedPost.id).label("total"),  # pylint: disable=not-callable
-                    func.sum(func.cast(CachedPost.is_reply, Integer)).label("replies"),  # pylint: disable=not-callable
-                )
-                .where(
-                    and_(
-                        CachedPost.meta_account_id == meta_id,
-                        CachedPost.fetched_by_identity_id == identity.id,
-                    )
-                )
-                .group_by(CachedPost.author_id)
-            )
-        ).all()
+        total_authors = (
+            await session.execute(select(func.count()).select_from(stats_subq))  # pylint: disable=not-callable
+        ).scalar_one()
 
-        updated = 0
-        if stats_rows:
-            author_ids = [row.author_id for row in stats_rows]
-            accounts_res = await session.execute(
-                select(CachedAccount).where(
-                    and_(
-                        CachedAccount.meta_account_id == meta_id,
-                        CachedAccount.mastodon_identity_id == identity.id,
-                        CachedAccount.id.in_(author_ids),
-                    )
-                )
+        result = await session.execute(
+            update(CachedAccount)
+            .where(
+                CachedAccount.meta_account_id == meta_id,
+                CachedAccount.mastodon_identity_id == identity.id,
+                CachedAccount.id == stats_subq.c.author_id,
             )
-            accounts_by_id = {a.id: a for a in accounts_res.scalars().all()}
-            for row in stats_rows:
-                acc = accounts_by_id.get(row.author_id)
-                if acc:
-                    acc.cached_post_count = row.total or 0
-                    acc.cached_reply_count = row.replies or 0
-                    updated += 1
-            await session.commit()
+            .values(
+                cached_post_count=stats_subq.c.total,
+                cached_reply_count=func.coalesce(stats_subq.c.replies, 0),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        await session.commit()
 
-    return {"updated": updated, "total_authors": len(stats_rows)}
+    return {"updated": result.rowcount or 0, "total_authors": total_authors}
 
 
 async def sync_user_timeline_for_identity(

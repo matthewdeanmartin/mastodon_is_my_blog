@@ -24,12 +24,17 @@ from mastodon_is_my_blog.queries import (
     get_current_meta_account,
     sync_user_timeline_for_identity,
 )
+from mastodon_is_my_blog.mastodon_apis.follow_actions import (
+    mute_account,
+    unmute_account,
+)
 from mastodon_is_my_blog.store import (
     CachedAccount,
     CachedNotification,
     CachedPost,
     MastodonIdentity,
     MetaAccount,
+    MutedAccount,
     async_session,
 )
 
@@ -482,3 +487,59 @@ async def cancel_account_catchup(
     if not cancelled:
         raise HTTPException(404, "No running catch-up job for this account")
     return {"cancelled": True}
+
+
+@router.get("/muted/list")
+async def list_muted_accounts(
+    identity_id: int = Query(..., description="The context Identity ID"),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> list[dict]:
+    """Accounts muted/blocked from inside the app for this identity."""
+    async with async_session() as session:
+        rows = (
+            (
+                await session.execute(
+                    select(MutedAccount)
+                    .where(
+                        and_(
+                            MutedAccount.meta_account_id == meta.id,
+                            MutedAccount.mastodon_identity_id == identity_id,
+                        )
+                    )
+                    .order_by(MutedAccount.acct)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    return [
+        {
+            "acct": r.acct,
+            "level": r.level,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@router.post("/{acct}/mute")
+async def mute_acct(
+    acct: str,
+    identity_id: int = Query(..., description="The context Identity ID"),
+    level: Literal["mute", "block"] = Query("mute"),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    """Mute or block an account: hides their cached posts from Content Hub and
+    Forum immediately and applies the mute/block on the Mastodon server too."""
+    identity = await _get_identity(meta, identity_id)
+    return await mute_account(meta.id, identity, acct, level)
+
+
+@router.post("/{acct}/unmute")
+async def unmute_acct(
+    acct: str,
+    identity_id: int = Query(..., description="The context Identity ID"),
+    meta: MetaAccount = Depends(get_current_meta_account),
+) -> dict:
+    identity = await _get_identity(meta, identity_id)
+    return await unmute_account(meta.id, identity, acct)

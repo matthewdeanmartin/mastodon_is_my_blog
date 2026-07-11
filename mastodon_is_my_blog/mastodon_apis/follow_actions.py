@@ -1,16 +1,17 @@
 # mastodon_is_my_blog/mastodon_apis/follow_actions.py
-"""Follow/unfollow write actions against the Mastodon API."""
+"""Follow/unfollow and mute/block write actions against the Mastodon API."""
 
 import asyncio
 import logging
 
 from fastapi import HTTPException
-from sqlalchemy import and_, select
+from sqlalchemy import and_, delete, select
 
 from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
 from mastodon_is_my_blog.store import (
     CachedAccount,
     MastodonIdentity,
+    MutedAccount,
     async_session,
 )
 
@@ -98,3 +99,83 @@ async def unfollow_account(meta_id: int, identity: MastodonIdentity, acct: str) 
 
     await set_cached_following(meta_id, identity, remote_id, False)
     return {"unfollowed": True, "acct": acct}
+
+
+async def mute_account(meta_id: int, identity: MastodonIdentity, acct: str, level: str = "mute") -> dict:
+    """Mute or block an account: record it locally (hides cached content from
+    Content Hub and Forum immediately) and best-effort apply the same mute/block
+    on the Mastodon server so future fetches exclude them too."""
+    if level not in ("mute", "block"):
+        raise HTTPException(400, f"Invalid level {level!r}; expected 'mute' or 'block'")
+
+    clean_acct = acct.strip().lstrip("@")
+
+    remote_applied = False
+    m = client_from_identity(identity)
+    try:
+        remote_id = await resolve_remote_id(m, clean_acct)
+        method = m.account_mute if level == "mute" else m.account_block
+        await asyncio.to_thread(method, remote_id)
+        remote_applied = True
+    except HTTPException as e:
+        # Account not resolvable via search (deleted, defederated, …) — the
+        # local record below still hides their cached content, so don't fail.
+        logger.warning("Remote %s failed for %s: %s", level, clean_acct, e.detail)
+    except Exception as e:
+        logger.warning("Remote %s failed for %s: %s", level, clean_acct, e)
+
+    async with async_session() as session:
+        existing = (
+            await session.execute(
+                select(MutedAccount).where(
+                    and_(
+                        MutedAccount.meta_account_id == meta_id,
+                        MutedAccount.mastodon_identity_id == identity.id,
+                        MutedAccount.acct == clean_acct,
+                    )
+                )
+            )
+        ).scalar_one_or_none()
+        if existing:
+            existing.level = level
+        else:
+            session.add(
+                MutedAccount(
+                    meta_account_id=meta_id,
+                    mastodon_identity_id=identity.id,
+                    acct=clean_acct,
+                    level=level,
+                )
+            )
+        await session.commit()
+
+    return {"muted": True, "acct": clean_acct, "level": level, "remote_applied": remote_applied}
+
+
+async def unmute_account(meta_id: int, identity: MastodonIdentity, acct: str) -> dict:
+    """Remove the local mute/block record and best-effort undo it on the server."""
+    clean_acct = acct.strip().lstrip("@")
+
+    async with async_session() as session:
+        result = await session.execute(
+            delete(MutedAccount).where(
+                and_(
+                    MutedAccount.meta_account_id == meta_id,
+                    MutedAccount.mastodon_identity_id == identity.id,
+                    MutedAccount.acct == clean_acct,
+                )
+            )
+        )
+        await session.commit()
+
+    remote_applied = False
+    m = client_from_identity(identity)
+    try:
+        remote_id = await resolve_remote_id(m, clean_acct)
+        await asyncio.to_thread(m.account_unmute, remote_id)
+        await asyncio.to_thread(m.account_unblock, remote_id)
+        remote_applied = True
+    except Exception as e:
+        logger.warning("Remote unmute/unblock failed for %s: %s", clean_acct, e)
+
+    return {"unmuted": True, "acct": clean_acct, "removed": (result.rowcount or 0) > 0, "remote_applied": remote_applied}

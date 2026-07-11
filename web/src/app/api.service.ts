@@ -991,6 +991,38 @@ export class ApiService {
       );
   }
 
+  muteAccount(
+    acct: string,
+    identityId: number,
+    level: 'mute' | 'block' = 'mute',
+  ): Observable<unknown> {
+    const params = new HttpParams().set('identity_id', identityId.toString()).set('level', level);
+    return this.http
+      .post<unknown>(
+        `${this.base}/api/accounts/${encodeURIComponent(acct)}/mute`,
+        {},
+        { params, headers: this.headers },
+      )
+      .pipe(
+        tap(() => this.refreshNeeded$.next()),
+        catchError((err) => this.handleError(err)),
+      );
+  }
+
+  unmuteAccount(acct: string, identityId: number): Observable<unknown> {
+    const params = new HttpParams().set('identity_id', identityId.toString());
+    return this.http
+      .post<unknown>(
+        `${this.base}/api/accounts/${encodeURIComponent(acct)}/unmute`,
+        {},
+        { params, headers: this.headers },
+      )
+      .pipe(
+        tap(() => this.refreshNeeded$.next()),
+        catchError((err) => this.handleError(err)),
+      );
+  }
+
   unfollowAccount(acct: string, identityId: number): Observable<unknown> {
     const params = new HttpParams().set('identity_id', identityId.toString());
     return this.http

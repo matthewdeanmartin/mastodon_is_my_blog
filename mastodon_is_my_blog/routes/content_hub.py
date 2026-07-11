@@ -33,6 +33,7 @@ from mastodon_is_my_blog.store import (
     ContentHubPostMatch,
     MastodonIdentity,
     MetaAccount,
+    MutedAccount,
     async_session,
 )
 
@@ -68,6 +69,14 @@ async def resolve_identity(meta_id: int, identity_id: int) -> MastodonIdentity:
         if not identity:
             raise HTTPException(404, "Identity not found")
         return identity
+
+
+def muted_accts_subquery(meta_id: int, identity_id: int):
+    """Accts the user muted/blocked in-app; excluded from all hub feeds."""
+    return select(MutedAccount.acct).where(
+        MutedAccount.meta_account_id == meta_id,
+        MutedAccount.mastodon_identity_id == identity_id,
+    )
 
 
 def group_to_dict(group: ContentHubGroup) -> dict:
@@ -142,6 +151,7 @@ async def get_group_posts(
             .where(
                 CachedPost.meta_account_id == meta.id,
                 CachedPost.fetched_by_identity_id == identity_id,
+                CachedPost.author_acct.notin_(muted_accts_subquery(meta.id, identity_id)),
             )
             .distinct()
             .order_by(desc(CachedPost.created_at), desc(CachedPost.id))
@@ -298,6 +308,7 @@ async def get_group_people(
             .where(
                 CachedPost.meta_account_id == meta.id,
                 CachedPost.fetched_by_identity_id == identity_id,
+                CachedPost.author_acct.notin_(muted_accts_subquery(meta.id, identity_id)),
             )
             .group_by(CachedPost.author_acct, CachedPost.author_id)
         )
