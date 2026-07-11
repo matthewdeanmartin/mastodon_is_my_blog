@@ -27,9 +27,7 @@ ATTACH_ALIAS = "src"
 
 SQLITE_INSTALLED = False
 FORUM_CACHE_TTL_SECONDS = 30.0
-FORUM_SUMMARY_CACHE: dict[
-    tuple[int, int, bool, int], tuple[float, list[dict[str, Any]]]
-] = {}
+FORUM_SUMMARY_CACHE: dict[tuple[int, int, bool, int], tuple[float, list[dict[str, Any]]]] = {}
 
 
 def _open_query_connection() -> duckdb.DuckDBPyConnection:
@@ -48,6 +46,14 @@ def _open_query_connection() -> duckdb.DuckDBPyConnection:
 def startup() -> None:
     global SQLITE_INSTALLED  # pylint: disable=global-variable-not-assigned
     if SQLITE_INSTALLED:
+        return
+    # DuckDB analytics attach the local SQLite file directly; there is no
+    # equivalent on turso/postgres (Phase 1). Skip gracefully instead of
+    # crashing on get_sqlite_file_path().
+    from mastodon_is_my_blog.db_backend import is_sqlite, resolve_backend
+
+    if not is_sqlite(resolve_backend()):
+        logger.info("DuckDB analytics disabled: requires the sqlite backend (active backend attaches no local file).")
         return
     con = _open_query_connection()
     con.close()
@@ -137,10 +143,7 @@ async def hashtag_trends(
         ORDER BY bucket_start DESC, n DESC, tag;
     """
     rows = await run(sql, [meta_id, identity_id, top])
-    return [
-        {"bucket_start": r[0].isoformat() if r[0] else None, "tag": r[1], "count": r[2]}
-        for r in rows
-    ]
+    return [{"bucket_start": r[0].isoformat() if r[0] else None, "tag": r[1], "count": r[2]} for r in rows]
 
 
 async def hashtag_counts(
@@ -338,11 +341,7 @@ async def forum_thread_summaries(
 
     content_hub_clause = "" if include_content_hub else "AND content_hub_only = false"
     friend_placeholders = ", ".join("?" for _ in following)
-    friend_count_sql = (
-        f"SUM(CASE WHEN id != root_id AND author_acct IN ({friend_placeholders}) THEN 1 ELSE 0 END)"
-        if following
-        else "0"
-    )
+    friend_count_sql = f"SUM(CASE WHEN id != root_id AND author_acct IN ({friend_placeholders}) THEN 1 ELSE 0 END)" if following else "0"
 
     sql = f"""
         WITH posts AS (
@@ -612,10 +611,7 @@ async def api_call_volume(
         ORDER BY bucket_start;
     """
     rows = await run(sql)
-    return [
-        {"bucket_start": r[0].isoformat() if r[0] else None, "count": int(r[1])}
-        for r in rows
-    ]
+    return [{"bucket_start": r[0].isoformat() if r[0] else None, "count": int(r[1])} for r in rows]
 
 
 async def api_call_by_method(

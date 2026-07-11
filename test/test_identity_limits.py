@@ -86,12 +86,7 @@ async def test_meta_accounts_schema_backfill(monkeypatch):
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
     async with engine.begin() as conn:
-        await conn.execute(
-            text(
-                "CREATE TABLE meta_accounts ("
-                "id INTEGER PRIMARY KEY, username VARCHAR UNIQUE, created_at DATETIME)"
-            )
-        )
+        await conn.execute(text("CREATE TABLE meta_accounts (id INTEGER PRIMARY KEY, username VARCHAR UNIQUE, created_at DATETIME)"))
         await conn.execute(text("INSERT INTO meta_accounts (id, username) VALUES (1, 'default')"))
     monkeypatch.setattr(store, "engine", engine)
 

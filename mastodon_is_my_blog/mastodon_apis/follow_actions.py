@@ -49,16 +49,13 @@ async def resolve_remote_id(m, acct: str) -> str:
     if not acct_matches(acct, found_acct):
         raise HTTPException(
             404,
-            f"Account {acct!r} not found via Mastodon search "
-            f"(closest match was {found_acct!r})",
+            f"Account {acct!r} not found via Mastodon search (closest match was {found_acct!r})",
         )
 
     return str(results[0]["id"])
 
 
-async def set_cached_following(
-    meta_id: int, identity: MastodonIdentity, remote_id: str, is_following: bool
-) -> None:
+async def set_cached_following(meta_id: int, identity: MastodonIdentity, remote_id: str, is_following: bool) -> None:
     async with async_session() as session:
         stmt = select(CachedAccount).where(
             and_(

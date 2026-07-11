@@ -30,9 +30,7 @@ async def test_ensure_public_destination_rejects_private_ips(
         assert host == "example.com"
         return ["127.0.0.1", "93.184.216.34"]
 
-    monkeypatch.setattr(
-        "mastodon_is_my_blog.link_previews._resolve_host", fake_resolve_host
-    )
+    monkeypatch.setattr("mastodon_is_my_blog.link_previews._resolve_host", fake_resolve_host)
 
     with pytest.raises(HTTPException) as exc_info:
         await _ensure_public_destination("https://example.com/post")

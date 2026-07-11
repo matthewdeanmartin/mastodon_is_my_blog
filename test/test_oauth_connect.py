@@ -55,9 +55,7 @@ def _stub_persist(monkeypatch: pytest.MonkeyPatch, module) -> None:
 
 
 @pytest.mark.asyncio
-async def test_persist_identity_creates_and_updates_identity(
-    monkeypatch: pytest.MonkeyPatch, db_session_factory
-) -> None:
+async def test_persist_identity_creates_and_updates_identity(monkeypatch: pytest.MonkeyPatch, db_session_factory) -> None:
     _stub_persist(monkeypatch, admin)
 
     async with db_session_factory() as session:
@@ -100,13 +98,9 @@ async def test_persist_identity_creates_and_updates_identity(
 
 
 @pytest.mark.asyncio
-async def test_add_identity_api_key_creates_identity(
-    api_client: TestClient, monkeypatch: pytest.MonkeyPatch, db_session_factory
-) -> None:
+async def test_add_identity_api_key_creates_identity(api_client: TestClient, monkeypatch: pytest.MonkeyPatch, db_session_factory) -> None:
     _stub_persist(monkeypatch, admin)
-    monkeypatch.setattr(
-        admin, "build_unique_account_name", lambda preferred, existing: "ALICE"
-    )
+    monkeypatch.setattr(admin, "build_unique_account_name", lambda preferred, existing: "ALICE")
     monkeypatch.setattr(admin, "client", lambda **kwargs: DummyClient(**kwargs))
 
     async with db_session_factory() as session:
@@ -137,14 +131,10 @@ async def test_add_identity_api_key_creates_identity(
 
 
 @pytest.mark.asyncio
-async def test_auth_callback_consumes_pending_connection_and_persists_identity(
-    monkeypatch: pytest.MonkeyPatch, db_session_factory
-) -> None:
+async def test_auth_callback_consumes_pending_connection_and_persists_identity(monkeypatch: pytest.MonkeyPatch, db_session_factory) -> None:
     monkeypatch.setenv("APP_BASE_URL", "https://app.example.com")
     _stub_persist(monkeypatch, admin)
-    monkeypatch.setattr(
-        admin, "build_unique_account_name", lambda preferred, existing: "ALICE"
-    )
+    monkeypatch.setattr(admin, "build_unique_account_name", lambda preferred, existing: "ALICE")
     monkeypatch.setattr(main, "client", lambda **kwargs: DummyClient(**kwargs))
     monkeypatch.setattr(main, "sync_accounts_friends_followers", async_noop)
     monkeypatch.setattr(main, "sync_user_timeline", async_noop)
@@ -155,9 +145,7 @@ async def test_auth_callback_consumes_pending_connection_and_persists_identity(
     async def fake_get_or_create_default_meta_account():
         return MetaAccount(id=7, username="test-meta")
 
-    monkeypatch.setattr(
-        main, "get_or_create_default_meta_account", fake_get_or_create_default_meta_account
-    )
+    monkeypatch.setattr(main, "get_or_create_default_meta_account", fake_get_or_create_default_meta_account)
 
     async with db_session_factory() as session:
         session.add(make_meta_account(meta_id=7))
@@ -187,9 +175,7 @@ async def test_auth_callback_consumes_pending_connection_and_persists_identity(
     from fastapi.testclient import TestClient
 
     with TestClient(main.app) as client:
-        response = client.get(
-            "/auth/callback?code=somecode&state=abc123", follow_redirects=False
-        )
+        response = client.get("/auth/callback?code=somecode&state=abc123", follow_redirects=False)
 
     assert response.status_code == 307
     assert response.headers["location"] == "http://localhost:4200/#/admin"
@@ -203,15 +189,11 @@ async def test_auth_callback_consumes_pending_connection_and_persists_identity(
         identity = (await session.execute(stmt)).scalar_one()
         assert identity.acct == "alice@example.com"
 
-        pending = (
-            await session.execute(select(OAuthPendingConnection))
-        ).scalar_one_or_none()
+        pending = (await session.execute(select(OAuthPendingConnection))).scalar_one_or_none()
         assert pending is None
 
 
-def test_auth_callback_server_mode_spawns_first_sync(
-    monkeypatch: pytest.MonkeyPatch, db_session_factory
-) -> None:
+def test_auth_callback_server_mode_spawns_first_sync(monkeypatch: pytest.MonkeyPatch, db_session_factory) -> None:
     """Server mode must kick a tenant-scoped background sync after connect —
     otherwise every page is an empty state until the next scheduled sync
     (sprint-05 testing feedback)."""
@@ -268,18 +250,14 @@ def test_auth_callback_server_mode_spawns_first_sync(
     asyncio.run(seed())
 
     with TestClient(main.app) as client:
-        response = client.get(
-            "/auth/callback?code=somecode&state=srv123", follow_redirects=False
-        )
+        response = client.get("/auth/callback?code=somecode&state=srv123", follow_redirects=False)
 
     assert response.status_code == 307
     assert response.headers["location"] == "https://app.example.com/#/admin"
     assert spawned == ["first-sync-tenant_9"]
 
 
-def test_auth_callback_rejects_unknown_state(
-    monkeypatch: pytest.MonkeyPatch, db_session_factory
-) -> None:
+def test_auth_callback_rejects_unknown_state(monkeypatch: pytest.MonkeyPatch, db_session_factory) -> None:
     monkeypatch.setattr("mastodon_is_my_blog.store.async_session", db_session_factory)
     monkeypatch.setattr(main, "init_db", async_noop)
     monkeypatch.setattr(main, "get_or_create_default_meta_account", async_noop)

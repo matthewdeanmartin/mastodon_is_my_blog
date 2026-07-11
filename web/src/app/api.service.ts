@@ -452,7 +452,11 @@ export class ApiService {
     return this.http
       .post<{
         authorize_url: string;
-      }>(`${this.base}/api/admin/identities/oauth/start`, { base_url: baseUrl }, { headers: this.headers })
+      }>(
+        `${this.base}/api/admin/identities/oauth/start`,
+        { base_url: baseUrl },
+        { headers: this.headers },
+      )
       .pipe(catchError((err) => this.handleError(err)));
   }
 

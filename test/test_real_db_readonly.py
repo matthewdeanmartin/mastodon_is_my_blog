@@ -60,9 +60,7 @@ async def fetch_scalar_list(query: str) -> Sequence[str]:
 
 @pytest.mark.asyncio
 async def test_real_db_exposes_expected_tables() -> None:
-    table_names = await fetch_scalar_list(
-        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    )
+    table_names = await fetch_scalar_list("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
 
     assert EXPECTED_TABLES.issubset(set(table_names))
 
@@ -88,9 +86,7 @@ async def test_real_db_table_counts_are_non_negative(table_name: str) -> None:
         (CachedNotification, "id"),
     ],
 )
-async def test_real_db_orm_queries_can_read_optional_sample_rows(
-    model: type, primary_key_attr: str
-) -> None:
+async def test_real_db_orm_queries_can_read_optional_sample_rows(model: type, primary_key_attr: str) -> None:
     async with async_session() as session:
         result = await session.execute(select(model).limit(1))
         row = result.scalar_one_or_none()
@@ -101,10 +97,7 @@ async def test_real_db_orm_queries_can_read_optional_sample_rows(
 
 @pytest.mark.asyncio
 async def test_real_db_cached_posts_has_expected_indexes() -> None:
-    index_names = await fetch_scalar_list(
-        "SELECT name FROM sqlite_master "
-        "WHERE type='index' AND tbl_name='cached_posts' ORDER BY name"
-    )
+    index_names = await fetch_scalar_list("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='cached_posts' ORDER BY name")
 
     assert EXPECTED_CACHED_POST_INDEXES.issubset(set(index_names))
 

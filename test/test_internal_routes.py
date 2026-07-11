@@ -45,9 +45,7 @@ async def client(monkeypatch, patch_async_session, tmp_path):
     patch_async_session(tenant_export, storm_export)
     app = FastAPI()
     app.include_router(internal.router)
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://internal.test"
-    ) as http:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://internal.test") as http:
         yield http
 
 
@@ -139,12 +137,8 @@ async def two_tenants_seeded(db_session):
     )
     db_session.add_all(
         [
-            make_cached_account(
-                "friend-1", meta_account_id=1, identity_id=1, acct="f1@example.social"
-            ),
-            make_cached_account(
-                "friend-2", meta_account_id=2, identity_id=2, acct="f2@example.social"
-            ),
+            make_cached_account("friend-1", meta_account_id=1, identity_id=1, acct="f1@example.social"),
+            make_cached_account("friend-2", meta_account_id=2, identity_id=2, acct="f2@example.social"),
         ]
     )
     await db_session.commit()
@@ -168,9 +162,7 @@ async def test_all_routes_403_without_secret(client):
     for method, path, body in requests:
         no_header = await client.request(method, path, json=body)
         assert no_header.status_code == 403, path
-        wrong = await client.request(
-            method, path, json=body, headers={"Authorization": "Bearer wrong"}
-        )
+        wrong = await client.request(method, path, json=body, headers={"Authorization": "Bearer wrong"})
         assert wrong.status_code == 403, path
 
 
@@ -185,9 +177,7 @@ def test_internal_routes_absent_in_local_mode(monkeypatch):
     monkeypatch.setenv("MIMB_MODE", "local")
     from mastodon_is_my_blog import main
 
-    assert not any(
-        getattr(route, "path", "").startswith("/internal") for route in main.app.routes
-    )
+    assert not any(getattr(route, "path", "").startswith("/internal") for route in main.app.routes)
 
 
 @pytest.mark.asyncio
@@ -202,15 +192,11 @@ async def test_health(client):
 
 @pytest.mark.asyncio
 async def test_provision_twice_creates_one_meta_account(client):
-    first = await client.post(
-        "/internal/tenants/7/provision", json={"job_id": 1}, headers=AUTH
-    )
+    first = await client.post("/internal/tenants/7/provision", json={"job_id": 1}, headers=AUTH)
     assert first.status_code == 200
     assert first.json()["created"] is True
 
-    second = await client.post(
-        "/internal/tenants/7/provision", json={"job_id": 2}, headers=AUTH
-    )
+    second = await client.post("/internal/tenants/7/provision", json={"job_id": 2}, headers=AUTH)
     assert second.status_code == 200
     assert second.json()["created"] is False
     assert second.json()["meta_account_id"] == first.json()["meta_account_id"]
@@ -221,21 +207,15 @@ async def test_provision_twice_creates_one_meta_account(client):
 
 @pytest.mark.asyncio
 async def test_sync_skips_unprovisioned_tenant(client):
-    response = await client.post(
-        "/internal/tenants/99/sync", json={"job_id": 1}, headers=AUTH
-    )
+    response = await client.post("/internal/tenants/99/sync", json={"job_id": 1}, headers=AUTH)
     assert response.status_code == 202
     assert response.json()["status"] == "skipped"
 
 
 @pytest.mark.asyncio
 async def test_sync_skips_tenant_with_no_identities(client):
-    await client.post(
-        "/internal/tenants/5/provision", json={"job_id": 1}, headers=AUTH
-    )
-    response = await client.post(
-        "/internal/tenants/5/sync", json={"job_id": 2}, headers=AUTH
-    )
+    await client.post("/internal/tenants/5/provision", json={"job_id": 1}, headers=AUTH)
+    response = await client.post("/internal/tenants/5/sync", json={"job_id": 2}, headers=AUTH)
     assert response.status_code == 202
     assert response.json()["status"] == "skipped"
 
@@ -243,9 +223,7 @@ async def test_sync_skips_tenant_with_no_identities(client):
 @pytest.mark.asyncio
 async def test_sync_starts_for_connected_tenant(client, two_tenants_seeded, monkeypatch):
     monkeypatch.setattr(internal, "sync_all_identities", AsyncMock(return_value=[]))
-    response = await client.post(
-        "/internal/tenants/1/sync", json={"job_id": 3}, headers=AUTH
-    )
+    response = await client.post("/internal/tenants/1/sync", json={"job_id": 3}, headers=AUTH)
     assert response.status_code == 202
     assert response.json() == {"status": "started"}
 
@@ -274,7 +252,8 @@ async def test_sync_rebuilds_blog_only_when_new_posts(monkeypatch):
 
     # No new posts -> no rebuild.
     monkeypatch.setattr(
-        internal, "sync_all_identities",
+        internal,
+        "sync_all_identities",
         AsyncMock(return_value=[{"a@x": {"timeline": {"new": 0}}}]),
     )
     internal.syncing_tenants.add(1)
@@ -284,7 +263,8 @@ async def test_sync_rebuilds_blog_only_when_new_posts(monkeypatch):
 
     # New posts -> rebuild fires once.
     monkeypatch.setattr(
-        internal, "sync_all_identities",
+        internal,
+        "sync_all_identities",
         AsyncMock(return_value=[{"a@x": {"timeline": {"new": 4}}}]),
     )
     internal.syncing_tenants.add(1)
@@ -328,9 +308,7 @@ async def test_sync_skipped_when_disabled(client, two_tenants_seeded):
         json={"job_id": 1, "enabled": False},
         headers=AUTH,
     )
-    response = await client.post(
-        "/internal/tenants/1/sync", json={"job_id": 2}, headers=AUTH
-    )
+    response = await client.post("/internal/tenants/1/sync", json={"job_id": 2}, headers=AUTH)
     assert response.status_code == 202
     assert response.json() == {"status": "skipped", "reason": "tenant disabled"}
 
@@ -344,9 +322,7 @@ async def test_sync_skipped_over_storage_limit(client, two_tenants_seeded):
         json={"job_id": 1, "enabled": True, "max_storage_bytes": 1},
         headers=AUTH,
     )
-    response = await client.post(
-        "/internal/tenants/1/sync", json={"job_id": 2}, headers=AUTH
-    )
+    response = await client.post("/internal/tenants/1/sync", json={"job_id": 2}, headers=AUTH)
     assert response.status_code == 202
     assert response.json() == {"status": "skipped", "reason": "storage limit exceeded"}
 
@@ -362,32 +338,24 @@ async def test_sync_runs_under_storage_limit(client, two_tenants_seeded, monkeyp
         json={"job_id": 1, "enabled": True, "max_storage_bytes": 10_000_000},
         headers=AUTH,
     )
-    response = await client.post(
-        "/internal/tenants/1/sync", json={"job_id": 2}, headers=AUTH
-    )
+    response = await client.post("/internal/tenants/1/sync", json={"job_id": 2}, headers=AUTH)
     assert response.status_code == 202
     assert response.json() == {"status": "started"}
 
 
 @pytest.mark.asyncio
 async def test_rebuild_blog_starts_and_skips(client, two_tenants_seeded):
-    started = await client.post(
-        "/internal/tenants/1/rebuild-blog", json={"job_id": 4}, headers=AUTH
-    )
+    started = await client.post("/internal/tenants/1/rebuild-blog", json={"job_id": 4}, headers=AUTH)
     assert started.status_code == 202
     assert started.json() == {"status": "started"}
 
-    skipped = await client.post(
-        "/internal/tenants/99/rebuild-blog", json={"job_id": 5}, headers=AUTH
-    )
+    skipped = await client.post("/internal/tenants/99/rebuild-blog", json={"job_id": 5}, headers=AUTH)
     assert skipped.status_code == 202
     assert skipped.json()["status"] == "skipped"
 
 
 @pytest.mark.asyncio
-async def test_rebuild_blog_payload_written(
-    two_tenants_seeded, patch_async_session, tmp_path, monkeypatch
-):
+async def test_rebuild_blog_payload_written(two_tenants_seeded, patch_async_session, tmp_path, monkeypatch):
     patch_async_session(tenant_export, storm_export)
     monkeypatch.setenv("EXPORT_DIR", str(tmp_path))
     # Keep the test off the real Eleventy project: fallback renderer path.
@@ -414,12 +382,8 @@ def read_exported_db(zip_path: str, tmp_path) -> sqlite3.Connection:
 
 
 @pytest.mark.asyncio
-async def test_export_contains_only_own_tenant_rows(
-    client, two_tenants_seeded, tmp_path
-):
-    response = await client.post(
-        "/internal/tenants/1/export", json={"job_id": 11}, headers=AUTH
-    )
+async def test_export_contains_only_own_tenant_rows(client, two_tenants_seeded, tmp_path):
+    response = await client.post("/internal/tenants/1/export", json={"job_id": 11}, headers=AUTH)
     assert response.status_code == 200
     payload = response.json()
     assert payload["bytes"] > 0
@@ -430,9 +394,7 @@ async def test_export_contains_only_own_tenant_rows(
 
     conn = read_exported_db(payload["download_path"], tmp_path)
     try:
-        contents = [
-            row[0] for row in conn.execute("SELECT content FROM cached_posts")
-        ]
+        contents = [row[0] for row in conn.execute("SELECT content FROM cached_posts")]
         assert any("tenant one" in c for c in contents)
         assert not any("TENANT TWO" in c for c in contents)
         accts = [row[0] for row in conn.execute("SELECT acct FROM cached_accounts")]
@@ -447,60 +409,36 @@ async def test_export_contains_only_own_tenant_rows(
 async def test_export_is_self_host_bootable(client, two_tenants_seeded, tmp_path):
     """The exported file must load under MIMB_MODE=local: the MetaAccount is
     renamed to 'default' and hosted tokens are stripped."""
-    response = await client.post(
-        "/internal/tenants/1/export", json={"job_id": 12}, headers=AUTH
-    )
+    response = await client.post("/internal/tenants/1/export", json={"job_id": 12}, headers=AUTH)
     payload = response.json()
 
     conn = read_exported_db(payload["download_path"], tmp_path)
     try:
-        usernames = [
-            row[0] for row in conn.execute("SELECT username FROM meta_accounts")
-        ]
+        usernames = [row[0] for row in conn.execute("SELECT username FROM meta_accounts")]
         assert usernames == ["default"]
-        secrets = conn.execute(
-            "SELECT access_token, client_secret FROM mastodon_identities"
-        ).fetchall()
+        secrets = conn.execute("SELECT access_token, client_secret FROM mastodon_identities").fetchall()
         assert secrets == [("", "")]
     finally:
         conn.close()
 
 
 @pytest.mark.asyncio
-async def test_exported_db_renders_posts_in_local_mode(
-    two_tenants_seeded, patch_async_session, tmp_path, monkeypatch
-):
+async def test_exported_db_renders_posts_in_local_mode(two_tenants_seeded, patch_async_session, tmp_path, monkeypatch):
     """Acceptance test from the spec: point a local-mode instance's database
     at the exported file and assert the tenant's posts render."""
     patch_async_session(tenant_export, storm_export)
-    zip_path = await tenant_export.build_tenant_export_zip(
-        1, 1, "boot", tmp_path / "exports"
-    )
+    zip_path = await tenant_export.build_tenant_export_zip(1, 1, "boot", tmp_path / "exports")
     with zipfile.ZipFile(zip_path) as bundle:
         bundle.extract("app.db", tmp_path / "boot")
 
     # Point a local-mode session factory at the exported file, exactly as a
     # self-hosted install's DB_URL would, and drive the real code paths.
-    exported_engine = create_async_engine(
-        f"sqlite+aiosqlite:///{(tmp_path / 'boot' / 'app.db').as_posix()}"
-    )
+    exported_engine = create_async_engine(f"sqlite+aiosqlite:///{(tmp_path / 'boot' / 'app.db').as_posix()}")
     factory = async_sessionmaker(exported_engine, expire_on_commit=False)
     try:
         async with factory() as session:
-            meta = (
-                await session.execute(
-                    select(MetaAccount).where(MetaAccount.username == "default")
-                )
-            ).scalar_one()
-            posts = (
-                (
-                    await session.execute(
-                        select(CachedPost).where(CachedPost.meta_account_id == meta.id)
-                    )
-                )
-                .scalars()
-                .all()
-            )
+            meta = (await session.execute(select(MetaAccount).where(MetaAccount.username == "default"))).scalar_one()
+            posts = (await session.execute(select(CachedPost).where(CachedPost.meta_account_id == meta.id))).scalars().all()
             assert {p.id for p in posts} == {
                 "storm-root",
                 "storm-reply",
@@ -520,20 +458,14 @@ async def test_exported_db_renders_posts_in_local_mode(
 
 @pytest.mark.asyncio
 async def test_export_is_idempotent_per_job(client, two_tenants_seeded):
-    first = await client.post(
-        "/internal/tenants/1/export", json={"job_id": 13}, headers=AUTH
-    )
-    second = await client.post(
-        "/internal/tenants/1/export", json={"job_id": 13}, headers=AUTH
-    )
+    first = await client.post("/internal/tenants/1/export", json={"job_id": 13}, headers=AUTH)
+    second = await client.post("/internal/tenants/1/export", json={"job_id": 13}, headers=AUTH)
     assert first.json()["download_path"] == second.json()["download_path"]
 
 
 @pytest.mark.asyncio
 async def test_export_unprovisioned_tenant_404(client):
-    response = await client.post(
-        "/internal/tenants/99/export", json={"job_id": 14}, headers=AUTH
-    )
+    response = await client.post("/internal/tenants/99/export", json={"job_id": 14}, headers=AUTH)
     assert response.status_code == 404
 
 
@@ -578,9 +510,7 @@ async def test_export_download_streams_the_zip(client, two_tenants_seeded):
     # guard, and encoded slashes never even match the route (404).
     response = await client.get("/internal/tenants/1/exports/../download", headers=AUTH)
     assert response.status_code in (400, 404)
-    response = await client.get(
-        "/internal/tenants/1/exports/..%2F..%2Fetc/download", headers=AUTH
-    )
+    response = await client.get("/internal/tenants/1/exports/..%2F..%2Fetc/download", headers=AUTH)
     assert response.status_code in (400, 404)
 
 
@@ -589,38 +519,26 @@ async def test_export_download_streams_the_zip(client, two_tenants_seeded):
 
 @pytest.mark.asyncio
 async def test_purge_removes_tenant_and_spares_neighbor(client, two_tenants_seeded):
-    first = await client.request(
-        "DELETE", "/internal/tenants/1", json={"job_id": 21}, headers=AUTH
-    )
+    first = await client.request("DELETE", "/internal/tenants/1", json={"job_id": 21}, headers=AUTH)
     assert first.status_code == 200
     assert first.json() == {"status": "purged"}
 
-    again = await client.request(
-        "DELETE", "/internal/tenants/1", json={"job_id": 21}, headers=AUTH
-    )
+    again = await client.request("DELETE", "/internal/tenants/1", json={"job_id": 21}, headers=AUTH)
     assert again.json() == {"status": "already_gone"}
 
     # Tenant 2 untouched, tenant 1 gone — including identities (tokens).
-    export_two = await client.post(
-        "/internal/tenants/2/export", json={"job_id": 22}, headers=AUTH
-    )
+    export_two = await client.post("/internal/tenants/2/export", json={"job_id": 22}, headers=AUTH)
     assert export_two.status_code == 200
-    export_one = await client.post(
-        "/internal/tenants/1/export", json={"job_id": 23}, headers=AUTH
-    )
+    export_one = await client.post("/internal/tenants/1/export", json={"job_id": 23}, headers=AUTH)
     assert export_one.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_purge_deletes_all_scoped_rows(
-    two_tenants_seeded, patch_async_session, db_session
-):
+async def test_purge_deletes_all_scoped_rows(two_tenants_seeded, patch_async_session, db_session):
     patch_async_session(tenant_export)
     assert await tenant_export.purge_tenant_data("tenant_1") is True
 
-    remaining_identities = (
-        (await db_session.execute(select(MastodonIdentity))).scalars().all()
-    )
+    remaining_identities = (await db_session.execute(select(MastodonIdentity))).scalars().all()
     assert [i.meta_account_id for i in remaining_identities] == [2]
     remaining_posts = (await db_session.execute(select(CachedPost))).scalars().all()
     assert {p.meta_account_id for p in remaining_posts} == {2}

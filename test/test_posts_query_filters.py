@@ -94,9 +94,7 @@ async def test_is_reblog_false_filter_returns_non_reblogs(in_memory_session) -> 
     in_memory_session.add(make_post("reblog", is_reblog=True))
     await in_memory_session.flush()
 
-    result = await in_memory_session.execute(
-        select(CachedPost).where(CachedPost.is_reblog.is_(False))
-    )
+    result = await in_memory_session.execute(select(CachedPost).where(CachedPost.is_reblog.is_(False)))
     rows = result.scalars().all()
 
     assert len(rows) == 1
@@ -110,9 +108,7 @@ async def test_is_reply_false_filter_returns_root_posts(in_memory_session) -> No
     in_memory_session.add(make_post("reply", is_reply=True))
     await in_memory_session.flush()
 
-    result = await in_memory_session.execute(
-        select(CachedPost).where(CachedPost.is_reply.is_(False))
-    )
+    result = await in_memory_session.execute(select(CachedPost).where(CachedPost.is_reply.is_(False)))
     rows = result.scalars().all()
 
     assert len(rows) == 1
@@ -152,9 +148,7 @@ async def test_in_reply_to_id_is_none_filter_returns_root_posts(
     in_memory_session.add(make_post("reply", in_reply_to_id="root"))
     await in_memory_session.flush()
 
-    result = await in_memory_session.execute(
-        select(CachedPost).where(CachedPost.in_reply_to_id.is_(None))
-    )
+    result = await in_memory_session.execute(select(CachedPost).where(CachedPost.in_reply_to_id.is_(None)))
     rows = result.scalars().all()
 
     assert len(rows) == 1
@@ -170,9 +164,7 @@ async def test_in_reply_to_id_is_not_none_filter_returns_replies(
     in_memory_session.add(make_post("reply", in_reply_to_id="root"))
     await in_memory_session.flush()
 
-    result = await in_memory_session.execute(
-        select(CachedPost).where(CachedPost.in_reply_to_id.is_not(None))
-    )
+    result = await in_memory_session.execute(select(CachedPost).where(CachedPost.in_reply_to_id.is_not(None)))
     rows = result.scalars().all()
 
     assert len(rows) == 1
@@ -186,9 +178,7 @@ async def test_has_link_true_filter_returns_link_posts(in_memory_session) -> Non
     in_memory_session.add(make_post("no-link", has_link=False))
     await in_memory_session.flush()
 
-    result = await in_memory_session.execute(
-        select(CachedPost).where(CachedPost.has_link.is_(True))
-    )
+    result = await in_memory_session.execute(select(CachedPost).where(CachedPost.has_link.is_(True)))
     rows = result.scalars().all()
 
     assert len(rows) == 1
@@ -202,18 +192,10 @@ async def test_shorts_filter_returns_only_qualifying_posts(in_memory_session) ->
     and content length < 500. Verify all conditions work via .is_(False).
     """
     in_memory_session.add(make_post("short", content="<p>A short post.</p>"))
-    in_memory_session.add(
-        make_post("reply-post", is_reply=True, content="<p>Reply</p>")
-    )
-    in_memory_session.add(
-        make_post("reblog-post", is_reblog=True, content="<p>Reblog</p>")
-    )
-    in_memory_session.add(
-        make_post("media-post", has_media=True, content="<p>Has media</p>")
-    )
-    in_memory_session.add(
-        make_post("link-post", has_link=True, content="<p>Has link</p>")
-    )
+    in_memory_session.add(make_post("reply-post", is_reply=True, content="<p>Reply</p>"))
+    in_memory_session.add(make_post("reblog-post", is_reblog=True, content="<p>Reblog</p>"))
+    in_memory_session.add(make_post("media-post", has_media=True, content="<p>Has media</p>"))
+    in_memory_session.add(make_post("link-post", has_link=True, content="<p>Has link</p>"))
     await in_memory_session.flush()
 
     shorts_filter = and_(
@@ -250,9 +232,7 @@ async def test_filter_category_true_flags(in_memory_session) -> None:
         (CachedPost.has_video, "video"),
         (CachedPost.has_question, "question"),
     ]:
-        result = await in_memory_session.execute(
-            select(CachedPost).where(flag_col.is_(True))
-        )
+        result = await in_memory_session.execute(select(CachedPost).where(flag_col.is_(True)))
         rows = result.scalars().all()
         assert len(rows) == 1, f"Expected 1 row for {flag_col}, got {len(rows)}"
         assert rows[0].id == expected_id
@@ -266,9 +246,7 @@ async def test_storms_scope_requires_a_self_reply(in_memory_session) -> None:
             make_post("self-reply", author_id="author", in_reply_to_id="storm"),
             make_post("long-standalone", author_id="author", content="x" * 1000),
             make_post("other-root", author_id="other", in_reply_to_id=None),
-            make_post(
-                "reply-to-other", author_id="author", in_reply_to_id="other-root"
-            ),
+            make_post("reply-to-other", author_id="author", in_reply_to_id="other-root"),
         ]
     )
     await in_memory_session.flush()
@@ -281,11 +259,7 @@ async def test_storms_scope_requires_a_self_reply(in_memory_session) -> None:
 
     parent = CachedPost.__table__.alias("parent")
     child = CachedPost.__table__.alias("child")
-    self_replied_ids = (
-        select(parent.c.id)
-        .join(child, child.c.in_reply_to_id == parent.c.id)
-        .where(child.c.author_id == parent.c.author_id)
-    )
+    self_replied_ids = select(parent.c.id).join(child, child.c.in_reply_to_id == parent.c.id).where(child.c.author_id == parent.c.author_id)
     roots_query = select(CachedPost).where(
         scope,
         CachedPost.in_reply_to_id.is_(None),
@@ -299,9 +273,7 @@ async def test_storms_scope_requires_a_self_reply(in_memory_session) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_public_posts_reposts_filter_uses_actor_acct(
-    in_memory_session, monkeypatch
-) -> None:
+async def test_get_public_posts_reposts_filter_uses_actor_acct(in_memory_session, monkeypatch) -> None:
     in_memory_session.add_all(
         [
             make_post(
@@ -364,9 +336,7 @@ async def test_get_public_posts_reposts_filter_uses_actor_acct(
         ("jobs", "original-job", {"has_job": True}),
     ],
 )
-async def test_content_filters_exclude_reposts(
-    in_memory_session, monkeypatch, filter_type, post_id, post_kwargs
-) -> None:
+async def test_content_filters_exclude_reposts(in_memory_session, monkeypatch, filter_type, post_id, post_kwargs) -> None:
     original = make_post(post_id, **post_kwargs)
     repost = make_post(
         f"{post_id}-repost",

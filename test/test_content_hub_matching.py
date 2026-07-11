@@ -110,20 +110,8 @@ async def test_retro_match_hashtag_term_inserts_only_new_matching_posts(
     inserted = await retro_match_hashtag_term(db_session, 1, 1, group.id, term)
     await db_session.commit()
 
-    matches = (
-        (
-            await db_session.execute(
-                select(ContentHubPostMatch).order_by(ContentHubPostMatch.post_id)
-            )
-        )
-        .scalars()
-        .all()
-    )
-    cached_posts = (
-        (await db_session.execute(select(CachedPost).order_by(CachedPost.id)))
-        .scalars()
-        .all()
-    )
+    matches = (await db_session.execute(select(ContentHubPostMatch).order_by(ContentHubPostMatch.post_id))).scalars().all()
+    cached_posts = (await db_session.execute(select(CachedPost).order_by(CachedPost.id))).scalars().all()
 
     assert inserted == 1
     assert [post.id for post in cached_posts] == [
@@ -163,9 +151,7 @@ async def test_retro_match_group_hashtag_terms_ignores_search_terms(db_session) 
     )
     await db_session.commit()
 
-    inserted = await retro_match_group_hashtag_terms(
-        db_session, 1, 1, group.id, [hashtag_term, search_term]
-    )
+    inserted = await retro_match_group_hashtag_terms(db_session, 1, 1, group.id, [hashtag_term, search_term])
     await db_session.commit()
 
     matches = (await db_session.execute(select(ContentHubPostMatch))).scalars().all()
@@ -177,9 +163,7 @@ async def test_retro_match_group_hashtag_terms_ignores_search_terms(db_session) 
 
 @pytest.mark.asyncio
 async def test_record_search_matches_returns_zero_for_empty_input(db_session) -> None:
-    db_session.add_all(
-        [make_meta_account(), make_identity(), make_group(), make_term()]
-    )
+    db_session.add_all([make_meta_account(), make_identity(), make_group(), make_term()])
     await db_session.commit()
 
     assert await record_search_matches(db_session, 1, 1, 1, make_term(), []) == 0
@@ -204,20 +188,10 @@ async def test_record_search_matches_persists_rows_for_search_results(
     )
     await db_session.commit()
 
-    matches = (
-        (
-            await db_session.execute(
-                select(ContentHubPostMatch).order_by(ContentHubPostMatch.post_id)
-            )
-        )
-        .scalars()
-        .all()
-    )
+    matches = (await db_session.execute(select(ContentHubPostMatch).order_by(ContentHubPostMatch.post_id))).scalars().all()
 
     assert inserted == 2
-    assert [
-        (match.post_id, match.matched_via, match.matched_term_id) for match in matches
-    ] == [
+    assert [(match.post_id, match.matched_via, match.matched_term_id) for match in matches] == [
         ("post-1", "search", term.id),
         ("post-2", "search", term.id),
     ]

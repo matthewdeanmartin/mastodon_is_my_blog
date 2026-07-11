@@ -34,9 +34,7 @@ async def test_get_current_meta_account_prefers_header_and_falls_back_default(
     )
     await db_session.commit()
 
-    header_request = Request(
-        {"type": "http", "headers": [(b"x-meta-account-id", b"2")]}
-    )
+    header_request = Request({"type": "http", "headers": [(b"x-meta-account-id", b"2")]})
     fallback_request = Request({"type": "http", "headers": []})
 
     assert (await queries.get_current_meta_account(header_request)).id == 2
@@ -79,9 +77,7 @@ async def test_bulk_upsert_accounts_merges_duplicates_and_latest_status(
         1,
         [
             {
-                "account_data": make_account_data(
-                    "account-1", acct="friend@example.social"
-                ),
+                "account_data": make_account_data("account-1", acct="friend@example.social"),
                 "last_status_at": datetime(2024, 1, 3, tzinfo=timezone.utc),
             },
             {
@@ -97,11 +93,7 @@ async def test_bulk_upsert_accounts_merges_duplicates_and_latest_status(
     await db_session.commit()
 
     async with db_session_factory() as session:
-        stored = (
-            await session.execute(
-                select(CachedAccount).where(CachedAccount.id == "account-1")
-            )
-        ).scalar_one()
+        stored = (await session.execute(select(CachedAccount).where(CachedAccount.id == "account-1"))).scalar_one()
 
     assert stored.acct == "updated@example.social"
     assert stored.display_name == "Updated"
@@ -117,9 +109,7 @@ def test_build_post_payload_handles_reblogs_and_reply_flags() -> None:
         content="<p>original</p>",
         in_reply_to_id="root-1",
         in_reply_to_account_id="other-author",
-        media_attachments=[
-            {"type": "image", "url": "https://example.social/image.jpg"}
-        ],
+        media_attachments=[{"type": "image", "url": "https://example.social/image.jpg"}],
     )
     boosted = make_status(
         "boost-wrapper",
@@ -187,9 +177,7 @@ async def test_bulk_upsert_posts_returns_new_and_updated_counts(db_session) -> N
         )
     await db_session.commit()
 
-    stored = (
-        await db_session.execute(select(CachedPost).where(CachedPost.id == "post-2"))
-    ).scalar_one()
+    stored = (await db_session.execute(select(CachedPost).where(CachedPost.id == "post-2"))).scalar_one()
 
     assert result == (1, 1)
     assert stored.content == "<p>newest</p>"
@@ -227,9 +215,7 @@ async def test_bulk_upsert_posts_preserves_reblog_actor_identity(db_session) -> 
         await queries.bulk_upsert_posts(db_session, 1, 1, [boosted])
     await db_session.commit()
 
-    stored = (
-        await db_session.execute(select(CachedPost).where(CachedPost.id == "boost-1"))
-    ).scalar_one()
+    stored = (await db_session.execute(select(CachedPost).where(CachedPost.id == "boost-1"))).scalar_one()
 
     assert stored.author_acct == "author@example.social"
     assert stored.author_id == "orig-author"
@@ -353,9 +339,7 @@ async def test_sync_user_timeline_for_identity_skips_recent_cooldown() -> None:
 
 
 @pytest.mark.asyncio
-async def test_sync_user_timeline_for_identity_returns_not_found_for_unknown_account() -> (
-    None
-):
+async def test_sync_user_timeline_for_identity_returns_not_found_for_unknown_account() -> None:
     identity = make_identity()
     client = MagicMock()
     client.account_search.return_value = []

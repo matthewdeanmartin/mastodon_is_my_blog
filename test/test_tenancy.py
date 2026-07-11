@@ -139,9 +139,7 @@ class TestGetCurrentMetaAccountServerMode:
         assert excinfo.value.status_code == 401
 
     async def test_valid_session_lazily_provisions_tenant(self, db_session_factory):
-        request = StubRequest(
-            cookies={tenancy.SESSION_COOKIE_NAME: make_session_token(tenant_id=7)}
-        )
+        request = StubRequest(cookies={tenancy.SESSION_COOKIE_NAME: make_session_token(tenant_id=7)})
         meta = await queries.get_current_meta_account(request)
         assert meta.username == "tenant_7"
 
@@ -150,9 +148,7 @@ class TestGetCurrentMetaAccountServerMode:
         assert again.id == meta.id
 
         async with db_session_factory() as session:
-            rows = (
-                (await session.execute(select(MetaAccount))).scalars().all()
-            )
+            rows = (await session.execute(select(MetaAccount))).scalars().all()
         assert [row.username for row in rows] == ["tenant_7"]
 
     async def test_disabled_tenant_is_403(self, db_session):
@@ -160,21 +156,15 @@ class TestGetCurrentMetaAccountServerMode:
         # cookie must not get through.
         db_session.add(MetaAccount(id=7, username="tenant_7", enabled=False))
         await db_session.commit()
-        request = StubRequest(
-            cookies={tenancy.SESSION_COOKIE_NAME: make_session_token(tenant_id=7)}
-        )
+        request = StubRequest(cookies={tenancy.SESSION_COOKIE_NAME: make_session_token(tenant_id=7)})
         with pytest.raises(HTTPException) as excinfo:
             await queries.get_current_meta_account(request)
         assert excinfo.value.status_code == 403
         assert "suspended" in excinfo.value.detail.lower()
 
     async def test_tenants_resolve_to_distinct_accounts(self):
-        request_a = StubRequest(
-            cookies={tenancy.SESSION_COOKIE_NAME: make_session_token(tenant_id=1)}
-        )
-        request_b = StubRequest(
-            cookies={tenancy.SESSION_COOKIE_NAME: make_session_token(tenant_id=2)}
-        )
+        request_a = StubRequest(cookies={tenancy.SESSION_COOKIE_NAME: make_session_token(tenant_id=1)})
+        request_b = StubRequest(cookies={tenancy.SESSION_COOKIE_NAME: make_session_token(tenant_id=2)})
         meta_a = await queries.get_current_meta_account(request_a)
         meta_b = await queries.get_current_meta_account(request_b)
         assert meta_a.id != meta_b.id

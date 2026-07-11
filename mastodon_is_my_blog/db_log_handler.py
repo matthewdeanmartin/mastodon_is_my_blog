@@ -13,6 +13,7 @@ import sqlite3
 import threading
 import time
 
+from mastodon_is_my_blog.db_backend import is_sqlite, resolve_backend
 from mastodon_is_my_blog.db_path import get_sqlite_file_path
 
 _lock = threading.Lock()
@@ -21,8 +22,13 @@ _conn: sqlite3.Connection | None = None
 RETENTION_DAYS = 30
 
 
-def get_connection() -> sqlite3.Connection:
+def get_connection() -> sqlite3.Connection | None:
+    """Raw sqlite3 connection to the error_log table, or None off the sqlite
+    backend (this telemetry writer is sqlite-only; on postgres/turso it no-ops
+    rather than raising)."""
     global _conn
+    if not is_sqlite(resolve_backend()):
+        return None
     if _conn is None:
         path = get_sqlite_file_path()
         _conn = sqlite3.connect(path, check_same_thread=False)
@@ -41,6 +47,8 @@ class DbLogHandler(logging.Handler):
                 exc_text = logging.Formatter().formatException(record.exc_info)
             with _lock:
                 con = get_connection()
+                if con is None:
+                    return  # non-sqlite backend: error_log is sqlite-only
                 con.execute(
                     """
                     INSERT INTO error_log (ts, level, logger_name, message, exc_text)
@@ -64,6 +72,8 @@ def purge_old_rows() -> int:
     try:
         with _lock:
             con = get_connection()
+            if con is None:
+                return 0
             cur = con.execute("DELETE FROM error_log WHERE ts < ?", (cutoff,))
             con.commit()
             return cur.rowcount

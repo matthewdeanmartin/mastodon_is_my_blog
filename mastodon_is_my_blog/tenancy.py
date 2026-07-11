@@ -54,9 +54,7 @@ class SessionClaims:
 def get_mode() -> str:
     mode = os.environ.get("MIMB_MODE", MODE_LOCAL).strip().lower()
     if mode not in (MODE_LOCAL, MODE_SERVER):
-        raise ValueError(
-            f"MIMB_MODE must be {MODE_LOCAL!r} or {MODE_SERVER!r}, got {mode!r}"
-        )
+        raise ValueError(f"MIMB_MODE must be {MODE_LOCAL!r} or {MODE_SERVER!r}, got {mode!r}")
     return mode
 
 
@@ -68,10 +66,7 @@ def check_server_mode_env() -> None:
     """Fail fast at startup if server mode is missing required configuration."""
     missing = [name for name in SERVER_MODE_REQUIRED_ENV if not os.environ.get(name)]
     if missing:
-        raise RuntimeError(
-            "MIMB_MODE=server requires these environment variables: "
-            + ", ".join(missing)
-        )
+        raise RuntimeError("MIMB_MODE=server requires these environment variables: " + ", ".join(missing))
 
 
 def verify_session_token(token: str) -> SessionClaims:

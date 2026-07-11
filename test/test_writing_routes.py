@@ -42,9 +42,7 @@ async def _seed_two_identities(db_session_factory) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_drafts_only_returns_own_identitys_drafts(
-    api_client: TestClient, db_session_factory
-) -> None:
+async def test_list_drafts_only_returns_own_identitys_drafts(api_client: TestClient, db_session_factory) -> None:
     await _seed_two_identities(db_session_factory)
 
     async with db_session_factory() as session:
@@ -61,9 +59,7 @@ async def test_list_drafts_only_returns_own_identitys_drafts(
 
 
 @pytest.mark.asyncio
-async def test_get_draft_rejects_wrong_identity(
-    api_client: TestClient, db_session_factory
-) -> None:
+async def test_get_draft_rejects_wrong_identity(api_client: TestClient, db_session_factory) -> None:
     await _seed_two_identities(db_session_factory)
 
     async with db_session_factory() as session:
@@ -78,9 +74,7 @@ async def test_get_draft_rejects_wrong_identity(
 
 
 @pytest.mark.asyncio
-async def test_delete_draft_rejects_wrong_identity(
-    api_client: TestClient, db_session_factory
-) -> None:
+async def test_delete_draft_rejects_wrong_identity(api_client: TestClient, db_session_factory) -> None:
     await _seed_two_identities(db_session_factory)
 
     async with db_session_factory() as session:
@@ -95,9 +89,7 @@ async def test_delete_draft_rejects_wrong_identity(
 
 
 @pytest.mark.asyncio
-async def test_update_draft_rejects_payload_identity_mismatch(
-    api_client: TestClient, db_session_factory
-) -> None:
+async def test_update_draft_rejects_payload_identity_mismatch(api_client: TestClient, db_session_factory) -> None:
     await _seed_two_identities(db_session_factory)
 
     async with db_session_factory() as session:

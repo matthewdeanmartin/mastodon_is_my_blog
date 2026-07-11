@@ -87,7 +87,14 @@ async def run_async_migrations() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    asyncio.run(run_async_migrations())
+    # When invoked programmatically (db_init.ensure_schema_stamped), a live
+    # connection is injected via config.attributes so the caller controls the
+    # engine/transaction. Otherwise build our own async engine from the config.
+    connectable = config.attributes.get("connection", None)
+    if connectable is not None:
+        do_run_migrations(connectable)
+    else:
+        asyncio.run(run_async_migrations())
 
 
 if context.is_offline_mode():

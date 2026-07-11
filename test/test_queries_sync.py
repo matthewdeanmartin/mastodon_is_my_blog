@@ -48,9 +48,7 @@ async def test_get_counts_optimized_filters_by_user(db_session) -> None:
     )
     await db_session.commit()
 
-    stats = await queries.get_counts_optimized(
-        db_session, 1, 1, user="alice@example.social"
-    )
+    stats = await queries.get_counts_optimized(db_session, 1, 1, user="alice@example.social")
 
     assert stats["user"] == "alice@example.social"
     assert stats["everyone"] == {"total": 2, "unseen": 2}
@@ -222,31 +220,16 @@ async def test_sync_friends_for_identity_persists_following_and_followers(
 
     client = MagicMock()
     client.account_verify_credentials.return_value = {"id": "me-1"}
-    client.account_following.return_value = [
-        make_account_data("following-1", acct="following@example.social")
-    ]
-    client.account_followers.return_value = [
-        make_account_data("follower-1", acct="follower@example.social")
-    ]
+    client.account_following.return_value = [make_account_data("following-1", acct="following@example.social")]
+    client.account_followers.return_value = [make_account_data("follower-1", acct="follower@example.social")]
 
     with patch.object(queries, "client_from_identity", return_value=client):
         await queries.sync_friends_for_identity(1, identity)
 
     async with db_session_factory() as session:
-        accounts = (
-            (
-                await session.execute(
-                    select(store.CachedAccount).order_by(store.CachedAccount.id)
-                )
-            )
-            .scalars()
-            .all()
-        )
+        accounts = (await session.execute(select(store.CachedAccount).order_by(store.CachedAccount.id))).scalars().all()
 
-    assert [
-        (account.id, account.is_following, account.is_followed_by)
-        for account in accounts
-    ] == [
+    assert [(account.id, account.is_following, account.is_followed_by) for account in accounts] == [
         ("follower-1", False, True),
         ("following-1", True, False),
     ]
@@ -304,11 +287,7 @@ async def test_sync_blog_roll_for_identity_updates_account_activity_stats(
         await queries.sync_blog_roll_for_identity(1, identity)
 
     async with db_session_factory() as session:
-        account = (
-            await session.execute(
-                select(store.CachedAccount).where(store.CachedAccount.id == "author-1")
-            )
-        ).scalar_one()
+        account = (await session.execute(select(store.CachedAccount).where(store.CachedAccount.id == "author-1"))).scalar_one()
 
     assert account.last_status_at == datetime(2024, 2, 1, 0, 0)
     assert account.cached_post_count == 2
@@ -380,12 +359,8 @@ async def test_sync_user_timeline_for_identity_deep_syncs_search_result(
     await db_session.commit()
 
     target_account = make_account_data("friend-1", acct="friend@example.social")
-    page_one = [
-        make_status("status-1", account_id="friend-1", acct="friend@example.social")
-    ]
-    page_two = [
-        make_status("status-2", account_id="friend-1", acct="friend@example.social")
-    ]
+    page_one = [make_status("status-1", account_id="friend-1", acct="friend@example.social")]
+    page_two = [make_status("status-2", account_id="friend-1", acct="friend@example.social")]
 
     async def fake_deep_fetch(*args, **kwargs):
         yield page_one
@@ -430,9 +405,7 @@ async def test_sync_user_timeline_for_identity_deep_syncs_search_result(
         )
 
     async with db_session_factory() as session:
-        post_count = (
-            await session.execute(select(func.count()).select_from(store.CachedPost))
-        ).scalar_one()
+        post_count = (await session.execute(select(func.count()).select_from(store.CachedPost))).scalar_one()
 
     assert result == {"status": "success", "count": 2, "new": 2}
     assert post_count == 2
@@ -500,9 +473,7 @@ async def test_sync_user_timeline_for_identity_full_history_skips_cache_cutoff(
 
 
 @pytest.mark.asyncio
-async def test_sync_user_timeline_for_identity_returns_error_payload_on_failure() -> (
-    None
-):
+async def test_sync_user_timeline_for_identity_returns_error_payload_on_failure() -> None:
     identity = make_identity()
     client = MagicMock()
     client.account_verify_credentials.side_effect = RuntimeError("boom")

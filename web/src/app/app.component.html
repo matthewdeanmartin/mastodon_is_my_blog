@@ -49,11 +49,7 @@
         tenant {{ whoami.tenant_id }}</span
       >
       @if (whoami.account_url) {
-        <a
-          [href]="whoami.account_url + '/#/account'"
-          style="color: #6366f1"
-          >Manage account</a
-        >
+        <a [href]="whoami.account_url + '/#/account'" style="color: #6366f1">Manage account</a>
       }
     </div>
   }

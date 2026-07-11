@@ -19,11 +19,7 @@ from mastodon_is_my_blog.store import CachedAccount, CachedPost
 async def clear_catchup_registry():
     catchup_runner.CATCHUP.clear()
     yield
-    running_tasks = [
-        job.task
-        for job in catchup_runner.CATCHUP.values()
-        if job.task is not None and not job.task.done()
-    ]
+    running_tasks = [job.task for job in catchup_runner.CATCHUP.values() if job.task is not None and not job.task.done()]
     for task in running_tasks:
         task.cancel()
     if running_tasks:
@@ -57,9 +53,7 @@ async def test_start_job_dispatches_urgent_runner() -> None:
 async def test_start_job_rejects_duplicate_running_job() -> None:
     meta = make_meta_account(meta_id=10)
     identity = make_identity(identity_id=20, meta_account_id=10)
-    existing = catchup_runner.CatchupJob(
-        meta_id=10, identity_id=20, mode="urgent", total=1
-    )
+    existing = catchup_runner.CatchupJob(meta_id=10, identity_id=20, mode="urgent", total=1)
     existing.task = asyncio.create_task(asyncio.sleep(60))
     catchup_runner.CATCHUP[(10, 20)] = existing
 
@@ -103,9 +97,7 @@ async def test_run_loop_persists_accounts_and_posts(
             identity_id=identity.id,
         )
     ]
-    job = catchup_runner.CatchupJob(
-        meta_id=1, identity_id=identity.id, mode="urgent", total=1
-    )
+    job = catchup_runner.CatchupJob(meta_id=1, identity_id=identity.id, mode="urgent", total=1)
 
     async def fake_deep_fetch(*args, **kwargs):
         yield [
@@ -118,9 +110,7 @@ async def test_run_loop_persists_accounts_and_posts(
 
     with (
         patch.object(catchup_runner, "client_from_identity", return_value=MagicMock()),
-        patch.object(
-            catchup_runner.asyncio, "to_thread", AsyncMock(return_value="target-1")
-        ),
+        patch.object(catchup_runner.asyncio, "to_thread", AsyncMock(return_value="target-1")),
         patch.object(catchup_runner, "get_stop_at_id", AsyncMock(return_value=None)),
         patch.object(catchup_runner, "deep_fetch_user_timeline", fake_deep_fetch),
         patch.object(catchup_runner.asyncio, "sleep", AsyncMock()),
@@ -149,9 +139,7 @@ async def test_run_loop_persists_accounts_and_posts(
 async def test_run_loop_marks_rate_limited_errors() -> None:
     identity = make_identity(acct="me@example.social")
     queue = [make_cached_account(account_id="friend-1", acct="friend@example.social")]
-    job = catchup_runner.CatchupJob(
-        meta_id=1, identity_id=identity.id, mode="urgent", total=1
-    )
+    job = catchup_runner.CatchupJob(meta_id=1, identity_id=identity.id, mode="urgent", total=1)
 
     class RetryAfterError(RuntimeError):
         pass
@@ -166,9 +154,7 @@ async def test_run_loop_marks_rate_limited_errors() -> None:
     sleep_mock = AsyncMock()
     with (
         patch.object(catchup_runner, "client_from_identity", return_value=MagicMock()),
-        patch.object(
-            catchup_runner.asyncio, "to_thread", AsyncMock(return_value="target-1")
-        ),
+        patch.object(catchup_runner.asyncio, "to_thread", AsyncMock(return_value="target-1")),
         patch.object(catchup_runner, "get_stop_at_id", AsyncMock(return_value=None)),
         patch.object(catchup_runner, "deep_fetch_user_timeline", failing_deep_fetch),
         patch.object(catchup_runner.asyncio, "sleep", sleep_mock),

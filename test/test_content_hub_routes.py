@@ -152,12 +152,8 @@ def test_list_groups_returns_groups_and_terms(
                         slug="alpha-bundle",
                         source_type="client_bundle",
                     ),
-                    make_term(
-                        term_id=1, group_id=1, term="zeta", normalized_term="zeta"
-                    ),
-                    make_term(
-                        term_id=2, group_id=2, term="#alpha", normalized_term="alpha"
-                    ),
+                    make_term(term_id=1, group_id=1, term="zeta", normalized_term="zeta"),
+                    make_term(term_id=2, group_id=2, term="#alpha", normalized_term="alpha"),
                 ]
             )
             await session.commit()
@@ -324,9 +320,7 @@ def test_get_group_posts_filters_jobs_and_builds_cursor(
 
     anyio.run(seed_data)
 
-    response = api_client.get(
-        "/api/content-hub/groups/1/posts?identity_id=1&tab=jobs&limit=1"
-    )
+    response = api_client.get("/api/content-hub/groups/1/posts?identity_id=1&tab=jobs&limit=1")
 
     assert response.status_code == 200
     payload = response.json()
@@ -371,9 +365,7 @@ def test_get_group_posts_rejects_invalid_cursor(
 
     anyio.run(seed_data)
 
-    response = api_client.get(
-        "/api/content-hub/groups/1/posts?identity_id=1&before=not-a-cursor"
-    )
+    response = api_client.get("/api/content-hub/groups/1/posts?identity_id=1&before=not-a-cursor")
 
     assert response.status_code == 400
     assert response.json() == {"detail": "Invalid cursor"}
@@ -587,9 +579,7 @@ def test_get_group_people_exclude_followed(
 
     anyio.run(seed_data)
 
-    response = api_client.get(
-        "/api/content-hub/groups/20/people?identity_id=1&exclude_followed=true"
-    )
+    response = api_client.get("/api/content-hub/groups/20/people?identity_id=1&exclude_followed=true")
 
     assert response.status_code == 200
     assert response.json() == []

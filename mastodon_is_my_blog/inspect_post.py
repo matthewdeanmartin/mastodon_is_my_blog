@@ -111,9 +111,7 @@ def analyze_content_domains(
                 parsed = urlparse(href)
                 # Skip links that are fediverse posts: /@user/id path on a known instance,
                 # or the same URL pattern on any domain (ActivityPub quote-posts)
-                is_mastodon_post = bool(
-                    MASTODON_POST_URL_RE.match(parsed.path)
-                ) or is_mastodon_domain(parsed.netloc)
+                is_mastodon_post = bool(MASTODON_POST_URL_RE.match(parsed.path)) or is_mastodon_domain(parsed.netloc)
                 if not is_mastodon_post:
                     flags["has_link"] = True
 

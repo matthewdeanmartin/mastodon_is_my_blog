@@ -54,9 +54,7 @@ def test_server_mode_echoes_session_claims(api_client, monkeypatch):
     monkeypatch.setenv("SESSION_SIGNING_KEY", SIGNING_KEY)
     monkeypatch.setenv("ACCOUNT_PORTAL_URL", "https://account.example.com/")
 
-    api_client.cookies.set(
-        tenancy.SESSION_COOKIE_NAME, make_session_token(tenant_id=7)
-    )
+    api_client.cookies.set(tenancy.SESSION_COOKIE_NAME, make_session_token(tenant_id=7))
     response = api_client.get("/api/whoami")
     assert response.status_code == 200
     assert response.json() == {
@@ -78,9 +76,7 @@ def test_server_mode_403s_when_tenant_disabled(api_client, monkeypatch):
         raise HTTPException(403, "This account is suspended.")
 
     monkeypatch.setattr(main, "get_current_meta_account", gate_rejects)
-    api_client.cookies.set(
-        tenancy.SESSION_COOKIE_NAME, make_session_token(tenant_id=7)
-    )
+    api_client.cookies.set(tenancy.SESSION_COOKIE_NAME, make_session_token(tenant_id=7))
     response = api_client.get("/api/whoami")
     assert response.status_code == 403
 

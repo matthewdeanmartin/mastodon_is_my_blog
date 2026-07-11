@@ -136,9 +136,7 @@ async def _run_deep(job: AccountCatchupJob, identity: MastodonIdentity) -> None:
                 identity.id,
                 [{"account_data": target_account}],
             )
-            new_count, updated_count = await bulk_upsert_posts(
-                session, job.meta_id, identity.id, page
-            )
+            new_count, updated_count = await bulk_upsert_posts(session, job.meta_id, identity.id, page)
             await session.commit()
 
         job.pages_fetched += 1

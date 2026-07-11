@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import Table, delete, func, insert, select
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -108,79 +108,47 @@ async def set_tenant_limits(
 
 async def tenant_identity_ids(meta_account_id: int) -> list[int]:
     async with async_session() as session:
-        stmt = select(MastodonIdentity.id).where(
-            MastodonIdentity.meta_account_id == meta_account_id
-        )
+        stmt = select(MastodonIdentity.id).where(MastodonIdentity.meta_account_id == meta_account_id)
         return [row[0] for row in (await session.execute(stmt)).all()]
 
 
-async def collect_tenant_rows(meta_account_id: int) -> dict[Table, list[dict[str, Any]]]:
+async def collect_tenant_rows(meta_account_id: int) -> dict[Any, list[dict[str, Any]]]:
     """Read every row belonging to one tenant, keyed by table, transformed so
     the result boots as a standalone local-mode database (see module docstring).
     """
-    rows_by_table: dict[Table, list[dict[str, Any]]] = {}
+    rows_by_table: dict[Any, list[dict[str, Any]]] = {}
     async with async_session() as session:
-        meta_rows = (
-            (
-                await session.execute(
-                    select(MetaAccount.__table__).where(
-                        MetaAccount.__table__.c.id == meta_account_id
-                    )
-                )
-            )
-            .mappings()
-            .all()
-        )
-        rows_by_table[MetaAccount.__table__] = [
-            {**dict(row), "username": "default"} for row in meta_rows
-        ]
+        meta_rows = (await session.execute(select(MetaAccount.__table__).where(MetaAccount.__table__.c.id == meta_account_id))).mappings().all()
+        rows_by_table[MetaAccount.__table__] = [{**dict(row), "username": "default"} for row in meta_rows]
 
         identity_table = MastodonIdentity.__table__
-        identity_rows = (
-            (
-                await session.execute(
-                    select(identity_table).where(
-                        identity_table.c.meta_account_id == meta_account_id
-                    )
-                )
-            )
-            .mappings()
-            .all()
-        )
-        rows_by_table[identity_table] = [
-            {**dict(row), "access_token": "", "client_secret": ""}
-            for row in identity_rows
-        ]
+        identity_rows = (await session.execute(select(identity_table).where(identity_table.c.meta_account_id == meta_account_id))).mappings().all()
+        rows_by_table[identity_table] = [{**dict(row), "access_token": "", "client_secret": ""} for row in identity_rows]
         identity_ids = [row["id"] for row in identity_rows]
 
         for model in META_SCOPED_MODELS:
             table = model.__table__
-            result = await session.execute(
-                select(table).where(table.c.meta_account_id == meta_account_id)
-            )
+            result = await session.execute(select(table).where(table.c.meta_account_id == meta_account_id))
             rows_by_table[table] = [dict(row) for row in result.mappings().all()]
 
         # Scoped through the tenant's groups / identities rather than directly.
         group_ids = [row["id"] for row in rows_by_table[ContentHubGroup.__table__]]
         terms_table = ContentHubGroupTerm.__table__
         if group_ids:
-            result = await session.execute(
-                select(terms_table).where(terms_table.c.group_id.in_(group_ids))
-            )
+            result = await session.execute(select(terms_table).where(terms_table.c.group_id.in_(group_ids)))
             rows_by_table[terms_table] = [dict(row) for row in result.mappings().all()]
         else:
             rows_by_table[terms_table] = []
 
         fof_table = FriendsOfFriendsCache.__table__
         if identity_ids:
-            result = await session.execute(
-                select(fof_table).where(fof_table.c.identity_id.in_(identity_ids))
-            )
+            result = await session.execute(select(fof_table).where(fof_table.c.identity_id.in_(identity_ids)))
             rows_by_table[fof_table] = [dict(row) for row in result.mappings().all()]
         else:
             rows_by_table[fof_table] = []
 
     return rows_by_table
+
 
 # Insert order matters for FKs: parents before children.
 EXPORT_INSERT_ORDER = (
@@ -216,9 +184,7 @@ async def build_tenant_sqlite_file(meta_account_id: int, dest_path: Path) -> Non
             for table in EXPORT_INSERT_ORDER:
                 rows = rows_by_table.get(table, [])
                 for start in range(0, len(rows), INSERT_BATCH_SIZE):
-                    await conn.execute(
-                        insert(table), rows[start : start + INSERT_BATCH_SIZE]
-                    )
+                    await conn.execute(insert(cast(Table, table)), rows[start : start + INSERT_BATCH_SIZE])
     finally:
         await dest_engine.dispose()
 
@@ -266,37 +232,15 @@ async def purge_tenant_data(username: str) -> bool:
             return False
         meta_id = meta.id
 
-        group_ids_stmt = select(ContentHubGroup.id).where(
-            ContentHubGroup.meta_account_id == meta_id
-        )
-        identity_ids_stmt = select(MastodonIdentity.id).where(
-            MastodonIdentity.meta_account_id == meta_id
-        )
+        group_ids_stmt = select(ContentHubGroup.id).where(ContentHubGroup.meta_account_id == meta_id)
+        identity_ids_stmt = select(MastodonIdentity.id).where(MastodonIdentity.meta_account_id == meta_id)
 
-        await session.execute(
-            delete(ContentHubGroupTerm).where(
-                ContentHubGroupTerm.group_id.in_(group_ids_stmt)
-            )
-        )
-        await session.execute(
-            delete(FriendsOfFriendsCache).where(
-                FriendsOfFriendsCache.identity_id.in_(identity_ids_stmt)
-            )
-        )
+        await session.execute(delete(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id.in_(group_ids_stmt)))
+        await session.execute(delete(FriendsOfFriendsCache).where(FriendsOfFriendsCache.identity_id.in_(identity_ids_stmt)))
         for model in META_SCOPED_MODELS:
-            await session.execute(
-                delete(model).where(model.meta_account_id == meta_id)
-            )
-        await session.execute(
-            delete(OAuthPendingConnection).where(
-                OAuthPendingConnection.meta_account_id == meta_id
-            )
-        )
-        await session.execute(
-            delete(MastodonIdentity).where(
-                MastodonIdentity.meta_account_id == meta_id
-            )
-        )
+            await session.execute(delete(model).where(model.meta_account_id == meta_id))
+        await session.execute(delete(OAuthPendingConnection).where(OAuthPendingConnection.meta_account_id == meta_id))
+        await session.execute(delete(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta_id))
         await session.execute(delete(MetaAccount).where(MetaAccount.id == meta_id))
         await session.commit()
         return True
@@ -312,11 +256,7 @@ async def tenant_usage_bytes(meta_account_id: int) -> int:
             await session.execute(
                 select(
                     func.coalesce(
-                        func.sum(
-                            func.length(CachedPost.content)
-                            + func.length(func.coalesce(CachedPost.media_attachments, ""))
-                            + func.length(func.coalesce(CachedPost.tags, ""))
-                        ),
+                        func.sum(func.length(CachedPost.content) + func.length(func.coalesce(CachedPost.media_attachments, "")) + func.length(func.coalesce(CachedPost.tags, ""))),
                         0,
                     )
                 ).where(CachedPost.meta_account_id == meta_account_id)
@@ -326,11 +266,7 @@ async def tenant_usage_bytes(meta_account_id: int) -> int:
             await session.execute(
                 select(
                     func.coalesce(
-                        func.sum(
-                            func.length(CachedAccount.note)
-                            + func.length(CachedAccount.fields)
-                            + func.length(CachedAccount.display_name)
-                        ),
+                        func.sum(func.length(CachedAccount.note) + func.length(CachedAccount.fields) + func.length(CachedAccount.display_name)),
                         0,
                     )
                 ).where(CachedAccount.meta_account_id == meta_account_id)

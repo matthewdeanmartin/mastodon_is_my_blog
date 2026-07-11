@@ -215,9 +215,7 @@ async def _run_loop(
             # If it looks like a rate-limit exception, flag it and back off
             if getattr(exc, "retry_after", None) is not None:
                 job.rate_limited = True
-                inter_account_delay_current = min(
-                    inter_account_delay_current * 2, 120.0
-                )
+                inter_account_delay_current = min(inter_account_delay_current * 2, 120.0)
 
         job.done += 1
 

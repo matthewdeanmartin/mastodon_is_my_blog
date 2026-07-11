@@ -110,9 +110,7 @@ async def test_commit_visible_to_duckdb(seeded_engine, duck_connection) -> None:
 
 
 @pytest.mark.asyncio
-async def test_hashtag_trends_aggregates_json_tags(
-    seeded_engine, duck_connection
-) -> None:
+async def test_hashtag_trends_aggregates_json_tags(seeded_engine, duck_connection) -> None:
     factory = async_sessionmaker(seeded_engine, expire_on_commit=False)
     async with factory() as session:
         session.add(MetaAccount(id=1, username="default"))
@@ -164,9 +162,7 @@ async def test_hashtag_trends_aggregates_json_tags(
 
 
 @pytest.mark.asyncio
-async def test_posting_heatmap_groups_by_hour_and_dow(
-    seeded_engine, duck_connection
-) -> None:
+async def test_posting_heatmap_groups_by_hour_and_dow(seeded_engine, duck_connection) -> None:
     factory = async_sessionmaker(seeded_engine, expire_on_commit=False)
     async with factory() as session:
         session.add(MetaAccount(id=1, username="default"))
@@ -206,9 +202,7 @@ async def test_posting_heatmap_groups_by_hour_and_dow(
 
 
 @pytest.mark.asyncio
-async def test_content_regex_search_case_insensitive(
-    seeded_engine, duck_connection
-) -> None:
+async def test_content_regex_search_case_insensitive(seeded_engine, duck_connection) -> None:
     factory = async_sessionmaker(seeded_engine, expire_on_commit=False)
     async with factory() as session:
         session.add(MetaAccount(id=1, username="default"))
@@ -258,9 +252,7 @@ async def test_content_regex_search_case_insensitive(
 
 
 @pytest.mark.asyncio
-async def test_top_reposters_splits_current_and_prior(
-    seeded_engine, duck_connection
-) -> None:
+async def test_top_reposters_splits_current_and_prior(seeded_engine, duck_connection) -> None:
     now = datetime.now(timezone.utc)
     factory = async_sessionmaker(seeded_engine, expire_on_commit=False)
     async with factory() as session:
@@ -280,9 +272,7 @@ async def test_top_reposters_splits_current_and_prior(
         )
         # Two current-window reblogs from alice, one prior-window from alice,
         # plus one current-window reblog from bob.
-        for i, (acct, delta_days) in enumerate(
-            [("alice", 1), ("alice", 5), ("alice", 40), ("bob", 2)]
-        ):
+        for i, (acct, delta_days) in enumerate([("alice", 1), ("alice", 5), ("alice", 40), ("bob", 2)]):
             session.add(
                 CachedNotification(
                     id=f"n-{i}",

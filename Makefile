@@ -9,7 +9,12 @@ application_derive_data:
 application_detach:
 	echo
 
-.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-server-mode dev-mock dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend test-frontend-integration lint lint-backend lint-frontend lint-frontend-strict audit-backend prerelease prerelease-backend prerelease-frontend clean setup db-reset
+.DEFAULT_GOAL := help
+UV ?= uv
+MAKEFLAGS += --no-print-directory
+export PYTHONUTF8 := 1
+
+.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-server-mode dev-mock dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend test-frontend-integration lint lint-check lint-backend lint-frontend lint-frontend-strict format format-check format-backend format-frontend typecheck security audit-backend check check-ci prerelease prerelease-backend prerelease-frontend clean setup db-reset
 
 # Default target
 help:
@@ -41,6 +46,13 @@ help:
 	@echo "  make test-frontend      - Run frontend unit tests (no server needed)"
 	@echo "  make test-frontend-integration - Run frontend tests against a live backend"
 	@echo "  make test-integration   - Run mastodon_mock-backed backend integration tests"
+	@echo "  make format             - Auto-format Python and Angular sources"
+	@echo "  make format-check       - Check formatting without changing files"
+	@echo "  make lint               - Lint Python and both Angular clients"
+	@echo "  make typecheck          - Type-check the Python API"
+	@echo "  make security           - Audit Python and npm dependencies"
+	@echo "  make check              - Full local quality gate (read-only)"
+	@echo "  make check-ci           - CI quality gate (same read-only checks)"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean              - Remove build artifacts and caches"
@@ -73,7 +85,7 @@ install: install-backend install-frontend
 # Install backend dependencies
 install-backend:
 	@echo "Installing Python dependencies..."
-	pip install -e .
+	$(UV) sync --all-extras
 	@echo "✓ Backend dependencies installed"
 
 # Install frontend dependencies
@@ -191,9 +203,9 @@ test: test-backend test-frontend
 # Run backend tests
 test-backend:
 	@echo "Running backend tests..."
-	uv run pytest test -q --tb=line --no-header --cov-report=html \
+	uv run python -m pytest test -q --tb=line --no-header --cov-report=html \
 		--color=no --cov=mastodon_is_my_blog --cov-fail-under 48 --cov-branch \
-		--cov-report=term:skip-covered --timeout=5 --session-timeout=600 2>&1 | tail -50
+		--cov-report=term:skip-covered --timeout=30 --session-timeout=600
 
 pytest: test-backend
 	@echo "Running backend tests..."
@@ -205,7 +217,7 @@ pytest: test-backend
 # need a longer per-test timeout than the unit suite (they spin up a server).
 test-integration:
 	@echo "Running mastodon_mock integration tests..."
-	uv run pytest test_integration -q --tb=short --timeout=30
+	uv run python -m pytest test_integration -q --tb=short --timeout=30
 
 # Run frontend unit tests (hermetic — mocked HTTP, no backend needed).
 # Integration specs (src/**/*.integration.spec.ts) are excluded here.
@@ -223,10 +235,11 @@ test-frontend-integration:
 # Lint code
 lint: lint-backend lint-frontend
 
+lint-check: lint
+
 lint-backend:
 	@echo "Linting Python code..."
-	-ruff check mastodon_is_my_blog/
-	-mypy mastodon_is_my_blog/
+	$(UV) run ruff check mastodon_is_my_blog test
 
 lint-frontend:
 	@echo "Linting TypeScript code..."
@@ -238,8 +251,20 @@ lint-frontend-strict:
 
 audit-backend:
 	@echo "Auditing Python dependencies..."
-	uv run pip-audit
+	uv run python -m pip_audit
 	uv audit
+
+security: audit-backend
+	cd web && npm audit --audit-level=high
+
+typecheck:
+	@echo "Type-checking Python code..."
+	$(UV) run python -m mypy mastodon_is_my_blog --ignore-missing-imports --check-untyped-defs
+
+check: format-check lint-check typecheck security test build
+	@echo "✓ Full quality gate passed"
+
+check-ci: check
 
 prerelease: prerelease-backend prerelease-frontend build-wheel
 	@echo "✓ Prerelease checks passed"
@@ -247,8 +272,8 @@ prerelease: prerelease-backend prerelease-frontend build-wheel
 prerelease-backend:
 	@echo "Running backend prerelease checks..."
 	uv run ruff check mastodon_is_my_blog/
-	uv run mypy mastodon_is_my_blog/
-	uv run pytest test -q --tb=line --no-header --color=no --cov=mastodon_is_my_blog --cov-fail-under 48 --cov-branch --cov-report=term:skip-covered --timeout=5 --session-timeout=600
+	uv run python -m mypy mastodon_is_my_blog/
+	uv run python -m pytest test -q --tb=line --no-header --color=no --cov=mastodon_is_my_blog --cov-fail-under 48 --cov-branch --cov-report=term:skip-covered --timeout=30 --session-timeout=600
 
 prerelease-frontend:
 	@echo "Running frontend prerelease checks..."
@@ -259,11 +284,16 @@ format: format-backend format-frontend
 
 format-backend:
 	@echo "Formatting Python code..."
-	uv run ruff format mastodon_is_my_blog/
+	uv run ruff format mastodon_is_my_blog/ test/
+	uv run ruff check --fix mastodon_is_my_blog/ test/
 
 format-frontend:
 	@echo "Formatting TypeScript code..."
 	cd web && npx prettier --write "src/**/*.{ts,html,scss}"
+
+format-check:
+	$(UV) run ruff format --check mastodon_is_my_blog test
+	cd web && npm run format:check
 
 # Clean build artifacts
 clean:
@@ -311,7 +341,7 @@ update-frontend:
 .PHONY:
 mypy:
 	@echo "Running mypy"
-	uv run mypy mastodon_is_my_blog --ignore-missing-imports --check-untyped-defs
+	uv run python -m mypy mastodon_is_my_blog --ignore-missing-imports --check-untyped-defs
 
 .PHONY:
 pylint:

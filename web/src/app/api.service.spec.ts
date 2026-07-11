@@ -361,7 +361,9 @@ describe('ApiService', () => {
 
     it('clears the cache when refreshNeeded$ fires (e.g. after a sync)', () => {
       service.getPublicPosts(1, 'all').subscribe();
-      httpMock.expectOne((r) => r.url.includes('/api/posts')).flush({ items: [], next_cursor: null });
+      httpMock
+        .expectOne((r) => r.url.includes('/api/posts'))
+        .flush({ items: [], next_cursor: null });
 
       service.refreshNeeded$.next();
 
@@ -422,9 +424,7 @@ describe('ApiService', () => {
     });
 
     it('should add identity via pasted API keys', () => {
-      service
-        .addIdentityApiKey('https://mastodon.social', 'cid', 'csecret', 'token')
-        .subscribe();
+      service.addIdentityApiKey('https://mastodon.social', 'cid', 'csecret', 'token').subscribe();
 
       const req = httpMock.expectOne((r) => r.url.includes('/api/admin/identities/api-key'));
       expect(req.request.method).toBe('POST');

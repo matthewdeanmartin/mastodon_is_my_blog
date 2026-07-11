@@ -58,6 +58,19 @@ dotenv.load_dotenv()
 async def lifespan(_: FastAPI):
     # Startup: Initialize database
     await init_db()
+
+    # Stamp a freshly-created DB at the Alembic head so future `alembic upgrade`
+    # runs behave (create_all builds the full schema; see db_init). No-op if the
+    # DB is already stamped. (Phase 2)
+    from mastodon_is_my_blog.db_init import ensure_schema_stamped
+
+    await ensure_schema_stamped()
+
+    # Log the backend / location / schema-version banner (Phase 2).
+    from mastodon_is_my_blog.schema_version import log_startup_banner
+
+    await log_startup_banner()
+
     if tenancy.is_server_mode():
         # Hosted mode: fail fast on missing config. Tenants (MetaAccounts)
         # are created per authenticated session, not at startup, and the
@@ -139,6 +152,7 @@ if tenancy.is_server_mode():
     blogs_root.mkdir(parents=True, exist_ok=True)
     app.mount("/blogs", StaticFiles(directory=blogs_root, html=True), name="blogs")
 
+
 # Add CORS middleware
 def allowed_origins() -> list[str]:
     """Single-user mode allows local dev servers; server mode is locked to
@@ -206,9 +220,7 @@ async def whoami(request: Request) -> dict:
             "mode": "server",
             "email": claims.email,
             "tenant_id": claims.tenant_id,
-            "account_url": os.environ.get(
-                "ACCOUNT_PORTAL_URL", "http://localhost:8051"
-            ).rstrip("/"),
+            "account_url": os.environ.get("ACCOUNT_PORTAL_URL", "http://localhost:8051").rstrip("/"),
         }
     return {"mode": "local", "email": None, "tenant_id": None, "account_url": None}
 
@@ -246,18 +258,12 @@ async def callback(code: str, state: str):
     meta = await get_meta_account_by_id(pending.meta_account_id)
     if meta is None:
         raise HTTPException(400, "Tenant for this OAuth flow no longer exists")
-    await persist_identity(
-        meta, pending.base_url, pending.client_id, pending.client_secret, access_token, verified_me
-    )
+    await persist_identity(meta, pending.base_url, pending.client_id, pending.client_secret, access_token, verified_me)
 
     # In server mode the SPA is served by this very app, so the post-OAuth
     # landing defaults to APP_BASE_URL (required env there) — the :4200
     # default is the local-dev ng-serve split only.
-    frontend_url = os.environ.get("FRONTEND_URL") or (
-        os.environ["APP_BASE_URL"].rstrip("/")
-        if tenancy.is_server_mode()
-        else "http://localhost:4200"
-    )
+    frontend_url = os.environ.get("FRONTEND_URL") or (os.environ["APP_BASE_URL"].rstrip("/") if tenancy.is_server_mode() else "http://localhost:4200")
     if not tenancy.is_server_mode():
         # Single-user mode: kick an inline first sync for instant gratification.
         await sync_accounts_friends_followers()

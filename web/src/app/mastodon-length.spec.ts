@@ -23,7 +23,8 @@ describe('mastodonLength', () => {
   });
 
   it('counts multiple URLs independently', () => {
-    const text = 'https://example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaa https://example.com/bbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    const text =
+      'https://example.com/aaaaaaaaaaaaaaaaaaaaaaaaaaa https://example.com/bbbbbbbbbbbbbbbbbbbbbbbbbbbb';
     expect(mastodonLength(text)).toBe(23 + 1 + 23);
   });
 });
