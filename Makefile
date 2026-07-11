@@ -60,6 +60,13 @@ help:
 	@echo "  make check              - Full local quality gate (read-only)"
 	@echo "  make check-ci           - CI quality gate (same read-only checks)"
 	@echo ""
+	@echo "Performance (rtd/reference/ensuring_mimb_stays_fast.md):"
+	@echo "  make perf-smoke         - Short perf checks vs mastodon_mock (also runs in CI)"
+	@echo "  make perf-seed          - Build a ~1GB local sqlite perf database (once)"
+	@echo "  make perf-baseline-sqlite  - Save benchmark baseline (sqlite+duckdb)"
+	@echo "  make perf-check-sqlite  - Compare against baseline; fail on big regressions"
+	@echo "  make perf-seed-postgres / perf-baseline-postgres / perf-check-postgres"
+	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean              - Remove build artifacts and caches"
 	@echo ""
@@ -411,3 +418,44 @@ dont-be-lazy:
 .PHONY: pydoc-docs
 pydoc-docs:
 	@uv run pydoc_fork mastodon_is_my_blog -o ./pydoc/
+
+# ---------------------------------------------------------------------------
+# Performance baselines — see rtd/reference/ensuring_mimb_stays_fast.md
+#
+# Big-DB benchmarks run locally only, at release time (not every build):
+#   make perf-seed              (once per machine, ~1 GB sqlite db in perf/)
+#   make perf-baseline-sqlite   (save the reference numbers)
+#   make perf-check-sqlite      (fail on big regressions vs the saved baseline)
+# Postgres variants seed/benchmark $(PERF_POSTGRES_URL) instead.
+# perf-smoke is the short mastodon_mock-based check that also runs in CI.
+
+PERF_DB ?= perf/mimb_perf.db
+PERF_TARGET_MB ?= 1000
+PERF_POSTGRES_URL ?= postgresql://postgres:xyzzy@localhost:5432/mimb_perf
+# Only fail on big regressions; 40% on the median is far outside run-to-run noise.
+PERF_FAIL_THRESHOLD ?= median:40%
+PERF_PYTEST = $(UV) run python -m pytest test_perf/test_perf_sqlalchemy.py test_perf/test_perf_duckdb.py -q -p no:randomly --benchmark-storage=file://./.benchmarks
+
+.PHONY: perf-seed perf-seed-postgres perf-baseline-sqlite perf-check-sqlite perf-baseline-postgres perf-check-postgres perf-smoke
+
+perf-seed:
+	@mkdir -p perf
+	DB_URL=sqlite+aiosqlite:///$(PERF_DB) $(UV) run python -m test_perf.seed_perf_db --target-mb $(PERF_TARGET_MB)
+
+perf-seed-postgres:
+	DB_URL= DB_BACKEND=postgres APP_POSTGRES_URL=$(PERF_POSTGRES_URL) $(UV) run python -m test_perf.seed_perf_db --target-mb $(PERF_TARGET_MB)
+
+perf-baseline-sqlite:
+	MIMB_PERF=1 DB_URL=sqlite+aiosqlite:///$(PERF_DB) $(PERF_PYTEST) --benchmark-save=sqlite-baseline
+
+perf-check-sqlite:
+	MIMB_PERF=1 DB_URL=sqlite+aiosqlite:///$(PERF_DB) $(PERF_PYTEST) --benchmark-compare='*sqlite-baseline' --benchmark-compare-fail=$(PERF_FAIL_THRESHOLD)
+
+perf-baseline-postgres:
+	MIMB_PERF=1 DB_URL= DB_BACKEND=postgres APP_POSTGRES_URL=$(PERF_POSTGRES_URL) $(PERF_PYTEST) --benchmark-save=postgres-baseline
+
+perf-check-postgres:
+	MIMB_PERF=1 DB_URL= DB_BACKEND=postgres APP_POSTGRES_URL=$(PERF_POSTGRES_URL) $(PERF_PYTEST) --benchmark-compare='*postgres-baseline' --benchmark-compare-fail=$(PERF_FAIL_THRESHOLD)
+
+perf-smoke:
+	$(UV) run python -m pytest test_perf/test_perf_mock_smoke.py -q -p no:randomly --timeout=120

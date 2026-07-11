@@ -122,9 +122,10 @@ async def build_thread_summaries_from_session(db_session, meta_id: int, identity
                 "root_id": root_id,
                 "reply_count": len(replies),
                 "unique_participants": len(unique_authors),
-                "latest_reply_at": latest_reply.isoformat() if latest_reply else None,
+                # Matches duck.forum_thread_summaries: datetime objects, not isoformat strings.
+                "latest_reply_at": latest_reply,
                 "author_acct": root_post.author_acct,
-                "root_created_at": (root_post.created_at.isoformat() if root_post.created_at else None),
+                "root_created_at": root_post.created_at,
                 "root_content": root_post.content,
                 "has_question": bool(root_post.has_question),
                 "root_tags": root_post.tags,

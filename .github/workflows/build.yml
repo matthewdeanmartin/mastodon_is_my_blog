@@ -27,6 +27,12 @@ jobs:
       - name: Run backend tests
         run: make test-backend
 
+      # Budget-based perf smoke vs mastodon_mock — only fails on
+      # order-of-magnitude regressions, never on runner noise.
+      # Full benchmarks run locally at release time (make perf-check-*).
+      - name: Run perf smoke tests
+        run: make perf-smoke
+
   frontend:
     runs-on: ubuntu-latest
 

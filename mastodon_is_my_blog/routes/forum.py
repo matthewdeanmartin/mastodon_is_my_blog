@@ -119,9 +119,9 @@ async def get_forum_threads(
         i_am_author = root_acct == my_acct
         i_am_participating = not i_am_author and my_acct in t.get("participants", set())
 
-        latest_reply_str = t["latest_reply_at"]
-        latest_reply_dt = datetime.fromisoformat(latest_reply_str) if latest_reply_str else None
-        root_created_dt = datetime.fromisoformat(t["root_created_at"]) if t["root_created_at"] else None
+        # duck.forum_thread_summaries returns datetime objects (or None) directly.
+        latest_reply_dt = t["latest_reply_at"]
+        root_created_dt = t["root_created_at"]
 
         thread_summaries.append(
             {

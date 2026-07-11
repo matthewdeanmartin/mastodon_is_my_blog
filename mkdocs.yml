@@ -37,5 +37,6 @@ nav:
   - Reference:
       - Roadmap: reference/roadmap.md
       - Security: reference/security.md
+      - Ensuring MIMB stays fast: reference/ensuring_mimb_stays_fast.md
       - Component provenance: reference/component-provenance.md
       - Troubleshooting: reference/troubleshooting.md

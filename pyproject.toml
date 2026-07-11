@@ -137,6 +137,8 @@ dev = [
     "hypothesis[cli]; python_version >= '3.8'",
     "detect-test-pollution",
     "pytest-timeout>=2.4.0",
+    # perf baselines (test_perf/) — see rtd/reference/ensuring_mimb_stays_fast.md
+    "pytest-benchmark>=4.0.0",
     # docs
     "interrogate>=1.5.0; python_version >= '3.8'",
     "pydoctest==0.2.1; python_version >= '3.8'",
