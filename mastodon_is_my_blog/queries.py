@@ -444,13 +444,13 @@ async def sync_all_identities(meta: MetaAccount, force: bool = False) -> list[di
 
     from mastodon_is_my_blog.mastodon_apis.api_log import purge_old_rows
 
-    deleted = await asyncio.to_thread(purge_old_rows)
+    deleted = await purge_old_rows()
     if deleted:
         logger.info("Purged %d old api_call_log rows", deleted)
 
     from mastodon_is_my_blog.db_log_handler import purge_old_rows as purge_error_log
 
-    deleted_errors = await asyncio.to_thread(purge_error_log)
+    deleted_errors = await purge_error_log()
     if deleted_errors:
         logger.info("Purged %d old error_log rows", deleted_errors)
 

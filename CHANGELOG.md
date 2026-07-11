@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Publish buttons
+- CLI surfaces more admin commands
+- Postgres support
+
+### Fixed
+- Admin page now organized with left tab
+- Performance problem with content hub/hashtags
+- Find friends tab matches rest of theme
+- Onboarding no longer so user hostile
+- Error log and API observability page is back
+
 ## [0.4.1] - 2026-07-02
 ### Fixed
 - Write tab no longer defaults the reply/post account to the first connected identity, ignoring the account active in the top bar — it now always posts as the active account, with no separate account picker.

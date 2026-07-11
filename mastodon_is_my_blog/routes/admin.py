@@ -903,32 +903,29 @@ async def cancel_catchup(
 @router.get("/error-log")
 async def get_error_log(limit: int = 200) -> list[dict]:
     """Return recent WARNING/ERROR/CRITICAL log records from the error_log table."""
-    import sqlite3
-    from datetime import datetime
+    from datetime import datetime, timezone
 
-    from mastodon_is_my_blog.db_path import get_sqlite_file_path
+    from mastodon_is_my_blog import telemetry
+    from mastodon_is_my_blog.store import ErrorLog
 
-    path = get_sqlite_file_path()
-    con = sqlite3.connect(path)
-    try:
-        rows = con.execute(
-            "SELECT id, ts, level, logger_name, message, exc_text FROM error_log ORDER BY ts DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
-    finally:
-        con.close()
+    # Surface anything still sitting in the buffer before reading.
+    await telemetry.flush()
+
+    async with async_session() as session:
+        stmt = select(ErrorLog).order_by(ErrorLog.ts.desc()).limit(limit)
+        rows = (await session.execute(stmt)).scalars().all()
 
     return [
         {
-            "id": r[0],
-            "ts": r[1],
-            "iso": datetime.utcfromtimestamp(r[1]).isoformat() + "Z",
-            "level": r[2],
-            "logger": r[3],
-            "message": r[4],
-            "exc_text": r[5],
+            "id": row.id,
+            "ts": row.ts,
+            "iso": datetime.fromtimestamp(row.ts, tz=timezone.utc).isoformat().replace("+00:00", "Z"),
+            "level": row.level,
+            "logger": row.logger_name,
+            "message": row.message,
+            "exc_text": row.exc_text,
         }
-        for r in rows
+        for row in rows
     ]
 
 

@@ -171,27 +171,42 @@ async def run_catchup(account: str | None, mode: str, max_accounts: int | None) 
     return 0 if job.errors == 0 else 1
 
 
+def run_async_with_flush(coro) -> int:
+    """asyncio.run wrapper that drains buffered telemetry (error/API-call
+    rows) before the loop closes — CLI runs have no lifespan flusher."""
+
+    async def runner() -> int:
+        from mastodon_is_my_blog import telemetry
+
+        try:
+            return await coro
+        finally:
+            await telemetry.flush()
+
+    return asyncio.run(runner())
+
+
 def run_admin_command(args) -> int:
     require_local_mode()
     command = getattr(args, "admin_command", None)
     account = getattr(args, "account", None)
 
     if command == "sync":
-        return asyncio.run(run_sync(account, force=not args.no_force))
+        return run_async_with_flush(run_sync(account, force=not args.no_force))
     if command == "download-friends":
-        return asyncio.run(run_download_friends(account))
+        return run_async_with_flush(run_download_friends(account))
     if command == "download-notifications":
-        return asyncio.run(run_download_notifications(account))
+        return run_async_with_flush(run_download_notifications(account))
     if command == "favourites":
-        return asyncio.run(run_favourites(account, full=args.full))
+        return run_async_with_flush(run_favourites(account, full=args.full))
     if command == "rebin":
-        return asyncio.run(run_rebin(account))
+        return run_async_with_flush(run_rebin(account))
     if command == "backfill-flags":
-        return asyncio.run(run_backfill_flags(account))
+        return run_async_with_flush(run_backfill_flags(account))
     if command == "nlp-backfill":
-        return asyncio.run(run_nlp_backfill_command(account))
+        return run_async_with_flush(run_nlp_backfill_command(account))
     if command == "catchup":
-        return asyncio.run(run_catchup(account, args.mode, args.max_accounts))
+        return run_async_with_flush(run_catchup(account, args.mode, args.max_accounts))
 
     print("Usage: mimb admin {sync|download-friends|download-notifications|favourites|rebin|backfill-flags|nlp-backfill|catchup} ...")
     return 2
@@ -226,7 +241,7 @@ async def run_publish(build_only: bool, pages_workflow: bool, message: str) -> i
 
 def run_publish_command(args) -> int:
     require_local_mode()
-    return asyncio.run(run_publish(args.build_only, args.pages_workflow, args.message))
+    return run_async_with_flush(run_publish(args.build_only, args.pages_workflow, args.message))
 
 
 def run_doctor_command() -> int:

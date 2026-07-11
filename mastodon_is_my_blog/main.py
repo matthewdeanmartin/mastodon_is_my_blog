@@ -90,6 +90,11 @@ async def lifespan(_: FastAPI):
     # Initialize shared httpx client for link previews
     init_http_client()
 
+    # Drain buffered error/API-call telemetry to the DB (any backend).
+    from mastodon_is_my_blog import telemetry
+
+    telemetry.start_flusher()
+
     # Open DuckDB analytics connection, attached read-only to the SQLite file
     duck.startup()
 
@@ -108,7 +113,9 @@ async def lifespan(_: FastAPI):
 
     yield
 
-    # Shutdown: close shared httpx client
+    # Shutdown: final telemetry flush, then close shared clients
+    await telemetry.stop_flusher()
+    await telemetry.flush()
     await close_http_client()
     duck.shutdown()
 
