@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import cast
 
 from mastodon_is_my_blog import telemetry
 
@@ -44,6 +45,7 @@ def log_api_call(
 
 async def purge_old_rows() -> int:
     from sqlalchemy import delete
+    from sqlalchemy.engine import CursorResult
 
     from mastodon_is_my_blog.store import ApiCallLog, async_session
 
@@ -52,7 +54,7 @@ async def purge_old_rows() -> int:
         async with async_session() as session:
             result = await session.execute(delete(ApiCallLog).where(ApiCallLog.ts < cutoff))
             await session.commit()
-            return result.rowcount or 0
+            return cast(CursorResult, result).rowcount or 0
     except Exception:
         logger.exception("Failed to purge old api_call_log rows (non-fatal)")
         return 0

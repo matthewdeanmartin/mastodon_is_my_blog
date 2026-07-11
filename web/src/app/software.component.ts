@@ -182,18 +182,25 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
     this.sub?.unsubscribe();
   }
 
-  private load(identityId: number, groupId: number | null, groupName: string | null): void {
+  private load(
+    identityId: number,
+    groupId: number | null,
+    groupName: string | null,
+    doShuffle = false,
+  ): void {
     this.loading = true;
     this.groupName = groupName;
 
     if (groupId !== null) {
-      this.api.getContentHubGroupPosts(groupId, identityId, 'software', null, 100).subscribe({
-        next: (res) => {
-          this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
-          this.loading = false;
-        },
-        error: () => (this.loading = false),
-      });
+      this.api
+        .getContentHubGroupPosts(groupId, identityId, 'software', null, 100, doShuffle)
+        .subscribe({
+          next: (res) => {
+            this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
+            this.loading = false;
+          },
+          error: () => (this.loading = false),
+        });
     } else {
       const userFilter = getContentUserFilter(this.currentFilter);
       this.api.getPublicPosts(identityId, 'software', userFilter).subscribe({
@@ -225,6 +232,12 @@ export class SoftwareFeedComponent implements OnInit, OnDestroy {
       },
       error: () => (this.refreshing = false),
     });
+  }
+
+  shuffle(): void {
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (identityId && group) this.load(identityId, group.id, group.name, true);
   }
 
   getPopularityScore(post: ContentFeedPost): number {
@@ -340,19 +353,26 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
     this.sub?.unsubscribe();
   }
 
-  private load(identityId: number, groupId: number | null, groupName: string | null): void {
+  private load(
+    identityId: number,
+    groupId: number | null,
+    groupName: string | null,
+    doShuffle = false,
+  ): void {
     this.loading = true;
     this.groupName = groupName;
 
     if (groupId !== null) {
-      this.api.getContentHubGroupPosts(groupId, identityId, 'links', null, 100).subscribe({
-        next: (res) => {
-          const posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
-          this.groups = groupLinkPosts(posts, this.currentFilter);
-          this.loading = false;
-        },
-        error: () => (this.loading = false),
-      });
+      this.api
+        .getContentHubGroupPosts(groupId, identityId, 'links', null, 100, doShuffle)
+        .subscribe({
+          next: (res) => {
+            const posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
+            this.groups = groupLinkPosts(posts, this.currentFilter);
+            this.loading = false;
+          },
+          error: () => (this.loading = false),
+        });
     } else {
       const userFilter = getContentUserFilter(this.currentFilter);
       this.api.getPublicPosts(identityId, 'links', userFilter).subscribe({
@@ -385,6 +405,12 @@ export class LinksFeedComponent implements OnInit, OnDestroy {
       },
       error: () => (this.refreshing = false),
     });
+  }
+
+  shuffle(): void {
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (identityId && group) this.load(identityId, group.id, group.name, true);
   }
 
   getPopularityScore(post: ContentFeedPost): number {
@@ -499,18 +525,25 @@ export class NewsFeedComponent implements OnInit, OnDestroy {
     this.sub?.unsubscribe();
   }
 
-  private load(identityId: number, groupId: number | null, groupName: string | null): void {
+  private load(
+    identityId: number,
+    groupId: number | null,
+    groupName: string | null,
+    doShuffle = false,
+  ): void {
     this.loading = true;
     this.groupName = groupName;
 
     if (groupId !== null) {
-      this.api.getContentHubGroupPosts(groupId, identityId, 'news', null, 100).subscribe({
-        next: (res) => {
-          this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
-          this.loading = false;
-        },
-        error: () => (this.loading = false),
-      });
+      this.api
+        .getContentHubGroupPosts(groupId, identityId, 'news', null, 100, doShuffle)
+        .subscribe({
+          next: (res) => {
+            this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
+            this.loading = false;
+          },
+          error: () => (this.loading = false),
+        });
     } else {
       const userFilter = getContentUserFilter(this.currentFilter);
       this.api.getPublicPosts(identityId, 'news', userFilter).subscribe({
@@ -542,6 +575,12 @@ export class NewsFeedComponent implements OnInit, OnDestroy {
       },
       error: () => (this.refreshing = false),
     });
+  }
+
+  shuffle(): void {
+    const identityId = this.api.getCurrentIdentityId();
+    const group = this.hubState.getActiveGroup();
+    if (identityId && group) this.load(identityId, group.id, group.name, true);
   }
 
   getPopularityScore(post: ContentFeedPost): number {

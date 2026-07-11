@@ -68,8 +68,10 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler API
         query = parse_qs(urlparse(self.path).query)
-        state = (query.get("state") or [None])[0]
-        code = (query.get("code") or [None])[0]
+        state_values = query.get("state")
+        code_values = query.get("code")
+        state = state_values[0] if state_values else None
+        code = code_values[0] if code_values else None
         if state != self.server.expected_state or not code:
             self.server.error = "State mismatch or missing code in OAuth redirect."
             self.send_response(400)

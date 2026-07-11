@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import cast
 
 from mastodon_is_my_blog import telemetry
+from sqlalchemy.engine import CursorResult
 
 RETENTION_DAYS = 30
 
@@ -45,6 +47,6 @@ async def purge_old_rows() -> int:
         async with async_session() as session:
             result = await session.execute(delete(ErrorLog).where(ErrorLog.ts < cutoff))
             await session.commit()
-            return result.rowcount or 0
+            return cast("CursorResult", result).rowcount or 0
     except Exception:
         return 0

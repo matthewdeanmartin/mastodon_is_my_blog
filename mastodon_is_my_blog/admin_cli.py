@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import shutil
 import sys
+from typing import Literal
 
 from sqlalchemy import select
 
@@ -148,7 +149,7 @@ async def run_nlp_backfill_command(account: str | None) -> int:
     return 0
 
 
-async def run_catchup(account: str | None, mode: str, max_accounts: int | None) -> int:
+async def run_catchup(account: str | None, mode: Literal["urgent", "trickle"], max_accounts: int | None) -> int:
     from mastodon_is_my_blog import catchup_runner
 
     meta, identity = await get_context(account)

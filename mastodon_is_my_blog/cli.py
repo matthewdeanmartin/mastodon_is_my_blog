@@ -410,6 +410,7 @@ def run_auth_command(args: argparse.Namespace) -> int:
     command = getattr(args, "auth_command", None)
 
     if command == "login":
+        account_name: str | None
         if args.manual:
             account_name = save_account_interactively()
         else:

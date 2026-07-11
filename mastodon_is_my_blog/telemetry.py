@@ -109,7 +109,7 @@ async def flush() -> int:
             await session.commit()
         return len(rows)
     except Exception:
-        logger.warning("telemetry flush failed; %d rows dropped", len(rows), exc_info=True, **INTERNAL)
+        logger.warning("telemetry flush failed; %d rows dropped", len(rows), exc_info=True, extra=INTERNAL["extra"])
         return 0
 
 

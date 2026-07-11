@@ -3,12 +3,13 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, cast
 
 import dotenv
 from fastapi import HTTPException, Request
 from sqlalchemy import Integer, and_, exists, false, func, outerjoin, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.engine import CursorResult
 
 from mastodon_is_my_blog import tenancy
 from mastodon_is_my_blog.datetime_helpers import utc_now
@@ -699,7 +700,7 @@ async def recompute_account_post_stats(meta_id: int, identity: MastodonIdentity)
         )
         await session.commit()
 
-    return {"updated": result.rowcount or 0, "total_authors": total_authors}
+    return {"updated": cast(CursorResult, result).rowcount or 0, "total_authors": total_authors}
 
 
 async def sync_user_timeline_for_identity(

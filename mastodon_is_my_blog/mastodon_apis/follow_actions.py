@@ -3,9 +3,11 @@
 
 import asyncio
 import logging
+from typing import cast
 
 from fastapi import HTTPException
 from sqlalchemy import and_, delete, select
+from sqlalchemy.engine import CursorResult
 
 from mastodon_is_my_blog.mastodon_apis.masto_client import client_from_identity
 from mastodon_is_my_blog.store import (
@@ -178,4 +180,4 @@ async def unmute_account(meta_id: int, identity: MastodonIdentity, acct: str) ->
     except Exception as e:
         logger.warning("Remote unmute/unblock failed for %s: %s", clean_acct, e)
 
-    return {"unmuted": True, "acct": clean_acct, "removed": (result.rowcount or 0) > 0, "remote_applied": remote_applied}
+    return {"unmuted": True, "acct": clean_acct, "removed": (cast(CursorResult, result).rowcount or 0) > 0, "remote_applied": remote_applied}
