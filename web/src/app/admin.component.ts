@@ -13,6 +13,9 @@ import {
   BulkSyncJobStatus,
   NlpBackfillStatus,
   ErrorLogEntry,
+  PublishStatus,
+  PublishBuildResult,
+  PublishPushResult,
 } from './mastodon';
 import { Subscription, interval } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
@@ -30,11 +33,80 @@ interface BundleEditState {
   error: string | null;
 }
 
+export type AdminSection =
+  | 'overview'
+  | 'publish'
+  | 'sync'
+  | 'catchup'
+  | 'maintenance'
+  | 'bundles'
+  | 'diagnostics';
+
 @Component({
   selector: 'app-admin',
   standalone: true,
   imports: [CommonModule, FormsModule, ConnectAccountComponent],
   templateUrl: 'admin.component.html',
+  styles: [
+    `
+      .admin-layout {
+        display: flex;
+        gap: 20px;
+        align-items: flex-start;
+      }
+      .admin-menu {
+        flex: 0 0 210px;
+        position: sticky;
+        top: 10px;
+      }
+      .admin-content {
+        flex: 1;
+        min-width: 0;
+      }
+      .admin-menu-label {
+        margin: 14px 0 6px;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .admin-menu-label:first-child {
+        margin-top: 0;
+      }
+      .publish-cta {
+        background: #6366f1;
+        color: white;
+        font-weight: 600;
+        margin-bottom: 5px;
+      }
+      .publish-cta:hover {
+        background: #4f46e5;
+        color: white;
+      }
+      .preview-link {
+        display: inline-block;
+        padding: 10px 20px;
+        font-size: 0.95em;
+        font-weight: 500;
+        border: 1px solid #6366f1;
+        border-radius: 4px;
+        color: #6366f1;
+        background: white;
+      }
+      .preview-link:hover {
+        background: #f0f1ff;
+      }
+      @media (max-width: 768px) {
+        .admin-layout {
+          flex-direction: column;
+        }
+        .admin-menu {
+          flex: none;
+          width: 100%;
+          position: static;
+        }
+      }
+    `,
+  ],
 })
 export class AdminComponent implements OnInit, OnDestroy {
   api = inject(ApiService);
@@ -78,6 +150,9 @@ export class AdminComponent implements OnInit, OnDestroy {
 
   private pollSub?: Subscription;
 
+  // Which grouped section the left menu has selected
+  activeSection: AdminSection = 'overview';
+
   ngOnInit() {
     this.refreshStatus();
     this.loadCatchupQueue();
@@ -86,6 +161,17 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.checkNotificationsJob();
     this.checkNlpBackfill();
     this.loadBundles();
+    this.refreshPublishStatus();
+  }
+
+  setSection(section: AdminSection) {
+    this.activeSection = section;
+    if (section === 'publish') {
+      this.refreshPublishStatus();
+    }
+    if (section === 'diagnostics' && !this.errorLogExpanded && !this.errorLogLoading) {
+      this.loadErrorLog();
+    }
   }
 
   ngOnDestroy() {
@@ -615,6 +701,91 @@ export class AdminComponent implements OnInit, OnDestroy {
 
   termTypeLabel(t: AdminBundleTerm | TermDraft): string {
     return t.term_type === 'hashtag' ? '#' : '🔍';
+  }
+
+  // --- Local blog publishing (self-hosted mode only; endpoints 404 hosted) ---
+
+  publishAvailable = false;
+  publishStatus: PublishStatus | null = null;
+  publishError: string | null = null;
+  publishBuilding = false;
+  publishBuildResult: PublishBuildResult | null = null;
+  publishWorkflowCreating = false;
+  publishWorkflowMessage: string | null = null;
+  publishPushing = false;
+  publishPushResult: PublishPushResult | null = null;
+  publishPushError: string | null = null;
+  publishCommitMessage = 'Publish blog';
+
+  get previewUrl(): string {
+    return this.api.blogPreviewUrl();
+  }
+
+  refreshPublishStatus() {
+    this.api.getPublishStatus().subscribe({
+      next: (s) => {
+        this.publishAvailable = true;
+        this.publishStatus = s;
+      },
+      error: () => {
+        // Hosted mode (404): the blog republishes automatically — hide the panel.
+        this.publishAvailable = false;
+      },
+    });
+  }
+
+  buildBlog() {
+    if (this.publishBuilding) return;
+    this.publishBuilding = true;
+    this.publishError = null;
+    this.publishBuildResult = null;
+    this.api.buildBlog().subscribe({
+      next: (r) => {
+        this.publishBuilding = false;
+        this.publishBuildResult = r;
+        this.refreshPublishStatus();
+      },
+      error: (err) => {
+        this.publishBuilding = false;
+        this.publishError = err?.error?.detail ?? 'Blog build failed';
+      },
+    });
+  }
+
+  createPagesWorkflow() {
+    if (this.publishWorkflowCreating) return;
+    this.publishWorkflowCreating = true;
+    this.publishError = null;
+    this.publishWorkflowMessage = null;
+    this.api.createPagesWorkflow().subscribe({
+      next: (r) => {
+        this.publishWorkflowCreating = false;
+        this.publishWorkflowMessage = r.detail;
+        this.refreshPublishStatus();
+      },
+      error: (err) => {
+        this.publishWorkflowCreating = false;
+        this.publishError = err?.error?.detail ?? 'Failed to create workflow';
+      },
+    });
+  }
+
+  pushBlog() {
+    if (this.publishPushing) return;
+    this.publishPushing = true;
+    this.publishPushResult = null;
+    this.publishPushError = null;
+    this.api.pushBlog(this.publishCommitMessage.trim() || 'Publish blog').subscribe({
+      next: (r) => {
+        this.publishPushing = false;
+        this.publishPushResult = r;
+        this.refreshPublishStatus();
+      },
+      error: (err) => {
+        this.publishPushing = false;
+        this.publishPushError = err?.error?.detail ?? 'Commit & push failed';
+      },
+    });
   }
 
   // --- Error log ---

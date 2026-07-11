@@ -87,7 +87,7 @@ class TestVerifySessionToken:
 
     def test_wrong_signature(self, monkeypatch):
         monkeypatch.setenv("SESSION_SIGNING_KEY", SIGNING_KEY)
-        token = make_session_token(key="some-other-key")
+        token = make_session_token(key="some-other-signing-key-thats-also-32-bytes-long")
         with pytest.raises(tenancy.SessionValidationError):
             tenancy.verify_session_token(token)
 

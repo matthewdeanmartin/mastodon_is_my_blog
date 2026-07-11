@@ -48,10 +48,23 @@ def normalize_account_name(name: str) -> str:
 
 
 def normalize_base_url(base_url: str) -> str:
-    normalized = base_url.strip().rstrip("/")
-    if not normalized.startswith(("http://", "https://")):
-        raise ValueError("Base URL must start with http:// or https://.")
-    return normalized
+    """Coerce whatever a human types into a server base URL.
+
+    Accepts full URLs, bare domains ("mastodon.social"), and fediverse
+    handles ("user@mastodon.social", "@user@mastodon.social") — the server
+    is what matters, so infer it instead of scolding.
+    """
+    normalized = base_url.strip()
+    if "@" in normalized and "://" not in normalized:
+        # Handle form: the server is everything after the last @.
+        normalized = normalized.rsplit("@", 1)[1].strip()
+    if normalized and "://" not in normalized:
+        normalized = f"https://{normalized}"
+    scheme, sep, host = normalized.partition("://")
+    host = host.strip("/")
+    if scheme not in ("http", "https") or not sep or not host:
+        raise ValueError("Could not understand that server. Try something like mastodon.social or https://mastodon.social.")
+    return f"{scheme}://{host}"
 
 
 def load_configured_accounts() -> list[ConfiguredAccount]:

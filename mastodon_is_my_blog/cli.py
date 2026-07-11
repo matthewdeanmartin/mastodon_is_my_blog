@@ -28,8 +28,13 @@ from mastodon_is_my_blog.utils.settings_loader import has_configured_identities
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="mastodon_is_my_blog",
+        prog="mimb",
         description="Mastodon is My Blog — personal Mastodon reader and blog tool.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=pkg_version("mastodon_is_my_blog"),
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -52,6 +57,61 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("db-info", help="Show the resolved database path.")
     subparsers.add_parser("version", help="Show the installed package version.")
     subparsers.add_parser("init", help="Configure Mastodon accounts in keyring.")
+
+    # auth: OAuth-first account management (Sprint 02).
+    auth_parser = subparsers.add_parser("auth", help="Connect and manage Mastodon accounts.")
+    auth_sub = auth_parser.add_subparsers(dest="auth_command")
+
+    login_p = auth_sub.add_parser("login", help="Connect an account via browser OAuth — no client IDs needed.")
+    login_p.add_argument("account", nargs="?", help="Your handle (user@server) or server URL.")
+    login_p.add_argument("--name", help="Local account name (default: your Mastodon username).")
+    login_p.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Print the authorize URL and paste the code by hand (SSH/headless).",
+    )
+    login_p.add_argument(
+        "--manual",
+        action="store_true",
+        help="Advanced: type client ID/secret/token yourself (mock servers, pre-registered apps).",
+    )
+
+    auth_sub.add_parser("list", help="List configured accounts.")
+
+    remove_p = auth_sub.add_parser("remove", help="Remove an account and its stored credentials.")
+    remove_p.add_argument("name", help="Account name (see `mimb auth list`).")
+
+    verify_p = auth_sub.add_parser("verify", help="Check that stored tokens still work.")
+    verify_p.add_argument("name", nargs="?", help="Account name (default: all).")
+
+    # admin: maintenance jobs from the terminal (Sprint 04).
+    admin_parser = subparsers.add_parser("admin", help="Run maintenance jobs without the web UI.")
+    admin_sub = admin_parser.add_subparsers(dest="admin_command")
+
+    def add_admin(name: str, help_text: str):
+        sub = admin_sub.add_parser(name, help=help_text)
+        sub.add_argument("--account", help="Identity to act on (name or acct; default: first).")
+        return sub
+
+    sync_p = add_admin("sync", "Refresh cached follows, timeline, notifications, own posts.")
+    sync_p.add_argument("--no-force", action="store_true", help="Skip if recently synced.")
+    add_admin("download-friends", "Backfill the complete following + follower lists.")
+    add_admin("download-notifications", "Backfill the complete notification history.")
+    fav_p = add_admin("favourites", "Sync your outbound favourites.")
+    fav_p.add_argument("--full", action="store_true", help="Walk the entire history, not just recent.")
+    add_admin("rebin", "Recompute blog roll post/reply stats from cache (no API calls).")
+    add_admin("backfill-flags", "Re-analyse cached posts for question/book flags (no API calls).")
+    add_admin("nlp-backfill", "Precompute forum topic words with spaCy (no API calls).")
+    catchup_p = add_admin("catchup", "Backfill post history for accounts you follow.")
+    catchup_p.add_argument("--mode", choices=["urgent", "trickle"], default="urgent")
+    catchup_p.add_argument("--max-accounts", type=int, help="Limit the queue length.")
+
+    publish_parser = subparsers.add_parser("publish", help="Build the Eleventy blog into ./docs and git commit+push.")
+    publish_parser.add_argument("--build-only", action="store_true", help="Build (and preview via `mimb start`) without committing.")
+    publish_parser.add_argument("--pages-workflow", action="store_true", help="Also write the GitHub Pages deploy workflow.")
+    publish_parser.add_argument("-m", "--message", default="Publish blog", help="Commit message.")
+
+    subparsers.add_parser("doctor", help="Check the environment: database, accounts, node, git, spaCy.")
 
     # db: backend-agnostic export / import / port / diff / verify (Phase 3).
     db_parser = subparsers.add_parser("db", help="Export/import/port data between storage backends.")
@@ -126,21 +186,6 @@ def prompt_yes_no(prompt: str, *, default: bool = False) -> bool:
         print("Please answer yes or no.")
 
 
-def choose_account(prompt: str) -> str:
-    summaries = list_account_summaries()
-    for index, summary in enumerate(summaries, start=1):
-        token_label = "token saved" if summary.has_access_token else "needs login"
-        print(f"{index}. {summary.name} ({summary.base_url}, {token_label})")
-
-    while True:
-        choice = input(f"{prompt} [1-{len(summaries)}]: ").strip()
-        if choice.isdigit():
-            index = int(choice)
-            if 1 <= index <= len(summaries):
-                return summaries[index - 1].name
-        print("Please choose one of the listed accounts.")
-
-
 def save_account_interactively(existing_name: str | None = None) -> str:
     current_client_id = get_credential(existing_name, "client_id") if existing_name else None
     current_client_secret = get_credential(existing_name, "client_secret") if existing_name else None
@@ -206,41 +251,86 @@ async def sync_identity_state() -> None:
     await sync_configured_identities()
 
 
+def normalize_postgres_url(url: str) -> str:
+    """postgresql:// or postgres:// -> the async driver URL SQLAlchemy needs."""
+    for prefix in ("postgresql+asyncpg://", "postgresql://", "postgres://"):
+        if url.startswith(prefix):
+            return "postgresql+asyncpg://" + url[len(prefix) :]
+    raise ValueError("That doesn't look like a Postgres URL. Expected something like postgresql://user:pass@localhost:5432/mimb.")
+
+
+def write_db_url_to_env(db_url: str) -> None:
+    """Persist DB_URL to ./.env (main.py load_dotenv()s it) and apply it to
+    this process so the rest of the wizard uses the chosen database."""
+    import os
+
+    from dotenv import set_key
+
+    set_key(".env", "DB_URL", db_url)
+    os.environ["DB_URL"] = db_url
+    print(f"Saved DB_URL to .env (used when you run mimb from this directory: {db_url})")
+
+
+def prompt_database_setup() -> None:
+    from mastodon_is_my_blog.db_path import get_default_db_url
+
+    print(f"Database: {get_default_db_url()}")
+    if not prompt_yes_no("Change where your data is stored?", default=False):
+        return
+
+    print("1. SQLite — a single local file, no setup needed (recommended)")
+    print("2. Postgres — you already run a Postgres server")
+    while True:
+        choice = input("Which database? [1-2]: ").strip()
+        if choice in {"1", "2"}:
+            break
+        print("Please answer 1 or 2.")
+
+    if choice == "1":
+        path = prompt_text("SQLite file path", allow_empty=True)
+        if path:
+            write_db_url_to_env(f"sqlite+aiosqlite:///{path}")
+        else:
+            print("Keeping the default SQLite location.")
+        return
+
+    while True:
+        raw = prompt_text("Postgres URL (postgresql://user:pass@host:5432/dbname)")
+        try:
+            write_db_url_to_env(normalize_postgres_url(raw))
+            return
+        except ValueError as exc:
+            print(exc)
+
+
 def run_init_command() -> None:
+    print("Welcome to mimb setup.")
+    prompt_database_setup()
+
     summaries = list_account_summaries()
-
-    if not summaries:
-        print("Welcome. Let's set up your Mastodon accounts.")
-        while True:
-            save_account_interactively()
-            if not prompt_yes_no("Add another account?"):
-                break
-    else:
+    if summaries:
         print("Configured accounts:")
-        for index, summary in enumerate(summaries, start=1):
+        for summary in summaries:
             token_label = "token saved" if summary.has_access_token else "needs login"
-            print(f"{index}. {summary.name} ({summary.base_url}, {token_label})")
+            print(f"- {summary.name} ({summary.base_url}, {token_label})")
+        print("Manage them with: mimb auth list | login | remove | verify")
+    elif prompt_yes_no("Connect a Mastodon account now? (opens your browser — no keys to type)", default=True):
+        from mastodon_is_my_blog import auth_cli
 
-        while list_account_summaries() and prompt_yes_no("Do you want to change an existing account?"):
-            selected_name = choose_account("Which account do you want to change?")
-            save_account_interactively(selected_name)
-
-        while list_account_summaries() and prompt_yes_no("Do you want to delete an account?"):
-            selected_name = choose_account("Which account do you want to delete?")
-            remove_configured_account(selected_name)
-            delete_account_credentials(selected_name)
-            print(f"Deleted {selected_name}.")
-
-        while prompt_yes_no("Do you want to add another account?"):
-            save_account_interactively()
+        auth_cli.run_login(None)
+    else:
+        print("Skipped. You can connect later with `mimb auth login your@handle`, or from the web UI (Connect Account).")
 
     asyncio.run(sync_identity_state())
+    print("Setup complete. Run `mimb start` and open http://127.0.0.1:8000")
 
 
 def start_server(host: str, port: int, reload_: bool, workers: int) -> None:
     import uvicorn
 
     print(f"Starting mastodon_is_my_blog on http://{host}:{port}")
+    if not has_configured_identities():
+        print(f"No Mastodon account connected yet — open http://{host}:{port} and click Connect Account to get started.")
     uvicorn.run(
         "mastodon_is_my_blog.main:app",
         host=host,
@@ -310,7 +400,35 @@ def run_db_command(args: argparse.Namespace) -> int:
         all_match = all(r["hash_match"] and r["left_rows"] == r["right_rows"] for r in report)
         return 0 if (command == "diff" or all_match) else 1
 
-    print("Usage: mastodon_is_my_blog db {export|import|port|diff|verify} ...")
+    print("Usage: mimb db {export|import|port|diff|verify} ...")
+    return 2
+
+
+def run_auth_command(args: argparse.Namespace) -> int:
+    from mastodon_is_my_blog import auth_cli
+
+    command = getattr(args, "auth_command", None)
+
+    if command == "login":
+        if args.manual:
+            account_name = save_account_interactively()
+        else:
+            account_name = auth_cli.run_login(args.account, name=args.name, no_browser=args.no_browser)
+        if account_name is None:
+            return 1
+        asyncio.run(sync_identity_state())
+        return 0
+
+    if command == "list":
+        return auth_cli.run_list()
+
+    if command == "remove":
+        return auth_cli.run_remove(args.name)
+
+    if command == "verify":
+        return auth_cli.run_verify(args.name)
+
+    print("Usage: mimb auth {login|list|remove|verify} ...")
     return 2
 
 
@@ -319,12 +437,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     command = args.command
-    if command not in {"init", "db-info", "version", "db"} and not has_configured_identities():
-        print("No configured Mastodon accounts found. Starting setup.")
-        run_init_command()
 
     if command == "db":
         return run_db_command(args)
+
+    if command == "auth":
+        return run_auth_command(args)
+
+    if command in {"admin", "publish", "doctor"}:
+        from mastodon_is_my_blog import admin_cli
+
+        if command == "admin":
+            return admin_cli.run_admin_command(args)
+        if command == "publish":
+            return admin_cli.run_publish_command(args)
+        return admin_cli.run_doctor_command()
 
     if command == "start":
         start_server(args.host, args.port, args.reload_, args.workers)

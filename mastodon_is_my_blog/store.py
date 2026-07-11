@@ -633,6 +633,12 @@ async def init_db() -> None:
         await ensure_cached_posts_schema()
         await ensure_meta_accounts_schema()
 
+    # A freshly create_all'd DB has no alembic_version row; stamp it at head
+    # so it reads as "fully migrated" and later `alembic upgrade` calls behave.
+    from mastodon_is_my_blog.db_init import ensure_schema_stamped
+
+    await ensure_schema_stamped(engine)
+
 
 async def get_meta_account_by_id(meta_account_id: int) -> MetaAccount | None:
     async with async_session() as session:

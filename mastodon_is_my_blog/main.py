@@ -29,6 +29,7 @@ from mastodon_is_my_blog.routes import (
     observability,
     peeps,
     posts,
+    publish,
     writing,
 )
 from mastodon_is_my_blog.routes.admin import persist_identity
@@ -133,6 +134,8 @@ app.include_router(forum.router)
 app.include_router(new_friends.router)
 app.include_router(peeps.router)
 app.include_router(posts.router)
+app.include_router(publish.router)
+app.include_router(publish.preview_router)
 app.include_router(writing.posts_router)
 app.include_router(writing.drafts_router)
 

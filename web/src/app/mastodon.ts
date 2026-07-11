@@ -563,6 +563,39 @@ export interface ErrorLogEntry {
   exc_text: string | null;
 }
 
+export interface PublishStatus {
+  repo_root: string;
+  git_repo: boolean;
+  branch: string | null;
+  remote_url: string | null;
+  node_available: boolean;
+  eleventy_available: boolean;
+  eleventy_site_dir: string;
+  docs_exists: boolean;
+  docs_dirty: boolean;
+  pages_workflow_exists: boolean;
+  pages_workflow_path: string;
+}
+
+export interface PublishBuildResult {
+  builder: 'eleventy' | 'fallback';
+  docs_path: string;
+  pages: number;
+  storm_count: number;
+}
+
+export interface PublishPushResult {
+  ok: boolean;
+  pushed: boolean;
+  detail: string;
+}
+
+export interface PagesWorkflowResult {
+  created: boolean;
+  path: string;
+  detail: string;
+}
+
 export interface NewFriendCandidate {
   id: string;
   acct: string;

@@ -40,6 +40,10 @@ import {
   NewFriendsParams,
   ErrorLogEntry,
   Whoami,
+  PublishStatus,
+  PublishBuildResult,
+  PublishPushResult,
+  PagesWorkflowResult,
 } from './mastodon';
 import { RawContentPost } from './content-feed.utils';
 import { Observable, throwError, timer, BehaviorSubject, of, Subject } from 'rxjs';
@@ -1231,6 +1235,48 @@ export class ApiService {
     return this.http
       .get<ErrorLogEntry[]>(`${this.base}/api/admin/error-log`, { params, headers: this.headers })
       .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  // --- Local blog publishing (self-hosted mode only) ---
+
+  getPublishStatus(): Observable<PublishStatus> {
+    return this.http
+      .get<PublishStatus>(`${this.base}/api/admin/publish/status`, { headers: this.headers })
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  buildBlog(): Observable<PublishBuildResult> {
+    return this.http
+      .post<PublishBuildResult>(
+        `${this.base}/api/admin/publish/build`,
+        {},
+        { headers: this.headers },
+      )
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  createPagesWorkflow(overwrite = false): Observable<PagesWorkflowResult> {
+    return this.http
+      .post<PagesWorkflowResult>(
+        `${this.base}/api/admin/publish/pages-workflow`,
+        { overwrite },
+        { headers: this.headers },
+      )
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  pushBlog(message: string): Observable<PublishPushResult> {
+    return this.http
+      .post<PublishPushResult>(
+        `${this.base}/api/admin/publish/push`,
+        { message },
+        { headers: this.headers },
+      )
+      .pipe(catchError((err) => this.handleError(err)));
+  }
+
+  blogPreviewUrl(): string {
+    return `${this.base}/blog-preview/`;
   }
 
   refreshNewFriendsCache(

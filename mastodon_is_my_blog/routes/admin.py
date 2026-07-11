@@ -216,75 +216,10 @@ async def backfill_content_flags(
     Re-analyse already-cached posts to populate has_question and has_book flags
     that were added after initial ingestion. No API calls — reads only from cache.
     """
-    import json as _json
-
-    from sqlalchemy import update
-
-    from mastodon_is_my_blog.inspect_post import analyze_content_domains
-    from mastodon_is_my_blog.store import CachedPost
+    from mastodon_is_my_blog.maintenance import backfill_content_flags_for_identity
 
     identity = await _get_identity(meta, identity_id)
-
-    async with async_session() as session:
-        stmt = select(
-            CachedPost.id,
-            CachedPost.content,
-            CachedPost.media_attachments,
-            CachedPost.tags,
-            CachedPost.is_reply,
-        ).where(
-            CachedPost.meta_account_id == meta.id,
-            CachedPost.fetched_by_identity_id == identity.id,
-        )
-        rows = (await session.execute(stmt)).all()
-
-    updated = 0
-    batch = []
-    for row in rows:
-        media = _json.loads(row.media_attachments) if row.media_attachments else []
-        tags = _json.loads(row.tags) if row.tags else []
-        try:
-            flags = analyze_content_domains(
-                row.content or "", media, row.is_reply, tags
-            )
-        except Exception:
-            continue
-        batch.append(
-            {
-                "id": row.id,
-                "has_question": flags["has_question"],
-                "has_book": flags["has_book"],
-            }
-        )
-
-        if len(batch) >= 500:
-            async with async_session() as session:
-                for item in batch:
-                    await session.execute(
-                        update(CachedPost)
-                        .where(CachedPost.id == item["id"])
-                        .values(
-                            has_question=item["has_question"], has_book=item["has_book"]
-                        )
-                    )
-                await session.commit()
-            updated += len(batch)
-            batch = []
-
-    if batch:
-        async with async_session() as session:
-            for item in batch:
-                await session.execute(
-                    update(CachedPost)
-                    .where(CachedPost.id == item["id"])
-                    .values(
-                        has_question=item["has_question"], has_book=item["has_book"]
-                    )
-                )
-            await session.commit()
-        updated += len(batch)
-
-    return {"ok": True, "updated": updated}
+    return await backfill_content_flags_for_identity(meta.id, identity.id)
 
 
 @router.post("/own-account/catchup")
@@ -841,9 +776,7 @@ async def start_nlp_backfill(
     request: Request,
     meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
-    from sqlalchemy import text as sa_text
-
-    from mastodon_is_my_blog.text_topics import uncommon_lemmas
+    from mastodon_is_my_blog.maintenance import run_nlp_backfill
 
     nlp = getattr(request.app.state, "nlp", None)
     if nlp is None:
@@ -856,79 +789,7 @@ async def start_nlp_backfill(
         raise HTTPException(409, "NLP backfill already running")
 
     async def runner(on_progress, cancelled):
-        # Load all root posts (id == root_id) and their thread content
-        async with async_session() as session:
-            root_rows = (
-                await session.execute(
-                    sa_text(
-                        "SELECT id, meta_account_id FROM cached_posts WHERE meta_account_id = :mid AND root_id = id"
-                    ),
-                    {"mid": meta.id},
-                )
-            ).all()
-
-        total = len(root_rows)
-        logger.info("NLP backfill: %d threads to process", total)
-        on_progress(0, total, "loading")
-
-        done = 0
-        batch_size = 50
-        updates: list[dict] = []
-
-        for root_row in root_rows:
-            if cancelled():
-                logger.info("NLP backfill cancelled at %d/%d", done, total)
-                break
-
-            root_id = root_row.id
-            meta_id = root_row.meta_account_id
-
-            # Fetch all posts in this thread
-            async with async_session() as session:
-                thread_rows = (
-                    await session.execute(
-                        sa_text(
-                            "SELECT content FROM cached_posts WHERE meta_account_id = :mid AND root_id = :rid"
-                        ),
-                        {"mid": meta_id, "rid": root_id},
-                    )
-                ).all()
-
-            combined = " ".join(r.content for r in thread_rows)
-            words = uncommon_lemmas(combined, nlp)
-            import json as _json
-
-            updates.append(
-                {"root_id": root_id, "meta_id": meta_id, "words": _json.dumps(words)}
-            )
-            done += 1
-
-            if len(updates) >= batch_size:
-                async with async_session() as session:
-                    await session.execute(
-                        sa_text(
-                            "UPDATE cached_posts SET thread_uncommon_words = :words WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"
-                        ),
-                        updates,
-                    )
-                    await session.commit()
-                logger.info("NLP backfill: %d/%d committed", done, total)
-                updates = []
-                on_progress(done, total, "processing")
-
-        if updates:
-            async with async_session() as session:
-                await session.execute(
-                    sa_text(
-                        "UPDATE cached_posts SET thread_uncommon_words = :words WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"
-                    ),
-                    updates,
-                )
-                await session.commit()
-            logger.info("NLP backfill: %d/%d final batch committed", done, total)
-
-        on_progress(done, total, "done")
-        return {"processed": done, "total": total}
+        return await run_nlp_backfill(meta.id, nlp, on_progress, cancelled)
 
     job = await start_bulk_job(NLP_JOB_KIND, meta.id, NLP_META_ID, runner)
     return {"started": True, **job_status(job)}

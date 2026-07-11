@@ -255,7 +255,8 @@ interface FacetChip {
       }
 
       .controls-panel {
-        background: #1e293b;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
         border-radius: 8px;
         padding: 14px;
         margin-bottom: 16px;
@@ -272,37 +273,37 @@ interface FacetChip {
         flex-direction: column;
         gap: 4px;
         font-size: 0.85rem;
-        color: #94a3b8;
+        color: #475569;
       }
       .num-input {
         width: 70px;
         padding: 4px 6px;
         border-radius: 4px;
-        border: 1px solid #334155;
-        background: #0f172a;
-        color: #e2e8f0;
+        border: 1px solid #d1d5db;
+        background: white;
+        color: #1f2937;
       }
       .num-input-sm {
         width: 60px;
         padding: 4px 6px;
         border-radius: 4px;
-        border: 1px solid #334155;
-        background: #0f172a;
-        color: #e2e8f0;
+        border: 1px solid #d1d5db;
+        background: white;
+        color: #1f2937;
       }
       .select-input {
         padding: 4px 6px;
         border-radius: 4px;
-        border: 1px solid #334155;
-        background: #0f172a;
-        color: #e2e8f0;
+        border: 1px solid #d1d5db;
+        background: white;
+        color: #1f2937;
       }
       .text-input {
         padding: 4px 8px;
         border-radius: 4px;
-        border: 1px solid #334155;
-        background: #0f172a;
-        color: #e2e8f0;
+        border: 1px solid #d1d5db;
+        background: white;
+        color: #1f2937;
         width: 160px;
       }
       .hint {
@@ -331,9 +332,9 @@ interface FacetChip {
       }
       .btn-secondary {
         padding: 6px 12px;
-        background: #334155;
-        color: #e2e8f0;
-        border: none;
+        background: white;
+        color: #6366f1;
+        border: 1px solid #6366f1;
         border-radius: 6px;
         cursor: pointer;
         font-size: 0.85rem;
@@ -355,9 +356,9 @@ interface FacetChip {
       .facet-chip {
         padding: 4px 10px;
         border-radius: 20px;
-        border: 1px solid #334155;
-        background: #1e293b;
-        color: #94a3b8;
+        border: 1px solid #d1d5db;
+        background: white;
+        color: #4b5563;
         cursor: pointer;
         font-size: 0.8rem;
       }
@@ -382,7 +383,8 @@ interface FacetChip {
         align-items: center;
         gap: 10px;
         padding: 10px 14px;
-        background: #1e3a5f;
+        background: #e0e7ff;
+        border: 1px solid #c7d2fe;
         border-radius: 6px;
         margin-bottom: 12px;
         flex-wrap: wrap;
@@ -400,16 +402,16 @@ interface FacetChip {
       }
       .btn-secondary-sm {
         padding: 4px 10px;
-        background: #334155;
-        color: #e2e8f0;
-        border: none;
+        background: white;
+        color: #6366f1;
+        border: 1px solid #6366f1;
         border-radius: 6px;
         cursor: pointer;
         font-size: 0.8rem;
       }
       .bulk-result {
         font-size: 0.85rem;
-        color: #10b981;
+        color: #166534;
       }
 
       .loading-block {
@@ -417,12 +419,12 @@ interface FacetChip {
         align-items: center;
         gap: 12px;
         padding: 24px;
-        color: #94a3b8;
+        color: #64748b;
       }
       .spinner {
         width: 20px;
         height: 20px;
-        border: 2px solid #334155;
+        border: 2px solid #e2e8f0;
         border-top-color: #6366f1;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
@@ -443,13 +445,13 @@ interface FacetChip {
         align-items: flex-start;
         gap: 12px;
         padding: 12px;
-        background: #1e293b;
+        background: white;
         border-radius: 8px;
-        border: 1px solid #334155;
+        border: 1px solid #e1e8ed;
       }
       .candidate-card.selected {
         border-color: #4f46e5;
-        background: #1e2a4a;
+        background: #eef2ff;
       }
 
       .check-wrap {
@@ -462,7 +464,7 @@ interface FacetChip {
         height: 44px;
         border-radius: 50%;
         flex-shrink: 0;
-        border: 2px solid #334155;
+        border: 2px solid #e2e8f0;
         object-fit: cover;
       }
 
@@ -479,7 +481,7 @@ interface FacetChip {
       }
       .display-name {
         font-weight: 600;
-        color: #e2e8f0;
+        color: #1f2937;
       }
       .acct {
         color: #64748b;
@@ -495,12 +497,13 @@ interface FacetChip {
         color: white;
       }
       .badge.locked {
-        background: #374151;
+        background: #e5e7eb;
+        color: #374151;
       }
       .bio {
         margin: 0 0 6px;
         font-size: 0.85rem;
-        color: #94a3b8;
+        color: #4b5563;
         line-height: 1.4;
       }
       .stats-row {
@@ -511,7 +514,7 @@ interface FacetChip {
         flex-wrap: wrap;
       }
       .friends-badge {
-        color: #a78bfa;
+        color: #6d28d9;
       }
 
       .card-actions {
@@ -535,9 +538,9 @@ interface FacetChip {
       }
       .btn-dossier {
         padding: 5px 12px;
-        background: #334155;
-        color: #e2e8f0;
-        border: none;
+        background: white;
+        color: #6366f1;
+        border: 1px solid #6366f1;
         border-radius: 6px;
         cursor: pointer;
         font-size: 0.85rem;
@@ -549,8 +552,9 @@ interface FacetChip {
         color: #64748b;
       }
       .error-msg {
-        background: #7f1d1d;
-        color: #fca5a5;
+        background: #fef2f2;
+        color: #dc2626;
+        border: 1px solid #fca5a5;
         padding: 10px 14px;
         border-radius: 6px;
         margin-bottom: 12px;
