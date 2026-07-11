@@ -128,9 +128,13 @@ def test_spa_unknown_paths_fall_back_to_index_html(api_client: TestClient) -> No
     assert response.headers["content-type"].startswith("text/html")
 
 
-def test_oauth_start_endpoint_returns_authorize_url(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_oauth_start_endpoint_returns_authorize_url(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     class DummyClient:
-        def auth_request_url(self, redirect_uris: str, scopes: list[str], state: str, allow_http: bool) -> str:
+        def auth_request_url(
+            self, redirect_uris: str, scopes: list[str], state: str, allow_http: bool
+        ) -> str:
             assert redirect_uris == "https://app.example.com/auth/callback"
             assert scopes == ["read", "write"]
             # https instance in this test, so the dev http escape hatch is off
@@ -138,7 +142,9 @@ def test_oauth_start_endpoint_returns_authorize_url(api_client: TestClient, monk
             return f"https://mastodon.example.com/oauth/authorize?state={state}"
 
     monkeypatch.setenv("APP_BASE_URL", "https://app.example.com")
-    monkeypatch.setattr(admin.Mastodon, "create_app", lambda *a, **k: ("new-id", "new-secret"))
+    monkeypatch.setattr(
+        admin.Mastodon, "create_app", lambda *a, **k: ("new-id", "new-secret")
+    )
     monkeypatch.setattr(admin, "client", lambda **kwargs: DummyClient())
 
     async def fake_create_pending(**kwargs) -> None:
@@ -153,10 +159,14 @@ def test_oauth_start_endpoint_returns_authorize_url(api_client: TestClient, monk
 
     assert response.status_code == 200
     body = response.json()
-    assert body["authorize_url"].startswith("https://mastodon.example.com/oauth/authorize?state=")
+    assert body["authorize_url"].startswith(
+        "https://mastodon.example.com/oauth/authorize?state="
+    )
 
 
-def test_me_endpoint_requires_token(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_me_endpoint_requires_token(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     async def fake_get_token() -> None:
         return None
 
@@ -168,7 +178,9 @@ def test_me_endpoint_requires_token(api_client: TestClient, monkeypatch: pytest.
     assert response.json() == {"detail": "Not connected"}
 
 
-def test_me_endpoint_returns_verified_account(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_me_endpoint_returns_verified_account(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     class DummyClient:
         def account_verify_credentials(self) -> dict[str, str]:
             return {"acct": "alice@example.com", "display_name": "Alice"}
@@ -188,9 +200,13 @@ def test_me_endpoint_returns_verified_account(api_client: TestClient, monkeypatc
     assert response.json()["acct"] == "alice@example.com"
 
 
-def test_admin_identities_returns_serialized_identities(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_admin_identities_returns_serialized_identities(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     identities = [
-        SimpleNamespace(id=1, acct="alice@example.com", api_base_url="https://a.example"),
+        SimpleNamespace(
+            id=1, acct="alice@example.com", api_base_url="https://a.example"
+        ),
         SimpleNamespace(id=2, acct="bob@example.com", api_base_url="https://b.example"),
     ]
     monkeypatch.setattr(
@@ -208,8 +224,15 @@ def test_admin_identities_returns_serialized_identities(api_client: TestClient, 
     ]
 
 
-def test_admin_status_returns_connection_summary(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    identity = SimpleNamespace(id=2, access_token="token")
+def test_admin_status_returns_connection_summary(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    identity = SimpleNamespace(
+        id=2,
+        access_token="token",
+        api_base_url="https://mastodon.example",
+        acct="alice@example.com",
+    )
 
     class DummyClient:
         def account_verify_credentials(self) -> dict[str, str]:
@@ -223,16 +246,25 @@ def test_admin_status_returns_connection_summary(api_client: TestClient, monkeyp
     async def fake_get_last_sync() -> datetime:
         return datetime(2024, 1, 2, 3, 4, 5)
 
+    async def fake_describe_database() -> dict[str, str]:
+        return {
+            "backend": "postgres",
+            "url": "postgresql+asyncpg://postgres:***@localhost/mimb",
+            "schema_version": "016",
+            "remote_sync": "n/a",
+        }
+
     # The meta account now arrives via the get_current_meta_account dependency
     # (overridden by the api_client fixture); only the identity lookup hits
     # the session.
     monkeypatch.setattr(
         admin,
         "async_session",
-        FakeSessionFactory([FakeResult(scalar_value=identity)]),
+        FakeSessionFactory([FakeResult(scalars_values=[identity])]),
     )
     monkeypatch.setattr(admin, "client_from_identity", lambda identity: DummyClient())
     monkeypatch.setattr(admin, "get_last_sync", fake_get_last_sync)
+    monkeypatch.setattr(admin, "describe_database", fake_describe_database)
 
     response = api_client.get("/api/admin/status")
 
@@ -246,10 +278,28 @@ def test_admin_status_returns_connection_summary(api_client: TestClient, monkeyp
             "avatar": "https://img.example.com/alice.png",
             "note": "bio",
         },
+        "connections": {
+            "mastodon": [
+                {"url": "https://mastodon.example", "account": "alice@example.com"}
+            ],
+            "mimb_co": {
+                "connected": False,
+                "url": None,
+                "detail": "Not connected (self-hosted mode)",
+            },
+            "database": {
+                "backend": "postgres",
+                "url": "postgresql+asyncpg://postgres:***@localhost/mimb",
+                "schema_version": "016",
+                "remote_sync": "n/a",
+            },
+        },
     }
 
 
-def test_admin_own_account_catchup_runs_full_history_sync(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_admin_own_account_catchup_runs_full_history_sync(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     identity = SimpleNamespace(id=5, acct="alice@example.com")
     captured: dict[str, Any] = {}
 
@@ -292,7 +342,9 @@ def test_admin_own_account_catchup_runs_full_history_sync(api_client: TestClient
     }
 
 
-def test_admin_own_account_catchup_returns_bad_gateway_on_sync_error(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_admin_own_account_catchup_returns_bad_gateway_on_sync_error(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     async def fake_get_identity(meta, identity_id):
         return SimpleNamespace(id=5, acct="alice@example.com")
 
@@ -312,7 +364,9 @@ def test_admin_own_account_catchup_returns_bad_gateway_on_sync_error(api_client:
     assert response.json() == {"detail": "boom"}
 
 
-def test_blogroll_endpoint_returns_accounts(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_blogroll_endpoint_returns_accounts(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     identity = SimpleNamespace(id=5, account_id="123")
     account = SimpleNamespace(
         id="42",
@@ -418,7 +472,9 @@ def test_account_info_endpoint_returns_virtual_everyone(
 #     }
 
 
-def test_account_catchup_endpoint_starts_job(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_account_catchup_endpoint_starts_job(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     identity = SimpleNamespace(id=5, acct="me@example.com")
     captured: dict[str, Any] = {}
 
@@ -441,7 +497,9 @@ def test_account_catchup_endpoint_starts_job(api_client: TestClient, monkeypatch
         lambda job: {"running": True, "acct": "friend@example.com", "mode": "recent"},
     )
 
-    response = api_client.post("/api/accounts/friend@example.com/catchup?identity_id=5&mode=recent")
+    response = api_client.post(
+        "/api/accounts/friend@example.com/catchup?identity_id=5&mode=recent"
+    )
 
     assert response.status_code == 200
     assert response.json() == {
@@ -458,7 +516,9 @@ def test_account_catchup_endpoint_starts_job(api_client: TestClient, monkeypatch
     }
 
 
-def test_account_catchup_status_endpoint_returns_existing_job(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_account_catchup_status_endpoint_returns_existing_job(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     async def fake_get_identity(meta, identity_id):
         return SimpleNamespace(id=identity_id, acct="me@example.com")
 
@@ -466,7 +526,9 @@ def test_account_catchup_status_endpoint_returns_existing_job(api_client: TestCl
     monkeypatch.setattr(
         accounts,
         "get_account_catchup_job",
-        lambda meta_id, identity_id, acct: SimpleNamespace(meta_id=meta_id, identity_id=identity_id, acct=acct),
+        lambda meta_id, identity_id, acct: SimpleNamespace(
+            meta_id=meta_id, identity_id=identity_id, acct=acct
+        ),
     )
     monkeypatch.setattr(
         accounts,
@@ -474,7 +536,9 @@ def test_account_catchup_status_endpoint_returns_existing_job(api_client: TestCl
         lambda job: {"running": False, "acct": job.acct, "mode": "deep"},
     )
 
-    response = api_client.get("/api/accounts/friend@example.com/catchup/status?identity_id=5")
+    response = api_client.get(
+        "/api/accounts/friend@example.com/catchup/status?identity_id=5"
+    )
 
     assert response.status_code == 200
     assert response.json() == {
@@ -484,7 +548,9 @@ def test_account_catchup_status_endpoint_returns_existing_job(api_client: TestCl
     }
 
 
-def test_account_catchup_cancel_endpoint_cancels_running_job(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_account_catchup_cancel_endpoint_cancels_running_job(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     async def fake_get_identity(meta, identity_id):
         return SimpleNamespace(id=identity_id, acct="me@example.com")
 
@@ -492,16 +558,22 @@ def test_account_catchup_cancel_endpoint_cancels_running_job(api_client: TestCli
     monkeypatch.setattr(
         accounts,
         "cancel_account_catchup_job",
-        lambda meta_id, identity_id, acct: meta_id == 7 and identity_id == 5 and acct == "friend@example.com",
+        lambda meta_id, identity_id, acct: meta_id == 7
+        and identity_id == 5
+        and acct == "friend@example.com",
     )
 
-    response = api_client.delete("/api/accounts/friend@example.com/catchup?identity_id=5")
+    response = api_client.delete(
+        "/api/accounts/friend@example.com/catchup?identity_id=5"
+    )
 
     assert response.status_code == 200
     assert response.json() == {"cancelled": True}
 
 
-def test_seen_endpoint_returns_seen_post_ids(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_seen_endpoint_returns_seen_post_ids(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     async def fake_get_seen_posts(meta_id: int, post_ids: list[str]) -> set[str]:
         assert meta_id == 7
         assert post_ids == ["1", "2", "3"]
@@ -515,7 +587,9 @@ def test_seen_endpoint_returns_seen_post_ids(api_client: TestClient, monkeypatch
     assert set(response.json()["seen"]) == {"1", "3"}
 
 
-def test_unread_count_endpoint_returns_remaining_count(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unread_count_endpoint_returns_remaining_count(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     async def fake_get_unread_count(meta_id: int) -> int:
         assert meta_id == 7
         return 2
@@ -533,7 +607,9 @@ def test_unread_count_endpoint_returns_remaining_count(api_client: TestClient, m
     assert response.json() == {"unread_count": 5}
 
 
-def test_public_posts_endpoint_returns_serialized_posts(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_public_posts_endpoint_returns_serialized_posts(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     post = SimpleNamespace(
         id="p1",
         content="<p>Hello</p>",
@@ -590,7 +666,9 @@ def test_public_posts_endpoint_returns_serialized_posts(api_client: TestClient, 
     }
 
 
-def test_shorts_endpoint_uses_shorts_filter(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_shorts_endpoint_uses_shorts_filter(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     captured: dict[str, Any] = {}
 
     async def fake_get_public_posts(
@@ -626,7 +704,9 @@ def test_shorts_endpoint_uses_shorts_filter(api_client: TestClient, monkeypatch:
     }
 
 
-def test_storms_endpoint_returns_root_and_branch_posts(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_storms_endpoint_returns_root_and_branch_posts(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = SimpleNamespace(
         id="root-1",
         content="storm root",
@@ -705,7 +785,9 @@ def test_storms_endpoint_returns_root_and_branch_posts(api_client: TestClient, m
     }
 
 
-def test_hashtags_endpoint_aggregates_and_sorts_tags(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_hashtags_endpoint_aggregates_and_sorts_tags(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     captured: dict[str, object] = {}
 
     async def fake_hashtag_counts(meta_id, identity_id, user=None):
@@ -755,7 +837,9 @@ def test_hashtags_endpoint_aggregates_and_sorts_tags(api_client: TestClient, mon
 #     assert captured == {"meta_id": 7, "identity_id": 5, "user": None}
 
 
-def test_card_endpoint_returns_card_payload(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_card_endpoint_returns_card_payload(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     async def fake_fetch_card(url: str) -> CardResponse:
         assert url == "https://example.com/post"
         return CardResponse(
@@ -776,7 +860,9 @@ def test_card_endpoint_returns_card_payload(api_client: TestClient, monkeypatch:
     assert response.json()["url"] == "https://example.com/final"
 
 
-def test_post_context_endpoint_returns_thread_context(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_post_context_endpoint_returns_thread_context(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     class DummyClient:
         def status_context(self, post_id: str) -> dict[str, list[dict[str, str]]]:
             assert post_id == "abc123"
@@ -802,7 +888,9 @@ def test_post_context_endpoint_returns_thread_context(api_client: TestClient, mo
     }
 
 
-def test_single_post_endpoint_returns_cached_post(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_single_post_endpoint_returns_cached_post(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     post = SimpleNamespace(
         id="p1",
         content="<p>Hello</p>",

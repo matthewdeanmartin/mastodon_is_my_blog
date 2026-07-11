@@ -44,6 +44,7 @@ from mastodon_is_my_blog.queries import (
     sync_my_favourites_for_identity,
     sync_user_timeline_for_identity,
 )
+from mastodon_is_my_blog.schema_version import describe_database
 from mastodon_is_my_blog.store import (
     ContentHubGroup,
     ContentHubGroupTerm,
@@ -70,7 +71,9 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 @router.post("/sync")
 @time_async_function
-async def trigger_sync(force: bool = True, meta: MetaAccount = Depends(get_current_meta_account)) -> dict:
+async def trigger_sync(
+    force: bool = True, meta: MetaAccount = Depends(get_current_meta_account)
+) -> dict:
     res = await sync_all_identities(meta, force=force)
     return {"results": res}
 
@@ -88,7 +91,9 @@ async def start_sync_all_following(
     identity = await _get_identity(meta, identity_id)
 
     async def runner(on_progress, cancelled):
-        return await sync_all_following_for_identity(meta.id, identity, on_progress=on_progress, cancelled=cancelled)
+        return await sync_all_following_for_identity(
+            meta.id, identity, on_progress=on_progress, cancelled=cancelled
+        )
 
     try:
         job = await start_bulk_job("following", meta.id, identity.id, runner)
@@ -139,7 +144,9 @@ async def start_sync_all_notifications(
     identity = await _get_identity(meta, identity_id)
 
     async def runner(on_progress, cancelled):
-        return await sync_all_notifications_for_identity(meta.id, identity, on_progress=on_progress, cancelled=cancelled)
+        return await sync_all_notifications_for_identity(
+            meta.id, identity, on_progress=on_progress, cancelled=cancelled
+        )
 
     try:
         job = await start_bulk_job("notifications", meta.id, identity.id, runner)
@@ -237,7 +244,9 @@ async def backfill_content_flags(
         media = _json.loads(row.media_attachments) if row.media_attachments else []
         tags = _json.loads(row.tags) if row.tags else []
         try:
-            flags = analyze_content_domains(row.content or "", media, row.is_reply, tags)
+            flags = analyze_content_domains(
+                row.content or "", media, row.is_reply, tags
+            )
         except Exception:
             continue
         batch.append(
@@ -251,7 +260,13 @@ async def backfill_content_flags(
         if len(batch) >= 500:
             async with async_session() as session:
                 for item in batch:
-                    await session.execute(update(CachedPost).where(CachedPost.id == item["id"]).values(has_question=item["has_question"], has_book=item["has_book"]))
+                    await session.execute(
+                        update(CachedPost)
+                        .where(CachedPost.id == item["id"])
+                        .values(
+                            has_question=item["has_question"], has_book=item["has_book"]
+                        )
+                    )
                 await session.commit()
             updated += len(batch)
             batch = []
@@ -259,7 +274,13 @@ async def backfill_content_flags(
     if batch:
         async with async_session() as session:
             for item in batch:
-                await session.execute(update(CachedPost).where(CachedPost.id == item["id"]).values(has_question=item["has_question"], has_book=item["has_book"]))
+                await session.execute(
+                    update(CachedPost)
+                    .where(CachedPost.id == item["id"])
+                    .values(
+                        has_question=item["has_question"], has_book=item["has_book"]
+                    )
+                )
             await session.commit()
         updated += len(batch)
 
@@ -295,12 +316,16 @@ async def catchup_own_account(
 @router.get("/identities")
 async def list_identities(meta: MetaAccount = Depends(get_current_meta_account)):
     async with async_session() as session:
-        stmt = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id)
+        stmt = select(MastodonIdentity).where(
+            MastodonIdentity.meta_account_id == meta.id
+        )
         res = (await session.execute(stmt)).scalars().all()
         return [{"id": i.id, "acct": i.acct, "base_url": i.api_base_url} for i in res]
 
 
-async def ensure_identity_capacity(meta: MetaAccount, *, base_url: str | None = None, acct: str | None = None) -> None:
+async def ensure_identity_capacity(
+    meta: MetaAccount, *, base_url: str | None = None, acct: str | None = None
+) -> None:
     """Enforce the control plane's max_identities limit (server mode; None =
     unlimited). Re-authorizing an already-connected identity (same instance +
     acct) is always allowed — the limit only gates NEW connections.
@@ -308,12 +333,17 @@ async def ensure_identity_capacity(meta: MetaAccount, *, base_url: str | None = 
     if not is_server_mode() or meta.max_identities is None:
         return
     async with async_session() as session:
-        stmt = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id)
+        stmt = select(MastodonIdentity).where(
+            MastodonIdentity.meta_account_id == meta.id
+        )
         identities = (await session.execute(stmt)).scalars().all()
     if base_url is not None:
         # acct unknown (OAuth start): same-instance means possible re-auth, so
         # give benefit of the doubt — persist_identity re-checks with the acct.
-        if any(i.api_base_url == base_url and (acct is None or i.acct == acct) for i in identities):
+        if any(
+            i.api_base_url == base_url and (acct is None or i.acct == acct)
+            for i in identities
+        ):
             return
     if len(identities) >= meta.max_identities:
         raise HTTPException(
@@ -409,7 +439,9 @@ async def add_identity(
     m = client(base_url=base_url, client_id=client_id, client_secret=client_secret)
     access_token = m.log_in(code=code, scopes=["read", "write"])
     me = m.account_verify_credentials()
-    return await persist_identity(meta, base_url, client_id, client_secret, access_token, me)
+    return await persist_identity(
+        meta, base_url, client_id, client_secret, access_token, me
+    )
 
 
 class OAuthStartRequest(BaseModel):
@@ -504,11 +536,19 @@ async def admin_status(meta: MetaAccount = Depends(get_current_meta_account)) ->
     """
     current_user = None
     connected = False
+    mastodon_servers: list[dict[str, str]] = []
 
     async with async_session() as session:
         if meta:
-            stmt_identity = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id).limit(1)
-            identity = (await session.execute(stmt_identity)).scalar_one_or_none()
+            stmt_identity = select(MastodonIdentity).where(
+                MastodonIdentity.meta_account_id == meta.id
+            )
+            identities = list((await session.execute(stmt_identity)).scalars().all())
+            mastodon_servers = [
+                {"url": identity.api_base_url, "account": identity.acct}
+                for identity in identities
+            ]
+            identity = identities[0] if identities else None
 
             if identity and identity_has_access_token(identity):
                 connected = True
@@ -527,11 +567,32 @@ async def admin_status(meta: MetaAccount = Depends(get_current_meta_account)) ->
                     connected = False
 
     last_sync = await get_last_sync()
+    database = await describe_database()
+    server_mode = is_server_mode()
 
     return {
         "connected": connected,
         "last_sync": last_sync.isoformat() if last_sync else None,
         "current_user": current_user,
+        "connections": {
+            "mastodon": mastodon_servers,
+            "mimb_co": {
+                "connected": server_mode,
+                "url": (
+                    os.environ.get(
+                        "ACCOUNT_PORTAL_URL", "http://localhost:8051"
+                    ).rstrip("/")
+                    if server_mode
+                    else None
+                ),
+                "detail": (
+                    "Hosted control plane"
+                    if server_mode
+                    else "Not connected (self-hosted mode)"
+                ),
+            },
+            "database": database,
+        },
     }
 
 
@@ -617,7 +678,9 @@ def group_to_dict(group: ContentHubGroup, terms: list[ContentHubGroupTerm]) -> d
         "slug": group.slug,
         "source_type": group.source_type,
         "is_read_only": group.is_read_only,
-        "last_fetched_at": (group.last_fetched_at.isoformat() if group.last_fetched_at else None),
+        "last_fetched_at": (
+            group.last_fetched_at.isoformat() if group.last_fetched_at else None
+        ),
         "created_at": group.created_at.isoformat(),
         "updated_at": group.updated_at.isoformat(),
         "terms": [
@@ -668,7 +731,9 @@ async def create_bundle(
         [{"term": t.term, "term_type": t.term_type} for t in body.terms],
     )
     async with async_session() as session:
-        stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group.id)
+        stmt = select(ContentHubGroupTerm).where(
+            ContentHubGroupTerm.group_id == group.id
+        )
         terms = (await session.execute(stmt)).scalars().all()
     return group_to_dict(group, list(terms))
 
@@ -687,13 +752,19 @@ async def update_bundle(
             identity_id,
             bundle_id,
             body.name,
-            ([{"term": t.term, "term_type": t.term_type} for t in body.terms] if body.terms is not None else None),
+            (
+                [{"term": t.term, "term_type": t.term_type} for t in body.terms]
+                if body.terms is not None
+                else None
+            ),
         )
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 
     async with async_session() as session:
-        stmt = select(ContentHubGroupTerm).where(ContentHubGroupTerm.group_id == group.id)
+        stmt = select(ContentHubGroupTerm).where(
+            ContentHubGroupTerm.group_id == group.id
+        )
         terms = (await session.execute(stmt)).scalars().all()
     return group_to_dict(group, list(terms))
 
@@ -707,7 +778,11 @@ async def delete_bundle(
     """Delete a client-side bundle."""
     async with async_session() as session:
         group = await session.get(ContentHubGroup, bundle_id)
-        if group is None or group.meta_account_id != meta.id or group.identity_id != identity_id:
+        if (
+            group is None
+            or group.meta_account_id != meta.id
+            or group.identity_id != identity_id
+        ):
             raise HTTPException(404, "Bundle not found")
         if group.is_read_only:
             raise HTTPException(403, "Cannot delete a read-only server-follow group")
@@ -735,14 +810,18 @@ async def nlp_backfill_status(
     async with async_session() as session:
         total_threads = (
             await session.execute(
-                sa_text("SELECT COUNT(DISTINCT root_id) FROM cached_posts WHERE meta_account_id = :mid AND root_id IS NOT NULL"),
+                sa_text(
+                    "SELECT COUNT(DISTINCT root_id) FROM cached_posts WHERE meta_account_id = :mid AND root_id IS NOT NULL"
+                ),
                 {"mid": meta.id},
             )
         ).scalar() or 0
 
         done_threads = (
             await session.execute(
-                sa_text("SELECT COUNT(*) FROM cached_posts WHERE meta_account_id = :mid AND root_id = id AND thread_uncommon_words IS NOT NULL"),
+                sa_text(
+                    "SELECT COUNT(*) FROM cached_posts WHERE meta_account_id = :mid AND root_id = id AND thread_uncommon_words IS NOT NULL"
+                ),
                 {"mid": meta.id},
             )
         ).scalar() or 0
@@ -768,7 +847,9 @@ async def start_nlp_backfill(
 
     nlp = getattr(request.app.state, "nlp", None)
     if nlp is None:
-        raise HTTPException(503, "spaCy model not loaded — install en_core_web_sm first")
+        raise HTTPException(
+            503, "spaCy model not loaded — install en_core_web_sm first"
+        )
 
     existing = get_job(NLP_JOB_KIND, meta.id, NLP_META_ID)
     if existing is not None and not existing.finished:
@@ -779,7 +860,9 @@ async def start_nlp_backfill(
         async with async_session() as session:
             root_rows = (
                 await session.execute(
-                    sa_text("SELECT id, meta_account_id FROM cached_posts WHERE meta_account_id = :mid AND root_id = id"),
+                    sa_text(
+                        "SELECT id, meta_account_id FROM cached_posts WHERE meta_account_id = :mid AND root_id = id"
+                    ),
                     {"mid": meta.id},
                 )
             ).all()
@@ -804,7 +887,9 @@ async def start_nlp_backfill(
             async with async_session() as session:
                 thread_rows = (
                     await session.execute(
-                        sa_text("SELECT content FROM cached_posts WHERE meta_account_id = :mid AND root_id = :rid"),
+                        sa_text(
+                            "SELECT content FROM cached_posts WHERE meta_account_id = :mid AND root_id = :rid"
+                        ),
                         {"mid": meta_id, "rid": root_id},
                     )
                 ).all()
@@ -813,13 +898,17 @@ async def start_nlp_backfill(
             words = uncommon_lemmas(combined, nlp)
             import json as _json
 
-            updates.append({"root_id": root_id, "meta_id": meta_id, "words": _json.dumps(words)})
+            updates.append(
+                {"root_id": root_id, "meta_id": meta_id, "words": _json.dumps(words)}
+            )
             done += 1
 
             if len(updates) >= batch_size:
                 async with async_session() as session:
                     await session.execute(
-                        sa_text("UPDATE cached_posts SET thread_uncommon_words = :words WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"),
+                        sa_text(
+                            "UPDATE cached_posts SET thread_uncommon_words = :words WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"
+                        ),
                         updates,
                     )
                     await session.commit()
@@ -830,7 +919,9 @@ async def start_nlp_backfill(
         if updates:
             async with async_session() as session:
                 await session.execute(
-                    sa_text("UPDATE cached_posts SET thread_uncommon_words = :words WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"),
+                    sa_text(
+                        "UPDATE cached_posts SET thread_uncommon_words = :words WHERE id = :root_id AND meta_account_id = :meta_id AND root_id = id"
+                    ),
                     updates,
                 )
                 await session.commit()
@@ -867,7 +958,11 @@ async def _get_identity(meta: MetaAccount, identity_id: int | None) -> MastodonI
                 MastodonIdentity.meta_account_id == meta.id,
             )
         else:
-            stmt = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id).limit(1)
+            stmt = (
+                select(MastodonIdentity)
+                .where(MastodonIdentity.meta_account_id == meta.id)
+                .limit(1)
+            )
         identity = (await session.execute(stmt)).scalar_one_or_none()
         if not identity:
             raise HTTPException(404, "Identity not found")
@@ -997,7 +1092,9 @@ async def catchup_queue_preview(
                 "acct": a.acct,
                 "display_name": a.display_name,
                 "is_followed_by": a.is_followed_by,
-                "last_status_at": (a.last_status_at.isoformat() if a.last_status_at else None),
+                "last_status_at": (
+                    a.last_status_at.isoformat() if a.last_status_at else None
+                ),
             }
             for a in queue
         ],

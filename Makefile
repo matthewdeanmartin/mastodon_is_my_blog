@@ -14,7 +14,9 @@ UV ?= uv
 MAKEFLAGS += --no-print-directory
 export PYTHONUTF8 := 1
 
-.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-backend dev-server-mode dev-mock dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend test-frontend-integration lint lint-check lint-backend lint-frontend lint-frontend-strict format format-check format-backend format-frontend typecheck security audit-backend check check-ci prerelease prerelease-backend prerelease-frontend clean setup db-reset
+.PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-sqlite dev-backend dev-backend-sqlite dev-server-mode dev-server-mode-sqlite dev-mock dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend test-frontend-integration lint lint-check lint-backend lint-frontend lint-frontend-strict format format-check format-backend format-frontend typecheck security audit-backend check check-ci prerelease prerelease-backend prerelease-frontend clean setup db-reset
+
+POSTGRES_URL ?= postgresql://postgres:xyzzy@localhost:5432/mimb
 
 # Default target
 help:
@@ -28,8 +30,12 @@ help:
 	@echo "  make install-blog       - Install Eleventy blog dependencies"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev                - Run both backend and frontend (in parallel)"
-	@echo "  make dev-backend        - Run FastAPI development server"
+	@echo "  make dev                - Run backend on Postgres + frontend"
+	@echo "  make dev-sqlite         - Run backend on SQLite + frontend"
+	@echo "  make dev-backend        - Run FastAPI development server on Postgres"
+	@echo "  make dev-backend-sqlite - Run FastAPI development server on SQLite"
+	@echo "  make dev-server-mode    - Run hosted multi-tenant server on Postgres"
+	@echo "  make dev-server-mode-sqlite - Run hosted multi-tenant server on SQLite"
 	@echo "  make dev-frontend       - Run Angular development server"
 	@echo ""
 	@echo "Database:"
@@ -100,33 +106,65 @@ install-blog:
 	npm --prefix docs-src install
 	@echo "✓ Blog dependencies installed"
 
-# Run both servers (requires GNU parallel or similar)
+# Run both servers as Git Bash background jobs. If either server exits, stop
+# the other one too; Ctrl+C follows the same cleanup path.
+define run_dev_servers
+	@trap 'kill $$backend_pid $$frontend_pid 2>/dev/null || true' INT TERM EXIT; \
+		make $(1) & backend_pid=$$!; \
+		make dev-frontend & frontend_pid=$$!; \
+		wait -n $$backend_pid $$frontend_pid; status=$$?; \
+		kill $$backend_pid $$frontend_pid 2>/dev/null || true; \
+		wait $$backend_pid $$frontend_pid 2>/dev/null || true; \
+		trap - INT TERM EXIT; \
+		exit $$status
+endef
+
 dev:
 	@echo "Starting backend and frontend servers..."
 	@echo "Backend: http://localhost:8000"
 	@echo "Frontend: http://localhost:4200"
 	@echo ""
-	@command -v parallel >/dev/null 2>&1 && \
-		parallel ::: "make dev-backend" "make dev-frontend" || \
-		(echo "Note: Install 'parallel' for better output, or run servers separately:"; \
-		 echo "  Terminal 1: make dev-backend"; \
-		 echo "  Terminal 2: make dev-frontend"; \
-		 echo ""; \
-		 echo "Starting backend only..."; \
-		 make dev-backend)
+	$(call run_dev_servers,dev-backend)
+
+dev-sqlite:
+	@echo "Starting SQLite backend and frontend servers..."
+	@echo "Backend: http://localhost:8000"
+	@echo "Frontend: http://localhost:4200"
+	@echo ""
+	$(call run_dev_servers,dev-backend-sqlite)
 
 # Run backend development server
 dev-backend:
-	@echo "Starting FastAPI server on http://localhost:8000"
-	uvicorn mastodon_is_my_blog.main:app --reload --host 0.0.0.0 --port 8000
+	@echo "Starting FastAPI server on http://localhost:8000 (Postgres: mimb)"
+	DB_URL= DB_BACKEND=postgres APP_POSTGRES_URL="$(POSTGRES_URL)" \
+		$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --reload --host 0.0.0.0 --port 8000
+
+dev-backend-sqlite:
+	@echo "Starting FastAPI server on http://localhost:8000 (SQLite: app.db)"
+	DB_BACKEND=sqlite DB_URL="sqlite+aiosqlite:///./app.db" \
+		$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --reload --host 0.0.0.0 --port 8000
 
 # Run the backend as the HOSTED multi-tenant product server (MIMB_MODE=server),
 # wired for the mimb_co control plane (spec/paid_hosting/hosted_wiring.md).
 # All values are LOCAL DEV defaults; override via environment for anything real.
-# Uses a separate tenants db (mimb_server.db) so your local app.db stays yours.
 # Pair with `make serve-hosted` in C:\github\mimb_co.
 dev-server-mode:
-	@echo "Starting mimb product server (server mode) on http://localhost:8000"
+	@echo "Starting mimb product server (server mode, Postgres) on http://localhost:8000"
+	MIMB_MODE=server \
+	DB_URL= \
+	DB_BACKEND=postgres \
+	APP_POSTGRES_URL="$(POSTGRES_URL)" \
+	SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-dev-insecure-signing-key-change-me} \
+	TOKEN_ENCRYPTION_KEY=$${TOKEN_ENCRYPTION_KEY:-FzAkGyqDKck9qAqt4gcqV1ekRkLHECau1ztHVgT-Iig=} \
+	APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} \
+	HANDOFF_SHARED_SECRET=$${HANDOFF_SHARED_SECRET:-dev-handoff-secret} \
+	EXPORT_DIR=$${EXPORT_DIR:-exports} \
+	ACCOUNT_PORTAL_URL=$${ACCOUNT_PORTAL_URL:-http://localhost:8051} \
+	FRONTEND_URL=$${FRONTEND_URL:-http://localhost:8000} \
+	$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --host 127.0.0.1 --port 8000
+
+dev-server-mode-sqlite:
+	@echo "Starting mimb product server (server mode, SQLite) on http://localhost:8000"
 	@if [ -f mimb_server.db ]; then \
 	  mkdir -p backups; \
 	  cp mimb_server.db "backups/mimb_server.$$(date +%Y%m%d-%H%M%S).db"; \
@@ -142,7 +180,7 @@ dev-server-mode:
 	EXPORT_DIR=$${EXPORT_DIR:-exports} \
 	ACCOUNT_PORTAL_URL=$${ACCOUNT_PORTAL_URL:-http://localhost:8051} \
 	FRONTEND_URL=$${FRONTEND_URL:-http://localhost:8000} \
-	uv run uvicorn mastodon_is_my_blog.main:app --host 127.0.0.1 --port 8000
+	$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --host 127.0.0.1 --port 8000
 # FRONTEND_URL is pinned because a local-dev .env (FRONTEND_URL=:4200 for
 # ng serve) would otherwise leak into server mode via load_dotenv and send
 # the post-OAuth redirect to the wrong app.
@@ -160,7 +198,7 @@ dev-mock:
 # Run frontend development server
 dev-frontend:
 	@echo "Starting Angular dev server on http://localhost:4200"
-	cd web && ng serve --port 4200 --open
+	cd web && ng serve web --port 4200 --open
 
 # Build Angular frontend for production only (no Python wheel)
 build:

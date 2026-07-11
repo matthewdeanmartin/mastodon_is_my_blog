@@ -2,7 +2,7 @@
 Smoke tests for the DuckDB analytics layer.
 
 The critical invariant: a row committed through SQLAlchemy must be visible
-to DuckDB via ``sqlite_scanner`` within the same request. If WAL isolation
+to DuckDB via its ``sqlite`` extension within the same request. If WAL isolation
 were to hide the commit, all of our analytical endpoints would return
 stale data silently.
 """
@@ -18,6 +18,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from mastodon_is_my_blog import duck
+from mastodon_is_my_blog.db_backend import DatabaseBackend
 from mastodon_is_my_blog.store import (
     Base,
     CachedNotification,
@@ -25,6 +26,19 @@ from mastodon_is_my_blog.store import (
     MastodonIdentity,
     MetaAccount,
 )
+
+
+def test_postgres_attachment_uses_duckdb_compatible_url(monkeypatch) -> None:
+    monkeypatch.setattr(duck, "resolve_backend", lambda: DatabaseBackend.POSTGRES)
+    monkeypatch.setattr(
+        duck, "DB_URL", "postgresql+asyncpg://user:p'ass@localhost/mimb"
+    )
+
+    extension, target = duck._attachment()
+
+    assert extension == "postgres"
+    assert target == "postgresql://user:p'ass@localhost/mimb"
+    assert duck._sql_literal(target) == "postgresql://user:p''ass@localhost/mimb"
 
 
 @pytest.fixture
@@ -110,7 +124,9 @@ async def test_commit_visible_to_duckdb(seeded_engine, duck_connection) -> None:
 
 
 @pytest.mark.asyncio
-async def test_hashtag_trends_aggregates_json_tags(seeded_engine, duck_connection) -> None:
+async def test_hashtag_trends_aggregates_json_tags(
+    seeded_engine, duck_connection
+) -> None:
     factory = async_sessionmaker(seeded_engine, expire_on_commit=False)
     async with factory() as session:
         session.add(MetaAccount(id=1, username="default"))
@@ -162,7 +178,9 @@ async def test_hashtag_trends_aggregates_json_tags(seeded_engine, duck_connectio
 
 
 @pytest.mark.asyncio
-async def test_posting_heatmap_groups_by_hour_and_dow(seeded_engine, duck_connection) -> None:
+async def test_posting_heatmap_groups_by_hour_and_dow(
+    seeded_engine, duck_connection
+) -> None:
     factory = async_sessionmaker(seeded_engine, expire_on_commit=False)
     async with factory() as session:
         session.add(MetaAccount(id=1, username="default"))
@@ -202,7 +220,9 @@ async def test_posting_heatmap_groups_by_hour_and_dow(seeded_engine, duck_connec
 
 
 @pytest.mark.asyncio
-async def test_content_regex_search_case_insensitive(seeded_engine, duck_connection) -> None:
+async def test_content_regex_search_case_insensitive(
+    seeded_engine, duck_connection
+) -> None:
     factory = async_sessionmaker(seeded_engine, expire_on_commit=False)
     async with factory() as session:
         session.add(MetaAccount(id=1, username="default"))
@@ -252,7 +272,9 @@ async def test_content_regex_search_case_insensitive(seeded_engine, duck_connect
 
 
 @pytest.mark.asyncio
-async def test_top_reposters_splits_current_and_prior(seeded_engine, duck_connection) -> None:
+async def test_top_reposters_splits_current_and_prior(
+    seeded_engine, duck_connection
+) -> None:
     now = datetime.now(timezone.utc)
     factory = async_sessionmaker(seeded_engine, expire_on_commit=False)
     async with factory() as session:
@@ -272,7 +294,9 @@ async def test_top_reposters_splits_current_and_prior(seeded_engine, duck_connec
         )
         # Two current-window reblogs from alice, one prior-window from alice,
         # plus one current-window reblog from bob.
-        for i, (acct, delta_days) in enumerate([("alice", 1), ("alice", 5), ("alice", 40), ("bob", 2)]):
+        for i, (acct, delta_days) in enumerate(
+            [("alice", 1), ("alice", 5), ("alice", 40), ("bob", 2)]
+        ):
             session.add(
                 CachedNotification(
                     id=f"n-{i}",

@@ -19,7 +19,7 @@
       </button>
     }
 
-    @if (identities.length === 0) {
+    @if (identitiesLoaded && identities.length === 0) {
       <div style="color: #64748b; font-style: italic">
         No Mastodon account connected yet — use “Connect Account” to start syncing your posts and
         people.

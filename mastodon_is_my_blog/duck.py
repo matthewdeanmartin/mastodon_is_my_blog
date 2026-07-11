@@ -1,9 +1,10 @@
 """
 DuckDB analytics layer.
 
-Attaches the live SQLite file read-only via DuckDB's ``sqlite_scanner``.
-SQLite remains the source of truth; DuckDB runs analytical queries that
-SQLite either cannot express cleanly or scales poorly on.
+Attaches the live SQLite or PostgreSQL database read-only via DuckDB's official
+``sqlite``/``postgres`` extensions. The application database remains the source
+of truth; DuckDB runs analytical queries that the application database either
+cannot express cleanly or executes poorly.
 
 Each query opens its own short-lived DuckDB connection in a worker thread.
 DuckDB connections are not thread-safe so sharing a global connection across
@@ -19,45 +20,59 @@ from typing import Any
 
 import duckdb
 
+from mastodon_is_my_blog.db_backend import DatabaseBackend, resolve_backend
 from mastodon_is_my_blog.db_path import get_sqlite_file_path
+from mastodon_is_my_blog.store import DB_URL
 
 logger = logging.getLogger(__name__)
 
 ATTACH_ALIAS = "src"
 
-SQLITE_INSTALLED = False
+INSTALLED_EXTENSIONS: set[str] = set()
 FORUM_CACHE_TTL_SECONDS = 30.0
-FORUM_SUMMARY_CACHE: dict[tuple[int, int, bool, int], tuple[float, list[dict[str, Any]]]] = {}
+FORUM_SUMMARY_CACHE: dict[
+    tuple[int, int, bool, int], tuple[float, list[dict[str, Any]]]
+] = {}
+
+
+def _sql_literal(value: str) -> str:
+    """Quote a value embedded in a DuckDB SQL string literal."""
+    return value.replace("'", "''")
+
+
+def _attachment() -> tuple[str, str]:
+    """Return the DuckDB extension and connection target for this backend."""
+    backend = resolve_backend()
+    if backend == DatabaseBackend.SQLITE:
+        return "sqlite", get_sqlite_file_path()
+    if backend == DatabaseBackend.POSTGRES:
+        # DuckDB accepts a PostgreSQL URI, but not SQLAlchemy's driver suffix.
+        return "postgres", DB_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
+    raise RuntimeError("DuckDB analytics do not support the Turso backend")
 
 
 def _open_query_connection() -> duckdb.DuckDBPyConnection:
-    """Open a fresh DuckDB in-memory connection with SQLite attached read-only."""
-    global SQLITE_INSTALLED
-    sqlite_path = get_sqlite_file_path()
+    """Open a fresh DuckDB connection with the application DB attached read-only."""
+    extension, target = _attachment()
     con = duckdb.connect(":memory:")
-    if not SQLITE_INSTALLED:
-        con.execute("INSTALL sqlite;")
-        SQLITE_INSTALLED = True
-    con.execute("LOAD sqlite;")
-    con.execute(f"ATTACH '{sqlite_path}' AS {ATTACH_ALIAS} (TYPE sqlite, READ_ONLY);")
+    if extension not in INSTALLED_EXTENSIONS:
+        con.execute(f"INSTALL {extension};")
+        INSTALLED_EXTENSIONS.add(extension)
+    con.execute(f"LOAD {extension};")
+    con.execute(
+        f"ATTACH '{_sql_literal(target)}' AS {ATTACH_ALIAS} (TYPE {extension}, READ_ONLY);"
+    )
     return con
 
 
 def startup() -> None:
-    global SQLITE_INSTALLED  # pylint: disable=global-variable-not-assigned
-    if SQLITE_INSTALLED:
-        return
-    # DuckDB analytics attach the local SQLite file directly; there is no
-    # equivalent on turso/postgres (Phase 1). Skip gracefully instead of
-    # crashing on get_sqlite_file_path().
-    from mastodon_is_my_blog.db_backend import is_sqlite, resolve_backend
-
-    if not is_sqlite(resolve_backend()):
-        logger.info("DuckDB analytics disabled: requires the sqlite backend (active backend attaches no local file).")
+    backend = resolve_backend()
+    if backend == DatabaseBackend.TURSO:
+        logger.info("DuckDB analytics disabled: the Turso backend is not supported")
         return
     con = _open_query_connection()
     con.close()
-    logger.info("DuckDB sqlite extension installed and verified")
+    logger.info("DuckDB %s extension installed and verified", backend.value)
 
 
 def shutdown() -> None:
@@ -143,7 +158,10 @@ async def hashtag_trends(
         ORDER BY bucket_start DESC, n DESC, tag;
     """
     rows = await run(sql, [meta_id, identity_id, top])
-    return [{"bucket_start": r[0].isoformat() if r[0] else None, "tag": r[1], "count": r[2]} for r in rows]
+    return [
+        {"bucket_start": r[0].isoformat() if r[0] else None, "tag": r[1], "count": r[2]}
+        for r in rows
+    ]
 
 
 async def hashtag_counts(
@@ -341,7 +359,11 @@ async def forum_thread_summaries(
 
     content_hub_clause = "" if include_content_hub else "AND content_hub_only = false"
     friend_placeholders = ", ".join("?" for _ in following)
-    friend_count_sql = f"SUM(CASE WHEN id != root_id AND author_acct IN ({friend_placeholders}) THEN 1 ELSE 0 END)" if following else "0"
+    friend_count_sql = (
+        f"SUM(CASE WHEN id != root_id AND author_acct IN ({friend_placeholders}) THEN 1 ELSE 0 END)"
+        if following
+        else "0"
+    )
 
     sql = f"""
         WITH posts AS (
@@ -611,7 +633,10 @@ async def api_call_volume(
         ORDER BY bucket_start;
     """
     rows = await run(sql)
-    return [{"bucket_start": r[0].isoformat() if r[0] else None, "count": int(r[1])} for r in rows]
+    return [
+        {"bucket_start": r[0].isoformat() if r[0] else None, "count": int(r[1])}
+        for r in rows
+    ]
 
 
 async def api_call_by_method(
