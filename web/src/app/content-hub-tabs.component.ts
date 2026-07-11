@@ -437,13 +437,15 @@ export class ContentHubJobsComponent implements OnInit, OnDestroy {
   private load(identityId: number, groupId: number | null, doShuffle = false): void {
     this.loading = true;
     if (groupId !== null) {
-      this.api.getContentHubGroupPosts(groupId, identityId, 'jobs', null, 100, doShuffle).subscribe({
-        next: (res) => {
-          this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
-          this.loading = false;
-        },
-        error: () => (this.loading = false),
-      });
+      this.api
+        .getContentHubGroupPosts(groupId, identityId, 'jobs', null, 100, doShuffle)
+        .subscribe({
+          next: (res) => {
+            this.posts = sortContentPosts(res.items.map(hubToFeedPost), this.currentFilter);
+            this.loading = false;
+          },
+          error: () => (this.loading = false),
+        });
     } else {
       const userFilter = getContentUserFilter(this.currentFilter);
       this.api.getPublicPosts(identityId, 'jobs', userFilter).subscribe({
