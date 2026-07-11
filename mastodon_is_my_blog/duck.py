@@ -1,9 +1,10 @@
 """
 DuckDB analytics layer.
 
-Attaches the live SQLite file read-only via DuckDB's ``sqlite_scanner``.
-SQLite remains the source of truth; DuckDB runs analytical queries that
-SQLite either cannot express cleanly or scales poorly on.
+Attaches the live SQLite or PostgreSQL database read-only via DuckDB's official
+``sqlite``/``postgres`` extensions. The application database remains the source
+of truth; DuckDB runs analytical queries that the application database either
+cannot express cleanly or executes poorly.
 
 Each query opens its own short-lived DuckDB connection in a worker thread.
 DuckDB connections are not thread-safe so sharing a global connection across
@@ -19,39 +20,55 @@ from typing import Any
 
 import duckdb
 
+from mastodon_is_my_blog.db_backend import DatabaseBackend, resolve_backend
 from mastodon_is_my_blog.db_path import get_sqlite_file_path
+from mastodon_is_my_blog.store import DB_URL
 
 logger = logging.getLogger(__name__)
 
 ATTACH_ALIAS = "src"
 
-SQLITE_INSTALLED = False
+INSTALLED_EXTENSIONS: set[str] = set()
 FORUM_CACHE_TTL_SECONDS = 30.0
-FORUM_SUMMARY_CACHE: dict[
-    tuple[int, int, bool, int], tuple[float, list[dict[str, Any]]]
-] = {}
+FORUM_SUMMARY_CACHE: dict[tuple[int, int, bool, int], tuple[float, list[dict[str, Any]]]] = {}
+
+
+def _sql_literal(value: str) -> str:
+    """Quote a value embedded in a DuckDB SQL string literal."""
+    return value.replace("'", "''")
+
+
+def _attachment() -> tuple[str, str]:
+    """Return the DuckDB extension and connection target for this backend."""
+    backend = resolve_backend()
+    if backend == DatabaseBackend.SQLITE:
+        return "sqlite", get_sqlite_file_path()
+    if backend == DatabaseBackend.POSTGRES:
+        # DuckDB accepts a PostgreSQL URI, but not SQLAlchemy's driver suffix.
+        return "postgres", DB_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
+    raise RuntimeError("DuckDB analytics do not support the Turso backend")
 
 
 def _open_query_connection() -> duckdb.DuckDBPyConnection:
-    """Open a fresh DuckDB in-memory connection with SQLite attached read-only."""
-    global SQLITE_INSTALLED
-    sqlite_path = get_sqlite_file_path()
+    """Open a fresh DuckDB connection with the application DB attached read-only."""
+    extension, target = _attachment()
     con = duckdb.connect(":memory:")
-    if not SQLITE_INSTALLED:
-        con.execute("INSTALL sqlite;")
-        SQLITE_INSTALLED = True
-    con.execute("LOAD sqlite;")
-    con.execute(f"ATTACH '{sqlite_path}' AS {ATTACH_ALIAS} (TYPE sqlite, READ_ONLY);")
+    if extension not in INSTALLED_EXTENSIONS:
+        con.execute(f"INSTALL {extension};")
+        INSTALLED_EXTENSIONS.add(extension)
+    con.execute(f"LOAD {extension};")
+    con.execute(f"ATTACH '{_sql_literal(target)}' AS {ATTACH_ALIAS} (TYPE {extension}, READ_ONLY);")
     return con
 
 
 def startup() -> None:
-    global SQLITE_INSTALLED  # pylint: disable=global-variable-not-assigned
-    if SQLITE_INSTALLED:
+    backend = resolve_backend()
+    if backend == DatabaseBackend.TURSO:
+        logger.info("DuckDB analytics disabled: the Turso backend is not supported")
         return
     con = _open_query_connection()
     con.close()
-    logger.info("DuckDB sqlite extension installed and verified")
+    logger.info("DuckDB %s extension installed and verified", backend.value)
 
 
 def shutdown() -> None:
@@ -137,10 +154,7 @@ async def hashtag_trends(
         ORDER BY bucket_start DESC, n DESC, tag;
     """
     rows = await run(sql, [meta_id, identity_id, top])
-    return [
-        {"bucket_start": r[0].isoformat() if r[0] else None, "tag": r[1], "count": r[2]}
-        for r in rows
-    ]
+    return [{"bucket_start": r[0].isoformat() if r[0] else None, "tag": r[1], "count": r[2]} for r in rows]
 
 
 async def hashtag_counts(
@@ -337,12 +351,29 @@ async def forum_thread_summaries(
         return cached[1]
 
     content_hub_clause = "" if include_content_hub else "AND content_hub_only = false"
-    friend_placeholders = ", ".join("?" for _ in following)
-    friend_count_sql = (
-        f"SUM(CASE WHEN id != root_id AND author_acct IN ({friend_placeholders}) THEN 1 ELSE 0 END)"
-        if following
-        else "0"
-    )
+    # Friend reply counts come from a VALUES relation hash-joined against the
+    # posts, NOT an `author_acct IN (?, ?, ...)` inside the aggregate: with a
+    # following list in the hundreds, DuckDB evaluates such an IN as a per-row
+    # comparison chain, which dominated the whole query (~6x slower at 1M posts).
+    if following:
+        friend_placeholders = ", ".join("(?)" for _ in following)
+        following_cte = f"""
+        following AS (
+            SELECT * FROM (VALUES {friend_placeholders}) AS f(acct)
+        ),
+        friend_replies AS (
+            SELECT p.root_id, COUNT(*) AS n
+            FROM posts p
+            INNER JOIN following f ON p.author_acct = f.acct
+            WHERE p.id != p.root_id
+            GROUP BY p.root_id
+        ),"""
+        friend_count_expr = "COALESCE(fr.n, 0)"
+        friend_join = "LEFT JOIN friend_replies fr ON fr.root_id = ts.root_id"
+    else:
+        following_cte = ""
+        friend_count_expr = "0"
+        friend_join = ""
 
     sql = f"""
         WITH posts AS (
@@ -362,7 +393,7 @@ async def forum_thread_summaries(
               AND is_reblog = false
               AND root_id IS NOT NULL
               {content_hub_clause}
-        ),
+        ),{following_cte}
         thread_stats AS (
             SELECT
                 root_id,
@@ -370,8 +401,7 @@ async def forum_thread_summaries(
                 COUNT(*) - 1 AS reply_count,
                 COUNT(DISTINCT author_acct) AS unique_participants,
                 MAX(CASE WHEN id != root_id THEN created_at ELSE NULL END) AS latest_reply_at,
-                string_agg(DISTINCT author_acct, ',') AS participants_csv,
-                {friend_count_sql} AS friend_reply_count
+                string_agg(DISTINCT author_acct, ',') AS participants_csv
             FROM posts
             GROUP BY root_id
             HAVING COUNT(*) >= 2
@@ -417,10 +447,11 @@ async def forum_thread_summaries(
             rp.in_reply_to_id IS NOT NULL AS root_is_partial,
             COALESCE(tu.all_tags, '') AS tags_csv,
             ts.participants_csv,
-            ts.friend_reply_count
+            {friend_count_expr} AS friend_reply_count
         FROM thread_stats ts
         JOIN root_posts rp ON rp.root_id = ts.root_id
         LEFT JOIN tags_union tu ON tu.root_id = ts.root_id
+        {friend_join}
         ORDER BY COALESCE(ts.latest_reply_at, rp.created_at) DESC;
     """
     rows = await run(sql, [meta_id, identity_id, *following])
@@ -441,9 +472,13 @@ async def forum_thread_summaries(
                 "root_id": r[0],
                 "reply_count": int(r[1] or 0),
                 "unique_participants": int(r[2] or 0),
-                "latest_reply_at": r[3].isoformat() if r[3] else None,
+                # datetimes stay datetimes — the endpoint sorts and paginates on
+                # them; serializing to isoformat here just forced routes/forum.py
+                # to re-parse 2 strings per thread on every request (~1s/request
+                # at 200k threads, even on a cache hit).
+                "latest_reply_at": r[3],
                 "author_acct": r[4],
-                "root_created_at": r[5].isoformat() if r[5] else None,
+                "root_created_at": r[5],
                 "root_content": r[6],
                 "has_question": bool(r[7]),
                 "root_tags": r[8],
@@ -612,10 +647,7 @@ async def api_call_volume(
         ORDER BY bucket_start;
     """
     rows = await run(sql)
-    return [
-        {"bucket_start": r[0].isoformat() if r[0] else None, "count": int(r[1])}
-        for r in rows
-    ]
+    return [{"bucket_start": r[0].isoformat() if r[0] else None, "count": int(r[1])} for r in rows]
 
 
 async def api_call_by_method(

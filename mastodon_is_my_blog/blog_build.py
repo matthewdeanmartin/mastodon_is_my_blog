@@ -71,10 +71,7 @@ def run_eleventy_build(storms_json: str, blogroll_json: str, out_dir: Path) -> b
     blogroll_path = data_dir / "blogroll.json"
     # The _data payloads are the site owner's own export (checked in) — always
     # put them back, even on a failed build.
-    originals = {
-        path: path.read_text(encoding="utf-8") if path.exists() else None
-        for path in (storms_path, blogroll_path)
-    }
+    originals = {path: path.read_text(encoding="utf-8") if path.exists() else None for path in (storms_path, blogroll_path)}
     try:
         storms_path.write_text(storms_json, encoding="utf-8")
         blogroll_path.write_text(blogroll_json, encoding="utf-8")
@@ -110,11 +107,7 @@ def render_fallback_blog(out_dir: Path, storms: dict[str, Any]) -> None:
         author = (storm.get("author") or {}).get("acct", "")
         title = storm.get("title") or "(untitled storm)"
         body = "\n".join(post.get("content", "") for post in storm.get("posts", []))
-        articles.append(
-            f"<article><h2>{html.escape(str(title))}</h2>"
-            f'<p class="meta">{html.escape(str(author))} · {html.escape(str(storm.get("created_at", "")))}</p>'
-            f"{body}</article>"
-        )
+        articles.append(f'<article><h2>{html.escape(str(title))}</h2><p class="meta">{html.escape(str(author))} · {html.escape(str(storm.get("created_at", "")))}</p>{body}</article>')
     body_html = "\n".join(articles) or "<p>No posts synced yet — connect a Mastodon account and sync.</p>"
     (out_dir / "index.html").write_text(
         f"""<!doctype html>
@@ -147,9 +140,7 @@ async def build_tenant_blog(tenant_id: int, meta_account_id: int) -> dict:
     out_dir = blog_output_root() / f"tenant_{tenant_id}"
 
     async with BUILD_LOCK:
-        built = await asyncio.to_thread(
-            run_eleventy_build, json.dumps(storms, indent=2), json.dumps(blogroll, indent=2), out_dir
-        )
+        built = await asyncio.to_thread(run_eleventy_build, json.dumps(storms, indent=2), json.dumps(blogroll, indent=2), out_dir)
         if not built:
             # A failed Eleventy run may have left partial output — replace it.
             if out_dir.exists():

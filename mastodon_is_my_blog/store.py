@@ -18,7 +18,6 @@ from sqlalchemy import (
     delete,
     event,
     func,
-    insert,
     select,
     text,
 )
@@ -28,6 +27,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from mastodon_is_my_blog.account_config import normalize_base_url
 from mastodon_is_my_blog.credentials import set_credential
 from mastodon_is_my_blog.datetime_helpers import utc_now
+from mastodon_is_my_blog.dialect_upsert import insert_or_ignore
 from mastodon_is_my_blog.secret_columns import EncryptedString
 from mastodon_is_my_blog.utils.settings_loader import (
     load_configured_identities,
@@ -39,19 +39,26 @@ logging.basicConfig()
 
 dotenv.load_dotenv()
 
+from mastodon_is_my_blog.db_backend import (  # pylint: disable=wrong-import-position
+    build_engine_kwargs,
+    is_sqlite,
+    resolve_backend,
+)
 from mastodon_is_my_blog.db_path import (
     get_default_db_url,
 )  # pylint: disable=wrong-import-position
 
+DB_BACKEND = resolve_backend()
 DB_URL = get_default_db_url()
-# Database setup
+# Database setup — same models/session code for every backend; only the URL,
+# pool kwargs, and sqlite-only PRAGMAs differ (spec/turso_support_phases.md).
 engine = create_async_engine(
     DB_URL,
     echo=False,
+    **build_engine_kwargs(DB_BACKEND),
 )
 
 
-@event.listens_for(engine.sync_engine, "connect")
 def set_sqlite_pragmas(dbapi_conn, _):
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
@@ -60,6 +67,12 @@ def set_sqlite_pragmas(dbapi_conn, _):
     cursor.execute("PRAGMA mmap_size=268435456")
     cursor.execute("PRAGMA cache_size=-64000")
     cursor.close()
+
+
+# WAL/mmap PRAGMAs only apply to a local aiosqlite file. Turso/libSQL and
+# Postgres get their concurrency from the engine itself, not file pragmas.
+if is_sqlite(DB_BACKEND):
+    event.listens_for(engine.sync_engine, "connect")(set_sqlite_pragmas)
 
 
 async_session = async_sessionmaker(engine, expire_on_commit=False)
@@ -98,9 +111,7 @@ class MetaAccount(Base):
     max_storage_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Relationships
-    identities: Mapped[list[MastodonIdentity]] = relationship(
-        "MastodonIdentity", back_populates="meta_account", cascade="all, delete-orphan"
-    )
+    identities: Mapped[list[MastodonIdentity]] = relationship("MastodonIdentity", back_populates="meta_account", cascade="all, delete-orphan")
 
 
 class MastodonIdentity(Base):
@@ -112,9 +123,7 @@ class MastodonIdentity(Base):
     __tablename__ = "mastodon_identities"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    meta_account_id: Mapped[int] = mapped_column(
-        ForeignKey("meta_accounts.id"), index=True
-    )
+    meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"), index=True)
     config_name: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
 
     # Credential Details
@@ -128,9 +137,7 @@ class MastodonIdentity(Base):
     acct: Mapped[str] = mapped_column(String)  # user@instance
     account_id: Mapped[str] = mapped_column(String)  # Numeric ID on that instance
 
-    meta_account: Mapped[MetaAccount] = relationship(
-        "MetaAccount", back_populates="identities"
-    )
+    meta_account: Mapped[MetaAccount] = relationship("MetaAccount", back_populates="identities")
 
 
 class OAuthPendingConnection(Base):
@@ -161,15 +168,9 @@ class CachedAccount(Base):
     __tablename__ = "cached_accounts"
 
     # Identity ID to the Primary Key
-    id: Mapped[str] = mapped_column(
-        String, primary_key=True
-    )  # The ID on the source instance
-    meta_account_id: Mapped[int] = mapped_column(
-        ForeignKey("meta_accounts.id"), primary_key=True
-    )
-    mastodon_identity_id: Mapped[int] = mapped_column(
-        ForeignKey("mastodon_identities.id"), primary_key=True
-    )
+    id: Mapped[str] = mapped_column(String, primary_key=True)  # The ID on the source instance
+    meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"), primary_key=True)
+    mastodon_identity_id: Mapped[int] = mapped_column(ForeignKey("mastodon_identities.id"), primary_key=True)
 
     acct: Mapped[str] = mapped_column(String, index=True)
     display_name: Mapped[str] = mapped_column(String)
@@ -192,9 +193,7 @@ class CachedAccount(Base):
     is_followed_by: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Activity tracking for Blog Roll
-    last_status_at: Mapped[datetime | None] = mapped_column(
-        DateTime, nullable=True, index=True
-    )  # Added index here for the blogroll sort
+    last_status_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)  # Added index here for the blogroll sort
 
     # Materialized post stats — updated at sync time, used for chatty/broadcaster filters
     cached_post_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -215,21 +214,15 @@ class CachedPost(Base):
     __tablename__ = "cached_posts"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)  # Mastodon ID
-    meta_account_id: Mapped[int] = mapped_column(
-        ForeignKey("meta_accounts.id"), primary_key=True
-    )
-    fetched_by_identity_id: Mapped[int] = mapped_column(
-        ForeignKey("mastodon_identities.id"), primary_key=True
-    )
+    meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"), primary_key=True)
+    fetched_by_identity_id: Mapped[int] = mapped_column(ForeignKey("mastodon_identities.id"), primary_key=True)
 
     # Which of the MetaAccount's identities fetched this?
     # fetched_by_identity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     content: Mapped[str] = mapped_column(Text)
 
     # Content Hub discovery metadata
-    discovery_source: Mapped[str] = mapped_column(
-        String(20), default="timeline"
-    )  # timeline | hashtag | search
+    discovery_source: Mapped[str] = mapped_column(String(20), default="timeline")  # timeline | hashtag | search
     content_hub_only: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     visibility: Mapped[str] = mapped_column(String(20))
@@ -243,35 +236,25 @@ class CachedPost(Base):
     is_reblog: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Threading logic
-    is_reply: Mapped[bool] = mapped_column(
-        Boolean, default=False
-    )  # Track replies to others
+    is_reply: Mapped[bool] = mapped_column(Boolean, default=False)  # Track replies to others
     in_reply_to_id: Mapped[str | None] = mapped_column(String, nullable=True)
     in_reply_to_account_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Content Flags
     has_media: Mapped[bool] = mapped_column(Boolean, default=False)  # Images
-    has_video: Mapped[bool] = mapped_column(
-        Boolean, default=False
-    )  # Youtube or video attachment
+    has_video: Mapped[bool] = mapped_column(Boolean, default=False)  # Youtube or video attachment
     has_news: Mapped[bool] = mapped_column(Boolean, default=False)  # News domains
     has_tech: Mapped[bool] = mapped_column(Boolean, default=False)  # Github/Pypi etc
 
-    has_link: Mapped[bool] = mapped_column(
-        Boolean, default=False
-    )  # Generic 3rd party links
+    has_link: Mapped[bool] = mapped_column(Boolean, default=False)  # Generic 3rd party links
     has_job: Mapped[bool] = mapped_column(Boolean, default=False)  # Job postings
-    has_question: Mapped[bool] = mapped_column(
-        Boolean, default=False
-    )  # Contains questions
+    has_question: Mapped[bool] = mapped_column(Boolean, default=False)  # Contains questions
     has_book: Mapped[bool] = mapped_column(Boolean, default=False)  # Book-related
 
     # Store media attachments as JSON string
     media_attachments: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    tags: Mapped[str | None] = mapped_column(
-        Text, nullable=True
-    )  # JSON list of hashtags
+    tags: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON list of hashtags
 
     # Analytics / Context
     replies_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -381,23 +364,15 @@ class CachedNotification(Base):
     __tablename__ = "cached_notifications"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)  # Notification ID
-    meta_account_id: Mapped[int] = mapped_column(
-        ForeignKey("meta_accounts.id"), primary_key=True
-    )
-    identity_id: Mapped[int] = mapped_column(
-        ForeignKey("mastodon_identities.id"), primary_key=True
-    )
+    meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"), primary_key=True)
+    identity_id: Mapped[int] = mapped_column(ForeignKey("mastodon_identities.id"), primary_key=True)
 
     # Notification metadata
-    type: Mapped[str] = mapped_column(
-        String, index=True
-    )  # mention, favourite, reblog, status, follow
+    type: Mapped[str] = mapped_column(String, index=True)  # mention, favourite, reblog, status, follow
     created_at: Mapped[datetime] = mapped_column(DateTime, index=True)
 
     # Who interacted with me
-    account_id: Mapped[str] = mapped_column(
-        String, index=True
-    )  # The person who triggered notification
+    account_id: Mapped[str] = mapped_column(String, index=True)  # The person who triggered notification
     account_acct: Mapped[str] = mapped_column(String, index=True)  # Their @handle
 
     # What they interacted with (nullable for follow notifications)
@@ -426,9 +401,7 @@ class CachedLinkPreview(Base):
     site_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     image: Mapped[str | None] = mapped_column(String, nullable=True)
     favicon: Mapped[str | None] = mapped_column(String, nullable=True)
-    status: Mapped[str] = mapped_column(
-        String(16), default="ok"
-    )  # ok | error | blocked
+    status: Mapped[str] = mapped_column(String(16), default="ok")  # ok | error | blocked
     fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     error_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -456,9 +429,7 @@ class FriendsOfFriendsCache(Base):
 
     __tablename__ = "friends_of_friends_cache"
 
-    identity_id: Mapped[int] = mapped_column(
-        ForeignKey("mastodon_identities.id"), primary_key=True
-    )
+    identity_id: Mapped[int] = mapped_column(ForeignKey("mastodon_identities.id"), primary_key=True)
     fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     data_json: Mapped[str] = mapped_column(Text, default="[]")
     source_friend_ids_json: Mapped[str] = mapped_column(Text, default="[]")
@@ -478,27 +449,17 @@ class ContentHubGroup(Base):
     __tablename__ = "content_hub_groups"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    meta_account_id: Mapped[int] = mapped_column(
-        ForeignKey("meta_accounts.id"), index=True
-    )
-    identity_id: Mapped[int] = mapped_column(
-        ForeignKey("mastodon_identities.id"), index=True
-    )
+    meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"), index=True)
+    identity_id: Mapped[int] = mapped_column(ForeignKey("mastodon_identities.id"), index=True)
     name: Mapped[str] = mapped_column(String)
     slug: Mapped[str] = mapped_column(String)
-    source_type: Mapped[str] = mapped_column(
-        String(20)
-    )  # client_bundle | server_follow
+    source_type: Mapped[str] = mapped_column(String(20))  # client_bundle | server_follow
     is_read_only: Mapped[bool] = mapped_column(Boolean, default=False)
     last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=utc_now, onupdate=utc_now
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
-    terms: Mapped[list[ContentHubGroupTerm]] = relationship(
-        "ContentHubGroupTerm", back_populates="group", cascade="all, delete-orphan"
-    )
+    terms: Mapped[list[ContentHubGroupTerm]] = relationship("ContentHubGroupTerm", back_populates="group", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_hub_groups_identity", "meta_account_id", "identity_id"),
@@ -556,17 +517,13 @@ class ContentHubGroupTerm(Base):
     __tablename__ = "content_hub_group_terms"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    group_id: Mapped[int] = mapped_column(
-        ForeignKey("content_hub_groups.id", ondelete="CASCADE"), index=True
-    )
+    group_id: Mapped[int] = mapped_column(ForeignKey("content_hub_groups.id", ondelete="CASCADE"), index=True)
     term: Mapped[str] = mapped_column(String)
     term_type: Mapped[str] = mapped_column(String(20))  # hashtag | search
     normalized_term: Mapped[str] = mapped_column(String, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
-    group: Mapped[ContentHubGroup] = relationship(
-        "ContentHubGroup", back_populates="terms"
-    )
+    group: Mapped[ContentHubGroup] = relationship("ContentHubGroup", back_populates="terms")
 
 
 class ContentHubPostMatch(Base):
@@ -577,19 +534,11 @@ class ContentHubPostMatch(Base):
 
     __tablename__ = "content_hub_post_matches"
 
-    group_id: Mapped[int] = mapped_column(
-        ForeignKey("content_hub_groups.id", ondelete="CASCADE"), primary_key=True
-    )
+    group_id: Mapped[int] = mapped_column(ForeignKey("content_hub_groups.id", ondelete="CASCADE"), primary_key=True)
     post_id: Mapped[str] = mapped_column(String, primary_key=True)
-    meta_account_id: Mapped[int] = mapped_column(
-        ForeignKey("meta_accounts.id"), primary_key=True
-    )
-    fetched_by_identity_id: Mapped[int] = mapped_column(
-        ForeignKey("mastodon_identities.id")
-    )
-    matched_term_id: Mapped[int | None] = mapped_column(
-        ForeignKey("content_hub_group_terms.id"), nullable=True
-    )
+    meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"), primary_key=True)
+    fetched_by_identity_id: Mapped[int] = mapped_column(ForeignKey("mastodon_identities.id"))
+    matched_term_id: Mapped[int | None] = mapped_column(ForeignKey("content_hub_group_terms.id"), nullable=True)
     matched_via: Mapped[str] = mapped_column(String(20))  # hashtag | search
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
@@ -608,12 +557,8 @@ class CachedMyFavourite(Base):
     __tablename__ = "cached_my_favourites"
 
     status_id: Mapped[str] = mapped_column(String, primary_key=True)
-    meta_account_id: Mapped[int] = mapped_column(
-        ForeignKey("meta_accounts.id"), primary_key=True
-    )
-    identity_id: Mapped[int] = mapped_column(
-        ForeignKey("mastodon_identities.id"), primary_key=True
-    )
+    meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"), primary_key=True)
+    identity_id: Mapped[int] = mapped_column(ForeignKey("mastodon_identities.id"), primary_key=True)
 
     target_account_id: Mapped[str] = mapped_column(String)
     target_acct: Mapped[str] = mapped_column(String)
@@ -641,18 +586,12 @@ async def ensure_cached_posts_schema() -> None:
         columns = {row[1] for row in result}
 
         if "actor_acct" not in columns:
-            await conn.execute(
-                text("ALTER TABLE cached_posts ADD COLUMN actor_acct VARCHAR")
-            )
+            await conn.execute(text("ALTER TABLE cached_posts ADD COLUMN actor_acct VARCHAR"))
         if "actor_id" not in columns:
-            await conn.execute(
-                text("ALTER TABLE cached_posts ADD COLUMN actor_id VARCHAR")
-            )
+            await conn.execute(text("ALTER TABLE cached_posts ADD COLUMN actor_id VARCHAR"))
 
         if "has_book" not in columns:
-            await conn.execute(
-                text("ALTER TABLE cached_posts ADD COLUMN has_book BOOLEAN DEFAULT 0")
-            )
+            await conn.execute(text("ALTER TABLE cached_posts ADD COLUMN has_book BOOLEAN DEFAULT 0"))
 
         await conn.execute(
             text(
@@ -664,16 +603,8 @@ async def ensure_cached_posts_schema() -> None:
                 """
             )
         )
-        await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS ix_posts_meta_actor ON cached_posts (meta_account_id, actor_acct, created_at)"
-            )
-        )
-        await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS ix_posts_meta_identity_actor ON cached_posts (meta_account_id, fetched_by_identity_id, actor_acct, created_at)"
-            )
-        )
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_posts_meta_actor ON cached_posts (meta_account_id, actor_acct, created_at)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_posts_meta_identity_actor ON cached_posts (meta_account_id, fetched_by_identity_id, actor_acct, created_at)"))
 
 
 async def ensure_meta_accounts_schema() -> None:
@@ -684,24 +615,23 @@ async def ensure_meta_accounts_schema() -> None:
         result = await conn.execute(text("PRAGMA table_info(meta_accounts)"))
         columns = {row[1] for row in result}
         if "enabled" not in columns:
-            await conn.execute(
-                text("ALTER TABLE meta_accounts ADD COLUMN enabled BOOLEAN DEFAULT 1")
-            )
+            await conn.execute(text("ALTER TABLE meta_accounts ADD COLUMN enabled BOOLEAN DEFAULT 1"))
         if "max_identities" not in columns:
-            await conn.execute(
-                text("ALTER TABLE meta_accounts ADD COLUMN max_identities INTEGER")
-            )
+            await conn.execute(text("ALTER TABLE meta_accounts ADD COLUMN max_identities INTEGER"))
         if "max_storage_bytes" not in columns:
-            await conn.execute(
-                text("ALTER TABLE meta_accounts ADD COLUMN max_storage_bytes INTEGER")
-            )
+            await conn.execute(text("ALTER TABLE meta_accounts ADD COLUMN max_storage_bytes INTEGER"))
 
 
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    await ensure_cached_posts_schema()
-    await ensure_meta_accounts_schema()
+    # The ensure_*_schema helpers are sqlite-only lightweight migrations
+    # (PRAGMA table_info + ALTER for columns added to pre-existing local DBs).
+    # On turso/postgres these columns are created by create_all/Alembic, so skip
+    # the PRAGMA path entirely. (Phase 2 folds these into real migrations.)
+    if is_sqlite(DB_BACKEND):
+        await ensure_cached_posts_schema()
+        await ensure_meta_accounts_schema()
 
 
 async def get_meta_account_by_id(meta_account_id: int) -> MetaAccount | None:
@@ -738,28 +668,10 @@ async def sync_configured_identities() -> None:
             session.add(meta)
             await session.flush()
 
-        existing_identities = (
-            (
-                await session.execute(
-                    select(MastodonIdentity).where(
-                        MastodonIdentity.meta_account_id == meta.id
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
+        existing_identities = (await session.execute(select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id))).scalars().all()
 
-        existing_by_name = {
-            identity.config_name: identity
-            for identity in existing_identities
-            if identity.config_name
-        }
-        legacy_by_signature = {
-            (normalize_base_url(identity.api_base_url), identity.client_id): identity
-            for identity in existing_identities
-            if not identity.config_name
-        }
+        existing_by_name = {identity.config_name: identity for identity in existing_identities if identity.config_name}
+        legacy_by_signature = {(normalize_base_url(identity.api_base_url), identity.client_id): identity for identity in existing_identities if not identity.config_name}
 
         configured_names = set(configured_identities)
         for name, config in configured_identities.items():
@@ -810,11 +722,7 @@ async def get_default_identity() -> MastodonIdentity | None:
         if not meta:
             return None
 
-        stmt_identity = (
-            select(MastodonIdentity)
-            .where(MastodonIdentity.meta_account_id == meta.id)
-            .limit(1)
-        )
+        stmt_identity = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id).limit(1)
         return (await session.execute(stmt_identity)).scalar_one_or_none()
 
 
@@ -876,9 +784,7 @@ async def set_token(value: str) -> None:
     else:
         # Fall back to old token table
         async with async_session() as session:
-            result = await session.execute(
-                select(Token).where(Token.key == "mastodon_access_token")
-            )
+            result = await session.execute(select(Token).where(Token.key == "mastodon_access_token"))
             token = result.scalar_one_or_none()
             if token:
                 token.value = value
@@ -901,11 +807,7 @@ async def create_oauth_pending_connection(
 ) -> None:
     async with async_session() as session:
         cutoff = utc_now() - OAUTH_PENDING_TTL
-        await session.execute(
-            delete(OAuthPendingConnection).where(
-                OAuthPendingConnection.created_at < cutoff
-            )
-        )
+        await session.execute(delete(OAuthPendingConnection).where(OAuthPendingConnection.created_at < cutoff))
         session.add(
             OAuthPendingConnection(
                 state=state,
@@ -922,9 +824,7 @@ async def consume_oauth_pending_connection(
     state: str,
 ) -> OAuthPendingConnection | None:
     async with async_session() as session:
-        stmt = select(OAuthPendingConnection).where(
-            OAuthPendingConnection.state == state
-        )
+        stmt = select(OAuthPendingConnection).where(OAuthPendingConnection.state == state)
         pending = (await session.execute(stmt)).scalar_one_or_none()
         if pending is None:
             return None
@@ -944,21 +844,15 @@ class Draft(Base):
     __tablename__ = "drafts"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    meta_account_id: Mapped[int] = mapped_column(
-        ForeignKey("meta_accounts.id"), index=True
-    )
-    identity_id: Mapped[int | None] = mapped_column(
-        ForeignKey("mastodon_identities.id"), nullable=True
-    )
+    meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"), index=True)
+    identity_id: Mapped[int | None] = mapped_column(ForeignKey("mastodon_identities.id"), nullable=True)
     reply_to_status_id: Mapped[str | None] = mapped_column(String, nullable=True)
     title: Mapped[str | None] = mapped_column(String, nullable=True)
     tree_json: Mapped[str] = mapped_column(Text, default="[]")
     editor_engine: Mapped[str] = mapped_column(String(50), default="plain")
     language: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=utc_now, onupdate=utc_now
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
     published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     published_root_status_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
@@ -974,9 +868,7 @@ class SeenPost(Base):
     __tablename__ = "seen_posts"
 
     post_id: Mapped[str] = mapped_column(String, primary_key=True)
-    meta_account_id: Mapped[int] = mapped_column(
-        ForeignKey("meta_accounts.id"), primary_key=True
-    )
+    meta_account_id: Mapped[int] = mapped_column(ForeignKey("meta_accounts.id"), primary_key=True)
     seen_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     __table_args__ = (Index("ix_seen_lookup", "meta_account_id", "post_id"),)
@@ -1001,7 +893,7 @@ async def mark_posts_seen(meta_account_id: int, post_ids: list[str]) -> None:
     unique_ids = list(dict.fromkeys(post_ids))
     rows = [{"meta_account_id": meta_account_id, "post_id": pid} for pid in unique_ids]
     async with async_session() as session:
-        await session.execute(insert(SeenPost).values(rows).prefix_with("OR IGNORE"))
+        await session.execute(insert_or_ignore(SeenPost, rows, index_elements=["post_id", "meta_account_id"]))
         await session.commit()
 
 
@@ -1019,9 +911,7 @@ async def get_seen_posts(meta_account_id: int, post_ids: list[str]) -> set[str]:
 
 async def get_unread_count(meta_account_id: int, since: datetime | None = None) -> int:
     async with async_session() as session:
-        stmt = select(func.count(SeenPost.post_id)).where(
-            SeenPost.meta_account_id == meta_account_id
-        )  # pylint: disable=not-callable
+        stmt = select(func.count(SeenPost.post_id)).where(SeenPost.meta_account_id == meta_account_id)  # pylint: disable=not-callable
         if since:
             stmt = stmt.where(SeenPost.seen_at >= since)
         return (await session.execute(stmt)).scalar_one()

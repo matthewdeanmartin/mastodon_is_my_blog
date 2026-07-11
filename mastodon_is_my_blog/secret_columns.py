@@ -62,10 +62,7 @@ class EncryptedString(TypeDecorator):
         cipher = get_cipher()
         if cipher is None:
             if is_server_mode():
-                raise RuntimeError(
-                    "Refusing to store a plaintext credential in server mode: "
-                    "TOKEN_ENCRYPTION_KEY is not set"
-                )
+                raise RuntimeError("Refusing to store a plaintext credential in server mode: TOKEN_ENCRYPTION_KEY is not set")
             return value
         token = cipher.encrypt(value.encode("utf-8")).decode("ascii")
         return f"{ENCRYPTED_PREFIX}{token}"
@@ -75,20 +72,14 @@ class EncryptedString(TypeDecorator):
             return value
         cipher = get_cipher()
         if cipher is None:
-            raise RuntimeError(
-                "Encountered an encrypted credential but TOKEN_ENCRYPTION_KEY "
-                "is not set"
-            )
+            raise RuntimeError("Encountered an encrypted credential but TOKEN_ENCRYPTION_KEY is not set")
         from cryptography.fernet import InvalidToken
 
         raw = value[len(ENCRYPTED_PREFIX) :].encode("ascii")
         try:
             return cipher.decrypt(raw).decode("utf-8")
         except InvalidToken as exc:
-            raise RuntimeError(
-                "Failed to decrypt a credential: TOKEN_ENCRYPTION_KEY does not "
-                "match the key that wrote it"
-            ) from exc
+            raise RuntimeError("Failed to decrypt a credential: TOKEN_ENCRYPTION_KEY does not match the key that wrote it") from exc
 
 
 def generate_key() -> str:

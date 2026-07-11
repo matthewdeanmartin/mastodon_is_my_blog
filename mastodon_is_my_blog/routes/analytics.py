@@ -1,4 +1,4 @@
-"""Analytics endpoints backed by DuckDB over the live SQLite file."""
+"""Analytics endpoints backed by DuckDB over the live application database."""
 
 from __future__ import annotations
 

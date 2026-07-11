@@ -2,7 +2,7 @@
 Smoke tests for the DuckDB analytics layer.
 
 The critical invariant: a row committed through SQLAlchemy must be visible
-to DuckDB via ``sqlite_scanner`` within the same request. If WAL isolation
+to DuckDB via its ``sqlite`` extension within the same request. If WAL isolation
 were to hide the commit, all of our analytical endpoints would return
 stale data silently.
 """
@@ -18,6 +18,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from mastodon_is_my_blog import duck
+from mastodon_is_my_blog.db_backend import DatabaseBackend
 from mastodon_is_my_blog.store import (
     Base,
     CachedNotification,
@@ -25,6 +26,19 @@ from mastodon_is_my_blog.store import (
     MastodonIdentity,
     MetaAccount,
 )
+
+
+def test_postgres_attachment_uses_duckdb_compatible_url(monkeypatch) -> None:
+    monkeypatch.setattr(duck, "resolve_backend", lambda: DatabaseBackend.POSTGRES)
+    monkeypatch.setattr(
+        duck, "DB_URL", "postgresql+asyncpg://user:p'ass@localhost/mimb"
+    )
+
+    extension, target = duck._attachment()
+
+    assert extension == "postgres"
+    assert target == "postgresql://user:p'ass@localhost/mimb"
+    assert duck._sql_literal(target) == "postgresql://user:p''ass@localhost/mimb"
 
 
 @pytest.fixture

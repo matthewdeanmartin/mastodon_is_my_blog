@@ -1,8 +1,57 @@
 <div class="card">
   <h2 class="post-title">Admin</h2>
 
+  <section
+    aria-label="Active connections"
+    style="border: 2px solid #6366f1; border-radius: 8px; padding: 14px; margin-bottom: 20px"
+  >
+    @if (status?.connections; as connections) {
+      <h3 style="margin: 0 0 12px; font-size: 1rem">Active Connections</h3>
+      <dl
+        style="
+          display: grid;
+          grid-template-columns: max-content minmax(0, 1fr);
+          gap: 8px 14px;
+          margin: 0;
+        "
+      >
+        <dt style="font-weight: 600">Database</dt>
+        <dd style="margin: 0; overflow-wrap: anywhere">
+          <strong>{{ connections.database.backend | uppercase }}</strong>
+          — <code>{{ connections.database.url }}</code>
+          <span class="muted">(schema {{ connections.database.schema_version }})</span>
+        </dd>
+
+        <dt style="font-weight: 600">Mastodon API</dt>
+        <dd style="margin: 0; overflow-wrap: anywhere">
+          @if (connections.mastodon.length) {
+            @for (server of connections.mastodon; track server.url + server.account) {
+              <div>
+                <code>{{ server.url }}</code> — {{ server.account }}
+              </div>
+            }
+          } @else {
+            <span>Not connected</span>
+          }
+        </dd>
+
+        <dt style="font-weight: 600">mimb_co</dt>
+        <dd style="margin: 0; overflow-wrap: anywhere">
+          @if (connections.mimb_co.connected) {
+            <code>{{ connections.mimb_co.url }}</code>
+          } @else {
+            <span>{{ connections.mimb_co.detail }}</span>
+          }
+        </dd>
+      </dl>
+    } @else {
+      <h3 style="margin: 0 0 6px; font-size: 1rem">Active Connections</h3>
+      <div class="muted">Loading connection details…</div>
+    }
+  </section>
+
   <div style="margin-bottom: 16px; position: relative">
-    @if (!status?.connected) {
+    @if (status && !status.connected) {
       <p>You are not connected to Mastodon yet.</p>
     }
     <button (click)="openConnectAccount()">

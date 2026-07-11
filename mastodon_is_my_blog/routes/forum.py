@@ -109,9 +109,7 @@ async def get_forum_threads(
     # Aggregate friend counts in the same DuckDB scan as the thread summaries.
     # The old path attached/scanned SQLite twice and built a potentially huge
     # root-id IN clause for the second query.
-    raw_summaries = await duck.forum_thread_summaries(
-        meta.id, identity_id, include_content_hub, following_accts
-    )
+    raw_summaries = await duck.forum_thread_summaries(meta.id, identity_id, include_content_hub, following_accts)
 
     thread_summaries = []
     for t in raw_summaries:
@@ -121,15 +119,9 @@ async def get_forum_threads(
         i_am_author = root_acct == my_acct
         i_am_participating = not i_am_author and my_acct in t.get("participants", set())
 
-        latest_reply_str = t["latest_reply_at"]
-        latest_reply_dt = (
-            datetime.fromisoformat(latest_reply_str) if latest_reply_str else None
-        )
-        root_created_dt = (
-            datetime.fromisoformat(t["root_created_at"])
-            if t["root_created_at"]
-            else None
-        )
+        # duck.forum_thread_summaries returns datetime objects (or None) directly.
+        latest_reply_dt = t["latest_reply_at"]
+        root_created_dt = t["root_created_at"]
 
         thread_summaries.append(
             {
@@ -181,20 +173,12 @@ async def get_forum_threads(
         inst = t["root_instance_domain"]
         instance_counts[inst] = instance_counts.get(inst, 0) + 1
 
-    hashtag_facets: list[dict[str, int | str]] = [
-        {"tag": k, "count": v} for k, v in hashtag_counts.items()
-    ]
-    word_facets: list[dict[str, int | str]] = [
-        {"word": k, "thread_count": v} for k, v in word_counts.items() if v >= 2
-    ]
-    instance_facets: list[dict[str, int | str]] = [
-        {"instance": k, "count": v} for k, v in instance_counts.items()
-    ]
+    hashtag_facets: list[dict[str, int | str]] = [{"tag": k, "count": v} for k, v in hashtag_counts.items()]
+    word_facets: list[dict[str, int | str]] = [{"word": k, "thread_count": v} for k, v in word_counts.items() if v >= 2]
+    instance_facets: list[dict[str, int | str]] = [{"instance": k, "count": v} for k, v in instance_counts.items()]
     facets = {
         "hashtags": sorted(hashtag_facets, key=lambda x: -int(x["count"]))[:20],
-        "uncommon_words": sorted(word_facets, key=lambda x: -int(x["thread_count"]))[
-            :20
-        ],
+        "uncommon_words": sorted(word_facets, key=lambda x: -int(x["thread_count"]))[:20],
         "root_instances": sorted(instance_facets, key=lambda x: -int(x["count"]))[:20],
     }
 
@@ -204,16 +188,10 @@ async def get_forum_threads(
         thread_summaries = [t for t in thread_summaries if t["tags"] & hashtag_set]
     if uncommon_word:
         word_set = {w.lower() for w in uncommon_word}
-        thread_summaries = [
-            t for t in thread_summaries if set(t["uncommon_words"]) & word_set
-        ]
+        thread_summaries = [t for t in thread_summaries if set(t["uncommon_words"]) & word_set]
     if root_instance:
         instance_set = {i.lower() for i in root_instance}
-        thread_summaries = [
-            t
-            for t in thread_summaries
-            if t["root_instance_domain"].lower() in instance_set
-        ]
+        thread_summaries = [t for t in thread_summaries if t["root_instance_domain"].lower() in instance_set]
 
     # Sort
     if top_filter == "popular":
@@ -232,10 +210,7 @@ async def get_forum_threads(
         for t in thread_summaries:
             sort_ts = t["latest_reply_at"] or t["root_created_at"]
             if not past_cursor:
-                if sort_ts is not None and (
-                    sort_ts < cursor_ts
-                    or (sort_ts == cursor_ts and t["root_id"] < cursor_rid)
-                ):
+                if sort_ts is not None and (sort_ts < cursor_ts or (sort_ts == cursor_ts and t["root_id"] < cursor_rid)):
                     past_cursor = True
                 else:
                     continue
@@ -264,20 +239,14 @@ async def get_forum_threads(
                     "author_avatar": "",
                     "author_instance": t["root_instance_domain"],
                     "content": t["root_content"],
-                    "created_at": (
-                        t["root_created_at"].isoformat()
-                        if t["root_created_at"]
-                        else None
-                    ),
+                    "created_at": (t["root_created_at"].isoformat() if t["root_created_at"] else None),
                     "has_question": t["has_question"],
                     "tags": [],
                 },
                 "reply_count": t["reply_count"],
                 "friend_reply_count": t["friend_reply_count"],
                 "friend_repliers": t["friend_repliers"],
-                "latest_reply_at": (
-                    t["latest_reply_at"].isoformat() if t["latest_reply_at"] else None
-                ),
+                "latest_reply_at": (t["latest_reply_at"].isoformat() if t["latest_reply_at"] else None),
                 "root_is_partial": t["root_is_partial"],
             }
         )

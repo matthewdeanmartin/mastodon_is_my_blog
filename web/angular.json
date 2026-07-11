@@ -175,6 +175,27 @@
             }
           },
           "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "tsconfig.spec.json",
+            "setupFiles": [
+              "src/test-setup.ts"
+            ],
+            "include": [
+              "src/lite/**/*.spec.ts"
+            ]
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "src/lite/**/*.ts",
+              "src/lite/**/*.html"
+            ]
+          }
         }
       }
     }

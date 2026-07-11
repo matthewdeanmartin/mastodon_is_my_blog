@@ -44,6 +44,7 @@ from mastodon_is_my_blog.queries import (
     sync_my_favourites_for_identity,
     sync_user_timeline_for_identity,
 )
+from mastodon_is_my_blog.schema_version import describe_database
 from mastodon_is_my_blog.store import (
     ContentHubGroup,
     ContentHubGroupTerm,
@@ -322,7 +323,9 @@ async def list_identities(meta: MetaAccount = Depends(get_current_meta_account))
         return [{"id": i.id, "acct": i.acct, "base_url": i.api_base_url} for i in res]
 
 
-async def ensure_identity_capacity(meta: MetaAccount, *, base_url: str | None = None, acct: str | None = None) -> None:
+async def ensure_identity_capacity(
+    meta: MetaAccount, *, base_url: str | None = None, acct: str | None = None
+) -> None:
     """Enforce the control plane's max_identities limit (server mode; None =
     unlimited). Re-authorizing an already-connected identity (same instance +
     acct) is always allowed — the limit only gates NEW connections.
@@ -330,18 +333,22 @@ async def ensure_identity_capacity(meta: MetaAccount, *, base_url: str | None = 
     if not is_server_mode() or meta.max_identities is None:
         return
     async with async_session() as session:
-        stmt = select(MastodonIdentity).where(MastodonIdentity.meta_account_id == meta.id)
+        stmt = select(MastodonIdentity).where(
+            MastodonIdentity.meta_account_id == meta.id
+        )
         identities = (await session.execute(stmt)).scalars().all()
     if base_url is not None:
         # acct unknown (OAuth start): same-instance means possible re-auth, so
         # give benefit of the doubt — persist_identity re-checks with the acct.
-        if any(i.api_base_url == base_url and (acct is None or i.acct == acct) for i in identities):
+        if any(
+            i.api_base_url == base_url and (acct is None or i.acct == acct)
+            for i in identities
+        ):
             return
     if len(identities) >= meta.max_identities:
         raise HTTPException(
             403,
-            f"Your plan allows {meta.max_identities} connected account(s). "
-            "Disconnect one or upgrade your plan to connect another.",
+            f"Your plan allows {meta.max_identities} connected account(s). Disconnect one or upgrade your plan to connect another.",
         )
 
 
@@ -529,15 +536,19 @@ async def admin_status(meta: MetaAccount = Depends(get_current_meta_account)) ->
     """
     current_user = None
     connected = False
+    mastodon_servers: list[dict[str, str]] = []
 
     async with async_session() as session:
         if meta:
-            stmt_identity = (
-                select(MastodonIdentity)
-                .where(MastodonIdentity.meta_account_id == meta.id)
-                .limit(1)
+            stmt_identity = select(MastodonIdentity).where(
+                MastodonIdentity.meta_account_id == meta.id
             )
-            identity = (await session.execute(stmt_identity)).scalar_one_or_none()
+            identities = list((await session.execute(stmt_identity)).scalars().all())
+            mastodon_servers = [
+                {"url": identity.api_base_url, "account": identity.acct}
+                for identity in identities
+            ]
+            identity = identities[0] if identities else None
 
             if identity and identity_has_access_token(identity):
                 connected = True
@@ -556,11 +567,32 @@ async def admin_status(meta: MetaAccount = Depends(get_current_meta_account)) ->
                     connected = False
 
     last_sync = await get_last_sync()
+    database = await describe_database()
+    server_mode = is_server_mode()
 
     return {
         "connected": connected,
         "last_sync": last_sync.isoformat() if last_sync else None,
         "current_user": current_user,
+        "connections": {
+            "mastodon": mastodon_servers,
+            "mimb_co": {
+                "connected": server_mode,
+                "url": (
+                    os.environ.get(
+                        "ACCOUNT_PORTAL_URL", "http://localhost:8051"
+                    ).rstrip("/")
+                    if server_mode
+                    else None
+                ),
+                "detail": (
+                    "Hosted control plane"
+                    if server_mode
+                    else "Not connected (self-hosted mode)"
+                ),
+            },
+            "database": database,
+        },
     }
 
 

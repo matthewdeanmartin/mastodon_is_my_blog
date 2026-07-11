@@ -14,10 +14,10 @@ import json
 import re
 
 from sqlalchemy import and_, select
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mastodon_is_my_blog.datetime_helpers import utc_now
+from mastodon_is_my_blog.dialect_upsert import insert_or_ignore
 from mastodon_is_my_blog.store import (
     CachedPost,
     ContentHubGroupTerm,
@@ -80,10 +80,10 @@ async def retro_match_hashtag_term(
             CachedPost.tags.is_not(None),
         )
     )
-    rows = (await session.execute(stmt)).all()
+    selected_rows = (await session.execute(stmt)).all()
 
     matching_post_ids: list[str] = []
-    for post_id, raw_tags in rows:
+    for post_id, raw_tags in selected_rows:
         try:
             tags = [t.lower() for t in json.loads(raw_tags or "[]")]
         except (json.JSONDecodeError, TypeError):
@@ -111,7 +111,7 @@ async def retro_match_hashtag_term(
     if not new_ids:
         return 0
 
-    rows = [
+    insert_rows: list[dict[str, object]] = [
         {
             "group_id": group_id,
             "post_id": pid,
@@ -123,11 +123,15 @@ async def retro_match_hashtag_term(
         }
         for pid in new_ids
     ]
-    for batch in _chunked(rows, _INSERT_CHUNK):
+    for batch in _chunked(insert_rows, _INSERT_CHUNK):
         await session.execute(
-            sqlite_insert(ContentHubPostMatch).values(batch).prefix_with("OR IGNORE")
+            insert_or_ignore(
+                ContentHubPostMatch,
+                batch,
+                index_elements=["group_id", "post_id", "meta_account_id"],
+            )
         )
-    return len(rows)
+    return len(insert_rows)
 
 
 async def retro_match_group_hashtag_terms(
@@ -147,9 +151,7 @@ async def retro_match_group_hashtag_terms(
     """
     # normalized hashtag -> term (last wins on duplicate normalizations within
     # the group, which is fine: the term ids share a group and matched_via).
-    hashtag_terms = {
-        term.normalized_term: term for term in terms if term.term_type == "hashtag"
-    }
+    hashtag_terms = {term.normalized_term: term for term in terms if term.term_type == "hashtag"}
     if not hashtag_terms:
         return 0
 
@@ -182,19 +184,14 @@ async def retro_match_group_hashtag_terms(
     candidate_ids = list({pid for ids in matches_by_term.values() for pid in ids})
     already: set[tuple[int, str]] = set()
     for batch in _chunked(candidate_ids, _IN_CHUNK):
-        existing_stmt = select(
-            ContentHubPostMatch.matched_term_id, ContentHubPostMatch.post_id
-        ).where(
+        existing_stmt = select(ContentHubPostMatch.matched_term_id, ContentHubPostMatch.post_id).where(
             and_(
                 ContentHubPostMatch.group_id == group_id,
                 ContentHubPostMatch.meta_account_id == meta_id,
                 ContentHubPostMatch.post_id.in_(batch),
             )
         )
-        already.update(
-            (term_id, post_id)
-            for term_id, post_id in (await session.execute(existing_stmt)).all()
-        )
+        already.update((term_id, post_id) for term_id, post_id in (await session.execute(existing_stmt)).all())
 
     now = utc_now()
     new_rows = [
@@ -218,7 +215,11 @@ async def retro_match_group_hashtag_terms(
     # (ContentHubPostMatch has 7 bound columns per row).
     for batch in _chunked(new_rows, _INSERT_CHUNK):
         await session.execute(
-            sqlite_insert(ContentHubPostMatch).values(batch).prefix_with("OR IGNORE")
+            insert_or_ignore(
+                ContentHubPostMatch,
+                batch,
+                index_elements=["group_id", "post_id", "meta_account_id"],
+            )
         )
     return len(new_rows)
 
@@ -252,6 +253,10 @@ async def record_search_matches(
         for pid in post_ids
     ]
     await session.execute(
-        sqlite_insert(ContentHubPostMatch).values(rows).prefix_with("OR IGNORE")
+        insert_or_ignore(
+            ContentHubPostMatch,
+            rows,
+            index_elements=["group_id", "post_id", "meta_account_id"],
+        )
     )
     return len(rows)

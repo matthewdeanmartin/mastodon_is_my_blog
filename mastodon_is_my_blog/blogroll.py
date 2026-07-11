@@ -33,10 +33,7 @@ def categorize_blogroll_account(
         return None
     # Checked before the bot flag: bridgy-style bridges mark real people as
     # bots, and a mutual you interact with is a top friend either way.
-    if (
-        account.is_followed_by
-        and (account.mastodon_identity_id, account.id) in interacted_accounts
-    ):
+    if account.is_followed_by and (account.mastodon_identity_id, account.id) in interacted_accounts:
         return "top_friends"
     if account.bot:
         return "bots"

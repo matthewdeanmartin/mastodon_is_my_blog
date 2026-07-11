@@ -13,9 +13,7 @@ from mastodon_is_my_blog.storm_export import (
 )
 
 
-def make_identity(
-    *, identity_id: int, acct: str, api_base_url: str, account_id: str
-) -> MastodonIdentity:
+def make_identity(*, identity_id: int, acct: str, api_base_url: str, account_id: str) -> MastodonIdentity:
     return MastodonIdentity(
         id=identity_id,
         meta_account_id=1,
@@ -289,9 +287,7 @@ def test_build_blogroll_export_groups_top_friends_mutuals_and_bots() -> None:
 
     payload = build_blogroll_export(accounts=accounts, notifications=notifications)
 
-    assert payload["warning"] == (
-        "This is anonymous access so I don't know your base Mastodon instance; all links go to mastodon.social."
-    )
+    assert payload["warning"] == ("This is anonymous access so I don't know your base Mastodon instance; all links go to mastodon.social.")
     assert [category["id"] for category in payload["categories"]] == [
         "top_friends",
         "mutuals",

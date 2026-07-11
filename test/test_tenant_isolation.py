@@ -96,12 +96,8 @@ async def seeded(db_session, two_tenants, patch_async_session):
 async def test_blogroll_only_shows_own_tenant(seeded):
     tenant_one, tenant_two = seeded
 
-    roll_one = await accounts_routes.get_blog_roll(
-        identity_id=1, filter_type="all", meta=tenant_one
-    )
-    roll_two = await accounts_routes.get_blog_roll(
-        identity_id=2, filter_type="all", meta=tenant_two
-    )
+    roll_one = await accounts_routes.get_blog_roll(identity_id=1, filter_type="all", meta=tenant_one)
+    roll_two = await accounts_routes.get_blog_roll(identity_id=2, filter_type="all", meta=tenant_two)
 
     assert [row["acct"] for row in roll_one] == ["friend@example.social"]
     assert sorted(row["acct"] for row in roll_two) == [
@@ -114,9 +110,7 @@ async def test_blogroll_only_shows_own_tenant(seeded):
 async def test_blogroll_with_other_tenants_identity_sees_nothing(seeded):
     tenant_one, tenant_two = seeded
     # Tenant one asking with tenant two's identity id: the meta filter must win.
-    roll = await accounts_routes.get_blog_roll(
-        identity_id=2, filter_type="all", meta=tenant_one
-    )
+    roll = await accounts_routes.get_blog_roll(identity_id=2, filter_type="all", meta=tenant_one)
     assert roll == []
 
 
@@ -125,15 +119,11 @@ async def test_account_info_is_tenant_scoped(seeded):
     tenant_one, tenant_two = seeded
 
     # Tenant two sees its private friend; tenant one gets a 404 for it.
-    info = await accounts_routes.get_account_info(
-        "secret@example.social", identity_id=2, meta=tenant_two
-    )
+    info = await accounts_routes.get_account_info("secret@example.social", identity_id=2, meta=tenant_two)
     assert info["acct"] == "secret@example.social"
 
     with pytest.raises(HTTPException) as excinfo:
-        await accounts_routes.get_account_info(
-            "secret@example.social", identity_id=1, meta=tenant_one
-        )
+        await accounts_routes.get_account_info("secret@example.social", identity_id=1, meta=tenant_one)
     assert excinfo.value.status_code == 404
 
 

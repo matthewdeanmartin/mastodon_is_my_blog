@@ -98,9 +98,7 @@ async def create_post(
         spoiler_text=payload.spoiler_text,
     )
 
-    await sync_user_timeline_for_identity(
-        meta_id=meta.id, identity=identity, force=True
-    )
+    await sync_user_timeline_for_identity(meta_id=meta.id, identity=identity, force=True)
 
     return resp
 
@@ -313,9 +311,7 @@ async def publish_draft(
         await session.commit()
         await session.refresh(draft)
 
-        await sync_user_timeline_for_identity(
-            meta_id=meta.id, identity=identity, force=True
-        )
+        await sync_user_timeline_for_identity(meta_id=meta.id, identity=identity, force=True)
 
         return DraftOut.model_validate(draft)
 
@@ -340,9 +336,7 @@ async def spellcheck(
     except httpx.ConnectError as exc:
         raise HTTPException(503, "LanguageTool not available") from exc
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            502, f"LanguageTool error: {exc.response.status_code}"
-        ) from exc
+        raise HTTPException(502, f"LanguageTool error: {exc.response.status_code}") from exc
 
     matches = [
         SpellcheckMatch(

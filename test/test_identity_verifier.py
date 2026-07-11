@@ -51,11 +51,7 @@ async def test_verify_identity_updates_verified_account_fields(
     assert result is True
 
     async with db_session_factory() as session:
-        stored = (
-            await session.execute(
-                select(MastodonIdentity).where(MastodonIdentity.id == 1)
-            )
-        ).scalar_one()
+        stored = (await session.execute(select(MastodonIdentity).where(MastodonIdentity.id == 1))).scalar_one()
 
     assert stored.acct == "verified@example.social"
     assert stored.account_id == "42"

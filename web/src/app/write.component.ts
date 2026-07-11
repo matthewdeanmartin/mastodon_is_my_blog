@@ -107,7 +107,8 @@ export class WriteComponent implements OnInit, OnDestroy {
       // Existing drafts (loaded below) keep whatever identity they were
       // written for instead of being reassigned to the current context.
       if (!this.draft) {
-        this.selectedIdentityId = this.api.getCurrentIdentityId() ?? (ids.length ? ids[0].id : null);
+        this.selectedIdentityId =
+          this.api.getCurrentIdentityId() ?? (ids.length ? ids[0].id : null);
       }
     });
 

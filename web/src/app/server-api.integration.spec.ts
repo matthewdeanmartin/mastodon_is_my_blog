@@ -9,8 +9,7 @@
 //
 // Only read-only endpoints are used, so running against your live app.db is safe.
 
-const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
-  ?.env;
+const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
 const API_BASE = env?.['MIMB_API_BASE'] ?? 'http://localhost:8000';
 
 let serverUp = false;
@@ -76,9 +75,7 @@ describe('live backend API contract', () => {
   it('serves storms in root/branches shape', async (ctx) => {
     if (!serverUp || identityId === null) return ctx.skip();
 
-    const { status, body } = await getJson(
-      `/api/posts/storms?identity_id=${identityId}&limit=3`,
-    );
+    const { status, body } = await getJson(`/api/posts/storms?identity_id=${identityId}&limit=3`);
     expect(status).toBe(200);
     const page = body as { items: { root?: unknown; branches?: unknown[] }[] };
     expect(Array.isArray(page.items)).toBe(true);
@@ -134,26 +131,22 @@ describe('live backend API contract', () => {
     expect((body as { next_cursor: string | null }).next_cursor).toBeNull();
   });
 
-  it(
-    'serves forum threads with facets',
-    async (ctx) => {
-      if (!serverUp || identityId === null) return ctx.skip();
+  it('serves forum threads with facets', async (ctx) => {
+    if (!serverUp || identityId === null) return ctx.skip();
 
-      // KNOWN PERF BUG: thread aggregation takes ~3 minutes against a real
-      // app.db (measured 166s, warm and cold). The Forum page hangs on
-      // "Loading discussions…" the whole time. Timeout is set high so this
-      // test documents the contract; tighten it once the endpoint is fixed.
-      const { status, body } = await getJson(
-        `/api/forum/threads?identity_id=${identityId}&top_filter=recent&limit=5`,
-        240_000,
-      );
-      expect(status).toBe(200);
-      const resp = body as { items: unknown[]; facets: Record<string, unknown[]> };
-      expect(Array.isArray(resp.items)).toBe(true);
-      expect(Array.isArray(resp.facets['hashtags'])).toBe(true);
-      expect(Array.isArray(resp.facets['uncommon_words'])).toBe(true);
-      expect(Array.isArray(resp.facets['root_instances'])).toBe(true);
-    },
-    250_000,
-  );
+    // KNOWN PERF BUG: thread aggregation takes ~3 minutes against a real
+    // app.db (measured 166s, warm and cold). The Forum page hangs on
+    // "Loading discussions…" the whole time. Timeout is set high so this
+    // test documents the contract; tighten it once the endpoint is fixed.
+    const { status, body } = await getJson(
+      `/api/forum/threads?identity_id=${identityId}&top_filter=recent&limit=5`,
+      240_000,
+    );
+    expect(status).toBe(200);
+    const resp = body as { items: unknown[]; facets: Record<string, unknown[]> };
+    expect(Array.isArray(resp.items)).toBe(true);
+    expect(Array.isArray(resp.facets['hashtags'])).toBe(true);
+    expect(Array.isArray(resp.facets['uncommon_words'])).toBe(true);
+    expect(Array.isArray(resp.facets['root_instances'])).toBe(true);
+  }, 250_000);
 });

@@ -4,8 +4,8 @@
       <div class="eyebrow">Mastodon is My Blog <span>Lite</span></div>
       <h1>See your Mastodon<br />as a place, not a feed.</h1>
       <p class="hero-copy">
-        A live, read-only client that runs entirely in this browser. No install. No project
-        server holding your account.
+        A live, read-only client that runs entirely in this browser. No install. No project server
+        holding your account.
       </p>
 
       <div class="connect-card">
@@ -42,12 +42,15 @@
       <div class="preview-window">
         <div class="preview-top"><i></i><i></i><i></i><b>LIVE, BOUNDED VIEW</b></div>
         <div class="preview-body">
-          <div class="preview-side">
-            <span></span><span></span><span></span><span></span>
-          </div>
+          <div class="preview-side"><span></span><span></span><span></span><span></span></div>
           <div class="preview-posts">
-            <article><small>river&#64;forest.example</small><strong>The good web is still here.</strong></article>
-            <article><small>ada&#64;tech.example</small><strong>Software should leave room for a weekend.</strong></article>
+            <article>
+              <small>river&#64;forest.example</small><strong>The good web is still here.</strong>
+            </article>
+            <article>
+              <small>ada&#64;tech.example</small
+              ><strong>Software should leave room for a weekend.</strong>
+            </article>
           </div>
         </div>
       </div>
@@ -75,11 +78,21 @@
 
   <header class="site-header">
     <nav aria-label="Lite navigation">
-      <button [class.active]="page() === 'home'" type="button" (click)="navigate('home')">People</button>
-      <button [class.active]="page() === 'me'" type="button" (click)="navigate('me')">My Blog</button>
-      <button [class.active]="page() === 'media'" type="button" (click)="navigate('media')">Media</button>
-      <button [class.active]="page() === 'links'" type="button" (click)="navigate('links')">Links</button>
-      <button [class.active]="page() === 'about'" type="button" (click)="navigate('about')">Full App</button>
+      <button [class.active]="page() === 'home'" type="button" (click)="navigate('home')">
+        People
+      </button>
+      <button [class.active]="page() === 'me'" type="button" (click)="navigate('me')">
+        My Blog
+      </button>
+      <button [class.active]="page() === 'media'" type="button" (click)="navigate('media')">
+        Media
+      </button>
+      <button [class.active]="page() === 'links'" type="button" (click)="navigate('links')">
+        Links
+      </button>
+      <button [class.active]="page() === 'about'" type="button" (click)="navigate('about')">
+        Full App
+      </button>
     </nav>
   </header>
 
@@ -92,82 +105,165 @@
         the expensive, interesting questions that make Mastodon feel like your own web.
       </p>
       <div class="comparison-grid">
-        <section><b>Lite</b><span>Live recent posts</span><span>Local media and link filters</span><span>Browser-only seen state</span></section>
-        <section class="full"><b>Installed</b><span>Durable history and catch-up</span><span>Analytics, dossiers, forums, cohorts</span><span>Writing, drafts, sync, and deep queries</span></section>
+        <section>
+          <b>Lite</b><span>Live recent posts</span><span>Local media and link filters</span
+          ><span>Browser-only seen state</span>
+        </section>
+        <section class="full">
+          <b>Installed</b><span>Durable history and catch-up</span
+          ><span>Analytics, dossiers, forums, cohorts</span
+          ><span>Writing, drafts, sync, and deep queries</span>
+        </section>
       </div>
-      <a class="primary-link" href="https://github.com/matthewdeanmartin/mastodon_is_my_blog" target="_blank" rel="noopener noreferrer">Install the full app →</a>
+      <a
+        class="primary-link"
+        href="https://github.com/matthewdeanmartin/mastodon_is_my_blog"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Install the full app →</a
+      >
     </main>
   } @else {
     <main class="client-grid">
       <aside class="people-panel">
-        <div class="panel-title"><span>Following</span><small>{{ following().length }} loaded</small></div>
+        <div class="panel-title">
+          <span>Following</span><small>{{ following().length }} loaded</small>
+        </div>
         <button class="person" type="button" (click)="navigate('me')">
-          @if (account()?.avatar) { <img [src]="account()!.avatar" alt="" /> }
-          @else if (account()) { <span class="avatar-fallback">{{ initials(account()!) }}</span> }
-          <span><b>{{ account()?.display_name || account()?.acct }}</b><small>&#64;{{ account()?.acct }}</small></span>
+          @if (account()?.avatar) {
+            <img [src]="account()!.avatar" alt="" />
+          } @else if (account()) {
+            <span class="avatar-fallback">{{ initials(account()!) }}</span>
+          }
+          <span
+            ><b>{{ account()?.display_name || account()?.acct }}</b
+            ><small>&#64;{{ account()?.acct }}</small></span
+          >
         </button>
         @for (person of following(); track person.id) {
           <button class="person" type="button" (click)="selectFollowing(person)">
-            @if (person.avatar) { <img [src]="person.avatar" alt="" /> }
-            @else { <span class="avatar-fallback">{{ initials(person) }}</span> }
-            <span><b>{{ person.display_name || person.acct }}</b><small>&#64;{{ person.acct }}</small></span>
+            @if (person.avatar) {
+              <img [src]="person.avatar" alt="" />
+            } @else {
+              <span class="avatar-fallback">{{ initials(person) }}</span>
+            }
+            <span
+              ><b>{{ person.display_name || person.acct }}</b
+              ><small>&#64;{{ person.acct }}</small></span
+            >
           </button>
         }
       </aside>
 
       <aside class="filter-panel">
         <div class="panel-title"><span>View</span></div>
-        <button [class.active]="filter() === 'recent'" type="button" (click)="setFilter('recent')">Recent</button>
-        <button [class.active]="filter() === 'storms'" type="button" (click)="setFilter('storms')">Storms</button>
-        <button [class.active]="filter() === 'shorts'" type="button" (click)="setFilter('shorts')">Short text</button>
-        <button [class.active]="filter() === 'replies'" type="button" (click)="setFilter('replies')">Discussions</button>
-        <button [class.active]="filter() === 'media'" type="button" (click)="setFilter('media')">Pictures & video</button>
-        <button [class.active]="filter() === 'links'" type="button" (click)="setFilter('links')">Links</button>
-        <button [class.active]="filter() === 'boosts'" type="button" (click)="setFilter('boosts')">Boosts</button>
-        <div class="budget-note"><b>{{ callsUsed() }}/10</b> API calls in the last action</div>
+        <button [class.active]="filter() === 'recent'" type="button" (click)="setFilter('recent')">
+          Recent
+        </button>
+        <button [class.active]="filter() === 'storms'" type="button" (click)="setFilter('storms')">
+          Storms
+        </button>
+        <button [class.active]="filter() === 'shorts'" type="button" (click)="setFilter('shorts')">
+          Short text
+        </button>
+        <button
+          [class.active]="filter() === 'replies'"
+          type="button"
+          (click)="setFilter('replies')"
+        >
+          Discussions
+        </button>
+        <button [class.active]="filter() === 'media'" type="button" (click)="setFilter('media')">
+          Pictures & video
+        </button>
+        <button [class.active]="filter() === 'links'" type="button" (click)="setFilter('links')">
+          Links
+        </button>
+        <button [class.active]="filter() === 'boosts'" type="button" (click)="setFilter('boosts')">
+          Boosts
+        </button>
+        <div class="budget-note">
+          <b>{{ callsUsed() }}/10</b> API calls in the last action
+        </div>
       </aside>
 
       <section class="feed-panel">
         <div class="feed-heading">
           <div>
-            <div class="eyebrow">{{ selectedAccount() ? 'RECENT ACCOUNT POSTS' : filterLabel().toUpperCase() }}</div>
-            <h1>{{ selectedAccount()?.display_name || (page() === 'me' ? 'My Blog' : filterLabel()) }}</h1>
+            <div class="eyebrow">
+              {{ selectedAccount() ? 'RECENT ACCOUNT POSTS' : filterLabel().toUpperCase() }}
+            </div>
+            <h1>
+              {{ selectedAccount()?.display_name || (page() === 'me' ? 'My Blog' : filterLabel()) }}
+            </h1>
             <p>{{ visibleStatuses().length }} posts in this loaded window</p>
           </div>
-          <button class="refresh-button" type="button" [disabled]="loading()" (click)="refresh()">Refresh</button>
+          <button class="refresh-button" type="button" [disabled]="loading()" (click)="refresh()">
+            Refresh
+          </button>
         </div>
 
-        @if (error()) { <div class="error-banner" role="alert">{{ error() }}</div> }
-        @if (loading()) { <div class="loading-state"><span></span> Asking your instance…</div> }
+        @if (error()) {
+          <div class="error-banner" role="alert">{{ error() }}</div>
+        }
+        @if (loading()) {
+          <div class="loading-state"><span></span> Asking your instance…</div>
+        }
 
         @for (status of visibleStatuses(); track status.id) {
           @let post = displayStatus(status);
           <article class="post-card">
-            @if (status.reblog) { <div class="boost-label">{{ status.account.display_name || status.account.acct }} boosted</div> }
+            @if (status.reblog) {
+              <div class="boost-label">
+                {{ status.account.display_name || status.account.acct }} boosted
+              </div>
+            }
             <div class="post-author">
-              @if (post.account.avatar) { <img [src]="post.account.avatar" alt="" /> }
-              @else { <span class="avatar-fallback">{{ initials(post.account) }}</span> }
-              <div><b>{{ post.account.display_name || post.account.acct }}</b><small>&#64;{{ post.account.acct }} · {{ relativeDate(post.created_at) }}</small></div>
+              @if (post.account.avatar) {
+                <img [src]="post.account.avatar" alt="" />
+              } @else {
+                <span class="avatar-fallback">{{ initials(post.account) }}</span>
+              }
+              <div>
+                <b>{{ post.account.display_name || post.account.acct }}</b
+                ><small>&#64;{{ post.account.acct }} · {{ relativeDate(post.created_at) }}</small>
+              </div>
             </div>
             @if (post.spoiler_text) {
-              <details><summary>{{ post.spoiler_text }}</summary><div class="post-content" [innerHTML]="post.content"></div></details>
+              <details>
+                <summary>{{ post.spoiler_text }}</summary>
+                <div class="post-content" [innerHTML]="post.content"></div>
+              </details>
             } @else {
               <div class="post-content" [innerHTML]="post.content"></div>
             }
             @for (media of post.media_attachments; track media.id) {
               @if (media.type === 'image') {
-                <img class="post-media" [src]="media.preview_url || media.url" [alt]="media.description || ''" loading="lazy" />
+                <img
+                  class="post-media"
+                  [src]="media.preview_url || media.url"
+                  [alt]="media.description || ''"
+                  loading="lazy"
+                />
               } @else if (media.type === 'video' || media.type === 'gifv') {
                 <video class="post-media" [src]="media.url" controls preload="metadata"></video>
               }
             }
             <footer>
-              <span>↩ {{ post.replies_count }}</span><span>⟳ {{ post.reblogs_count }}</span><span>♡ {{ post.favourites_count }}</span>
-              @if (post.url) { <a [href]="post.url" target="_blank" rel="noopener noreferrer">Open on Mastodon ↗</a> }
+              <span>↩ {{ post.replies_count }}</span
+              ><span>⟳ {{ post.reblogs_count }}</span
+              ><span>♡ {{ post.favourites_count }}</span>
+              @if (post.url) {
+                <a [href]="post.url" target="_blank" rel="noopener noreferrer"
+                  >Open on Mastodon ↗</a
+                >
+              }
             </footer>
           </article>
         } @empty {
-          @if (!loading()) { <div class="empty-state">No matching posts in this loaded window.</div> }
+          @if (!loading()) {
+            <div class="empty-state">No matching posts in this loaded window.</div>
+          }
         }
       </section>
     </main>

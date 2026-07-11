@@ -140,7 +140,9 @@ describe('ContentHubTextComponent', () => {
     expect(component.posts.map((p) => p.id)).toEqual(['fresh', 'hot']);
 
     const popularBtn = Array.from(
-      fixture.nativeElement.querySelectorAll('.filter-buttons button') as NodeListOf<HTMLButtonElement>,
+      fixture.nativeElement.querySelectorAll(
+        '.filter-buttons button',
+      ) as NodeListOf<HTMLButtonElement>,
     ).find((b) => b.textContent?.trim() === 'Popular');
     expect(popularBtn).toBeDefined();
     popularBtn!.click();

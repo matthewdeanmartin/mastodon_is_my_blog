@@ -36,11 +36,7 @@ export class LiteMastodonService {
     );
   }
 
-  private get<T>(
-    connection: LiteConnection,
-    path: string,
-    budget: LiteRequestBudget,
-  ): Promise<T> {
+  private get<T>(connection: LiteConnection, path: string, budget: LiteRequestBudget): Promise<T> {
     budget.spend();
     return firstValueFrom(
       this.http.get<T>(`${connection.instanceUrl}${path}`, {

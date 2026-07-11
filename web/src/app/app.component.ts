@@ -79,6 +79,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   // Identities State
   identities: Identity[] = [];
+  identitiesLoaded = false;
   currentMetaId: string | null = null;
   activeIdentityId: number | null = null; // The ID of the identity currently providing context
 
@@ -299,6 +300,7 @@ export class AppComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (ids) => {
           this.identities = ids;
+          this.identitiesLoaded = true;
 
           // Auto-select identity if none selected or invalid
           const storedId = this.api.getStoredIdentityId();
@@ -313,7 +315,10 @@ export class AppComponent implements OnInit, OnDestroy {
             this.setContextIdentity(ids[0].id, ids[0].base_url);
           }
         },
-        error: (e: unknown) => console.log('Could not fetch identities', e),
+        error: (e: unknown) => {
+          this.identitiesLoaded = true;
+          console.log('Could not fetch identities', e);
+        },
       });
   }
 

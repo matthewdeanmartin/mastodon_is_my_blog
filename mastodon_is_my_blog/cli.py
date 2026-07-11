@@ -17,6 +17,7 @@ from mastodon_is_my_blog.account_config import (
     upsert_configured_account,
 )
 from mastodon_is_my_blog.credentials import get_credential
+from mastodon_is_my_blog.db_port import DEFAULT_MODE, IMPORT_MODES
 from mastodon_is_my_blog.store import (
     get_or_create_default_meta_account,
     init_db,
@@ -51,6 +52,43 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("db-info", help="Show the resolved database path.")
     subparsers.add_parser("version", help="Show the installed package version.")
     subparsers.add_parser("init", help="Configure Mastodon accounts in keyring.")
+
+    # db: backend-agnostic export / import / port / diff / verify (Phase 3).
+    db_parser = subparsers.add_parser("db", help="Export/import/port data between storage backends.")
+    db_sub = db_parser.add_subparsers(dest="db_command")
+
+    export_p = db_sub.add_parser("export", help="Export the active DB to JSONL.")
+    export_p.add_argument("--out", required=True, help="Output .jsonl path.")
+    export_p.add_argument("--url", help="Source DB URL (default: active backend).")
+
+    import_p = db_sub.add_parser("import", help="Import JSONL into a DB.")
+    import_p.add_argument("--in", dest="in_", required=True, help="Input .jsonl path.")
+    import_p.add_argument("--url", help="Target DB URL (default: active backend).")
+    import_p.add_argument(
+        "--mode",
+        default=DEFAULT_MODE,
+        choices=IMPORT_MODES,
+        help="Conflict handling (default: upsert-newer).",
+    )
+    import_p.add_argument(
+        "--force",
+        action="store_true",
+        help="Allow import into a non-empty DB for non-upsert modes.",
+    )
+
+    port_p = db_sub.add_parser("port", help="Copy one backend into another.")
+    port_p.add_argument("--from", dest="from_url", required=True, help="Source DB URL.")
+    port_p.add_argument("--to", dest="to_url", required=True, help="Target DB URL.")
+    port_p.add_argument("--mode", default=DEFAULT_MODE, choices=IMPORT_MODES, help="Conflict handling.")
+    port_p.add_argument("--force", action="store_true", help="Allow non-empty target.")
+
+    for name, help_text in (
+        ("diff", "Show tables that differ between two DBs."),
+        ("verify", "Compare row counts + content hashes of two DBs."),
+    ):
+        cmp_p = db_sub.add_parser(name, help=help_text)
+        cmp_p.add_argument("--left", dest="left_url", help="Left DB URL (default: active).")
+        cmp_p.add_argument("--right", dest="right_url", required=True, help="Right DB URL.")
     return parser
 
 
@@ -104,38 +142,26 @@ def choose_account(prompt: str) -> str:
 
 
 def save_account_interactively(existing_name: str | None = None) -> str:
-    current_client_id = (
-        get_credential(existing_name, "client_id") if existing_name else None
-    )
-    current_client_secret = (
-        get_credential(existing_name, "client_secret") if existing_name else None
-    )
-    current_access_token = (
-        get_credential(existing_name, "access_token") if existing_name else None
-    )
+    current_client_id = get_credential(existing_name, "client_id") if existing_name else None
+    current_client_secret = get_credential(existing_name, "client_secret") if existing_name else None
+    current_access_token = get_credential(existing_name, "access_token") if existing_name else None
     existing_base_url = None
 
     if existing_name:
-        summaries_by_name = {
-            summary.name: summary for summary in list_account_summaries()
-        }
+        summaries_by_name = {summary.name: summary for summary in list_account_summaries()}
         existing_summary = summaries_by_name[existing_name]
         existing_base_url = existing_summary.base_url
 
     while True:
         try:
-            account_name = normalize_account_name(
-                prompt_text("Account name", default=existing_name)
-            )
+            account_name = normalize_account_name(prompt_text("Account name", default=existing_name))
             break
         except ValueError as exc:
             print(exc)
 
     while True:
         try:
-            base_url = normalize_base_url(
-                prompt_text("Mastodon instance URL", default=existing_base_url)
-            )
+            base_url = normalize_base_url(prompt_text("Mastodon instance URL", default=existing_base_url))
             break
         except ValueError as exc:
             print(exc)
@@ -146,11 +172,7 @@ def save_account_interactively(existing_name: str | None = None) -> str:
         default=current_client_secret if current_client_secret else None,
         secret=True,
     )
-    token_prompt = (
-        "Access token (press Enter to keep the current token)"
-        if current_access_token
-        else "Access token (optional; press Enter to skip)"
-    )
+    token_prompt = "Access token (press Enter to keep the current token)" if current_access_token else "Access token (optional; press Enter to skip)"
     access_token = prompt_text(
         token_prompt,
         allow_empty=True,
@@ -175,6 +197,11 @@ def save_account_interactively(existing_name: str | None = None) -> str:
 
 async def sync_identity_state() -> None:
     await init_db()
+    # Stamp a freshly-created DB at the Alembic head (Phase 2) so future
+    # `alembic upgrade` runs behave; no-op if already stamped.
+    from mastodon_is_my_blog.db_init import ensure_schema_stamped
+
+    await ensure_schema_stamped()
     await get_or_create_default_meta_account()
     await sync_configured_identities()
 
@@ -194,15 +221,11 @@ def run_init_command() -> None:
             token_label = "token saved" if summary.has_access_token else "needs login"
             print(f"{index}. {summary.name} ({summary.base_url}, {token_label})")
 
-        while list_account_summaries() and prompt_yes_no(
-            "Do you want to change an existing account?"
-        ):
+        while list_account_summaries() and prompt_yes_no("Do you want to change an existing account?"):
             selected_name = choose_account("Which account do you want to change?")
             save_account_interactively(selected_name)
 
-        while list_account_summaries() and prompt_yes_no(
-            "Do you want to delete an account?"
-        ):
+        while list_account_summaries() and prompt_yes_no("Do you want to delete an account?"):
             selected_name = choose_account("Which account do you want to delete?")
             remove_configured_account(selected_name)
             delete_account_credentials(selected_name)
@@ -228,10 +251,67 @@ def start_server(host: str, port: int, reload_: bool, workers: int) -> None:
 
 
 def show_db_info() -> None:
-    from mastodon_is_my_blog.db_path import get_default_db_url
+    from mastodon_is_my_blog.schema_version import describe_database
 
-    url = get_default_db_url()
-    print(f"DB_URL: {url}")
+    info = asyncio.run(describe_database())
+    print(f"Database backend: {info['backend']}")
+    print(f"Database URL:     {info['url']}")
+    print(f"Schema version:   {info['schema_version']}")
+    if info["remote_sync"] != "n/a":
+        print(f"Remote sync:      {info['remote_sync']}")
+
+
+def run_db_command(args: argparse.Namespace) -> int:
+    from pathlib import Path
+    from tempfile import NamedTemporaryFile
+
+    from mastodon_is_my_blog import db_port
+
+    command = getattr(args, "db_command", None)
+
+    if command == "export":
+        counts = asyncio.run(db_port.export_jsonl(Path(args.out), url=args.url))
+        total = sum(counts.values())
+        print(f"Exported {total} rows across {len(counts)} tables to {args.out}")
+        return 0
+
+    if command == "import":
+        written = asyncio.run(db_port.import_jsonl(Path(args.in_), url=args.url, mode=args.mode, force=args.force))
+        total = sum(written.values())
+        print(f"Imported {total} rows across {len(written)} tables (mode={args.mode})")
+        return 0
+
+    if command == "port":
+        with NamedTemporaryFile(suffix=".jsonl", delete=False) as handle:
+            tmp = Path(handle.name)
+        try:
+            result = asyncio.run(
+                db_port.port(
+                    from_url=args.from_url,
+                    to_url=args.to_url,
+                    tmp_path=tmp,
+                    mode=args.mode,
+                    force=args.force,
+                )
+            )
+        finally:
+            tmp.unlink(missing_ok=True)
+        total = sum(result["written"].values())
+        print(f"Ported {total} rows from {args.from_url} to {args.to_url}")
+        return 0
+
+    if command in ("diff", "verify"):
+        fn = db_port.diff if command == "diff" else db_port.verify
+        report = asyncio.run(fn(args.left_url, args.right_url))
+        if command == "diff" and not report:
+            print("No differences: the two databases match.")
+            return 0
+        print(db_port.format_verify_report(report))
+        all_match = all(r["hash_match"] and r["left_rows"] == r["right_rows"] for r in report)
+        return 0 if (command == "diff" or all_match) else 1
+
+    print("Usage: mastodon_is_my_blog db {export|import|port|diff|verify} ...")
+    return 2
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -239,12 +319,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     command = args.command
-    if (
-        command not in {"init", "db-info", "version"}
-        and not has_configured_identities()
-    ):
+    if command not in {"init", "db-info", "version", "db"} and not has_configured_identities():
         print("No configured Mastodon accounts found. Starting setup.")
         run_init_command()
+
+    if command == "db":
+        return run_db_command(args)
 
     if command == "start":
         start_server(args.host, args.port, args.reload_, args.workers)

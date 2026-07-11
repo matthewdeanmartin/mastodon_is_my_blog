@@ -81,13 +81,7 @@ async def save_scan_progress(
 ) -> None:
     """Commit a scan checkpoint so cancellation or restart can resume it."""
     async with async_session() as session:
-        existing = (
-            await session.execute(
-                select(FriendsOfFriendsCache).where(
-                    FriendsOfFriendsCache.identity_id == identity_id
-                )
-            )
-        ).scalar_one_or_none()
+        existing = (await session.execute(select(FriendsOfFriendsCache).where(FriendsOfFriendsCache.identity_id == identity_id))).scalar_one_or_none()
         if existing is None:
             existing = FriendsOfFriendsCache(identity_id=identity_id)
             session.add(existing)
@@ -116,16 +110,8 @@ def candidate_from_account(acc: dict, followed_by_ids: set[str]) -> dict:
         "followers_count": acc.get("followers_count", 0),
         "following_count": acc.get("following_count", 0),
         "statuses_count": acc.get("statuses_count", 0),
-        "created_at": (
-            created_raw.isoformat()
-            if isinstance(created_raw, datetime)
-            else str(created_raw) if created_raw else None
-        ),
-        "last_status_at": (
-            last_status_raw.isoformat()
-            if isinstance(last_status_raw, datetime)
-            else str(last_status_raw) if last_status_raw else None
-        ),
+        "created_at": (created_raw.isoformat() if isinstance(created_raw, datetime) else str(created_raw) if created_raw else None),
+        "last_status_at": (last_status_raw.isoformat() if isinstance(last_status_raw, datetime) else str(last_status_raw) if last_status_raw else None),
         "followed_by_ids": sorted(followed_by_ids),
         "followed_by_count": len(followed_by_ids),
     }
@@ -176,25 +162,13 @@ async def _fetch_and_cache(
                 CachedNotification.identity_id == identity.id,
                 CachedNotification.type.in_(BLOGROLL_NOTIFICATION_TYPES),
             )
-            interacted_accounts = {
-                (identity.id, row[0])
-                for row in (await session.execute(notif_stmt)).all()
-            }
-            expandable = [
-                f
-                for f in friends
-                if categorize_blogroll_account(
-                    f, interacted_accounts=interacted_accounts
-                )
-                == blog_roll_filter
-            ]
+            interacted_accounts = {(identity.id, row[0]) for row in (await session.execute(notif_stmt)).all()}
+            expandable = [f for f in friends if categorize_blogroll_account(f, interacted_accounts=interacted_accounts) == blog_roll_filter]
         else:
             expandable = friends
 
     if not friends:
-        await save_scan_progress(
-            identity.id, [], [], 0, max_friends, blog_roll_filter, True
-        )
+        await save_scan_progress(identity.id, [], [], 0, max_friends, blog_roll_filter, True)
         return []
 
     # Build a set of account IDs we already follow — used to filter candidates.
@@ -208,21 +182,9 @@ async def _fetch_and_cache(
     source_friend_ids = [friend.id for friend in friends_to_expand]
 
     async with async_session() as session:
-        cached = (
-            await session.execute(
-                select(FriendsOfFriendsCache).where(
-                    FriendsOfFriendsCache.identity_id == identity.id
-                )
-            )
-        ).scalar_one_or_none()
+        cached = (await session.execute(select(FriendsOfFriendsCache).where(FriendsOfFriendsCache.identity_id == identity.id))).scalar_one_or_none()
 
-    can_resume = bool(
-        cached
-        and not cached.scan_complete
-        and cached.scan_max_friends == max_friends
-        and cached.scan_blog_roll_filter == blog_roll_filter
-        and json.loads(cached.source_friend_ids_json or "[]") == source_friend_ids
-    )
+    can_resume = bool(cached and not cached.scan_complete and cached.scan_max_friends == max_friends and cached.scan_blog_roll_filter == blog_roll_filter and json.loads(cached.source_friend_ids_json or "[]") == source_friend_ids)
     candidate_map: dict[str, dict]
     if can_resume and cached is not None:
         candidates = json.loads(cached.data_json or "[]")
@@ -265,11 +227,7 @@ async def _fetch_and_cache(
                 if not acc_id or acc_id in already_following_ids:
                     continue
                 existing_candidate = candidate_map.get(acc_id)
-                followed_by_ids = set(
-                    existing_candidate.get("followed_by_ids", [])
-                    if existing_candidate
-                    else []
-                )
+                followed_by_ids = set(existing_candidate.get("followed_by_ids", []) if existing_candidate else [])
                 followed_by_ids.add(friend.id)
                 candidate_map[acc_id] = candidate_from_account(acc, followed_by_ids)
         except TimeoutError:
@@ -326,9 +284,7 @@ def _apply_filters(
             continue
         if c.get("last_status_at"):
             try:
-                last = datetime.fromisoformat(
-                    c["last_status_at"].replace("Z", "+00:00")
-                )
+                last = datetime.fromisoformat(c["last_status_at"].replace("Z", "+00:00"))
                 last_naive = last.replace(tzinfo=None)
                 if last_naive < cutoff:
                     continue
@@ -367,13 +323,7 @@ async def get_candidates(
     identity = await resolve_identity(meta.id, identity_id)
 
     async with async_session() as session:
-        cached = (
-            await session.execute(
-                select(FriendsOfFriendsCache).where(
-                    FriendsOfFriendsCache.identity_id == identity_id
-                )
-            )
-        ).scalar_one_or_none()
+        cached = (await session.execute(select(FriendsOfFriendsCache).where(FriendsOfFriendsCache.identity_id == identity_id))).scalar_one_or_none()
 
     if cached:
         candidates = json.loads(cached.data_json or "[]")
@@ -405,15 +355,10 @@ async def get_candidates(
     already_following_ids.add(identity.account_id)
 
     total_downloaded = len(candidates)
-    filtered = _apply_filters(
-        candidates, already_following_ids, min_posts, active_since_days, bio_contains
-    )
+    filtered = _apply_filters(candidates, already_following_ids, min_posts, active_since_days, bio_contains)
 
     total = len(filtered)
-    page = [
-        {key: value for key, value in candidate.items() if key != "followed_by_ids"}
-        for candidate in filtered[offset : offset + limit]
-    ]
+    page = [{key: value for key, value in candidate.items() if key != "followed_by_ids"} for candidate in filtered[offset : offset + limit]]
 
     return {
         "candidates": page,
@@ -455,13 +400,7 @@ async def refresh_candidates(
         max_duration_seconds=max_duration_seconds,
     )
     async with async_session() as session:
-        cached = (
-            await session.execute(
-                select(FriendsOfFriendsCache).where(
-                    FriendsOfFriendsCache.identity_id == identity_id
-                )
-            )
-        ).scalar_one()
+        cached = (await session.execute(select(FriendsOfFriendsCache).where(FriendsOfFriendsCache.identity_id == identity_id))).scalar_one()
     return {
         "status": "complete" if cached.scan_complete else "partial",
         "candidates_fetched": len(candidates),

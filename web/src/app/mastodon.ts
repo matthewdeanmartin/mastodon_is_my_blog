@@ -88,8 +88,18 @@ export interface AccountCatchupStatus {
 
 export interface AdminStatus {
   connected: boolean;
-  last_sync: string;
+  last_sync: string | null;
   current_user: MastodonAccount | null;
+  connections: {
+    mastodon: { url: string; account: string }[];
+    mimb_co: { connected: boolean; url: string | null; detail: string };
+    database: {
+      backend: string;
+      url: string;
+      schema_version: string;
+      remote_sync: string;
+    };
+  };
 }
 
 export interface Identity {

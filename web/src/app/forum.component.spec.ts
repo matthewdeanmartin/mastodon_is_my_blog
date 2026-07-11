@@ -48,7 +48,10 @@ class MockApiService {
     facets: { hashtags: [], uncommon_words: [], root_instances: [] },
   };
 
-  getForumThreads(identityId: number, params: ForumCall['params']): Observable<ForumThreadsResponse> {
+  getForumThreads(
+    identityId: number,
+    params: ForumCall['params'],
+  ): Observable<ForumThreadsResponse> {
     this.calls.push({ identityId, params });
     return of(this.response);
   }

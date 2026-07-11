@@ -74,9 +74,7 @@ def seeded_db(db_session_factory):
 
 
 @pytest.mark.asyncio
-async def test_matrix_returns_four_quadrants(
-    monkeypatch: pytest.MonkeyPatch, db_session_factory
-):
+async def test_matrix_returns_four_quadrants(monkeypatch: pytest.MonkeyPatch, db_session_factory):
     """Matrix endpoint returns all four quadrant keys."""
     monkeypatch.setattr(main, "init_db", async_noop)
     monkeypatch.setattr(main, "get_or_create_default_meta_account", async_noop)
@@ -133,9 +131,7 @@ async def test_matrix_returns_four_quadrants(
 
 
 @pytest.mark.asyncio
-async def test_matrix_empty_returns_empty_quadrants(
-    monkeypatch: pytest.MonkeyPatch, db_session_factory
-):
+async def test_matrix_empty_returns_empty_quadrants(monkeypatch: pytest.MonkeyPatch, db_session_factory):
     monkeypatch.setattr(main, "init_db", async_noop)
     monkeypatch.setattr(main, "get_or_create_default_meta_account", async_noop)
     monkeypatch.setattr(main, "sync_configured_identities", async_noop)
@@ -172,9 +168,7 @@ async def test_matrix_empty_returns_empty_quadrants(
 
 
 @pytest.mark.asyncio
-async def test_dossier_returns_full_payload(
-    monkeypatch: pytest.MonkeyPatch, db_session_factory
-):
+async def test_dossier_returns_full_payload(monkeypatch: pytest.MonkeyPatch, db_session_factory):
     monkeypatch.setattr(main, "init_db", async_noop)
     monkeypatch.setattr(main, "get_or_create_default_meta_account", async_noop)
     monkeypatch.setattr(main, "sync_configured_identities", async_noop)
@@ -217,9 +211,7 @@ async def test_dossier_returns_full_payload(
 
 
 @pytest.mark.asyncio
-async def test_dossier_404_for_unknown_account(
-    monkeypatch: pytest.MonkeyPatch, db_session_factory
-):
+async def test_dossier_404_for_unknown_account(monkeypatch: pytest.MonkeyPatch, db_session_factory):
     monkeypatch.setattr(main, "init_db", async_noop)
     monkeypatch.setattr(main, "get_or_create_default_meta_account", async_noop)
     monkeypatch.setattr(main, "sync_configured_identities", async_noop)
@@ -251,9 +243,7 @@ async def test_dossier_404_for_unknown_account(
 
 
 @pytest.mark.asyncio
-async def test_follow_calls_mastodon_api(
-    monkeypatch: pytest.MonkeyPatch, db_session_factory
-):
+async def test_follow_calls_mastodon_api(monkeypatch: pytest.MonkeyPatch, db_session_factory):
     monkeypatch.setattr(main, "init_db", async_noop)
     monkeypatch.setattr(main, "get_or_create_default_meta_account", async_noop)
     monkeypatch.setattr(main, "sync_configured_identities", async_noop)
@@ -281,9 +271,7 @@ async def test_follow_calls_mastodon_api(
     main.app.dependency_overrides[get_current_meta_account] = fake_meta
 
     with TestClient(main.app, raise_server_exceptions=False) as client:
-        resp = client.post(
-            "/api/peeps/dossier/friend@example.social/follow?identity_id=1"
-        )
+        resp = client.post("/api/peeps/dossier/friend@example.social/follow?identity_id=1")
 
     main.app.dependency_overrides.clear()
 
@@ -301,9 +289,7 @@ async def test_follow_calls_mastodon_api(
 
 
 @pytest.mark.asyncio
-async def test_dossier_does_not_blow_up_on_naive_db_post(
-    monkeypatch: pytest.MonkeyPatch, db_session_factory
-):
+async def test_dossier_does_not_blow_up_on_naive_db_post(monkeypatch: pytest.MonkeyPatch, db_session_factory):
     """Repro: dossier with a CachedPost whose created_at is naive UTC.
 
     Pre-fix this 500'd because the staleness check did
@@ -360,9 +346,7 @@ async def test_dossier_does_not_blow_up_on_naive_db_post(
 
 
 @pytest.mark.asyncio
-async def test_matrix_does_not_blow_up_when_age_days_is_called(
-    monkeypatch: pytest.MonkeyPatch, db_session_factory
-):
+async def test_matrix_does_not_blow_up_when_age_days_is_called(monkeypatch: pytest.MonkeyPatch, db_session_factory):
     """Repro: /matrix calls ``_age_days(notification.created_at, now)``.
 
     Pre-fix this raised TypeError on the first naive notification because

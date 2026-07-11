@@ -44,9 +44,7 @@ def fake_env(monkeypatch, patch_async_session):
     patch_async_session(follow_actions)
 
     def install(client: FakeClient):
-        monkeypatch.setattr(
-            follow_actions, "client_from_identity", lambda identity: client
-        )
+        monkeypatch.setattr(follow_actions, "client_from_identity", lambda identity: client)
         return client
 
     return install
@@ -55,11 +53,7 @@ def fake_env(monkeypatch, patch_async_session):
 async def seed(db_session, *, is_following: bool):
     db_session.add(make_meta_account())
     db_session.add(make_identity())
-    db_session.add(
-        make_cached_account(
-            "remote-42", acct="friend@example.social", is_following=is_following
-        )
-    )
+    db_session.add(make_cached_account("remote-42", acct="friend@example.social", is_following=is_following))
     await db_session.commit()
 
 
@@ -85,17 +79,13 @@ class TestFollowAccount:
     @pytest.mark.asyncio
     async def test_follows_and_updates_cache(self, fake_env, db_session):
         await seed(db_session, is_following=False)
-        client = fake_env(
-            FakeClient([{"id": "remote-42", "acct": "friend@example.social"}])
-        )
+        client = fake_env(FakeClient([{"id": "remote-42", "acct": "friend@example.social"}]))
 
         result = await follow_account(1, make_identity(), "friend@example.social")
 
         assert result == {"followed": True, "acct": "friend@example.social"}
         assert client.followed == ["remote-42"]
-        account = await db_session.get(
-            follow_actions.CachedAccount, ("remote-42", 1, 1)
-        )
+        account = await db_session.get(follow_actions.CachedAccount, ("remote-42", 1, 1))
         assert account.is_following is True
 
     @pytest.mark.asyncio
@@ -103,9 +93,7 @@ class TestFollowAccount:
         """Regression: fuzzy search returning a different account must 404,
         not follow the stranger."""
         await seed(db_session, is_following=False)
-        client = fake_env(
-            FakeClient([{"id": "stranger-1", "acct": "somebody@else.example"}])
-        )
+        client = fake_env(FakeClient([{"id": "stranger-1", "acct": "somebody@else.example"}]))
 
         with pytest.raises(HTTPException) as exc:
             await follow_account(1, make_identity(), "friend@example.social")
@@ -147,15 +135,11 @@ class TestUnfollowAccount:
     @pytest.mark.asyncio
     async def test_unfollows_and_updates_cache(self, fake_env, db_session):
         await seed(db_session, is_following=True)
-        client = fake_env(
-            FakeClient([{"id": "remote-42", "acct": "friend@example.social"}])
-        )
+        client = fake_env(FakeClient([{"id": "remote-42", "acct": "friend@example.social"}]))
 
         result = await unfollow_account(1, make_identity(), "friend@example.social")
 
         assert result == {"unfollowed": True, "acct": "friend@example.social"}
         assert client.unfollowed == ["remote-42"]
-        account = await db_session.get(
-            follow_actions.CachedAccount, ("remote-42", 1, 1)
-        )
+        account = await db_session.get(follow_actions.CachedAccount, ("remote-42", 1, 1))
         assert account.is_following is False

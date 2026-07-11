@@ -21,6 +21,7 @@ import os
 from pathlib import Path
 
 from fastapi import Depends, Header, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.routing import APIRouter
 from pydantic import BaseModel
 
@@ -103,7 +104,8 @@ async def sync_and_maybe_rebuild(tenant_id: int, meta) -> None:
         if new_posts:
             logger.info(
                 "sync ingested %s new posts for tenant_id=%s -> rebuilding blog",
-                new_posts, tenant_id,
+                new_posts,
+                tenant_id,
             )
             await rebuild_blog_for_tenant(tenant_id, meta.id)
         else:
@@ -143,7 +145,10 @@ async def provision_tenant(tenant_id: int, body: JobRef) -> dict:
     meta, created = await tenant_export.get_or_create_meta_account(username)
     logger.info(
         "provision tenant_id=%s job_id=%s -> meta_account_id=%s created=%s",
-        tenant_id, body.job_id, meta.id, created,
+        tenant_id,
+        body.job_id,
+        meta.id,
+        created,
     )
     return {"meta_account_id": meta.id, "created": created}
 
@@ -169,7 +174,11 @@ async def push_tenant_limits(tenant_id: int, body: LimitsPush) -> dict:
     )
     logger.info(
         "limits pushed tenant_id=%s job_id=%s enabled=%s max_identities=%s max_storage_bytes=%s",
-        tenant_id, body.job_id, meta.enabled, meta.max_identities, meta.max_storage_bytes,
+        tenant_id,
+        body.job_id,
+        meta.enabled,
+        meta.max_identities,
+        meta.max_storage_bytes,
     )
     return {
         "enabled": meta.enabled,
@@ -196,7 +205,9 @@ async def trigger_tenant_sync(tenant_id: int, body: JobRef) -> dict:
         if usage >= meta.max_storage_bytes:
             logger.info(
                 "sync skipped tenant_id=%s: usage %s >= limit %s",
-                tenant_id, usage, meta.max_storage_bytes,
+                tenant_id,
+                usage,
+                meta.max_storage_bytes,
             )
             return {"status": "skipped", "reason": "storage limit exceeded"}
     identity_ids = await tenant_export.tenant_identity_ids(meta.id)
@@ -208,9 +219,7 @@ async def trigger_tenant_sync(tenant_id: int, body: JobRef) -> dict:
         logger.info("sync already running tenant_id=%s job_id=%s; coalescing", tenant_id, body.job_id)
         return {"status": "already_running"}
     syncing_tenants.add(tenant_id)
-    spawn_background(
-        sync_and_maybe_rebuild(tenant_id, meta), label=f"sync-tenant-{tenant_id}"
-    )
+    spawn_background(sync_and_maybe_rebuild(tenant_id, meta), label=f"sync-tenant-{tenant_id}")
     logger.info("sync started tenant_id=%s job_id=%s", tenant_id, body.job_id)
     return {"status": "started"}
 
@@ -235,7 +244,10 @@ async def rebuild_blog_for_tenant(tenant_id: int, meta_account_id: int) -> None:
     built = await build_tenant_blog(tenant_id, meta_account_id)
     logger.info(
         "blog rebuilt for tenant_id=%s payloads=%s static=%s (%s)",
-        tenant_id, out_dir, built["blog_path"], built["builder"],
+        tenant_id,
+        out_dir,
+        built["blog_path"],
+        built["builder"],
     )
 
 
@@ -317,7 +329,10 @@ async def connect_mock_identity(tenant_id: int, body: ConnectMockIdentity) -> di
     built = await build_tenant_blog(tenant_id, meta.id)
     logger.info(
         "mock identity connected tenant_id=%s acct=%s job_id=%s builder=%s",
-        tenant_id, me.get("acct"), body.job_id, built["builder"],
+        tenant_id,
+        me.get("acct"),
+        body.job_id,
+        built["builder"],
     )
     return {"acct": me.get("acct"), "synced": True, "blog_path": built["blog_path"], "builder": built["builder"]}
 
@@ -331,19 +346,20 @@ async def export_tenant(tenant_id: int, body: JobRef) -> dict:
     meta = await tenant_export.get_tenant_meta_account(username)
     if meta is None:
         raise HTTPException(404, "tenant not provisioned")
-    zip_path = await tenant_export.build_tenant_export_zip(
-        meta.id, tenant_id, body.job_id, get_export_dir()
-    )
+    zip_path = await tenant_export.build_tenant_export_zip(meta.id, tenant_id, body.job_id, get_export_dir())
     size = zip_path.stat().st_size
     logger.info(
         "export built tenant_id=%s job_id=%s path=%s bytes=%s",
-        tenant_id, body.job_id, zip_path, size,
+        tenant_id,
+        body.job_id,
+        zip_path,
+        size,
     )
     return {"download_path": str(zip_path), "bytes": size}
 
 
 @router.get("/tenants/{tenant_id}/exports/{job_id}/download")
-async def download_tenant_export(tenant_id: int, job_id: str) -> "FileResponse":
+async def download_tenant_export(tenant_id: int, job_id: str) -> FileResponse:
     """Stream a previously built export bundle to the control plane.
 
     The zip lives on THIS server's disk (EXPORT_DIR); mimb_co's customer-facing
@@ -351,8 +367,6 @@ async def download_tenant_export(tenant_id: int, job_id: str) -> "FileResponse":
     never talks to this service directly. Naming must match
     tenant_export.build_tenant_export_zip: export_tenant_{tid}_{job_id}.zip.
     """
-    from fastapi.responses import FileResponse
-
     if not job_id.replace("_", "").replace("-", "").isalnum():
         raise HTTPException(400, "invalid job id")
     zip_path = get_export_dir() / f"export_tenant_{tenant_id}_{job_id}.zip"
@@ -374,7 +388,9 @@ async def purge_tenant(tenant_id: int, body: JobRef) -> dict:
     purged = await tenant_export.purge_tenant_data(username)
     logger.info(
         "purge tenant_id=%s job_id=%s result=%s",
-        tenant_id, body.job_id, "purged" if purged else "already_gone",
+        tenant_id,
+        body.job_id,
+        "purged" if purged else "already_gone",
     )
     return {"status": "purged" if purged else "already_gone"}
 
@@ -389,6 +405,5 @@ async def tenant_usage(tenant_id: int) -> dict:
     return {
         "bytes": usage,
         "approximate": True,
-        "basis": "sum of cached post/account text payloads in shared-DB mode; "
-        "excludes indexes and row overhead",
+        "basis": "sum of cached post/account text payloads in shared-DB mode; excludes indexes and row overhead",
     }

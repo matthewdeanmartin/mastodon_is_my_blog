@@ -30,11 +30,7 @@ def make_thread_post(
     created_at: datetime | None = None,
     tags: str = "[]",
 ) -> CachedPost:
-    rid = (
-        root_id
-        if root_id is not None
-        else (in_reply_to_id if in_reply_to_id else post_id)
-    )
+    rid = root_id if root_id is not None else (in_reply_to_id if in_reply_to_id else post_id)
     return CachedPost(
         id=post_id,
         meta_account_id=meta_account_id,
@@ -75,9 +71,7 @@ def make_meta() -> list:
     ]
 
 
-async def build_thread_summaries_from_session(
-    db_session, meta_id: int, identity_id: int
-) -> list[dict]:
+async def build_thread_summaries_from_session(db_session, meta_id: int, identity_id: int) -> list[dict]:
     """Replicate duck.forum_thread_summaries logic against the in-memory SQLite session."""
     rows = (
         (
@@ -128,11 +122,10 @@ async def build_thread_summaries_from_session(
                 "root_id": root_id,
                 "reply_count": len(replies),
                 "unique_participants": len(unique_authors),
-                "latest_reply_at": latest_reply.isoformat() if latest_reply else None,
+                # Matches duck.forum_thread_summaries: datetime objects, not isoformat strings.
+                "latest_reply_at": latest_reply,
                 "author_acct": root_post.author_acct,
-                "root_created_at": (
-                    root_post.created_at.isoformat() if root_post.created_at else None
-                ),
+                "root_created_at": root_post.created_at,
                 "root_content": root_post.content,
                 "has_question": bool(root_post.has_question),
                 "root_tags": root_post.tags,
@@ -170,28 +163,18 @@ async def call_endpoint(
 
     monkeypatch.setattr(forum_module, "async_session", WrappedFactory())
 
-    async def fake_forum_thread_summaries(
-        meta_id, identity_id, include_content_hub=False, following_accts=None
-    ):
-        summaries = await build_thread_summaries_from_session(
-            db_session, meta_id, identity_id
-        )
+    async def fake_forum_thread_summaries(meta_id, identity_id, include_content_hub=False, following_accts=None):
+        summaries = await build_thread_summaries_from_session(db_session, meta_id, identity_id)
         for summary in summaries:
             summary.setdefault("participants", set())
             summary.setdefault("friend_reply_count", 0)
         return summaries
 
-    async def fake_forum_friend_reply_counts(
-        meta_id, identity_id, root_ids, following_accts
-    ):
+    async def fake_forum_friend_reply_counts(meta_id, identity_id, root_ids, following_accts):
         return {}
 
-    monkeypatch.setattr(
-        duck_module, "forum_thread_summaries", fake_forum_thread_summaries
-    )
-    monkeypatch.setattr(
-        duck_module, "forum_friend_reply_counts", fake_forum_friend_reply_counts
-    )
+    monkeypatch.setattr(duck_module, "forum_thread_summaries", fake_forum_thread_summaries)
+    monkeypatch.setattr(duck_module, "forum_friend_reply_counts", fake_forum_friend_reply_counts)
 
     meta = SimpleNamespace(id=META_ID, username="test-meta")
     return await get_forum_threads(

@@ -13,6 +13,7 @@ import sqlite3
 import threading
 import time
 
+from mastodon_is_my_blog.db_backend import is_sqlite, resolve_backend
 from mastodon_is_my_blog.db_path import get_sqlite_file_path
 
 logger = logging.getLogger(__name__)
@@ -22,8 +23,12 @@ _conn: sqlite3.Connection | None = None
 RETENTION_DAYS = 90
 
 
-def get_connection() -> sqlite3.Connection:
+def get_connection() -> sqlite3.Connection | None:
+    """Raw sqlite3 connection to api_call_log, or None off the sqlite backend
+    (sqlite-only telemetry; no-ops on postgres/turso)."""
     global _conn
+    if not is_sqlite(resolve_backend()):
+        return None
     if _conn is None:
         path = get_sqlite_file_path()
         _conn = sqlite3.connect(path, check_same_thread=False)
@@ -45,6 +50,8 @@ def log_api_call(
     try:
         with _lock:
             con = get_connection()
+            if con is None:
+                return  # non-sqlite backend: api_call_log is sqlite-only
             con.execute(
                 """
                 INSERT INTO api_call_log
@@ -72,6 +79,8 @@ def purge_old_rows() -> int:
     try:
         with _lock:
             con = get_connection()
+            if con is None:
+                return 0
             cur = con.execute("DELETE FROM api_call_log WHERE ts < ?", (cutoff,))
             con.commit()
             return cur.rowcount

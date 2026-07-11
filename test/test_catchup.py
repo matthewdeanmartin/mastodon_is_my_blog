@@ -74,9 +74,7 @@ def make_account(
     )
 
 
-def make_notification(
-    notif_id: str, account_id: str, created_at: datetime
-) -> CachedNotification:
+def make_notification(notif_id: str, account_id: str, created_at: datetime) -> CachedNotification:
     return CachedNotification(
         id=notif_id,
         meta_account_id=META_ID,
@@ -121,11 +119,7 @@ async def test_mutual_with_notification_ranks_first(db) -> None:
     _ = utc_now() - timedelta(days=60)
 
     db.add(make_account("plain-follow", is_following=True, last_status_at=recent))
-    db.add(
-        make_account(
-            "mutual", is_following=True, is_followed_by=True, last_status_at=recent
-        )
-    )
+    db.add(make_account("mutual", is_following=True, is_followed_by=True, last_status_at=recent))
     db.add(
         make_account(
             "mutual-notif",
@@ -246,9 +240,7 @@ async def test_deep_fetch_stops_at_stop_id() -> None:
     from mastodon_is_my_blog.catchup import deep_fetch_user_timeline
 
     collected: list[list[dict]] = []
-    async for page in deep_fetch_user_timeline(
-        m, "111", stop_at_id="60", inter_page_delay=0
-    ):
+    async for page in deep_fetch_user_timeline(m, "111", stop_at_id="60", inter_page_delay=0):
         collected.append(page)
 
     assert len(collected) == 1
@@ -265,9 +257,7 @@ async def test_deep_fetch_respects_max_pages() -> None:
     from mastodon_is_my_blog.catchup import deep_fetch_user_timeline
 
     collected: list[list[dict]] = []
-    async for page in deep_fetch_user_timeline(
-        m, "111", max_pages=3, inter_page_delay=0
-    ):
+    async for page in deep_fetch_user_timeline(m, "111", max_pages=3, inter_page_delay=0):
         collected.append(page)
 
     assert len(collected) == 3
@@ -309,9 +299,7 @@ async def test_deep_fetch_calls_on_page_callback() -> None:
 
     from mastodon_is_my_blog.catchup import deep_fetch_user_timeline
 
-    async for _ in deep_fetch_user_timeline(
-        m, "111", on_page=on_page, inter_page_delay=0
-    ):
+    async for _ in deep_fetch_user_timeline(m, "111", on_page=on_page, inter_page_delay=0):
         pass
 
     assert len(received) == 2

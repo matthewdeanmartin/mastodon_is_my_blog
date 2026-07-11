@@ -114,18 +114,14 @@ async def test_sync_notifications_persists_rows_and_syncs_top_mutuals(
         "accounts_synced": 3,
         "timelines_synced": 2,
     }
-    synced_accounts = sorted(
-        await_call.kwargs["acct"] for await_call in timeline_sync_mock.await_args_list
-    )
+    synced_accounts = sorted(await_call.kwargs["acct"] for await_call in timeline_sync_mock.await_args_list)
     assert synced_accounts == [
         "mutual1@example.social",
         "mutual2@example.social",
     ]
 
     async with db_session_factory() as session:
-        notif_count = (
-            await session.execute(select(func.count()).select_from(CachedNotification))
-        ).scalar_one()
+        notif_count = (await session.execute(select(func.count()).select_from(CachedNotification))).scalar_one()
 
     assert notif_count == 3
 

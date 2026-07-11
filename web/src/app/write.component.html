@@ -223,7 +223,11 @@
       >
         <div class="row" style="gap: 8px; align-items: center">
           @if (selectedIdentity) {
-            <small class="muted" style="font-size: 0.8rem" title="Posting as the account selected in the top bar">
+            <small
+              class="muted"
+              style="font-size: 0.8rem"
+              title="Posting as the account selected in the top bar"
+            >
               Posting as <strong>{{ selectedIdentity.acct }}</strong>
             </small>
           }

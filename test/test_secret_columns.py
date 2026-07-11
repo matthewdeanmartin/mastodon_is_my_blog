@@ -17,9 +17,7 @@ async def seed_identity(session, access_token: str = "super-secret-token"):
 
 
 async def raw_access_token(session) -> str:
-    result = await session.execute(
-        text("SELECT access_token FROM mastodon_identities WHERE id = 1")
-    )
+    result = await session.execute(text("SELECT access_token FROM mastodon_identities WHERE id = 1"))
     return result.scalar_one()
 
 
@@ -29,9 +27,7 @@ async def orm_access_token(session) -> str:
 
 
 @pytest.mark.asyncio
-async def test_key_set_encrypts_on_disk_and_decrypts_via_orm(
-    monkeypatch, db_session_factory
-):
+async def test_key_set_encrypts_on_disk_and_decrypts_via_orm(monkeypatch, db_session_factory):
     monkeypatch.setenv("TOKEN_ENCRYPTION_KEY", generate_key())
     async with db_session_factory() as session:
         await seed_identity(session)
@@ -54,9 +50,7 @@ async def test_no_key_local_mode_is_passthrough(monkeypatch, db_session_factory)
 
 
 @pytest.mark.asyncio
-async def test_legacy_plaintext_still_reads_after_key_is_introduced(
-    monkeypatch, db_session_factory
-):
+async def test_legacy_plaintext_still_reads_after_key_is_introduced(monkeypatch, db_session_factory):
     # Write plaintext (pre-key install)...
     monkeypatch.delenv("TOKEN_ENCRYPTION_KEY", raising=False)
     monkeypatch.delenv("MIMB_MODE", raising=False)

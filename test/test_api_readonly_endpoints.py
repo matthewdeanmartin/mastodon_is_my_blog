@@ -104,6 +104,10 @@ def test_status_endpoint_returns_up(api_client: TestClient) -> None:
     assert response.headers["x-content-type-options"] == "nosniff"
 
 
+@pytest.mark.skipif(
+    not main.static_dir.exists(),
+    reason="Angular build not present — run 'make build' first",
+)
 def test_spa_static_files_are_served_with_file_content_types(
     api_client: TestClient,
 ) -> None:
@@ -121,6 +125,10 @@ def test_spa_static_files_are_served_with_file_content_types(
     assert css_response.headers["x-content-type-options"] == "nosniff"
 
 
+@pytest.mark.skipif(
+    not main.static_dir.exists(),
+    reason="Angular build not present — run 'make build' first",
+)
 def test_spa_unknown_paths_fall_back_to_index_html(api_client: TestClient) -> None:
     response = api_client.get("/not-a-real-route")
 
@@ -227,7 +235,12 @@ def test_admin_identities_returns_serialized_identities(
 def test_admin_status_returns_connection_summary(
     api_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    identity = SimpleNamespace(id=2, access_token="token")
+    identity = SimpleNamespace(
+        id=2,
+        access_token="token",
+        api_base_url="https://mastodon.example",
+        acct="alice@example.com",
+    )
 
     class DummyClient:
         def account_verify_credentials(self) -> dict[str, str]:
@@ -241,16 +254,25 @@ def test_admin_status_returns_connection_summary(
     async def fake_get_last_sync() -> datetime:
         return datetime(2024, 1, 2, 3, 4, 5)
 
+    async def fake_describe_database() -> dict[str, str]:
+        return {
+            "backend": "postgres",
+            "url": "postgresql+asyncpg://postgres:***@localhost/mimb",
+            "schema_version": "016",
+            "remote_sync": "n/a",
+        }
+
     # The meta account now arrives via the get_current_meta_account dependency
     # (overridden by the api_client fixture); only the identity lookup hits
     # the session.
     monkeypatch.setattr(
         admin,
         "async_session",
-        FakeSessionFactory([FakeResult(scalar_value=identity)]),
+        FakeSessionFactory([FakeResult(scalars_values=[identity])]),
     )
     monkeypatch.setattr(admin, "client_from_identity", lambda identity: DummyClient())
     monkeypatch.setattr(admin, "get_last_sync", fake_get_last_sync)
+    monkeypatch.setattr(admin, "describe_database", fake_describe_database)
 
     response = api_client.get("/api/admin/status")
 
@@ -263,6 +285,22 @@ def test_admin_status_returns_connection_summary(
             "display_name": "Alice",
             "avatar": "https://img.example.com/alice.png",
             "note": "bio",
+        },
+        "connections": {
+            "mastodon": [
+                {"url": "https://mastodon.example", "account": "alice@example.com"}
+            ],
+            "mimb_co": {
+                "connected": False,
+                "url": None,
+                "detail": "Not connected (self-hosted mode)",
+            },
+            "database": {
+                "backend": "postgres",
+                "url": "postgresql+asyncpg://postgres:***@localhost/mimb",
+                "schema_version": "016",
+                "remote_sync": "n/a",
+            },
         },
     }
 

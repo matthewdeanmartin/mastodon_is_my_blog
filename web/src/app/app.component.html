@@ -19,7 +19,7 @@
       </button>
     }
 
-    @if (identities.length === 0) {
+    @if (identitiesLoaded && identities.length === 0) {
       <div style="color: #64748b; font-style: italic">
         No Mastodon account connected yet — use “Connect Account” to start syncing your posts and
         people.
@@ -49,11 +49,7 @@
         tenant {{ whoami.tenant_id }}</span
       >
       @if (whoami.account_url) {
-        <a
-          [href]="whoami.account_url + '/#/account'"
-          style="color: #6366f1"
-          >Manage account</a
-        >
+        <a [href]="whoami.account_url + '/#/account'" style="color: #6366f1">Manage account</a>
       }
     </div>
   }

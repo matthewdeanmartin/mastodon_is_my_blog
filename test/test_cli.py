@@ -11,9 +11,7 @@ def test_main_runs_init_before_start_when_no_accounts(monkeypatch) -> None:
     monkeypatch.setattr(
         cli,
         "start_server",
-        lambda host, port, reload_, workers: events.append(
-            f"start:{host}:{port}:{reload_}:{workers}"
-        ),
+        lambda host, port, reload_, workers: events.append(f"start:{host}:{port}:{reload_}:{workers}"),
     )
 
     result = cli.main(["start", "--port", "9000"])

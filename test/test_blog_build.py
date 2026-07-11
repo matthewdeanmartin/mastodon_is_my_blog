@@ -91,9 +91,7 @@ def test_no_eleventy_means_not_built(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_build_tenant_blog_falls_back_without_eleventy(
-    tmp_path, monkeypatch, patch_async_session
-):
+async def test_build_tenant_blog_falls_back_without_eleventy(tmp_path, monkeypatch, patch_async_session):
     from mastodon_is_my_blog import storm_export
 
     patch_async_session(storm_export)
