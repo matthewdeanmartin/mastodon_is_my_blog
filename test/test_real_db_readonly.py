@@ -11,6 +11,7 @@ from mastodon_is_my_blog.store import (
     MetaAccount,
     async_session,
     engine,
+    init_db,
 )
 
 EXPECTED_TABLES = {
@@ -48,6 +49,9 @@ EXPECTED_CACHED_POST_INDEXES = {
 
 @pytest_asyncio.fixture(scope="module", autouse=True)
 async def dispose_db_engine_after_tests():
+    # Ensure the full schema exists before any test in this module runs.
+    # In CI the database is always empty; locally it may already be provisioned.
+    await init_db()
     yield
     await engine.dispose()
 

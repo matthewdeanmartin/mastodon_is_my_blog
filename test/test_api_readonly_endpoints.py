@@ -104,6 +104,10 @@ def test_status_endpoint_returns_up(api_client: TestClient) -> None:
     assert response.headers["x-content-type-options"] == "nosniff"
 
 
+@pytest.mark.skipif(
+    not main.static_dir.exists(),
+    reason="Angular build not present — run 'make build' first",
+)
 def test_spa_static_files_are_served_with_file_content_types(
     api_client: TestClient,
 ) -> None:
@@ -121,6 +125,10 @@ def test_spa_static_files_are_served_with_file_content_types(
     assert css_response.headers["x-content-type-options"] == "nosniff"
 
 
+@pytest.mark.skipif(
+    not main.static_dir.exists(),
+    reason="Angular build not present — run 'make build' first",
+)
 def test_spa_unknown_paths_fall_back_to_index_html(api_client: TestClient) -> None:
     response = api_client.get("/not-a-real-route")
 
