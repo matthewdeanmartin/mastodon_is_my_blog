@@ -16,8 +16,6 @@ export PYTHONUTF8 := 1
 
 .PHONY: help install install-backend install-frontend install-blog build-blog serve-blog dev dev-sqlite dev-backend dev-backend-sqlite dev-server-mode dev-server-mode-sqlite dev-mock dev-frontend build build-wheel build-wheel-skip-ng publish publish-test install-from-wheel test test-backend test-frontend test-frontend-integration lint lint-check lint-backend lint-frontend lint-frontend-strict format format-check format-backend format-frontend typecheck security audit-backend check check-ci prerelease prerelease-backend prerelease-frontend clean setup db-reset
 
-POSTGRES_URL ?= postgresql://postgres:xyzzy@localhost:5432/mimb
-
 # Default target
 help:
 	@echo "Mastodon is My Blog - Development Commands"
@@ -142,9 +140,9 @@ dev-sqlite:
 
 # Run backend development server
 dev-backend:
-	@echo "Starting FastAPI server on http://localhost:8100 (Postgres: mimb)"
-	DB_URL= DB_BACKEND=postgres APP_POSTGRES_URL="$(POSTGRES_URL)" \
-		$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --reload --host 0.0.0.0 --port 8100
+	@echo "Starting FastAPI server on http://localhost:8100 (Postgres from DB_URL)"
+	$(UV) run python -m mastodon_is_my_blog.dev_database
+	$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --reload --host 0.0.0.0 --port 8100
 
 dev-backend-sqlite:
 	@echo "Starting FastAPI server on http://localhost:8100 (SQLite: app.db)"
@@ -157,10 +155,8 @@ dev-backend-sqlite:
 # Pair with `make serve-hosted` in C:\github\mimb_co.
 dev-server-mode:
 	@echo "Starting mimb product server (server mode, Postgres) on http://localhost:8100"
+	$(UV) run python -m mastodon_is_my_blog.dev_database
 	MIMB_MODE=server \
-	DB_URL= \
-	DB_BACKEND=postgres \
-	APP_POSTGRES_URL="$(POSTGRES_URL)" \
 	SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-dev-insecure-signing-key-change-me} \
 	TOKEN_ENCRYPTION_KEY=$${TOKEN_ENCRYPTION_KEY:-FzAkGyqDKck9qAqt4gcqV1ekRkLHECau1ztHVgT-Iig=} \
 	APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8100} \

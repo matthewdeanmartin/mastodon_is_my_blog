@@ -20,21 +20,42 @@ describe('Lite content filters', () => {
     expect(hasExternalLink(status)).toBe(true);
   });
 
-  it.each(['storms', 'shorts', 'replies', 'media', 'links'] as const)(
-    'never includes boosts in the %s view',
-    (filter) => {
-      const original = makeStatus('<p>A short original post.</p>');
-      const boost = { ...makeStatus('<p>Wrapper</p>'), id: 'boost', reblog: original };
+  it.each([
+    'posts',
+    'storms',
+    'shorts',
+    'replies',
+    'questions',
+    'media',
+    'links',
+    'software',
+    'news',
+  ] as const)('never includes boosts in the %s view', (filter) => {
+    const original = makeStatus('<p>A short original post.</p>');
+    const boost = { ...makeStatus('<p>Wrapper</p>'), id: 'boost', reblog: original };
 
-      expect(filterLiteStatuses([boost], filter)).toEqual([]);
-    },
-  );
+    expect(filterLiteStatuses([boost], filter)).toEqual([]);
+  });
 
   it('keeps boosts available only in their explicit view', () => {
     const original = makeStatus('<p>A short original post.</p>');
     const boost = { ...makeStatus('<p>Wrapper</p>'), id: 'boost', reblog: original };
 
     expect(filterLiteStatuses([original, boost], 'boosts')).toEqual([boost]);
+  });
+
+  it('separates questions from replies', () => {
+    const question = makeStatus('<p>What should humane software feel like?</p>');
+    const reply = { ...makeStatus('<p>I think it should feel calm.</p>'), in_reply_to_id: 'root' };
+
+    expect(filterLiteStatuses([question, reply], 'questions')).toEqual([question]);
+    expect(filterLiteStatuses([question, reply], 'replies')).toEqual([reply]);
+  });
+
+  it('recognizes common software project links', () => {
+    const software = makeStatus('<p><a href="https://codeberg.org/example/tool">A tool</a></p>');
+
+    expect(filterLiteStatuses([software], 'software')).toEqual([software]);
   });
 });
 

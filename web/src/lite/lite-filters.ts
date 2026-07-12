@@ -5,6 +5,7 @@ export function filterLiteStatuses(statuses: LiteStatus[], filter: LiteFilter): 
   if (filter === 'boosts') return statuses.filter((status) => status.reblog !== null);
 
   const originalPosts = statuses.filter((status) => status.reblog === null);
+  if (filter === 'posts') return originalPosts;
   if (filter === 'storms') {
     return buildLiteStorms(originalPosts).flatMap((storm) => [storm.root, ...storm.replies]);
   }
@@ -12,7 +13,11 @@ export function filterLiteStatuses(statuses: LiteStatus[], filter: LiteFilter): 
   return originalPosts.filter((status) => {
     if (filter === 'shorts') return textLength(status.content) < 500 && !hasExternalLink(status);
     if (filter === 'replies') return status.in_reply_to_id !== null;
+    if (filter === 'questions')
+      return status.in_reply_to_id === null && /\w+\?/u.test(text(status.content));
     if (filter === 'media') return status.media_attachments.length > 0;
+    if (filter === 'software') return hasDomain(status, SOFTWARE_DOMAINS);
+    if (filter === 'news') return hasDomain(status, NEWS_DOMAINS);
     return hasExternalLink(status);
   });
 }
@@ -27,7 +32,29 @@ export function hasExternalLink(status: LiteStatus): boolean {
 }
 
 function textLength(html: string): number {
+  return text(html).length;
+}
+
+function text(html: string): string {
   const element = document.createElement('div');
   element.innerHTML = html;
-  return (element.textContent ?? '').trim().length;
+  return (element.textContent ?? '').trim();
 }
+
+function hasDomain(status: LiteStatus, domains: readonly string[]): boolean {
+  const element = document.createElement('div');
+  element.innerHTML = status.content;
+  return Array.from(element.querySelectorAll<HTMLAnchorElement>('a[href]')).some((anchor) =>
+    domains.some((domain) => anchor.hostname === domain || anchor.hostname.endsWith(`.${domain}`)),
+  );
+}
+
+const SOFTWARE_DOMAINS = ['github.com', 'gitlab.com', 'codeberg.org', 'pypi.org', 'npmjs.com'];
+const NEWS_DOMAINS = [
+  'apnews.com',
+  'bbc.com',
+  'bbc.co.uk',
+  'npr.org',
+  'reuters.com',
+  'theguardian.com',
+];

@@ -70,10 +70,10 @@ def test_backend_inferred_from_db_url_when_backend_unset(monkeypatch):
     assert resolve_backend() == DatabaseBackend.POSTGRES
 
 
-def test_db_backend_env_overrides_db_url_scheme(monkeypatch):
+def test_db_url_scheme_overrides_stale_db_backend(monkeypatch):
     monkeypatch.setenv("DB_URL", "postgresql+asyncpg://u@h/db")
     monkeypatch.setenv("DB_BACKEND", "sqlite")
-    assert resolve_backend() == DatabaseBackend.SQLITE
+    assert resolve_backend() == DatabaseBackend.POSTGRES
 
 
 @pytest.mark.parametrize(

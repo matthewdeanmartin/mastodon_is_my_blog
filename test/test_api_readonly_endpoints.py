@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from mastodon_is_my_blog import main
+from mastodon_is_my_blog import db_init, main, schema_version
 from mastodon_is_my_blog.link_previews import CardResponse
 from mastodon_is_my_blog.queries import get_current_meta_account
 from mastodon_is_my_blog.routes import accounts, admin, posts
@@ -84,6 +84,8 @@ def api_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(main, "get_or_create_default_meta_account", async_noop)
     monkeypatch.setattr(main, "sync_configured_identities", async_noop)
     monkeypatch.setattr(main, "verify_all_identities", async_noop)
+    monkeypatch.setattr(db_init, "ensure_schema_stamped", async_noop)
+    monkeypatch.setattr(schema_version, "log_startup_banner", async_noop)
 
     def override_meta_account():
         return SimpleNamespace(id=7, username="test-meta")
@@ -102,6 +104,19 @@ def test_status_endpoint_returns_up(api_client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json() == {"status": "up"}
     assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_make_dev_frontend_origin_is_allowed(api_client: TestClient) -> None:
+    response = api_client.options(
+        "/api/status",
+        headers={
+            "Origin": "http://localhost:4201",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:4201"
 
 
 @pytest.mark.skipif(

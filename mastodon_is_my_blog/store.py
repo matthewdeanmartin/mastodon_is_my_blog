@@ -5,7 +5,6 @@ import logging
 import os
 from datetime import datetime, timedelta
 
-import dotenv
 from sqlalchemy import (
     Boolean,
     DateTime,
@@ -24,6 +23,10 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from mastodon_is_my_blog.environment import load_environment
+
+load_environment()
+
 from mastodon_is_my_blog.account_config import normalize_base_url
 from mastodon_is_my_blog.credentials import set_credential
 from mastodon_is_my_blog.datetime_helpers import utc_now
@@ -36,8 +39,6 @@ from mastodon_is_my_blog.utils.settings_loader import (
 
 logging.basicConfig()
 # logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
-
-dotenv.load_dotenv()
 
 from mastodon_is_my_blog.db_backend import (  # pylint: disable=wrong-import-position
     build_engine_kwargs,

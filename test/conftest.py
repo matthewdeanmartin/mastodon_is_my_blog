@@ -1,8 +1,15 @@
+import os
 from datetime import datetime, timezone
 
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+# Tests must never inherit the developer's DB_URL from .env and connect to a
+# real Postgres database. This is set before store is imported and its global
+# engine is constructed.
+os.environ["DB_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ.pop("DB_BACKEND", None)
 
 from mastodon_is_my_blog.store import (
     Base,

@@ -8,6 +8,14 @@ import { LiteAccount, LiteConnection, LiteStatus } from './lite.models';
 export class LiteMastodonService {
   private readonly http = inject(HttpClient);
 
+  home(connection: LiteConnection, budget: LiteRequestBudget): Promise<LiteStatus[]> {
+    return this.get<LiteStatus[]>(
+      connection,
+      `/api/v1/timelines/home?limit=${LITE_LIMITS.pageSize}`,
+      budget,
+    );
+  }
+
   following(connection: LiteConnection, budget: LiteRequestBudget): Promise<LiteAccount[]> {
     return this.get<LiteAccount[]>(
       connection,

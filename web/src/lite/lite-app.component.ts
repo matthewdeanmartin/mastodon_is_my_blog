@@ -35,7 +35,7 @@ export class LiteAppComponent implements OnInit {
   readonly statuses = signal<LiteStatus[]>([]);
   readonly following = signal<LiteAccount[]>([]);
   readonly page = signal<LitePage>('people');
-  readonly filter = signal<LiteFilter>('storms');
+  readonly filter = signal<LiteFilter>('posts');
   readonly selectedAccount = signal<LiteAccount | null>(null);
   readonly loading = signal(false);
   readonly connecting = signal(false);
@@ -52,17 +52,20 @@ export class LiteAppComponent implements OnInit {
   });
   readonly filterLabel = computed(() => {
     const labels: Record<LiteFilter, string> = {
+      posts: 'Posts',
       storms: 'Storms',
       shorts: 'Short text',
       replies: 'Discussions',
+      questions: 'Questions',
       media: 'Media',
       links: 'Links',
+      software: 'Software',
+      news: 'News',
       boosts: 'Boosts',
     };
     return labels[this.filter()];
   });
   readonly visibleStatuses = computed(() => {
-    if (this.page() === 'people') return this.statuses().filter((status) => status.reblog === null);
     return filterLiteStatuses(this.statuses(), this.filter());
   });
 
@@ -107,7 +110,7 @@ export class LiteAppComponent implements OnInit {
     this.following.set(sampleFollowing);
     this.statuses.set(sampleStatuses);
     this.page.set('people');
-    this.filter.set('storms');
+    this.filter.set('posts');
     this.selectedAccount.set(sampleAccount);
     this.callsUsed.set(0);
     this.error.set(null);
@@ -116,27 +119,30 @@ export class LiteAppComponent implements OnInit {
   async navigate(page: LitePage): Promise<void> {
     this.page.set(page);
     if (page === 'write') return;
-    if (page === 'forums') this.filter.set('replies');
-    if (page === 'people' || (page === 'content' && this.filter() === 'replies')) {
-      this.filter.set('storms');
+    if (page === 'people') {
+      this.filter.set('posts');
+      await this.loadAccount(this.selectedAccount() ?? this.account());
+      return;
     }
-    await this.loadAccount(this.selectedAccount() ?? this.account());
+    this.filter.set(page === 'content' ? 'media' : 'replies');
+    await this.loadNetwork();
   }
 
   setFilter(filter: LiteFilter): void {
     this.filter.set(filter);
-    this.page.set(filter === 'replies' ? 'forums' : 'content');
   }
 
   async selectFollowing(account: LiteAccount): Promise<void> {
     this.selectedAccount.set(account);
     this.page.set('people');
-    this.filter.set('storms');
+    this.filter.set('posts');
     await this.loadAccount(account);
   }
 
   async refresh(): Promise<void> {
-    if (this.selectedAccount()) {
+    if (this.page() === 'content' || this.page() === 'forums') {
+      await this.loadNetwork();
+    } else if (this.selectedAccount()) {
       await this.loadAccount(this.selectedAccount());
     } else {
       await this.loadAccount(this.account());
@@ -213,6 +219,16 @@ export class LiteAppComponent implements OnInit {
     await this.runOperation((budget) =>
       this.mastodon.accountStatuses(connection, account.id, budget),
     );
+  }
+
+  private async loadNetwork(): Promise<void> {
+    if (this.sampleMode()) {
+      this.statuses.set(sampleStatuses);
+      return;
+    }
+    const connection = this.connection();
+    if (!connection) return;
+    await this.runOperation((budget) => this.mastodon.home(connection, budget));
   }
 
   private async runOperation(

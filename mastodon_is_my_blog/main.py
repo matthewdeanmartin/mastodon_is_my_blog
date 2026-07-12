@@ -3,11 +3,14 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-import dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+
+from mastodon_is_my_blog.environment import load_environment
+
+load_environment()
 
 from mastodon_is_my_blog import duck
 from mastodon_is_my_blog.db_log_handler import DbLogHandler
@@ -51,9 +54,6 @@ _root = logging.getLogger("mastodon_is_my_blog")
 _root.setLevel(logging.INFO)
 _db_handler = DbLogHandler(level=logging.WARNING)
 _root.addHandler(_db_handler)
-
-dotenv.load_dotenv()
-
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -175,10 +175,12 @@ def allowed_origins() -> list[str]:
         return origins
     return [
         "http://localhost:4200",
+        "http://localhost:4201",
         "http://localhost:8080",
         "http://localhost:3000",
         "http://localhost:8100",
         "http://127.0.0.1:4200",
+        "http://127.0.0.1:4201",
         "http://127.0.0.1:8080",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8100",
@@ -271,9 +273,9 @@ async def callback(code: str, state: str):
     await persist_identity(meta, pending.base_url, pending.client_id, pending.client_secret, access_token, verified_me)
 
     # In server mode the SPA is served by this very app, so the post-OAuth
-    # landing defaults to APP_BASE_URL (required env there) — the :4200
+    # landing defaults to APP_BASE_URL (required env there) — the :4201
     # default is the local-dev ng-serve split only.
-    frontend_url = os.environ.get("FRONTEND_URL") or (os.environ["APP_BASE_URL"].rstrip("/") if tenancy.is_server_mode() else "http://localhost:4200")
+    frontend_url = os.environ.get("FRONTEND_URL") or (os.environ["APP_BASE_URL"].rstrip("/") if tenancy.is_server_mode() else "http://localhost:4201")
     if not tenancy.is_server_mode():
         # Single-user mode: kick an inline first sync for instant gratification.
         await sync_accounts_friends_followers()

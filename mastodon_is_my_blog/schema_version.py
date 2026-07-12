@@ -12,7 +12,7 @@ exists identically on sqlite/turso/postgres.
 
 import logging
 
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from mastodon_is_my_blog.db_backend import DatabaseBackend
@@ -68,5 +68,13 @@ async def log_startup_banner() -> None:
     logger.info("Database backend: %s", info["backend"])
     logger.info("Database URL: %s", info["url"])
     logger.info("Schema version: %s", info["schema_version"])
+    async with engine.connect() as conn:
+        posts_table = await conn.run_sync(lambda sync_conn: inspect(sync_conn).has_table("cached_posts"))
+        accounts_table = await conn.run_sync(lambda sync_conn: inspect(sync_conn).has_table("cached_accounts"))
+        post_count = await conn.scalar(text("SELECT count(*) FROM cached_posts")) if posts_table else 0
+        account_count = await conn.scalar(text("SELECT count(*) FROM cached_accounts")) if accounts_table else 0
+    logger.info("Existing data: %s posts, %s accounts", f"{post_count:,}", f"{account_count:,}")
+    if post_count == 0 and account_count == 0:
+        logger.warning("The selected database contains no cached application data")
     if info["remote_sync"] != "n/a":
         logger.info("Remote sync: %s", info["remote_sync"])

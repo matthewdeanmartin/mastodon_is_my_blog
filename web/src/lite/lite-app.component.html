@@ -110,40 +110,45 @@
       }
     </main>
   } @else {
-    <main class="client-grid" [class.people-view]="page() === 'people' || page() === 'forums'">
-      <aside class="people-panel">
-        <div class="panel-title">
-          <span>Following</span><small>{{ following().length }} loaded</small>
-        </div>
-        <button class="person" type="button" (click)="selectFollowing(account()!)">
-          @if (account()?.avatar) {
-            <img [src]="account()!.avatar" alt="" />
-          } @else if (account()) {
-            <span class="avatar-fallback">{{ initials(account()!) }}</span>
-          }
-          <span
-            ><b>{{ account()?.display_name || account()?.acct }}</b
-            ><small>&#64;{{ account()?.acct }}</small></span
-          >
-        </button>
-        @for (person of following(); track person.id) {
-          <button class="person" type="button" (click)="selectFollowing(person)">
-            @if (person.avatar) {
-              <img [src]="person.avatar" alt="" />
-            } @else {
-              <span class="avatar-fallback">{{ initials(person) }}</span>
+    <main class="client-grid" [class.aggregate-view]="page() !== 'people'">
+      @if (page() === 'people') {
+        <aside class="people-panel">
+          <div class="panel-title">
+            <span>Following</span><small>{{ following().length }} loaded</small>
+          </div>
+          <button class="person" type="button" (click)="selectFollowing(account()!)">
+            @if (account()?.avatar) {
+              <img [src]="account()!.avatar" alt="" />
+            } @else if (account()) {
+              <span class="avatar-fallback">{{ initials(account()!) }}</span>
             }
             <span
-              ><b>{{ person.display_name || person.acct }}</b
-              ><small>&#64;{{ person.acct }}</small></span
+              ><b>{{ account()?.display_name || account()?.acct }}</b
+              ><small>&#64;{{ account()?.acct }}</small></span
             >
           </button>
-        }
-      </aside>
+          @for (person of following(); track person.id) {
+            <button class="person" type="button" (click)="selectFollowing(person)">
+              @if (person.avatar) {
+                <img [src]="person.avatar" alt="" />
+              } @else {
+                <span class="avatar-fallback">{{ initials(person) }}</span>
+              }
+              <span
+                ><b>{{ person.display_name || person.acct }}</b
+                ><small>&#64;{{ person.acct }}</small></span
+              >
+            </button>
+          }
+        </aside>
+      }
 
-      @if (page() === 'content') {
-        <aside class="filter-panel">
-          <div class="panel-title"><span>View</span></div>
+      <aside class="filter-panel">
+        <div class="panel-title"><span>View</span></div>
+        @if (page() === 'people') {
+          <button [class.active]="filter() === 'posts'" type="button" (click)="setFilter('posts')">
+            Posts
+          </button>
           <button
             [class.active]="filter() === 'storms'"
             type="button"
@@ -158,6 +163,13 @@
           >
             Short text
           </button>
+          <button
+            [class.active]="filter() === 'replies'"
+            type="button"
+            (click)="setFilter('replies')"
+          >
+            Discussions
+          </button>
           <button [class.active]="filter() === 'media'" type="button" (click)="setFilter('media')">
             Pictures
           </button>
@@ -171,11 +183,43 @@
           >
             Boosts
           </button>
-          <div class="budget-note">
-            <b>{{ callsUsed() }}/10</b> API calls in the last action
-          </div>
-        </aside>
-      }
+        } @else if (page() === 'content') {
+          <button [class.active]="filter() === 'media'" type="button" (click)="setFilter('media')">
+            Pictures
+          </button>
+          <button [class.active]="filter() === 'links'" type="button" (click)="setFilter('links')">
+            Links
+          </button>
+          <button
+            [class.active]="filter() === 'software'"
+            type="button"
+            (click)="setFilter('software')"
+          >
+            Software
+          </button>
+          <button [class.active]="filter() === 'news'" type="button" (click)="setFilter('news')">
+            News
+          </button>
+        } @else {
+          <button
+            [class.active]="filter() === 'questions'"
+            type="button"
+            (click)="setFilter('questions')"
+          >
+            Questions
+          </button>
+          <button
+            [class.active]="filter() === 'replies'"
+            type="button"
+            (click)="setFilter('replies')"
+          >
+            Discussions
+          </button>
+        }
+        <div class="budget-note">
+          <b>{{ callsUsed() }}/10</b> API calls in the last action
+        </div>
+      </aside>
 
       <section class="feed-panel">
         <div class="feed-heading">
@@ -190,7 +234,11 @@
               }}
             </div>
             <h1>
-              {{ selectedAccount()?.display_name || account()?.display_name || account()?.acct }}
+              {{
+                page() === 'people'
+                  ? selectedAccount()?.display_name || account()?.display_name || account()?.acct
+                  : filterLabel()
+              }}
             </h1>
             <p>{{ visibleStatuses().length }} posts in this loaded window</p>
           </div>

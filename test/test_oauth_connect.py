@@ -178,7 +178,7 @@ async def test_auth_callback_consumes_pending_connection_and_persists_identity(m
         response = client.get("/auth/callback?code=somecode&state=abc123", follow_redirects=False)
 
     assert response.status_code == 307
-    assert response.headers["location"] == "http://localhost:4200/#/admin"
+    assert response.headers["location"] == "http://localhost:4201/#/admin"
 
     from sqlalchemy import select
 

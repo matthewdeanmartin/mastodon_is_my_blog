@@ -48,10 +48,17 @@ def resolve_backend() -> DatabaseBackend:
     Decide the active backend.
 
     Precedence:
-      1. ``DB_BACKEND`` env var (sqlite | turso | postgres), if set.
-      2. Inferred from an explicit ``DB_URL`` scheme.
+      1. Inferred from an explicit ``DB_URL`` scheme.
+      2. ``DB_BACKEND`` env var (sqlite | turso | postgres), if set.
       3. Default: sqlite.
+
+    DB_URL is authoritative when present so a stale DB_BACKEND cannot make the
+    engine and its backend-specific setup disagree.
     """
+    if db_url := os.environ.get("DB_URL"):
+        if inferred := backend_from_url(db_url):
+            return inferred
+
     raw = os.environ.get("DB_BACKEND")
     if raw:
         try:
@@ -59,10 +66,6 @@ def resolve_backend() -> DatabaseBackend:
         except ValueError as exc:
             valid = ", ".join(b.value for b in DatabaseBackend)
             raise ValueError(f"Unknown DB_BACKEND={raw!r}. Valid values: {valid}.") from exc
-
-    if db_url := os.environ.get("DB_URL"):
-        if inferred := backend_from_url(db_url):
-            return inferred
 
     return DatabaseBackend.SQLITE
 
