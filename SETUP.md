@@ -18,7 +18,7 @@ keys directly instead:
 2. Go to Settings → Development → New Application
 3. Fill in the details:
    - **Application name**: My Blog Console
-   - **Redirect URI**: `http://localhost:8000/auth/callback`
+   - **Redirect URI**: `http://localhost:8100/auth/callback`
    - **Scopes**: Select `read` and `write`
 4. Click "Submit"
 5. Copy your **Client key** (client ID) and **Client secret**
@@ -46,7 +46,7 @@ keys directly instead:
 
 4. Run the backend:
    ```bash
-   uv run mastodon_is_my_blog start --reload --port 8000
+   uv run mastodon_is_my_blog start --reload --port 8100
    ```
 
 ## Step 3: Run Frontend
@@ -102,4 +102,4 @@ Make sure both frontend and backend URLs match where you're actually running the
 ### Posts Not Loading
 1. Ensure you're authenticated (click Connect Account if you skipped the token during setup)
 2. Check the browser console for errors
-3. Verify your backend is running on port 8000
+3. Verify your backend is running on port 8100

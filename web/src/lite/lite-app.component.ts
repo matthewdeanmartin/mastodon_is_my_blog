@@ -16,7 +16,7 @@ import { LiteMastodonService } from './lite-mastodon.service';
 import { LiteOAuthService } from './lite-oauth.service';
 import { LiteStorageService } from './lite-storage.service';
 import { LiteAccount, LiteConnection, LiteFilter, LitePage, LiteStatus } from './lite.models';
-import { buildLiteStorms } from './lite-storms';
+import { filterLiteStatuses } from './lite-filters';
 
 @Component({
   selector: 'app-lite-root',
@@ -34,8 +34,8 @@ export class LiteAppComponent implements OnInit {
   readonly account = signal<LiteAccount | null>(null);
   readonly statuses = signal<LiteStatus[]>([]);
   readonly following = signal<LiteAccount[]>([]);
-  readonly page = signal<LitePage>('home');
-  readonly filter = signal<LiteFilter>('recent');
+  readonly page = signal<LitePage>('people');
+  readonly filter = signal<LiteFilter>('storms');
   readonly selectedAccount = signal<LiteAccount | null>(null);
   readonly loading = signal(false);
   readonly connecting = signal(false);
@@ -46,9 +46,12 @@ export class LiteAppComponent implements OnInit {
   instance = '';
 
   readonly connected = computed(() => this.sampleMode() || this.connection() !== null);
+  readonly composeUrl = computed(() => {
+    const connection = this.connection();
+    return connection ? `${connection.instanceUrl}/publish` : null;
+  });
   readonly filterLabel = computed(() => {
     const labels: Record<LiteFilter, string> = {
-      recent: 'Recent',
       storms: 'Storms',
       shorts: 'Short text',
       replies: 'Discussions',
@@ -59,19 +62,8 @@ export class LiteAppComponent implements OnInit {
     return labels[this.filter()];
   });
   readonly visibleStatuses = computed(() => {
-    const filter = this.filter();
-    if (filter === 'storms') {
-      return buildLiteStorms(this.statuses()).flatMap((storm) => [storm.root, ...storm.replies]);
-    }
-    return this.statuses().filter((status) => {
-      const content = this.displayStatus(status);
-      if (filter === 'shorts') return textLength(content.content) < 500 && !hasLink(content);
-      if (filter === 'replies') return content.in_reply_to_id !== null;
-      if (filter === 'media') return content.media_attachments.length > 0;
-      if (filter === 'links') return hasLink(content);
-      if (filter === 'boosts') return status.reblog !== null;
-      return true;
-    });
+    if (this.page() === 'people') return this.statuses().filter((status) => status.reblog === null);
+    return filterLiteStatuses(this.statuses(), this.filter());
   });
 
   async ngOnInit(): Promise<void> {
@@ -114,55 +106,40 @@ export class LiteAppComponent implements OnInit {
     this.account.set(sampleAccount);
     this.following.set(sampleFollowing);
     this.statuses.set(sampleStatuses);
-    this.page.set('home');
-    this.filter.set('recent');
+    this.page.set('people');
+    this.filter.set('storms');
+    this.selectedAccount.set(sampleAccount);
     this.callsUsed.set(0);
     this.error.set(null);
   }
 
   async navigate(page: LitePage): Promise<void> {
     this.page.set(page);
-    this.selectedAccount.set(null);
-    if (page === 'media') {
-      this.filter.set('media');
-      await this.loadHome();
-      return;
+    if (page === 'write') return;
+    if (page === 'forums') this.filter.set('replies');
+    if (page === 'people' || (page === 'content' && this.filter() === 'replies')) {
+      this.filter.set('storms');
     }
-    if (page === 'links') {
-      this.filter.set('links');
-      await this.loadHome();
-      return;
-    }
-    if (page === 'about') return;
-    this.filter.set(page === 'me' ? 'storms' : 'recent');
-    if (page === 'home') {
-      await this.loadHome();
-    } else {
-      await this.loadAccount(this.account());
-    }
+    await this.loadAccount(this.selectedAccount() ?? this.account());
   }
 
   setFilter(filter: LiteFilter): void {
     this.filter.set(filter);
-    if (filter === 'media') this.page.set('media');
-    else if (filter === 'links') this.page.set('links');
-    else if (this.page() === 'media' || this.page() === 'links') this.page.set('home');
+    this.page.set(filter === 'replies' ? 'forums' : 'content');
   }
 
   async selectFollowing(account: LiteAccount): Promise<void> {
     this.selectedAccount.set(account);
-    this.page.set('home');
-    this.filter.set('recent');
+    this.page.set('people');
+    this.filter.set('storms');
     await this.loadAccount(account);
   }
 
   async refresh(): Promise<void> {
     if (this.selectedAccount()) {
       await this.loadAccount(this.selectedAccount());
-    } else if (this.page() === 'me') {
-      await this.loadAccount(this.account());
     } else {
-      await this.loadHome();
+      await this.loadAccount(this.account());
     }
   }
 
@@ -208,12 +185,13 @@ export class LiteAppComponent implements OnInit {
     const budget = new LiteRequestBudget();
     try {
       const [statuses, following] = await Promise.all([
-        this.mastodon.home(connection, budget),
+        this.mastodon.accountStatuses(connection, connection.account.id, budget),
         this.mastodon.following(connection, budget),
       ]);
-      this.statuses.set(statuses.slice(0, LITE_LIMITS.maxCachedHomeStatuses));
+      this.statuses.set(statuses.slice(0, LITE_LIMITS.maxCachedOwnStatuses));
+      this.selectedAccount.set(connection.account);
       this.following.set(following.slice(0, LITE_LIMITS.maxCachedFollowing));
-      this.storage.writeCache(connection, 'home', this.statuses());
+      this.storage.writeCache(connection, 'own-statuses', this.statuses());
       this.storage.writeCache(connection, 'following', this.following());
       this.callsUsed.set(budget.callsUsed);
     } catch (error: unknown) {
@@ -222,16 +200,6 @@ export class LiteAppComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
-  }
-
-  private async loadHome(): Promise<void> {
-    if (this.sampleMode()) {
-      this.statuses.set(sampleStatuses);
-      return;
-    }
-    const connection = this.connection();
-    if (!connection) return;
-    await this.runOperation((budget) => this.mastodon.home(connection, budget));
   }
 
   private async loadAccount(account: LiteAccount | null): Promise<void> {
@@ -268,21 +236,14 @@ export class LiteAppComponent implements OnInit {
   }
 
   private restoreCache(connection: LiteConnection): void {
-    const home = this.storage.readCache<LiteStatus[]>(connection, 'home');
+    const ownStatuses = this.storage.readCache<LiteStatus[]>(connection, 'own-statuses');
     const following = this.storage.readCache<LiteAccount[]>(connection, 'following');
-    if (home) this.statuses.set(home.slice(0, LITE_LIMITS.maxCachedHomeStatuses));
+    if (ownStatuses) {
+      this.statuses.set(ownStatuses.slice(0, LITE_LIMITS.maxCachedOwnStatuses));
+      this.selectedAccount.set(connection.account);
+    }
     if (following) this.following.set(following.slice(0, LITE_LIMITS.maxCachedFollowing));
   }
-}
-
-function textLength(html: string): number {
-  const element = document.createElement('div');
-  element.innerHTML = html;
-  return (element.textContent ?? '').trim().length;
-}
-
-function hasLink(status: LiteStatus): boolean {
-  return /<a\s/i.test(status.content);
 }
 
 function errorMessage(error: unknown): string {

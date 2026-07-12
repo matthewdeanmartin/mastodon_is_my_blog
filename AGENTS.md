@@ -16,7 +16,7 @@ reach those records — from cheapest to most powerful:
 1. **CLI / quick HTTP read** while the dev server is running:
 
    ```powershell
-   curl http://localhost:8000/api/admin/error-log?limit=200
+   curl http://localhost:8100/api/admin/error-log?limit=200
    ```
 
    This returns the most recent rows as JSON, with fields `id`, `ts`, `iso`,

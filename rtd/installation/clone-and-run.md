@@ -38,7 +38,7 @@ On your Mastodon server:
 2. open **Settings**
 3. open **Development**
 4. create a new application
-5. use `http://localhost:8000/auth/callback` as the redirect URL
+5. use `http://localhost:8100/auth/callback` as the redirect URL
 6. grant `read` and `write` scopes
 
 Save the **client ID** and **client secret**.
@@ -54,7 +54,7 @@ You can add one account or several. If you do not have an access token yet, you 
 ## 5. Start the backend
 
 ```bash
-uv run mastodon_is_my_blog start --reload --port 8000
+uv run mastodon_is_my_blog start --reload --port 8100
 ```
 
 ## 6. Start the frontend

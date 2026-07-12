@@ -25,7 +25,7 @@
           </button>
         </div>
         <p class="privacy-note">
-          Your access token and recent posts stay in local browser storage. Lite requests read
+          Your access token and loaded posts stay in local browser storage. Lite requests read
           access only.
         </p>
         @if (error()) {
@@ -58,7 +58,7 @@
   </main>
 } @else {
   <div class="lite-bar">
-    <button class="brand" type="button" (click)="navigate('home')">
+    <button class="brand" type="button" (click)="navigate('people')">
       Mastodon is My Blog <span>Lite</span>
     </button>
     <div class="lite-context">
@@ -78,58 +78,44 @@
 
   <header class="site-header">
     <nav aria-label="Lite navigation">
-      <button [class.active]="page() === 'home'" type="button" (click)="navigate('home')">
+      <button [class.active]="page() === 'people'" type="button" (click)="navigate('people')">
         People
       </button>
-      <button [class.active]="page() === 'me'" type="button" (click)="navigate('me')">
-        My Blog
+      <button [class.active]="page() === 'content'" type="button" (click)="navigate('content')">
+        Content
       </button>
-      <button [class.active]="page() === 'media'" type="button" (click)="navigate('media')">
-        Media
+      <button [class.active]="page() === 'forums'" type="button" (click)="navigate('forums')">
+        Forums
       </button>
-      <button [class.active]="page() === 'links'" type="button" (click)="navigate('links')">
-        Links
-      </button>
-      <button [class.active]="page() === 'about'" type="button" (click)="navigate('about')">
-        Full App
+      <button [class.active]="page() === 'write'" type="button" (click)="navigate('write')">
+        Write
       </button>
     </nav>
   </header>
 
-  @if (page() === 'about') {
+  @if (page() === 'write') {
     <main class="about-page">
-      <div class="eyebrow">THE FULL APPLICATION</div>
-      <h1>Lite is the front porch.<br />The installed app is the house.</h1>
+      <div class="eyebrow">WRITE</div>
+      <h1>Write on your own Mastodon.</h1>
       <p>
-        Lite reads a small live window. The full app builds durable history in SQLite and can ask
-        the expensive, interesting questions that make Mastodon feel like your own web.
+        Lite requests read-only access, so publishing stays with your Mastodon instance. Open its
+        composer without visiting the main feed.
       </p>
-      <div class="comparison-grid">
-        <section>
-          <b>Lite</b><span>Live recent posts</span><span>Local media and link filters</span
-          ><span>Browser-only seen state</span>
-        </section>
-        <section class="full">
-          <b>Installed</b><span>Durable history and catch-up</span
-          ><span>Analytics, dossiers, forums, cohorts</span
-          ><span>Writing, drafts, sync, and deep queries</span>
-        </section>
-      </div>
-      <a
-        class="primary-link"
-        href="https://github.com/matthewdeanmartin/mastodon_is_my_blog"
-        target="_blank"
-        rel="noopener noreferrer"
-        >Install the full app →</a
-      >
+      @if (composeUrl()) {
+        <a class="primary-link" [href]="composeUrl()" target="_blank" rel="noopener noreferrer"
+          >Open composer →</a
+        >
+      } @else {
+        <p>Connect an account to open its composer.</p>
+      }
     </main>
   } @else {
-    <main class="client-grid">
+    <main class="client-grid" [class.people-view]="page() === 'people' || page() === 'forums'">
       <aside class="people-panel">
         <div class="panel-title">
           <span>Following</span><small>{{ following().length }} loaded</small>
         </div>
-        <button class="person" type="button" (click)="navigate('me')">
+        <button class="person" type="button" (click)="selectFollowing(account()!)">
           @if (account()?.avatar) {
             <img [src]="account()!.avatar" alt="" />
           } @else if (account()) {
@@ -155,46 +141,56 @@
         }
       </aside>
 
-      <aside class="filter-panel">
-        <div class="panel-title"><span>View</span></div>
-        <button [class.active]="filter() === 'recent'" type="button" (click)="setFilter('recent')">
-          Recent
-        </button>
-        <button [class.active]="filter() === 'storms'" type="button" (click)="setFilter('storms')">
-          Storms
-        </button>
-        <button [class.active]="filter() === 'shorts'" type="button" (click)="setFilter('shorts')">
-          Short text
-        </button>
-        <button
-          [class.active]="filter() === 'replies'"
-          type="button"
-          (click)="setFilter('replies')"
-        >
-          Discussions
-        </button>
-        <button [class.active]="filter() === 'media'" type="button" (click)="setFilter('media')">
-          Pictures & video
-        </button>
-        <button [class.active]="filter() === 'links'" type="button" (click)="setFilter('links')">
-          Links
-        </button>
-        <button [class.active]="filter() === 'boosts'" type="button" (click)="setFilter('boosts')">
-          Boosts
-        </button>
-        <div class="budget-note">
-          <b>{{ callsUsed() }}/10</b> API calls in the last action
-        </div>
-      </aside>
+      @if (page() === 'content') {
+        <aside class="filter-panel">
+          <div class="panel-title"><span>View</span></div>
+          <button
+            [class.active]="filter() === 'storms'"
+            type="button"
+            (click)="setFilter('storms')"
+          >
+            Storms
+          </button>
+          <button
+            [class.active]="filter() === 'shorts'"
+            type="button"
+            (click)="setFilter('shorts')"
+          >
+            Short text
+          </button>
+          <button [class.active]="filter() === 'media'" type="button" (click)="setFilter('media')">
+            Pictures
+          </button>
+          <button [class.active]="filter() === 'links'" type="button" (click)="setFilter('links')">
+            Links
+          </button>
+          <button
+            [class.active]="filter() === 'boosts'"
+            type="button"
+            (click)="setFilter('boosts')"
+          >
+            Boosts
+          </button>
+          <div class="budget-note">
+            <b>{{ callsUsed() }}/10</b> API calls in the last action
+          </div>
+        </aside>
+      }
 
       <section class="feed-panel">
         <div class="feed-heading">
           <div>
             <div class="eyebrow">
-              {{ selectedAccount() ? 'RECENT ACCOUNT POSTS' : filterLabel().toUpperCase() }}
+              {{
+                page() === 'people'
+                  ? 'MICROBLOG'
+                  : page() === 'forums'
+                    ? 'DISCUSSIONS'
+                    : filterLabel().toUpperCase()
+              }}
             </div>
             <h1>
-              {{ selectedAccount()?.display_name || (page() === 'me' ? 'My Blog' : filterLabel()) }}
+              {{ selectedAccount()?.display_name || account()?.display_name || account()?.acct }}
             </h1>
             <p>{{ visibleStatuses().length }} posts in this loaded window</p>
           </div>

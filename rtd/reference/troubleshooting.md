@@ -21,7 +21,7 @@ npm start
 
 Double-check the Mastodon app registration:
 
-- redirect URL must be `http://localhost:8000/auth/callback`
+- redirect URL must be `http://localhost:8100/auth/callback`
 - scopes should include `read` and `write`
 - client ID and client secret must match what you entered during `init`
 

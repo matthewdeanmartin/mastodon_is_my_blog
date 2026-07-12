@@ -4,7 +4,7 @@ export const LITE_LIMITS = {
   pageSize: 40,
   maxPagesPerCollection: 2,
   maxCachedStatusesPerAccount: 80,
-  maxCachedHomeStatuses: 160,
+  maxCachedOwnStatuses: 160,
   maxCachedFollowing: 200,
   cacheTtlMs: 5 * 60 * 1000,
 } as const;

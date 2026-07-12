@@ -129,14 +129,14 @@ endef
 dev:
 	@echo "Starting backend and frontend servers..."
 	@echo "Backend: http://localhost:8000"
-	@echo "Frontend: http://localhost:4200"
+	@echo "Frontend: http://localhost:4201"
 	@echo ""
 	$(call run_dev_servers,dev-backend)
 
 dev-sqlite:
 	@echo "Starting SQLite backend and frontend servers..."
 	@echo "Backend: http://localhost:8000"
-	@echo "Frontend: http://localhost:4200"
+	@echo "Frontend: http://localhost:4201"
 	@echo ""
 	$(call run_dev_servers,dev-backend-sqlite)
 
@@ -205,7 +205,7 @@ dev-mock:
 # Run frontend development server
 dev-frontend:
 	@echo "Starting Angular dev server on http://localhost:4200"
-	cd web && ng serve web --port 4200 --open
+	cd web && ng serve web --port 4201 --open
 
 # Build Angular frontend for production only (no Python wheel)
 build:

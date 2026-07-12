@@ -70,7 +70,7 @@ jobs:
       - name: Verify Lite has no backend dependency
         run: |
           grep -F '<base href="/mastodon_is_my_blog/mimb_lite/">' web/dist/lite/browser/index.html
-          if grep -R -E 'localhost:8000|/api/admin' web/dist/lite/browser/*.js; then
+          if grep -R -E 'localhost:8100|/api/admin' web/dist/lite/browser/*.js; then
             echo 'Lite bundle contains a Python-backend dependency.' >&2
             exit 1
           fi

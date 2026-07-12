@@ -322,7 +322,7 @@ def run_init_command() -> None:
         print("Skipped. You can connect later with `mimb auth login your@handle`, or from the web UI (Connect Account).")
 
     asyncio.run(sync_identity_state())
-    print("Setup complete. Run `mimb start` and open http://127.0.0.1:8000")
+    print("Setup complete. Run `mimb start` and open http://127.0.0.1:8100")
 
 
 def start_server(host: str, port: int, reload_: bool, workers: int) -> None:
