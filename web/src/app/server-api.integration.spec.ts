@@ -10,7 +10,7 @@
 // Only read-only endpoints are used, so running against your live app.db is safe.
 
 const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-const API_BASE = env?.['MIMB_API_BASE'] ?? 'http://localhost:8000';
+const API_BASE = env?.['MIMB_API_BASE'] ?? 'http://localhost:8100';
 
 let serverUp = false;
 let identityId: number | null = null;

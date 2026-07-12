@@ -128,50 +128,50 @@ endef
 
 dev:
 	@echo "Starting backend and frontend servers..."
-	@echo "Backend: http://localhost:8000"
+	@echo "Backend: http://localhost:8100"
 	@echo "Frontend: http://localhost:4201"
 	@echo ""
 	$(call run_dev_servers,dev-backend)
 
 dev-sqlite:
 	@echo "Starting SQLite backend and frontend servers..."
-	@echo "Backend: http://localhost:8000"
+	@echo "Backend: http://localhost:8100"
 	@echo "Frontend: http://localhost:4201"
 	@echo ""
 	$(call run_dev_servers,dev-backend-sqlite)
 
 # Run backend development server
 dev-backend:
-	@echo "Starting FastAPI server on http://localhost:8000 (Postgres: mimb)"
+	@echo "Starting FastAPI server on http://localhost:8100 (Postgres: mimb)"
 	DB_URL= DB_BACKEND=postgres APP_POSTGRES_URL="$(POSTGRES_URL)" \
-		$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --reload --host 0.0.0.0 --port 8000
+		$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --reload --host 0.0.0.0 --port 8100
 
 dev-backend-sqlite:
-	@echo "Starting FastAPI server on http://localhost:8000 (SQLite: app.db)"
+	@echo "Starting FastAPI server on http://localhost:8100 (SQLite: app.db)"
 	DB_BACKEND=sqlite DB_URL="sqlite+aiosqlite:///./app.db" \
-		$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --reload --host 0.0.0.0 --port 8000
+		$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --reload --host 0.0.0.0 --port 8100
 
 # Run the backend as the HOSTED multi-tenant product server (MIMB_MODE=server),
 # wired for the mimb_co control plane (spec/paid_hosting/hosted_wiring.md).
 # All values are LOCAL DEV defaults; override via environment for anything real.
 # Pair with `make serve-hosted` in C:\github\mimb_co.
 dev-server-mode:
-	@echo "Starting mimb product server (server mode, Postgres) on http://localhost:8000"
+	@echo "Starting mimb product server (server mode, Postgres) on http://localhost:8100"
 	MIMB_MODE=server \
 	DB_URL= \
 	DB_BACKEND=postgres \
 	APP_POSTGRES_URL="$(POSTGRES_URL)" \
 	SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-dev-insecure-signing-key-change-me} \
 	TOKEN_ENCRYPTION_KEY=$${TOKEN_ENCRYPTION_KEY:-FzAkGyqDKck9qAqt4gcqV1ekRkLHECau1ztHVgT-Iig=} \
-	APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} \
+	APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8100} \
 	HANDOFF_SHARED_SECRET=$${HANDOFF_SHARED_SECRET:-dev-handoff-secret} \
 	EXPORT_DIR=$${EXPORT_DIR:-exports} \
 	ACCOUNT_PORTAL_URL=$${ACCOUNT_PORTAL_URL:-http://localhost:8051} \
-	FRONTEND_URL=$${FRONTEND_URL:-http://localhost:8000} \
-	$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --host 127.0.0.1 --port 8000
+	FRONTEND_URL=$${FRONTEND_URL:-http://localhost:8100} \
+	$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --host 127.0.0.1 --port 8100
 
 dev-server-mode-sqlite:
-	@echo "Starting mimb product server (server mode, SQLite) on http://localhost:8000"
+	@echo "Starting mimb product server (server mode, SQLite) on http://localhost:8100"
 	@if [ -f mimb_server.db ]; then \
 	  mkdir -p backups; \
 	  cp mimb_server.db "backups/mimb_server.$$(date +%Y%m%d-%H%M%S).db"; \
@@ -182,12 +182,12 @@ dev-server-mode-sqlite:
 	DB_URL="sqlite+aiosqlite:///mimb_server.db" \
 	SESSION_SIGNING_KEY=$${SESSION_SIGNING_KEY:-dev-insecure-signing-key-change-me} \
 	TOKEN_ENCRYPTION_KEY=$${TOKEN_ENCRYPTION_KEY:-FzAkGyqDKck9qAqt4gcqV1ekRkLHECau1ztHVgT-Iig=} \
-	APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8000} \
+	APP_BASE_URL=$${APP_BASE_URL:-http://localhost:8100} \
 	HANDOFF_SHARED_SECRET=$${HANDOFF_SHARED_SECRET:-dev-handoff-secret} \
 	EXPORT_DIR=$${EXPORT_DIR:-exports} \
 	ACCOUNT_PORTAL_URL=$${ACCOUNT_PORTAL_URL:-http://localhost:8051} \
-	FRONTEND_URL=$${FRONTEND_URL:-http://localhost:8000} \
-	$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --host 127.0.0.1 --port 8000
+	FRONTEND_URL=$${FRONTEND_URL:-http://localhost:8100} \
+	$(UV) run python -m uvicorn mastodon_is_my_blog.main:app --host 127.0.0.1 --port 8100
 # FRONTEND_URL is pinned because a local-dev .env (FRONTEND_URL=:4200 for
 # ng serve) would otherwise leak into server mode via load_dotenv and send
 # the post-OAuth redirect to the wrong app.
@@ -272,7 +272,7 @@ test-frontend:
 
 # Run frontend integration tests against a LIVE backend (make dev-backend first).
 # These hit real HTTP endpoints (read-only) and auto-skip if the server at
-# http://localhost:8000 (override with MIMB_API_BASE) is unreachable.
+# http://localhost:8100 (override with MIMB_API_BASE) is unreachable.
 test-frontend-integration:
 	@echo "Running frontend integration tests (needs a running backend)..."
 	cd web && npm run test:integration

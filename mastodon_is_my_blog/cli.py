@@ -40,7 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     start_parser = subparsers.add_parser("start", help="Start the web server.")
     start_parser.add_argument("--host", default="127.0.0.1", help="Bind host.")
-    start_parser.add_argument("--port", default=8000, type=int, help="Bind port.")
+    start_parser.add_argument("--port", default=8100, type=int, help="Bind port.")
     start_parser.add_argument(
         "--reload",
         dest="reload_",
