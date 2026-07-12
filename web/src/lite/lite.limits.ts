@@ -5,7 +5,7 @@ export const LITE_LIMITS = {
   maxPagesPerCollection: 2,
   maxCachedStatusesPerAccount: 80,
   maxCachedOwnStatuses: 160,
-  maxCachedFollowing: 200,
+  maxCachedFollowing: 500,
   followingPages: 2,
   notificationPages: 2,
   relationshipChunk: 80,

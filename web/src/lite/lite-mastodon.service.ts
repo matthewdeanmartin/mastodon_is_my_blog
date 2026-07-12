@@ -33,13 +33,28 @@ export class LiteMastodonService {
     );
   }
 
-  following(connection: LiteConnection, budget: LiteRequestBudget): Promise<LiteAccount[]> {
-    return this.getPaginated<LiteAccount>(
-      connection,
-      `${connection.instanceUrl}/api/v1/accounts/${encodeURIComponent(connection.account.id)}/following?limit=80`,
-      LITE_LIMITS.followingPages,
-      budget,
-    );
+  /**
+   * Fetch the first following page (so new follows always appear), then one
+   * more page — resuming from `cursor` when a previous session left one, so
+   * repeat visits gradually cover a large following list without ever
+   * loading it all at once. Returns the next cursor, or null when the crawl
+   * has wrapped around.
+   */
+  async following(
+    connection: LiteConnection,
+    budget: LiteRequestBudget,
+    cursor: string | null = null,
+  ): Promise<{ accounts: LiteAccount[]; next: string | null }> {
+    const firstUrl = `${connection.instanceUrl}/api/v1/accounts/${encodeURIComponent(connection.account.id)}/following?limit=80`;
+    const first = await this.getPage<LiteAccount>(connection, firstUrl, budget);
+    const accounts = [...first.items];
+    let next = cursor ?? first.next;
+    for (let page = 1; page < LITE_LIMITS.followingPages && next; page += 1) {
+      const deeper = await this.getPage<LiteAccount>(connection, next, budget);
+      accounts.push(...deeper.items);
+      next = deeper.next;
+    }
+    return { accounts, next };
   }
 
   notifications(connection: LiteConnection, budget: LiteRequestBudget): Promise<LiteNotification[]> {
@@ -118,17 +133,30 @@ export class LiteMastodonService {
     const items: T[] = [];
     let url: string | null = firstUrl;
     for (let page = 0; page < maxPages && url; page += 1) {
-      budget.spend();
-      const response: HttpResponse<T[]> = await firstValueFrom(
-        this.http.get<T[]>(url, {
-          headers: { Authorization: `Bearer ${connection.accessToken}` },
-          observe: 'response',
-        }),
+      const result: { items: T[]; next: string | null } = await this.getPage<T>(
+        connection,
+        url,
+        budget,
       );
-      items.push(...(response.body ?? []));
-      url = parseNextLink(response.headers.get('Link'));
+      items.push(...result.items);
+      url = result.next;
     }
     return items;
+  }
+
+  private async getPage<T>(
+    connection: LiteConnection,
+    url: string,
+    budget: LiteRequestBudget,
+  ): Promise<{ items: T[]; next: string | null }> {
+    budget.spend();
+    const response: HttpResponse<T[]> = await firstValueFrom(
+      this.http.get<T[]>(url, {
+        headers: { Authorization: `Bearer ${connection.accessToken}` },
+        observe: 'response',
+      }),
+    );
+    return { items: response.body ?? [], next: parseNextLink(response.headers.get('Link')) };
   }
 
   private get<T>(connection: LiteConnection, path: string, budget: LiteRequestBudget): Promise<T> {

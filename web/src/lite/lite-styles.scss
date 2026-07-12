@@ -30,6 +30,44 @@ app-lite-write app-live-preview-pane .card {
   border-radius: 7px;
   background: white;
 }
+.people-filters select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #dbe1ea;
+  border-radius: 7px;
+  background: white;
+  color: #2a3446;
+  font: inherit;
+  font-size: 0.78rem;
+}
+.people-filters .reclassify {
+  border: 1px solid #dbe1ea;
+  background: white;
+  color: #4f46e5;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+.people-filters .reclassify:disabled {
+  color: #9aa3b2;
+  cursor: default;
+}
+.heavy-link {
+  color: #c7d2fe;
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-decoration: none;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+a.sample-button {
+  display: inline-block;
+  text-decoration: none;
+  margin-left: 18px;
+}
 body {
   font-family:
     Inter,

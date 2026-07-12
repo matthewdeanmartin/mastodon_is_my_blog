@@ -10,6 +10,8 @@ import {
   noteObservedStatuses,
   noteOwnStatuses,
   noteRelationships,
+  pruneLedger,
+  sortPeople,
 } from './lite-people';
 import { LiteAccount, LiteNotification, LiteStatus } from './lite.models';
 
@@ -187,6 +189,65 @@ describe('blog roll evidence ledger', () => {
     expect(matchesPeopleFilter('other', quiet, ledger['quiet'])).toBe(true);
     expect(matchesPeopleFilter('lively', quiet, ledger['quiet'])).toBe(false);
     expect(matchesPeopleFilter('graveyard', quiet, ledger['quiet'])).toBe(false);
+  });
+
+  it('freshens last status date from mention and status notifications', () => {
+    const ledger: PeopleLedger = {};
+    const stale = new Date(Date.now() - 200 * 86_400_000).toISOString();
+    const person = makeAccount('person', { last_status_at: stale });
+    noteAccount(ledger, person);
+    expect(matchesPeopleFilter('lively', person, ledger['person'])).toBe(false);
+
+    noteNotifications(ledger, [
+      makeNotification('n1', 'mention', { ...person, last_status_at: null }),
+    ]);
+    // account.last_status_at is stale, but the ledger knows better now
+    expect(matchesPeopleFilter('lively', { ...person, last_status_at: null }, ledger['person'])).toBe(
+      true,
+    );
+  });
+
+  it('sorts newest-first by default, oldest-first for graveyard, by followers for parasocials', () => {
+    const ledger: PeopleLedger = {};
+    const old = makeAccount('old', {
+      last_status_at: '2020-01-01T00:00:00Z',
+      followers_count: 50_000,
+    });
+    const fresh = makeAccount('fresh', { followers_count: 10 });
+    const never = makeAccount('never', { last_status_at: null, followers_count: 200 });
+
+    expect(sortPeople('all', [old, fresh, never], ledger).map((a) => a.id)).toEqual([
+      'fresh',
+      'old',
+      'never',
+    ]);
+    expect(sortPeople('graveyard', [old, fresh, never], ledger).map((a) => a.id)).toEqual([
+      'never',
+      'old',
+      'fresh',
+    ]);
+    expect(sortPeople('parasocials', [old, fresh, never], ledger).map((a) => a.id)).toEqual([
+      'old',
+      'never',
+      'fresh',
+    ]);
+  });
+
+  it('prunes stale strangers but keeps follows and sticky facts', () => {
+    const ledger: PeopleLedger = {};
+    const followed = makeAccount('followed');
+    const reader = makeAccount('reader');
+    const stranger = makeAccount('stranger');
+    noteAccount(ledger, followed);
+    noteNotifications(ledger, [makeNotification('n1', 'reblog', reader)]);
+    noteAccount(ledger, stranger);
+
+    const future = Date.now() + (PEOPLE_THRESHOLDS.graveyardDays + 1) * 86_400_000;
+    pruneLedger(ledger, new Set(['followed']), future);
+
+    expect(ledger['followed']).toBeDefined();
+    expect(ledger['reader']).toBeDefined();
+    expect(ledger['stranger']).toBeUndefined();
   });
 
   it('caps the sampled status id list', () => {

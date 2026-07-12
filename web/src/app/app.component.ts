@@ -25,6 +25,7 @@ import {
   filter,
 } from 'rxjs/operators';
 import { of, Subject, Subscription, combineLatest, interval } from 'rxjs';
+import { featureFlag } from './feature-flags';
 import { AccountCatchupStatus, Identity, MastodonAccount, Whoami } from './mastodon';
 
 interface CountDetail {
@@ -72,6 +73,85 @@ export class AppComponent implements OnInit, OnDestroy {
   currentFilter = 'storms';
   currentBlogFilter = 'top_friends';
   blogRollNameFilter = '';
+  readonly blogRollDropdown = featureFlag('blogRollDropdown');
+  readonly liteUrl = 'https://matthewdeanmartin.github.io/mastodon_is_my_blog/mimb_lite/';
+  readonly blogFilterOptions = [
+    {
+      value: 'top_friends',
+      label: 'Top Friends',
+      title:
+        'Mutuals (you follow each other) who have also sent you at least one notification — a mention, favourite, reblog, or status alert. These are people who both follow you back AND have actively engaged with your content. Sorted by most recent post.',
+    },
+    {
+      value: 'readers',
+      label: 'Readers',
+      title:
+        "Anyone who has reposted (reblogged) your posts — whether or not you follow them back. These are silent amplifiers: they read your stuff and share it, but may never reply or mention you. Includes people you don't follow.",
+    },
+    {
+      value: 'mutuals',
+      label: 'Mutuals',
+      title:
+        'People you follow who also follow you back. No interaction required — just a mutual follow. They may or may not actually read your posts.',
+    },
+    {
+      value: 'chatty',
+      label: 'Chatty',
+      title:
+        'People you follow whose cached posts are more than 50% replies. These accounts are conversationalists — they talk back to people rather than broadcasting. Requires at least 5 cached posts. Sorted highest reply ratio first.',
+    },
+    {
+      value: 'idols',
+      label: 'Idols',
+      title:
+        "People you follow who don't follow you back, but whom you have replied to at least once. You talk at them but they're not in a conversation with you — could be celebrities, big accounts, or just disinterested people.",
+    },
+    {
+      value: 'broadcasters',
+      label: 'Broadcasters',
+      title:
+        "People you follow whose cached posts are less than 20% replies — they mostly post original content and rarely engage in back-and-forth conversation. Requires at least 5 cached posts. No one is home; they're just publishing.",
+    },
+    {
+      value: 'bots',
+      label: 'Bots',
+      title:
+        'Accounts explicitly marked as bots by the bot flag on their Mastodon profile. These are automated accounts, not humans.',
+    },
+    {
+      value: 'lively',
+      label: 'Lively',
+      title:
+        'People you follow who have posted at least once in the last 30 days (based on cached data). These accounts are actively publishing — someone is home and posting regularly.',
+    },
+    {
+      value: 'graveyard',
+      label: 'Graveyard',
+      title:
+        'People you follow whose last cached post is older than 90 days, or who have no cached posts at all. The account may be abandoned, or just not synced yet — use Catch Up to check.',
+    },
+    {
+      value: 'parasocials',
+      label: 'Parasocials',
+      title:
+        "People you follow who have more than 10,000 followers and don't follow you back. The celebrities — you consume their content but they don't know you exist.",
+    },
+    {
+      value: 'other',
+      label: 'Other',
+      title:
+        "People you follow who don't fit any other named category — not mutuals, not bots, didn't post in the last 30 days, no notifications from them, and you haven't replied to them.",
+    },
+    {
+      value: 'all',
+      label: 'All',
+      title: 'Everyone you follow, with no additional filtering. Sorted by most recent post date.',
+    },
+  ];
+
+  blogFilterTitle(value: string): string {
+    return this.blogFilterOptions.find((option) => option.value === value)?.title ?? '';
+  }
 
   // Hosted-mode tenant identity ("signed in as …"); null in local mode,
   // where there is no sign-in and nothing to show.

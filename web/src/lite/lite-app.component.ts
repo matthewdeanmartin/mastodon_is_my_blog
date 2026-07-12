@@ -33,7 +33,10 @@ import {
   noteObservedStatuses,
   noteOwnStatuses,
   noteRelationships,
+  pruneLedger,
+  sortPeople,
 } from './lite-people';
+import { featureFlag } from '../app/feature-flags';
 import { LiteWriteComponent } from './lite-write.component';
 
 @Component({
@@ -65,6 +68,8 @@ export class LiteAppComponent implements OnInit {
 
   instance = '';
 
+  readonly blogRollDropdown = featureFlag('blogRollDropdown');
+  readonly heavyUrl = localHeavyUrl();
   readonly connected = computed(() => this.sampleMode() || this.connection() !== null);
   readonly filterLabel = computed(() => {
     const labels: Record<LiteFilter, string> = {
@@ -106,7 +111,7 @@ export class LiteAppComponent implements OnInit {
         }
       }
     }
-    return people;
+    return sortPeople(filter, people, ledger);
   });
 
   async ngOnInit(): Promise<void> {
@@ -185,6 +190,21 @@ export class LiteAppComponent implements OnInit {
     await this.loadAccount(account);
   }
 
+  /** Re-run evidence gathering on demand with a fresh request budget. */
+  async reclassify(): Promise<void> {
+    const connection = this.connection();
+    if (!connection || this.sampleMode()) return;
+    this.loading.set(true);
+    this.error.set(null);
+    const budget = new LiteRequestBudget();
+    try {
+      await this.gatherPeopleEvidence(connection, budget);
+      this.callsUsed.set(budget.callsUsed);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
   async refresh(): Promise<void> {
     if (this.page() === 'content' || this.page() === 'forums') {
       await this.loadNetwork();
@@ -236,15 +256,23 @@ export class LiteAppComponent implements OnInit {
     this.error.set(null);
     const budget = new LiteRequestBudget();
     try {
-      const [statuses, following] = await Promise.all([
+      const cursor = this.storage.readCache<string | null>(connection, 'following-cursor');
+      const [statuses, followingResult] = await Promise.all([
         this.mastodon.accountStatuses(connection, connection.account.id, budget),
-        this.mastodon.following(connection, budget),
+        this.mastodon.following(connection, budget, cursor ?? null),
       ]);
       this.statuses.set(statuses.slice(0, LITE_LIMITS.maxCachedOwnStatuses));
       this.selectedAccount.set(connection.account);
-      this.following.set(following.slice(0, LITE_LIMITS.maxCachedFollowing));
+      // Merge fresh pages over what earlier sessions collected: the crawl
+      // cursor walks deeper into a big following list a couple of pages per
+      // visit, so coverage grows without ever loading everyone at once.
+      const cached = this.storage.readCache<LiteAccount[]>(connection, 'following') ?? [];
+      this.following.set(
+        mergeAccounts(followingResult.accounts, cached).slice(0, LITE_LIMITS.maxCachedFollowing),
+      );
       this.storage.writeCache(connection, 'own-statuses', this.statuses());
       this.storage.writeCache(connection, 'following', this.following());
+      this.storage.writeCache(connection, 'following-cursor', followingResult.next);
       await this.gatherPeopleEvidence(connection, budget);
       this.callsUsed.set(budget.callsUsed);
     } catch (error: unknown) {
@@ -341,6 +369,7 @@ export class LiteAppComponent implements OnInit {
     } catch {
       // Keep whatever evidence was gathered before the failure.
     }
+    pruneLedger(ledger, new Set(this.following().map((person) => person.id)));
     this.ledger.set(ledger);
     this.storage.writeCache(connection, 'people-ledger', ledger);
   }
@@ -356,6 +385,25 @@ export class LiteAppComponent implements OnInit {
       // Storage quota — the in-memory ledger still works for this session.
     }
   }
+}
+
+function mergeAccounts(fresh: LiteAccount[], cached: LiteAccount[]): LiteAccount[] {
+  const merged = [...fresh];
+  const seen = new Set(fresh.map((account) => account.id));
+  for (const account of cached) {
+    if (seen.has(account.id)) continue;
+    seen.add(account.id);
+    merged.push(account);
+  }
+  return merged;
+}
+
+function localHeavyUrl(): string | null {
+  const host = location.hostname;
+  if (host !== 'localhost' && host !== '127.0.0.1') return null;
+  // Assembled at runtime on purpose: CI fails the Lite build if the bundle
+  // contains a literal backend URL.
+  return `http://${host}:8100/`;
 }
 
 function errorMessage(error: unknown): string {

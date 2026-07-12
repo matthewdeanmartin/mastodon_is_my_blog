@@ -36,6 +36,9 @@
       <button class="sample-button" type="button" (click)="useSampleData()">
         Explore with sample data <span aria-hidden="true">→</span>
       </button>
+      @if (heavyUrl) {
+        <a class="sample-button" [href]="heavyUrl">Switch to heavy <span aria-hidden="true">→</span></a>
+      }
     </section>
 
     <aside class="hero-art" aria-label="A small preview of the Lite client">
@@ -65,6 +68,9 @@
       <span class="live-dot"></span>
       {{ sampleMode() ? 'SAMPLE DATA' : 'LIVE, BOUNDED VIEW' }}
     </div>
+    @if (heavyUrl) {
+      <a class="heavy-link" [href]="heavyUrl">Switch to heavy</a>
+    }
     <div class="account-chip">
       @if (account()?.avatar) {
         <img [src]="account()!.avatar" alt="" />
@@ -104,15 +110,36 @@
             <small>{{ visiblePeople().length }} of {{ following().length }} loaded</small>
           </div>
           <div class="people-filters" role="group" aria-label="Blog roll filters">
-            @for (entry of peopleFilterEntries; track entry[0]) {
-              <button
-                type="button"
-                [class.active]="peopleFilter() === entry[0]"
-                (click)="setPeopleFilter(entry[0])"
+            @if (blogRollDropdown) {
+              <select
+                aria-label="Blog roll filter"
+                [ngModel]="peopleFilter()"
+                (ngModelChange)="setPeopleFilter($event)"
               >
-                {{ entry[1] }}
-              </button>
+                @for (entry of peopleFilterEntries; track entry[0]) {
+                  <option [value]="entry[0]">{{ entry[1] }}</option>
+                }
+              </select>
+            } @else {
+              @for (entry of peopleFilterEntries; track entry[0]) {
+                <button
+                  type="button"
+                  [class.active]="peopleFilter() === entry[0]"
+                  (click)="setPeopleFilter(entry[0])"
+                >
+                  {{ entry[1] }}
+                </button>
+              }
             }
+            <button
+              class="reclassify"
+              type="button"
+              [disabled]="loading()"
+              (click)="reclassify()"
+              title="Re-fetch relationships and notifications to refresh the classifications."
+            >
+              Reclassify
+            </button>
           </div>
           <button class="person" type="button" (click)="selectFollowing(account()!)">
             @if (account()?.avatar) {

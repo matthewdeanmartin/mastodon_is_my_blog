@@ -57,7 +57,7 @@ describe('LiteMastodonService publishing', () => {
     await expect(result).resolves.toMatchObject({ id: 'status-2' });
   });
 
-  it('follows the Link header for a second following page, then stops', async () => {
+  it('follows the Link header for a second following page and returns the cursor', async () => {
     const budget = new LiteRequestBudget();
     const result = service.following(connection, budget);
 
@@ -77,8 +77,32 @@ describe('LiteMastodonService publishing', () => {
       headers: { Link: '<https://example.social/next-again>; rel="next"' },
     });
 
-    await expect(result).resolves.toMatchObject([{ id: 'a1' }, { id: 'a2' }]);
+    await expect(result).resolves.toMatchObject({
+      accounts: [{ id: 'a1' }, { id: 'a2' }],
+      next: 'https://example.social/next-again',
+    });
     expect(budget.callsUsed).toBe(LITE_LIMITS.followingPages);
+  });
+
+  it('resumes the following crawl from a stored cursor after a fresh first page', async () => {
+    const budget = new LiteRequestBudget();
+    const result = service.following(connection, budget, 'https://example.social/deep-cursor');
+
+    const first = http.expectOne(
+      `https://example.social/api/v1/accounts/${sampleAccount.id}/following?limit=80`,
+    );
+    first.flush([{ id: 'a1' }], {
+      headers: { Link: '<https://example.social/page-2>; rel="next"' },
+    });
+    await settle();
+    // The second call goes to the stored cursor, not back to page 2.
+    const deep = http.expectOne('https://example.social/deep-cursor');
+    deep.flush([{ id: 'z9' }]);
+
+    await expect(result).resolves.toMatchObject({
+      accounts: [{ id: 'a1' }, { id: 'z9' }],
+      next: null,
+    });
   });
 
   it('chunks relationship lookups', async () => {

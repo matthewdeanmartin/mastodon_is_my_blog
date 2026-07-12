@@ -3,10 +3,6 @@
     <span class="app-title">Mastodon is my Blog</span>
   </div>
 
-  <div style="margin-left: 10px; font-size: 0.85rem; color: #94a3b8; margin-right: 10px">
-    Context:
-  </div>
-
   <div class="identity-list">
     @for (id of identities; track id.id) {
       <button
@@ -53,6 +49,22 @@
       }
     </div>
   }
+
+  <a
+    [href]="liteUrl"
+    [style.margin-left]="whoami ? '12px' : 'auto'"
+    style="
+      white-space: nowrap;
+      font-size: 0.8rem;
+      color: #c7d2fe;
+      text-decoration: none;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      padding: 5px 10px;
+    "
+    title="Open the browser-only Lite client — no server, your token stays in this browser."
+    >⚡ Switch to Lite</a
+  >
 
   @if (showConnectAccount) {
     <app-connect-account
@@ -273,102 +285,38 @@
       </button>
       <hr />
       <div class="muted" style="margin-bottom: 10px">BLOG ROLL FILTERS</div>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'top_friends'"
-        (click)="setBlogFilter('top_friends')"
-        title="Mutuals (you follow each other) who have also sent you at least one notification — a mention, favourite, reblog, or status alert. These are people who both follow you back AND have actively engaged with your content. Sorted by most recent post."
-      >
-        Top Friends
-      </button>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'readers'"
-        (click)="setBlogFilter('readers')"
-        title="Anyone who has reposted (reblogged) your posts — whether or not you follow them back. These are silent amplifiers: they read your stuff and share it, but may never reply or mention you. Includes people you don't follow."
-      >
-        Readers
-      </button>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'mutuals'"
-        (click)="setBlogFilter('mutuals')"
-        title="People you follow who also follow you back. No interaction required — just a mutual follow. They may or may not actually read your posts."
-      >
-        Mutuals
-      </button>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'chatty'"
-        (click)="setBlogFilter('chatty')"
-        title="People you follow whose cached posts are more than 50% replies. These accounts are conversationalists — they talk back to people rather than broadcasting. Requires at least 5 cached posts. Sorted highest reply ratio first."
-      >
-        Chatty
-      </button>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'idols'"
-        (click)="setBlogFilter('idols')"
-        title="People you follow who don't follow you back, but whom you have replied to at least once. You talk at them but they're not in a conversation with you — could be celebrities, big accounts, or just disinterested people."
-      >
-        Idols
-      </button>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'broadcasters'"
-        (click)="setBlogFilter('broadcasters')"
-        title="People you follow whose cached posts are less than 20% replies — they mostly post original content and rarely engage in back-and-forth conversation. Requires at least 5 cached posts. No one is home; they're just publishing."
-      >
-        Broadcasters
-      </button>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'bots'"
-        (click)="setBlogFilter('bots')"
-        title="Accounts explicitly marked as bots by the bot flag on their Mastodon profile. These are automated accounts, not humans."
-      >
-        Bots
-      </button>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'lively'"
-        (click)="setBlogFilter('lively')"
-        title="People you follow who have posted at least once in the last 30 days (based on cached data). These accounts are actively publishing — someone is home and posting regularly."
-      >
-        Lively
-      </button>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'graveyard'"
-        (click)="setBlogFilter('graveyard')"
-        title="People you follow whose last cached post is older than 90 days, or who have no cached posts at all. The account may be abandoned, or just not synced yet — use Catch Up to check."
-      >
-        Graveyard
-      </button>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'parasocials'"
-        (click)="setBlogFilter('parasocials')"
-        title="People you follow who have more than 10,000 followers and don't follow you back. The celebrities — you consume their content but they don't know you exist."
-      >
-        Parasocials
-      </button>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'other'"
-        (click)="setBlogFilter('other')"
-        title="People you follow who don't fit any other named category — not mutuals, not bots, didn't post in the last 30 days, no notifications from them, and you haven't replied to them."
-      >
-        Other
-      </button>
-      <button
-        class="nav-btn"
-        [class.active]="currentBlogFilter === 'all'"
-        (click)="setBlogFilter('all')"
-        title="Everyone you follow, with no additional filtering. Sorted by most recent post date."
-      >
-        All
-      </button>
+      @if (blogRollDropdown) {
+        <select
+          aria-label="Blog roll filter"
+          [ngModel]="currentBlogFilter"
+          (ngModelChange)="setBlogFilter($event)"
+          [title]="blogFilterTitle(currentBlogFilter)"
+          style="
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            background: white;
+          "
+        >
+          @for (option of blogFilterOptions; track option.value) {
+            <option [value]="option.value" [title]="option.title">{{ option.label }}</option>
+          }
+        </select>
+      } @else {
+        @for (option of blogFilterOptions; track option.value) {
+          <button
+            class="nav-btn"
+            [class.active]="currentBlogFilter === option.value"
+            (click)="setBlogFilter(option.value)"
+            [title]="option.title"
+          >
+            {{ option.label }}
+          </button>
+        }
+      }
       <hr />
       <div class="muted" style="margin-bottom: 6px">BLOG ROLL</div>
       <input

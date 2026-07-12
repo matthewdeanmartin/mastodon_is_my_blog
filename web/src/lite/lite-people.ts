@@ -115,14 +115,20 @@ export function noteRelationships(
 
 export function noteNotifications(ledger: PeopleLedger, notifications: LiteNotification[]): void {
   for (const notification of notifications) {
-    const evidence = ensureEvidence(ledger, notification.account);
+    noteAccount(ledger, notification.account);
+    const evidence = ledger[notification.account.id];
     evidence.snapshot = thinAccount(notification.account);
     if (notification.type === 'mention') evidence.everMentionedMe = true;
     if (notification.type === 'favourite') evidence.everFavouritedMe = true;
     if (notification.type === 'reblog') evidence.everBoostedMe = true;
     if (notification.type === 'status') evidence.everStatusNotified = true;
     if (notification.type === 'follow') evidence.followsMe = true;
-    evidence.updatedAt = Date.now();
+    // A mention or status alert means they posted something at that moment.
+    if (notification.type === 'mention' || notification.type === 'status') {
+      if (!evidence.lastStatusAt || notification.created_at > evidence.lastStatusAt) {
+        evidence.lastStatusAt = notification.created_at;
+      }
+    }
   }
 }
 
@@ -219,6 +225,53 @@ export function matchesPeopleFilter(
       return !mutual && followers > PEOPLE_THRESHOLDS.parasocialFollowersMin;
     case 'other':
       return !mutual && !bot && !lively && !inbound && !(evidence?.iRepliedToThem ?? false);
+  }
+}
+
+/**
+ * Sort parity with the server blog roll: most filters newest-post-first,
+ * graveyard oldest-first with never-seen at the top, parasocials by
+ * follower count descending.
+ */
+export function sortPeople(
+  filter: LitePeopleFilter,
+  people: LiteAccount[],
+  ledger: PeopleLedger,
+): LiteAccount[] {
+  const lastStatus = (account: LiteAccount): string =>
+    account.last_status_at ?? ledger[account.id]?.lastStatusAt ?? '';
+  if (filter === 'parasocials') {
+    return [...people].sort((a, b) => b.followers_count - a.followers_count);
+  }
+  if (filter === 'graveyard') {
+    return [...people].sort((a, b) => lastStatus(a).localeCompare(lastStatus(b)));
+  }
+  return [...people].sort((a, b) => lastStatus(b).localeCompare(lastStatus(a)));
+}
+
+/**
+ * Drop ledger entries for people we no longer track: not in the current
+ * following list, no now-and-forever facts, and untouched for 90 days.
+ * Keeps localStorage bounded as follows and notification pages churn.
+ */
+export function pruneLedger(
+  ledger: PeopleLedger,
+  keepIds: Set<string>,
+  now: number = Date.now(),
+): void {
+  for (const [id, evidence] of Object.entries(ledger)) {
+    if (keepIds.has(id)) continue;
+    const sticky =
+      evidence.everMutual ||
+      evidence.everMentionedMe ||
+      evidence.everFavouritedMe ||
+      evidence.everBoostedMe ||
+      evidence.everStatusNotified ||
+      evidence.iRepliedToThem;
+    if (sticky) continue;
+    if (now - evidence.updatedAt > PEOPLE_THRESHOLDS.graveyardDays * 86_400_000) {
+      delete ledger[id];
+    }
   }
 }
 
