@@ -67,4 +67,28 @@ describe('LiteStorageService', () => {
     service.clearConnection();
     expect(service.readCache(connection, 'home')).toBeNull();
   });
+
+  it('keeps account-scoped drafts after disconnecting', () => {
+    const connection: LiteConnection = {
+      version: 1,
+      instanceUrl: 'https://example.social',
+      clientId: 'client',
+      clientSecret: 'secret',
+      accessToken: 'token',
+      scope: 'read write:statuses',
+      account: sampleAccount,
+    };
+    const draft = {
+      version: 1 as const,
+      id: 'draft-1',
+      treeJson: '[{"body":"hello"}]',
+      language: 'en',
+      updatedAt: 42,
+    };
+
+    service.saveDraft(connection, draft);
+    service.clearConnection();
+
+    expect(service.readDrafts(connection)).toEqual([draft]);
+  });
 });

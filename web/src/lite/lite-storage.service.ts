@@ -1,9 +1,10 @@
 import { Injectable, signal } from '@angular/core';
-import { LiteConnection, PendingOAuth } from './lite.models';
+import { LiteConnection, LiteDraft, PendingOAuth } from './lite.models';
 
 const CONNECTION_KEY = 'mimb:lite:v1:connection';
 const PENDING_KEY = 'mimb:lite:v1:oauth-pending';
 const CACHE_PREFIX = 'mimb:lite:v1:cache:';
+const DRAFT_PREFIX = 'mimb:lite:v1:drafts:';
 
 interface CacheEnvelope<T> {
   fetchedAt: number;
@@ -67,6 +68,32 @@ export class LiteStorageService {
     sessionStorage.removeItem(PENDING_KEY);
   }
 
+  readDrafts(connection: LiteConnection): LiteDraft[] {
+    const raw = localStorage.getItem(this.draftKey(connection));
+    if (!raw) return [];
+    try {
+      return (JSON.parse(raw) as LiteDraft[])
+        .filter((draft) => draft.version === 1)
+        .sort((left, right) => right.updatedAt - left.updatedAt);
+    } catch (error: unknown) {
+      if (error instanceof SyntaxError) {
+        localStorage.removeItem(this.draftKey(connection));
+        return [];
+      }
+      throw error;
+    }
+  }
+
+  saveDraft(connection: LiteConnection, draft: LiteDraft): void {
+    const drafts = this.readDrafts(connection).filter((item) => item.id !== draft.id);
+    localStorage.setItem(this.draftKey(connection), JSON.stringify([draft, ...drafts]));
+  }
+
+  deleteDraft(connection: LiteConnection, draftId: string): void {
+    const drafts = this.readDrafts(connection).filter((draft) => draft.id !== draftId);
+    localStorage.setItem(this.draftKey(connection), JSON.stringify(drafts));
+  }
+
   private clearCaches(): void {
     const keys: string[] = [];
     for (let index = 0; index < localStorage.length; index += 1) {
@@ -79,6 +106,11 @@ export class LiteStorageService {
   private cacheKey(connection: LiteConnection, name: string): string {
     const host = new URL(connection.instanceUrl).host;
     return `${CACHE_PREFIX}${host}:${connection.account.id}:${name}`;
+  }
+
+  private draftKey(connection: LiteConnection): string {
+    const host = new URL(connection.instanceUrl).host;
+    return `${DRAFT_PREFIX}${host}:${connection.account.id}`;
   }
 
   private readConnection(): LiteConnection | null {

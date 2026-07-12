@@ -17,10 +17,11 @@ import { LiteOAuthService } from './lite-oauth.service';
 import { LiteStorageService } from './lite-storage.service';
 import { LiteAccount, LiteConnection, LiteFilter, LitePage, LiteStatus } from './lite.models';
 import { filterLiteStatuses } from './lite-filters';
+import { LiteWriteComponent } from './lite-write.component';
 
 @Component({
   selector: 'app-lite-root',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LiteWriteComponent],
   templateUrl: './lite-app.component.html',
   styleUrl: './lite-app.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,10 +47,6 @@ export class LiteAppComponent implements OnInit {
   instance = '';
 
   readonly connected = computed(() => this.sampleMode() || this.connection() !== null);
-  readonly composeUrl = computed(() => {
-    const connection = this.connection();
-    return connection ? `${connection.instanceUrl}/publish` : null;
-  });
   readonly filterLabel = computed(() => {
     const labels: Record<LiteFilter, string> = {
       posts: 'Posts',

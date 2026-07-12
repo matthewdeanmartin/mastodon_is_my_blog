@@ -7,6 +7,29 @@ body {
   min-height: 100%;
   background: #f7f8fb;
 }
+
+app-lite-write textarea {
+  width: 100%;
+  min-height: 220px;
+  padding: 12px;
+  font: inherit;
+  line-height: 1.6;
+  border: 1px solid #cbd2dc;
+  border-radius: 8px;
+  resize: vertical;
+}
+
+app-lite-write textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+app-lite-write app-live-preview-pane .card {
+  border: 1px solid #e1e8ed;
+  border-radius: 7px;
+  background: white;
+}
 body {
   font-family:
     Inter,

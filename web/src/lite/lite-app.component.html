@@ -4,8 +4,8 @@
       <div class="eyebrow">Mastodon is My Blog <span>Lite</span></div>
       <h1>See your Mastodon<br />as a place, not a feed.</h1>
       <p class="hero-copy">
-        A live, read-only client that runs entirely in this browser. No install. No project server
-        holding your account.
+        A small client that runs entirely in this browser. No install. No project server holding
+        your account.
       </p>
 
       <div class="connect-card">
@@ -21,12 +21,12 @@
             (keyup.enter)="connect()"
           />
           <button type="button" [disabled]="connecting()" (click)="connect()">
-            {{ connecting() ? 'Connecting…' : 'Connect read-only' }}
+            {{ connecting() ? 'Connecting…' : 'Connect' }}
           </button>
         </div>
         <p class="privacy-note">
           Your access token and loaded posts stay in local browser storage. Lite requests read
-          access only.
+          access, including permission to publish posts you write here.
         </p>
         @if (error()) {
           <div class="error-banner" role="alert">{{ error() }}</div>
@@ -94,21 +94,7 @@
   </header>
 
   @if (page() === 'write') {
-    <main class="about-page">
-      <div class="eyebrow">WRITE</div>
-      <h1>Write on your own Mastodon.</h1>
-      <p>
-        Lite requests read-only access, so publishing stays with your Mastodon instance. Open its
-        composer without visiting the main feed.
-      </p>
-      @if (composeUrl()) {
-        <a class="primary-link" [href]="composeUrl()" target="_blank" rel="noopener noreferrer"
-          >Open composer →</a
-        >
-      } @else {
-        <p>Connect an account to open its composer.</p>
-      }
-    </main>
+    <app-lite-write />
   } @else {
     <main class="client-grid" [class.aggregate-view]="page() !== 'people'">
       @if (page() === 'people') {

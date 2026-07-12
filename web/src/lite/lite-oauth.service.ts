@@ -31,7 +31,7 @@ export class LiteOAuthService {
       this.http.post<AppRegistration>(`${instanceUrl}/api/v1/apps`, {
         client_name: 'Mastodon is My Blog Lite',
         redirect_uris: redirectUri,
-        scopes: 'read',
+        scopes: 'read write:statuses',
         website: window.location.origin,
       }),
     );
@@ -55,7 +55,7 @@ export class LiteOAuthService {
     authorize.searchParams.set('response_type', 'code');
     authorize.searchParams.set('client_id', pending.clientId);
     authorize.searchParams.set('redirect_uri', redirectUri);
-    authorize.searchParams.set('scope', 'read');
+    authorize.searchParams.set('scope', 'read write:statuses');
     authorize.searchParams.set('state', state);
     authorize.searchParams.set('code_challenge', challenge);
     authorize.searchParams.set('code_challenge_method', 'S256');

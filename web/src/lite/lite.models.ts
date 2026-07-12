@@ -66,6 +66,16 @@ export interface TokenResponse {
   scope: string;
 }
 
+export type LiteVisibility = 'public' | 'unlisted' | 'private' | 'direct';
+
+export interface LiteDraft {
+  version: 1;
+  id: string;
+  treeJson: string;
+  language: string | null;
+  updatedAt: number;
+}
+
 export type LiteFilter =
   | 'posts'
   | 'storms'

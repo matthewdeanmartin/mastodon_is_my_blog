@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { LITE_LIMITS, LiteRequestBudget } from './lite.limits';
 import { LiteAccount, LiteConnection, LiteStatus } from './lite.models';
+import { DraftNode } from '../app/mastodon';
 
 @Injectable({ providedIn: 'root' })
 export class LiteMastodonService {
@@ -33,6 +34,29 @@ export class LiteMastodonService {
       connection,
       `/api/v1/accounts/${encodeURIComponent(accountId)}/statuses?limit=${LITE_LIMITS.pageSize}`,
       budget,
+    );
+  }
+
+  publishNode(
+    connection: LiteConnection,
+    node: DraftNode,
+    language: string | null,
+    inReplyToId: string | null,
+  ): Promise<LiteStatus> {
+    const body: Record<string, string> = {
+      status: node.body,
+      visibility: node.visibility,
+    };
+    if (node.spoiler_text?.trim()) body['spoiler_text'] = node.spoiler_text.trim();
+    if (language?.trim()) body['language'] = language.trim();
+    if (inReplyToId) body['in_reply_to_id'] = inReplyToId;
+    return firstValueFrom(
+      this.http.post<LiteStatus>(`${connection.instanceUrl}/api/v1/statuses`, body, {
+        headers: {
+          Authorization: `Bearer ${connection.accessToken}`,
+          'Idempotency-Key': crypto.randomUUID(),
+        },
+      }),
     );
   }
 

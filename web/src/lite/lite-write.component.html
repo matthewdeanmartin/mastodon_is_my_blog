@@ -1,0 +1,134 @@
+<main class="write-page">
+  <header>
+    <div>
+      <div class="eyebrow">WRITE</div>
+      <h1>Write on your Mastodon.</h1>
+    </div>
+    <button type="button" class="secondary" (click)="startNew()">+ New draft</button>
+  </header>
+  @if (needsWritePermission) {
+    <div class="permission-note">
+      Reconnect once to approve post-writing access. Local drafts remain saved.
+    </div>
+  }
+  <div class="write-grid">
+    <aside>
+      <div class="draft-heading">
+        Drafts <span>{{ drafts.length }}</span>
+      </div>
+      @for (saved of drafts; track saved.id) {
+        <button
+          type="button"
+          class="draft-item"
+          [class.active]="saved.id === draft?.id"
+          (click)="openDraft(saved.id)"
+        >
+          <b>{{ draftPreview(saved) }}</b
+          ><small>{{ formatDate(saved.updatedAt) }}</small>
+        </button>
+      } @empty {
+        <p class="empty-drafts">No saved drafts yet.</p>
+      }
+    </aside>
+    <section class="composer">
+      <div class="composer-heading">
+        <h2>Write New Post</h2>
+        <span>{{ saving ? 'Saving…' : dirty ? 'Unsaved' : '' }}</span>
+        <button type="button" class="secondary" (click)="showPreview = !showPreview">
+          {{ showPreview ? 'Hide preview' : 'Show preview' }}
+        </button>
+      </div>
+      <div class="editor-layout">
+        <nav aria-label="Posts in this draft">
+          @for (node of orderedNodes; track node.client_id; let index = $index) {
+            <button
+              type="button"
+              [class.active]="node.client_id === selectedId"
+              [style.margin-left.px]="nodeDepth(node) * 6"
+              (click)="selectNode(node.client_id)"
+            >
+              <span>{{ nodeLabel(node, index) }}</span
+              ><small>{{ mastodonLength(node.body) }}</small>
+            </button>
+          }
+          <button type="button" class="add-node" (click)="addSelfReply()">+ Self-reply</button>
+          @if (nodes.length > 1 && selected) {
+            <button type="button" class="remove-node" (click)="deleteNode(selected.client_id)">
+              Remove post
+            </button>
+          }
+        </nav>
+        <div class="editor">
+          @if (selected) {
+            <div class="toolbar">
+              <select [ngModel]="selected.visibility" (ngModelChange)="onVisibilityChange($event)">
+                @for (visibility of visibilityOptions; track visibility) {
+                  <option [value]="visibility">{{ visibility }}</option>
+                }
+              </select>
+              <input
+                type="text"
+                [ngModel]="selected.spoiler_text ?? ''"
+                (ngModelChange)="onSpoilerChange($event)"
+                placeholder="CW / spoiler text"
+              />
+              @if (selected.mode === 'single') {
+                <button type="button" [disabled]="!canSplit" (click)="convertToStorm()">
+                  ⚡ Convert to storm
+                </button>
+                <label><input type="checkbox" [(ngModel)]="addCounter" /> Add (n/N)</label>
+              }
+            </div>
+            <app-plain-textarea-editor
+              [value]="selected.body"
+              (valueChange)="onBodyChange($event)"
+              [language]="language"
+            />
+            <div class="editor-meta">
+              <span [class.over-limit]="mastodonLength(selected.body) > 500"
+                >{{ mastodonLength(selected.body) }}/500 chars</span
+              >
+              <label
+                >Language
+                <input
+                  type="text"
+                  maxlength="8"
+                  placeholder="en"
+                  [ngModel]="language ?? ''"
+                  (ngModelChange)="onLanguageChange($event)"
+              /></label>
+            </div>
+          }
+        </div>
+      </div>
+      @if (publishError) {
+        <div class="compose-error" role="alert">{{ publishError }}</div>
+      }
+      @if (savedMessage) {
+        <div class="success" role="status">{{ savedMessage }}</div>
+      }
+      <footer>
+        @if (draft) {
+          <button type="button" class="danger" (click)="discardDraft()">Discard</button>
+        }
+        <a
+          [href]="storage.connection()?.instanceUrl + '/publish'"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Instance composer ↗</a
+        >
+        <button type="button" class="secondary" [disabled]="!dirty" (click)="saveDraft()">
+          Save draft
+        </button>
+        <button type="button" [disabled]="!canPublish || publishing" (click)="publish()">
+          {{ publishing ? 'Publishing…' : nodes.length > 1 ? 'Publish thread' : 'Publish' }}
+        </button>
+      </footer>
+      @if (showPreview) {
+        <div class="preview">
+          <app-live-preview-pane [nodes]="orderedNodes" [selectedId]="selectedId" />
+        </div>
+      }
+    </section>
+  </div>
+</main>
