@@ -54,6 +54,8 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private scrollSubscription?: Subscription;
   private refreshSubscription?: Subscription;
+  private selectionSubscription?: Subscription;
+  private feedSubscription?: Subscription;
   private observer?: IntersectionObserver;
   private loadMoreObserver?: IntersectionObserver;
 
@@ -87,37 +89,49 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnInit(): void {
     // Combine Route Params with Identity State
-    combineLatest([this.route.queryParams, this.api.identityId$]).subscribe(
-      ([params, identityId]) => {
-        const prevIdentityId = this.currentIdentityId;
-        this.currentIdentityId = identityId;
+    this.selectionSubscription = combineLatest([
+      this.route.queryParams,
+      this.api.identityId$,
+    ]).subscribe(([params, identityId]) => {
+      if (!identityId) {
+        this.loading = true; // Wait for identity
+        return;
+      }
 
-        if (!identityId) {
-          this.loading = true; // Wait for identity
-          return;
-        }
+      const requestedUser = params['user'] || undefined; // "everyone" passes through as string here
 
-        const newFilter = params['filter'] || 'storms';
-        const newUser = params['user'] || undefined; // "everyone" passes through as string here
+      // Startup canonicalizes the bare root route before publishing identity.
+      // A missing user is an incomplete selection, never an alias for everyone.
+      if (!requestedUser) {
+        this.feedSubscription?.unsubscribe();
+        this.loading = true;
+        return;
+      }
 
-        // Reload only if filter/user changed or identity actually changed
-        const identityChanged = prevIdentityId !== identityId;
-        const filterChanged = newFilter !== this.currentFilter;
-        const userChanged = newUser !== this.currentUser;
-
-        if (filterChanged || userChanged || identityChanged) {
-          this.currentFilter = newFilter;
-          this.currentUser = newUser;
-          this.load(this.currentFilter, this.currentUser, identityId);
-        }
-      },
-    );
+      this.applySelection(params['filter'] || 'storms', requestedUser, identityId);
+    });
 
     this.refreshSubscription = this.api.refreshNeeded$.subscribe(() => {
-      if (this.currentIdentityId) {
+      if (this.currentIdentityId && this.currentUser) {
         this.load(this.currentFilter, this.currentUser, this.currentIdentityId);
       }
     });
+  }
+
+  private applySelection(newFilter: string, newUser: string, identityId: number): void {
+    const prevIdentityId = this.currentIdentityId;
+    this.currentIdentityId = identityId;
+
+    // Reload only if filter/user changed or identity actually changed
+    const identityChanged = prevIdentityId !== identityId;
+    const filterChanged = newFilter !== this.currentFilter;
+    const userChanged = newUser !== this.currentUser;
+
+    if (filterChanged || userChanged || identityChanged) {
+      this.currentFilter = newFilter;
+      this.currentUser = newUser;
+      this.load(this.currentFilter, this.currentUser, identityId);
+    }
   }
 
   load(filter: string, user: string | undefined, identityId: number): void {
@@ -154,7 +168,8 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     // If 'storms' (or legacy 'all'), use the Storms endpoint for the threaded view
     if (filter === 'storms' || filter === 'all') {
       this.isStormView = true;
-      this.api.getStorms(identityId, user).subscribe({
+      this.feedSubscription?.unsubscribe();
+      this.feedSubscription = this.api.getStorms(identityId, user).subscribe({
         next: (page) => handleSuccess(page as FeedPage<RawContentPost | Storm>),
         error: handleError,
       });
@@ -162,14 +177,16 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
     // If 'shorts', use the new Shorts endpoint for flat view
     else if (filter === 'shorts') {
       this.isStormView = false;
-      this.api.getShorts(identityId, user).subscribe({
+      this.feedSubscription?.unsubscribe();
+      this.feedSubscription = this.api.getShorts(identityId, user).subscribe({
         next: (page) => handleSuccess(page as FeedPage<RawContentPost | Storm>),
         error: handleError,
       });
     } else {
       // Otherwise use the standard flat list with the specific filter
       this.isStormView = false;
-      this.api.getPublicPosts(identityId, filter, user).subscribe({
+      this.feedSubscription?.unsubscribe();
+      this.feedSubscription = this.api.getPublicPosts(identityId, filter, user).subscribe({
         next: (page) => handleSuccess(page as FeedPage<RawContentPost | Storm>),
         error: handleError,
       });
@@ -297,6 +314,8 @@ export class PublicFeedComponent implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnDestroy(): void {
     this.refreshSubscription?.unsubscribe();
+    this.selectionSubscription?.unsubscribe();
+    this.feedSubscription?.unsubscribe();
     this.scrollSubscription?.unsubscribe();
     this.observer?.disconnect();
     this.loadMoreObserver?.disconnect();

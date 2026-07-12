@@ -125,7 +125,9 @@ export class ApiService {
   public readonly metaId$ = this.metaIdSubject.asObservable();
 
   // Identity State (The specific Mastodon account context)
-  private identityIdSubject = new BehaviorSubject<number | null>(this.getStoredIdentityId());
+  // Stored identity is only a candidate until /api/admin/identities validates it.
+  // AppComponent publishes it after the root route has an explicit user scope.
+  private identityIdSubject = new BehaviorSubject<number | null>(null);
   public readonly identityId$ = this.identityIdSubject.asObservable();
 
   private currentIdentityBaseUrl: string | null = localStorage.getItem(this.IDENTITY_BASE_URL_KEY);

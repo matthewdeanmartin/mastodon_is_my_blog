@@ -24,16 +24,23 @@ class MockApiService {
   seenResponses: string[][] = [];
   seenQueries: string[][] = [];
   markedSeen: string[][] = [];
+  stormQueries: { identityId: number; user?: string }[] = [];
+  shortsQueries: { identityId: number; user?: string }[] = [];
+  shortsRequests: Observable<FeedPage<RawContentPost>>[] = [];
 
   getIdentityBaseUrl(): string | null {
     return 'https://home.social';
   }
 
-  getStorms(): Observable<FeedPage<Storm>> {
+  getStorms(identityId: number, user?: string): Observable<FeedPage<Storm>> {
+    this.stormQueries.push({ identityId, user });
     return of(this.stormsPages.shift() ?? { items: [], next_cursor: null });
   }
 
-  getShorts(): Observable<FeedPage<RawContentPost>> {
+  getShorts(identityId: number, user?: string): Observable<FeedPage<RawContentPost>> {
+    this.shortsQueries.push({ identityId, user });
+    const request = this.shortsRequests.shift();
+    if (request) return request;
     return of(this.shortsPages.shift() ?? { items: [], next_cursor: null });
   }
 
@@ -56,9 +63,14 @@ describe('PublicFeedComponent seen/unread tracking', () => {
   let fixture: ComponentFixture<PublicFeedComponent>;
   let component: PublicFeedComponent;
   let api: MockApiService;
+  let queryParams: BehaviorSubject<Record<string, string>>;
 
   beforeEach(async () => {
     api = new MockApiService();
+    queryParams = new BehaviorSubject<Record<string, string>>({
+      filter: 'shorts',
+      user: 'owner@example.com',
+    });
 
     await TestBed.configureTestingModule({
       imports: [PublicFeedComponent],
@@ -67,7 +79,7 @@ describe('PublicFeedComponent seen/unread tracking', () => {
         { provide: ApiService, useValue: api },
         {
           provide: ActivatedRoute,
-          useValue: { queryParams: new BehaviorSubject({ filter: 'shorts' }) },
+          useValue: { queryParams },
         },
       ],
     }).compileComponents();
@@ -139,5 +151,29 @@ describe('PublicFeedComponent seen/unread tracking', () => {
     component.ngOnInit();
 
     expect(component.unreadCount).toBe(1);
+  });
+
+  it('does not load posts while the root route has no explicit user', () => {
+    queryParams.next({ filter: 'shorts' });
+    component.ngOnInit();
+
+    expect(api.shortsQueries).toEqual([]);
+    expect(component.loading).toBe(true);
+  });
+
+  it('ignores a superseded first-page response', () => {
+    const firstRequest = new Subject<FeedPage<RawContentPost>>();
+    const secondRequest = new Subject<FeedPage<RawContentPost>>();
+    api.shortsRequests = [firstRequest, secondRequest];
+    queryParams.next({ filter: 'shorts', user: 'first@example.com' });
+    component.ngOnInit();
+
+    queryParams.next({ filter: 'shorts', user: 'second@example.com' });
+    secondRequest.next({ items: [makePost('second')], next_cursor: null });
+    firstRequest.next({ items: [makePost('stale-first')], next_cursor: null });
+
+    expect(component.items.map((item) => ('root' in item ? item.root.id : item.id))).toEqual([
+      'second',
+    ]);
   });
 });

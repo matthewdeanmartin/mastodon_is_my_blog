@@ -104,6 +104,7 @@ export class AppComponent implements OnInit, OnDestroy {
   serverDown = false;
   recentlyViewed: Set<string> = new Set<string>();
   private activeUserCatchupPollSub?: Subscription;
+  private countsSubscription?: Subscription;
 
   // Inside AppComponent class
   counts: SidebarCounts = {
@@ -124,6 +125,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopActiveUserCatchupPolling();
+    this.countsSubscription?.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -308,11 +310,9 @@ export class AppComponent implements OnInit, OnDestroy {
 
           if (validStored) {
             const identity = ids.find((i) => i.id === storedId)!;
-            // Re-apply stored identity without navigating — preserves deep links.
-            this.api.setIdentityId(storedId!, identity.base_url);
+            this.activateStartupIdentity(identity);
           } else if (ids.length > 0) {
-            // No stored identity: auto-select the first one and go to the feed.
-            this.setContextIdentity(ids[0].id, ids[0].base_url);
+            this.activateStartupIdentity(ids[0]);
           }
         },
         error: (e: unknown) => {
@@ -320,6 +320,20 @@ export class AppComponent implements OnInit, OnDestroy {
           console.log('Could not fetch identities', e);
         },
       });
+  }
+
+  private activateStartupIdentity(identity: Identity): void {
+    const path = this.router.url.split('?')[0];
+    const hasExplicitUser = this.route.snapshot.queryParamMap.has('user');
+    if ((path === '/' || path === '') && !hasExplicitUser) {
+      void this.router
+        .navigate(['/'], {
+          queryParams: { user: identity.acct, filter: 'storms', blog_filter: 'top_friends' },
+        })
+        .then(() => this.api.setIdentityId(identity.id, identity.base_url));
+      return;
+    }
+    this.api.setIdentityId(identity.id, identity.base_url);
   }
 
   loadWhoami(): void {
@@ -378,16 +392,14 @@ export class AppComponent implements OnInit, OnDestroy {
   refreshCounts(): void {
     if (!this.activeIdentityId) return;
 
-    let userForCounts = this.currentUser;
+    const identityAcct = this.identities.find(
+      (identity) => identity.id === this.activeIdentityId,
+    )?.acct;
+    const effectiveUser = this.viewingEveryone ? 'everyone' : (this.currentUser ?? identityAcct);
+    if (!effectiveUser) return;
 
-    if (!userForCounts && this.mainUser && !this.viewingEveryone) {
-      userForCounts = this.mainUser.acct; // Default to filtering by self
-    }
-
-    // API expects "everyone" string if we want full feed
-    const effectiveUser = this.viewingEveryone ? 'everyone' : userForCounts;
-
-    this.api.getCounts(this.activeIdentityId, effectiveUser || undefined).subscribe({
+    this.countsSubscription?.unsubscribe();
+    this.countsSubscription = this.api.getCounts(this.activeIdentityId, effectiveUser).subscribe({
       next: (response: unknown) => {
         const c = response as Record<string, { total?: number; unseen?: number }>;
         // Helper to extract nested counts safely
