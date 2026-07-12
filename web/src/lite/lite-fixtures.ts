@@ -1,4 +1,5 @@
 import { LiteAccount, LiteStatus } from './lite.models';
+import { PeopleLedger, ensureEvidence, noteObservedStatuses } from './lite-people';
 
 export const sampleAccount: LiteAccount = {
   id: 'sample-me',
@@ -78,6 +79,21 @@ export const sampleStatuses: LiteStatus[] = [
     in_reply_to_id: 'sample-1',
   },
 ];
+
+export function sampleLedger(): PeopleLedger {
+  const ledger: PeopleLedger = {};
+  const river = ensureEvidence(ledger, sampleFollowing[0]);
+  river.everMutual = true;
+  river.followsMe = true;
+  river.everMentionedMe = true;
+  river.lastStatusAt = new Date().toISOString();
+  const ada = ensureEvidence(ledger, sampleFollowing[1]);
+  ada.followsMe = false;
+  ada.iRepliedToThem = true;
+  ada.lastStatusAt = new Date().toISOString();
+  noteObservedStatuses(ledger, sampleStatuses);
+  return ledger;
+}
 
 function makeStatus(
   id: string,

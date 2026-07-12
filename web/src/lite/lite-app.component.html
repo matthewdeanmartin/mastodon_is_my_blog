@@ -100,7 +100,19 @@
       @if (page() === 'people') {
         <aside class="people-panel">
           <div class="panel-title">
-            <span>Following</span><small>{{ following().length }} loaded</small>
+            <span>Blog roll</span>
+            <small>{{ visiblePeople().length }} of {{ following().length }} loaded</small>
+          </div>
+          <div class="people-filters" role="group" aria-label="Blog roll filters">
+            @for (entry of peopleFilterEntries; track entry[0]) {
+              <button
+                type="button"
+                [class.active]="peopleFilter() === entry[0]"
+                (click)="setPeopleFilter(entry[0])"
+              >
+                {{ entry[1] }}
+              </button>
+            }
           </div>
           <button class="person" type="button" (click)="selectFollowing(account()!)">
             @if (account()?.avatar) {
@@ -113,7 +125,7 @@
               ><small>&#64;{{ account()?.acct }}</small></span
             >
           </button>
-          @for (person of following(); track person.id) {
+          @for (person of visiblePeople(); track person.id) {
             <button class="person" type="button" (click)="selectFollowing(person)">
               @if (person.avatar) {
                 <img [src]="person.avatar" alt="" />
@@ -125,6 +137,8 @@
                 ><small>&#64;{{ person.acct }}</small></span
               >
             </button>
+          } @empty {
+            <div class="empty-state">No one matches this filter in the loaded window.</div>
           }
         </aside>
       }

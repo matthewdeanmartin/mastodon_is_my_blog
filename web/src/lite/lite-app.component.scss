@@ -281,6 +281,27 @@ button {
   letter-spacing: 0;
   font-weight: 500;
 }
+.people-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e8ebf0;
+}
+.people-filters button {
+  border: 1px solid #dbe1ea;
+  background: white;
+  color: #667085;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+.people-filters button.active {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
 .person {
   display: flex;
   width: 100%;

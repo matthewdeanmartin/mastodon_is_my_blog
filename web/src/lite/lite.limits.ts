@@ -6,6 +6,9 @@ export const LITE_LIMITS = {
   maxCachedStatusesPerAccount: 80,
   maxCachedOwnStatuses: 160,
   maxCachedFollowing: 200,
+  followingPages: 2,
+  notificationPages: 2,
+  relationshipChunk: 80,
   cacheTtlMs: 5 * 60 * 1000,
 } as const;
 
@@ -14,6 +17,10 @@ export class LiteRequestBudget {
 
   get callsUsed(): number {
     return this.used;
+  }
+
+  get remaining(): number {
+    return LITE_LIMITS.maxCallsPerOperation - this.used;
   }
 
   spend(): void {

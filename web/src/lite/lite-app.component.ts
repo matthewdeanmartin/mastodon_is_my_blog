@@ -10,13 +10,30 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { sampleAccount, sampleFollowing, sampleStatuses } from './lite-fixtures';
+import { sampleAccount, sampleFollowing, sampleLedger, sampleStatuses } from './lite-fixtures';
 import { LITE_LIMITS, LiteRequestBudget } from './lite.limits';
 import { LiteMastodonService } from './lite-mastodon.service';
 import { LiteOAuthService } from './lite-oauth.service';
 import { LiteStorageService } from './lite-storage.service';
-import { LiteAccount, LiteConnection, LiteFilter, LitePage, LiteStatus } from './lite.models';
+import {
+  LiteAccount,
+  LiteConnection,
+  LiteFilter,
+  LitePage,
+  LitePeopleFilter,
+  LiteStatus,
+} from './lite.models';
 import { filterLiteStatuses } from './lite-filters';
+import {
+  PEOPLE_FILTER_LABELS,
+  PeopleLedger,
+  matchesPeopleFilter,
+  noteAccount,
+  noteNotifications,
+  noteObservedStatuses,
+  noteOwnStatuses,
+  noteRelationships,
+} from './lite-people';
 import { LiteWriteComponent } from './lite-write.component';
 
 @Component({
@@ -37,6 +54,8 @@ export class LiteAppComponent implements OnInit {
   readonly following = signal<LiteAccount[]>([]);
   readonly page = signal<LitePage>('people');
   readonly filter = signal<LiteFilter>('posts');
+  readonly peopleFilter = signal<LitePeopleFilter>('all');
+  readonly ledger = signal<PeopleLedger>({});
   readonly selectedAccount = signal<LiteAccount | null>(null);
   readonly loading = signal(false);
   readonly connecting = signal(false);
@@ -64,6 +83,30 @@ export class LiteAppComponent implements OnInit {
   });
   readonly visibleStatuses = computed(() => {
     return filterLiteStatuses(this.statuses(), this.filter());
+  });
+  readonly peopleFilterEntries = Object.entries(PEOPLE_FILTER_LABELS) as [
+    LitePeopleFilter,
+    string,
+  ][];
+  readonly visiblePeople = computed(() => {
+    const filter = this.peopleFilter();
+    const ledger = this.ledger();
+    const people = this.following().filter((person) =>
+      matchesPeopleFilter(filter, person, ledger[person.id]),
+    );
+    if (filter === 'readers') {
+      // Readers drop the "people I follow" gate, matching the server filter:
+      // anyone who boosted me belongs here even if I never followed back.
+      const known = new Set(this.following().map((person) => person.id));
+      known.add(this.account()?.id ?? '');
+      for (const evidence of Object.values(ledger)) {
+        if (known.has(evidence.accountId) || !evidence.snapshot) continue;
+        if (matchesPeopleFilter('readers', evidence.snapshot, evidence)) {
+          people.push(evidence.snapshot);
+        }
+      }
+    }
+    return people;
   });
 
   async ngOnInit(): Promise<void> {
@@ -108,6 +151,8 @@ export class LiteAppComponent implements OnInit {
     this.statuses.set(sampleStatuses);
     this.page.set('people');
     this.filter.set('posts');
+    this.peopleFilter.set('all');
+    this.ledger.set(sampleLedger());
     this.selectedAccount.set(sampleAccount);
     this.callsUsed.set(0);
     this.error.set(null);
@@ -127,6 +172,10 @@ export class LiteAppComponent implements OnInit {
 
   setFilter(filter: LiteFilter): void {
     this.filter.set(filter);
+  }
+
+  setPeopleFilter(filter: LitePeopleFilter): void {
+    this.peopleFilter.set(filter);
   }
 
   async selectFollowing(account: LiteAccount): Promise<void> {
@@ -196,6 +245,7 @@ export class LiteAppComponent implements OnInit {
       this.following.set(following.slice(0, LITE_LIMITS.maxCachedFollowing));
       this.storage.writeCache(connection, 'own-statuses', this.statuses());
       this.storage.writeCache(connection, 'following', this.following());
+      await this.gatherPeopleEvidence(connection, budget);
       this.callsUsed.set(budget.callsUsed);
     } catch (error: unknown) {
       this.error.set(errorMessage(error));
@@ -238,7 +288,10 @@ export class LiteAppComponent implements OnInit {
       const statuses = await operation(budget);
       this.statuses.set(statuses.slice(0, LITE_LIMITS.maxCachedStatusesPerAccount));
       const connection = this.connection();
-      if (connection) this.storage.writeCache(connection, 'last-statuses', this.statuses());
+      if (connection) {
+        this.storage.writeCache(connection, 'last-statuses', this.statuses());
+        this.absorbObservedStatuses(connection, this.statuses());
+      }
       this.callsUsed.set(budget.callsUsed);
     } catch (error: unknown) {
       this.error.set(errorMessage(error));
@@ -251,11 +304,57 @@ export class LiteAppComponent implements OnInit {
   private restoreCache(connection: LiteConnection): void {
     const ownStatuses = this.storage.readCache<LiteStatus[]>(connection, 'own-statuses');
     const following = this.storage.readCache<LiteAccount[]>(connection, 'following');
+    const ledger = this.storage.readCache<PeopleLedger>(connection, 'people-ledger');
     if (ownStatuses) {
       this.statuses.set(ownStatuses.slice(0, LITE_LIMITS.maxCachedOwnStatuses));
       this.selectedAccount.set(connection.account);
     }
     if (following) this.following.set(following.slice(0, LITE_LIMITS.maxCachedFollowing));
+    if (ledger) this.ledger.set(ledger);
+  }
+
+  /**
+   * Build up the blog roll evidence ledger from a handful of extra API calls:
+   * relationships (mutuals) and recent notifications (readers, top friends,
+   * chatty). Best effort — a partial ledger is kept when the request budget
+   * or the network gives out, and now-and-forever facts persist across
+   * sessions in local storage.
+   */
+  private async gatherPeopleEvidence(
+    connection: LiteConnection,
+    budget: LiteRequestBudget,
+  ): Promise<void> {
+    const ledger: PeopleLedger = {
+      ...(this.storage.readCache<PeopleLedger>(connection, 'people-ledger') ?? {}),
+    };
+    for (const person of this.following()) noteAccount(ledger, person);
+    noteOwnStatuses(ledger, this.statuses(), connection.account.id);
+    try {
+      if (budget.remaining >= LITE_LIMITS.notificationPages) {
+        noteNotifications(ledger, await this.mastodon.notifications(connection, budget));
+      }
+      const ids = this.following().map((person) => person.id);
+      const chunksNeeded = Math.ceil(ids.length / LITE_LIMITS.relationshipChunk);
+      if (ids.length > 0 && budget.remaining >= chunksNeeded) {
+        noteRelationships(ledger, await this.mastodon.relationships(connection, ids, budget));
+      }
+    } catch {
+      // Keep whatever evidence was gathered before the failure.
+    }
+    this.ledger.set(ledger);
+    this.storage.writeCache(connection, 'people-ledger', ledger);
+  }
+
+  private absorbObservedStatuses(connection: LiteConnection, statuses: LiteStatus[]): void {
+    const ledger = { ...this.ledger() };
+    noteObservedStatuses(ledger, statuses);
+    noteOwnStatuses(ledger, statuses, connection.account.id);
+    this.ledger.set(ledger);
+    try {
+      this.storage.writeCache(connection, 'people-ledger', ledger);
+    } catch {
+      // Storage quota — the in-memory ledger still works for this session.
+    }
   }
 }
 

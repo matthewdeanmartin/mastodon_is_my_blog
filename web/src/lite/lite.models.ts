@@ -17,6 +17,9 @@ export interface LiteAccount {
   followers_count: number;
   following_count: number;
   statuses_count: number;
+  bot?: boolean;
+  locked?: boolean;
+  last_status_at?: string | null;
 }
 
 export interface LiteStatus {
@@ -27,6 +30,7 @@ export interface LiteStatus {
   url: string | null;
   visibility: string;
   in_reply_to_id: string | null;
+  in_reply_to_account_id?: string | null;
   account: LiteAccount;
   reblog: LiteStatus | null;
   media_attachments: LiteMediaAttachment[];
@@ -75,6 +79,35 @@ export interface LiteDraft {
   language: string | null;
   updatedAt: number;
 }
+
+export type LiteNotificationType = 'mention' | 'favourite' | 'reblog' | 'status' | 'follow';
+
+export interface LiteNotification {
+  id: string;
+  type: LiteNotificationType;
+  created_at: string;
+  account: LiteAccount;
+}
+
+export interface LiteRelationship {
+  id: string;
+  following: boolean;
+  followed_by: boolean;
+}
+
+export type LitePeopleFilter =
+  | 'all'
+  | 'top_friends'
+  | 'readers'
+  | 'mutuals'
+  | 'chatty'
+  | 'idols'
+  | 'broadcasters'
+  | 'bots'
+  | 'lively'
+  | 'graveyard'
+  | 'parasocials'
+  | 'other';
 
 export type LiteFilter =
   | 'posts'
