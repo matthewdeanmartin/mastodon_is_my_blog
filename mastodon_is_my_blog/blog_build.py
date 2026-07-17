@@ -12,9 +12,12 @@ current scale a queue of one is correct, not a bottleneck. If node/Eleventy
 isn't available (bare deploy, CI), a plain-HTML fallback renders instead so
 "my blog is live" is never a 404.
 
+Builders are pluggable (blog_providers/): Eleventy when its node_modules are
+installed, the bundled Pelican otherwise, plain fallback as a last resort.
+
 Object storage, per-tenant subdomains, and custom domains stay later-phase;
 the contract that survives them: build_tenant_blog(tenant_id, meta_account_id)
--> {"blog_path": ..., "builder": "eleventy" | "fallback"}.
+-> {"blog_path": ..., "builder": "eleventy" | "pelican" | "fallback"}.
 """
 
 from __future__ import annotations
@@ -131,22 +134,22 @@ async def build_tenant_blog(tenant_id: int, meta_account_id: int) -> dict:
     """Build (or rebuild) the tenant's static blog under BLOG_DIR/tenant_{id}.
     Serves at /blogs/tenant_{id}/ (main.py mounts BLOG_DIR in server mode).
     """
-    import json
-
+    from mastodon_is_my_blog.blog_providers import resolve_provider
     from mastodon_is_my_blog.storm_export import load_blogroll_export_data, load_storm_export_data
 
     storms = await load_storm_export_data(meta_account_id=meta_account_id)
     blogroll = await load_blogroll_export_data(meta_account_id=meta_account_id)
     out_dir = blog_output_root() / f"tenant_{tenant_id}"
 
+    provider = resolve_provider()
     async with BUILD_LOCK:
-        built = await asyncio.to_thread(run_eleventy_build, json.dumps(storms, indent=2), json.dumps(blogroll, indent=2), out_dir)
+        built = await asyncio.to_thread(provider.build, storms, blogroll, out_dir)
         if not built:
-            # A failed Eleventy run may have left partial output — replace it.
+            # A failed build may have left partial output — replace it.
             if out_dir.exists():
                 await asyncio.to_thread(shutil.rmtree, out_dir, True)
             render_fallback_blog(out_dir, storms)
 
-    builder = "eleventy" if built else "fallback"
+    builder = provider.name if built else "fallback"
     logger.info("blog built tenant_id=%s builder=%s at %s", tenant_id, builder, out_dir)
     return {"blog_path": str(out_dir), "builder": builder}

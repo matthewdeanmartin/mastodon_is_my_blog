@@ -22,6 +22,10 @@ export interface LiteAccount {
   last_status_at?: string | null;
 }
 
+export interface LiteTag {
+  name: string;
+}
+
 export interface LiteStatus {
   id: string;
   content: string;
@@ -37,6 +41,12 @@ export interface LiteStatus {
   replies_count: number;
   reblogs_count: number;
   favourites_count: number;
+  tags?: LiteTag[];
+}
+
+export interface LiteContext {
+  ancestors: LiteStatus[];
+  descendants: LiteStatus[];
 }
 
 export interface LiteConnection {
@@ -120,4 +130,13 @@ export type LiteFilter =
   | 'software'
   | 'news'
   | 'boosts';
-export type LitePage = 'people' | 'content' | 'forums' | 'write';
+export type LitePage = 'people' | 'content' | 'forums' | 'write' | 'analytics' | 'observability';
+
+export type LiteForumFilter =
+  | 'all'
+  | 'questions'
+  | 'friends_started'
+  | 'popular'
+  | 'recent'
+  | 'mine'
+  | 'participating';

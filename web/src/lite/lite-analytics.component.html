@@ -1,0 +1,162 @@
+<main class="analytics-shell">
+  <div class="analytics-heading">
+    <div>
+      <div class="eyebrow">ANALYTICS</div>
+      <h1>Your last {{ archive().length }} post{{ archive().length === 1 ? '' : 's' }}</h1>
+      <p>
+        @if (oldestDate()) {
+          Window reaches back to {{ shortDate(oldestDate()!) }}.
+        }
+        @if (!sampleMode()) {
+          Stored locally, capped at 500 posts.
+        }
+      </p>
+    </div>
+    @if (!sampleMode()) {
+      <div class="heading-actions">
+        <button type="button" [disabled]="loading() || archiveFull()" (click)="fetchOlder()">
+          {{ archiveFull() ? 'Archive full (500)' : loading() ? 'Fetching…' : 'Fetch 100 older posts' }}
+        </button>
+        <small>{{ callsUsed() }}/10 API calls in the last action</small>
+      </div>
+    }
+  </div>
+
+  @if (error()) {
+    <div class="error-banner" role="alert">{{ error() }}</div>
+  }
+
+  <div class="analytics-grid">
+    <section class="card heatmap-card">
+      <h2>When you post</h2>
+      <p class="card-sub">Posts and replies by local day and hour. Darker is more.</p>
+      <div class="heatmap" role="img" aria-label="Posting activity by day of week and hour">
+        <span class="corner"></span>
+        @for (hour of hours; track hour) {
+          <span class="hour-label">{{ hour % 3 === 0 ? hour : '' }}</span>
+        }
+        @for (dow of dowLabels; track dow; let d = $index) {
+          <span class="dow-label">{{ dow }}</span>
+          @for (hour of hours; track hour) {
+            @let cell = heatmap()[d * 24 + hour];
+            <span
+              class="heat-cell"
+              [class.empty]="cell.count === 0"
+              [style.background]="heatColor(cell.count)"
+              [title]="heatTitle(d, hour, cell.count)"
+            ></span>
+          }
+        }
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Post mix</h2>
+      <p class="card-sub">{{ mixTotal() }} statuses in the window</p>
+      @if (mixTotal() > 0) {
+        <div class="mix-bar" role="img" aria-label="Share of posts, replies, and boosts">
+          <span
+            class="mix-segment"
+            [style.flex-grow]="mix().posts"
+            style="background: #2a78d6"
+          ></span>
+          <span
+            class="mix-segment"
+            [style.flex-grow]="mix().replies"
+            style="background: #1baf7a"
+          ></span>
+          <span
+            class="mix-segment"
+            [style.flex-grow]="mix().boosts"
+            style="background: #4a3aa7"
+          ></span>
+        </div>
+        <ul class="legend">
+          <li><i style="background: #2a78d6"></i> Posts <b>{{ mix().posts }}</b></li>
+          <li><i style="background: #1baf7a"></i> Replies <b>{{ mix().replies }}</b></li>
+          <li><i style="background: #4a3aa7"></i> Boosts <b>{{ mix().boosts }}</b></li>
+          <li class="legend-note">{{ mix().withMedia }} with media</li>
+        </ul>
+      } @else {
+        <div class="empty-state small">Nothing loaded yet.</div>
+      }
+    </section>
+
+    <section class="card">
+      <h2>Engagement</h2>
+      <p class="card-sub">Across your {{ engagement().posts }} own posts</p>
+      <div class="stat-row">
+        <div class="stat"><b>{{ engagement().totalFavourites }}</b><small>favourites</small></div>
+        <div class="stat"><b>{{ engagement().totalBoosts }}</b><small>boosts</small></div>
+        <div class="stat"><b>{{ engagement().totalReplies }}</b><small>replies</small></div>
+      </div>
+      <h3>Top posts</h3>
+      @for (post of engagement().top; track post.id) {
+        <a class="top-post" [href]="post.url" target="_blank" rel="noopener noreferrer">
+          <span class="top-post-text">{{ postExcerpt(post) }}</span>
+          <span class="top-post-stats"
+            >♡ {{ post.favourites_count }} · ⟳ {{ post.reblogs_count }} · ↩
+            {{ post.replies_count }}</span
+          >
+        </a>
+      } @empty {
+        <div class="empty-state small">No posts loaded yet.</div>
+      }
+    </section>
+
+    <section class="card">
+      <h2>Hashtags you use</h2>
+      <p class="card-sub">In the loaded window</p>
+      @for (row of hashtags(); track row.tag) {
+        <div class="tag-row">
+          <span class="tag-name">#{{ row.tag }}</span>
+          <span class="tag-bar-track">
+            <span class="tag-bar" [style.width]="barWidth(row.count, hashtagMax())"></span>
+          </span>
+          <span class="tag-count">{{ row.count }}</span>
+        </div>
+      } @empty {
+        <div class="empty-state small">No hashtags in the loaded window.</div>
+      }
+    </section>
+
+    @if (!sampleMode()) {
+      <section class="card trends-card">
+        <h2>Who's knocking</h2>
+        <p class="card-sub">Notifications per day, last 14 days</p>
+        @if (trendMax() > 0) {
+          <div class="trend-chart" role="img" aria-label="Notifications per day by type">
+            @for (row of trendRows(); track row.day) {
+              <div class="trend-col" [title]="row.day + ' — ' + row.total + ' notifications'">
+                <div class="trend-stack">
+                  @for (type of notificationTypes; track type) {
+                    @if (row.counts[type] > 0) {
+                      <span
+                        class="trend-segment"
+                        [style.height]="segmentHeight(row.counts[type], trendMax())"
+                        [style.background]="typeColors[type]"
+                      ></span>
+                    }
+                  }
+                </div>
+                <small>{{ row.day.slice(8) }}</small>
+              </div>
+            }
+          </div>
+          <ul class="legend">
+            @for (type of notificationTypes; track type) {
+              <li>
+                <i [style.background]="typeColors[type]"></i> {{ typeLabels[type] }}
+                <b>{{ trendTotals()[type] }}</b>
+              </li>
+            }
+          </ul>
+        } @else {
+          <div class="empty-state small">
+            {{ loading() ? 'Loading notifications…' : 'No notifications in the loaded window.' }}
+          </div>
+        }
+      </section>
+    }
+  </div>
+</main>

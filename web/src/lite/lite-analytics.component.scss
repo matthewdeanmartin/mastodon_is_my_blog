@@ -1,0 +1,251 @@
+.analytics-shell {
+  max-width: 1240px;
+  margin: 30px auto;
+  padding: 0 16px;
+}
+.analytics-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 20px;
+  border-bottom: 1px solid #dfe3ea;
+  padding-bottom: 18px;
+  margin-bottom: 22px;
+}
+.analytics-heading h1 {
+  font-family: Georgia, serif;
+  font-size: 2.3rem;
+  font-weight: 500;
+  margin: 4px 0;
+}
+.analytics-heading p {
+  color: #7b8495;
+  font-size: 0.8rem;
+  margin: 0;
+}
+.eyebrow {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #6366f1;
+}
+.heading-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+.heading-actions button {
+  background: white;
+  border: 1px solid #cdd3dd;
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-weight: 650;
+}
+.heading-actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.heading-actions small {
+  font-size: 0.68rem;
+  color: #7b8495;
+}
+.error-banner {
+  padding: 12px 14px;
+  background: #fff1f2;
+  color: #9f1239;
+  border-left: 3px solid #e11d48;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.card {
+  background: white;
+  border: 1px solid #e1e5ec;
+  border-radius: 10px;
+  padding: 18px;
+}
+.card h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.card h3 {
+  margin: 18px 0 8px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #667085;
+}
+.card-sub {
+  color: #7b8495;
+  font-size: 0.76rem;
+  margin: 4px 0 14px;
+}
+.heatmap-card,
+.trends-card {
+  grid-column: 1 / -1;
+}
+.heatmap {
+  display: grid;
+  grid-template-columns: 38px repeat(24, minmax(0, 1fr));
+  gap: 2px;
+  overflow-x: auto;
+}
+.hour-label,
+.dow-label {
+  font-size: 0.62rem;
+  color: #898781;
+}
+.dow-label {
+  align-self: center;
+}
+.heat-cell {
+  aspect-ratio: 1.4 / 1;
+  min-width: 12px;
+  border-radius: 3px;
+}
+.heat-cell.empty {
+  border: 1px solid #eef0f4;
+}
+.mix-bar {
+  display: flex;
+  gap: 2px;
+  height: 26px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.mix-segment {
+  min-width: 0;
+  flex-basis: 0;
+}
+.legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 0;
+  margin: 12px 0 0;
+  font-size: 0.76rem;
+  color: #52514e;
+}
+.legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 5px;
+  vertical-align: baseline;
+}
+.legend b {
+  font-weight: 700;
+  color: #172033;
+}
+.legend-note {
+  color: #898781;
+}
+.stat-row {
+  display: flex;
+  gap: 14px;
+}
+.stat {
+  flex: 1;
+  background: #f8f9fc;
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 2px;
+}
+.stat b {
+  font-size: 1.35rem;
+}
+.stat small {
+  font-size: 0.68rem;
+  color: #7b8495;
+}
+.top-post {
+  display: grid;
+  gap: 3px;
+  padding: 9px 0;
+  border-top: 1px solid #eef0f4;
+  text-decoration: none;
+  color: inherit;
+}
+.top-post:hover .top-post-text {
+  color: #4338ca;
+}
+.top-post-text {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.top-post-stats {
+  font-size: 0.7rem;
+  color: #7b8495;
+}
+.tag-row {
+  display: grid;
+  grid-template-columns: minmax(70px, 150px) 1fr 34px;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 0.78rem;
+}
+.tag-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #172033;
+}
+.tag-bar-track {
+  height: 12px;
+}
+.tag-bar {
+  display: block;
+  height: 100%;
+  background: #4f46e5;
+  border-radius: 0 3px 3px 0;
+}
+.tag-count {
+  text-align: right;
+  color: #52514e;
+  font-variant-numeric: tabular-nums;
+}
+.trend-chart {
+  display: flex;
+  gap: 6px;
+  align-items: end;
+  overflow-x: auto;
+  padding-top: 6px;
+}
+.trend-col {
+  flex: 1;
+  min-width: 26px;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+.trend-col small {
+  font-size: 0.62rem;
+  color: #898781;
+}
+.trend-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  width: 100%;
+  max-width: 34px;
+  min-height: 122px;
+  justify-content: flex-start;
+}
+.trend-segment {
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+}
+.empty-state.small {
+  padding: 18px 0;
+  color: #7b8495;
+  font-size: 0.8rem;
+}

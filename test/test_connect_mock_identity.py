@@ -29,6 +29,9 @@ async def client(monkeypatch, patch_async_session, tmp_path):
     monkeypatch.setenv("TOKEN_ENCRYPTION_KEY", generate_key())
     monkeypatch.setenv("ELEVENTY_SITE_DIR", str(tmp_path / "no-eleventy"))
     monkeypatch.setenv("BLOG_DIR", str(tmp_path / "blogs"))
+    # Pin the cheap builder — this test is about connect wiring, not the
+    # provider chain (covered in test_blog_providers.py).
+    monkeypatch.setenv("BLOG_BUILDER", "fallback")
     patch_async_session(tenant_export, admin)
     monkeypatch.setattr(internal, "sync_all_identities", AsyncMock(return_value=[]))
 
@@ -78,7 +81,7 @@ async def test_connects_syncs_and_builds(client, monkeypatch, tmp_path):
     body = response.json()
     assert body["acct"] == "ada"
     assert body["synced"] is True
-    assert body["builder"] == "fallback"  # no Eleventy in tests
+    assert body["builder"] == "fallback"  # pinned via BLOG_BUILDER in the fixture
 
     # The identity really landed on the tenant's MetaAccount.
     meta = await tenant_export.get_tenant_meta_account("tenant_3")

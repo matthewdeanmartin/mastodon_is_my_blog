@@ -62,6 +62,20 @@ def is_server_mode() -> bool:
     return get_mode() == MODE_SERVER
 
 
+def resolve_app_base_url(request) -> str:
+    """Base URL this app is reachable at, for building OAuth redirect URIs.
+
+    APP_BASE_URL wins when set (required in server mode; optional locally for
+    reverse-proxy setups). Otherwise fall back to the URL the request came in
+    on — in local mode the OAuth callback lands on this same host:port, so a
+    pipx install needs zero configuration.
+    """
+    configured = os.environ.get("APP_BASE_URL")
+    if configured:
+        return configured.rstrip("/")
+    return str(request.base_url).rstrip("/")
+
+
 def check_server_mode_env() -> None:
     """Fail fast at startup if server mode is missing required configuration."""
     missing = [name for name in SERVER_MODE_REQUIRED_ENV if not os.environ.get(name)]

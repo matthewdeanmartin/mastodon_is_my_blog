@@ -1,0 +1,100 @@
+<main class="obs-shell">
+  <div class="obs-heading">
+    <div>
+      <div class="eyebrow">OBSERVABILITY</div>
+      <h1>How Lite treats your instance</h1>
+      <p>
+        Running totals only — no per-call log is stored, so this never outgrows browser storage.
+      </p>
+    </div>
+    <button type="button" (click)="reset()">Reset counters</button>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat">
+      <b>{{ lastHour().calls }}</b><small>calls, last hour</small>
+    </div>
+    <div class="stat">
+      <b>{{ lastDay().calls }}</b><small>calls, last 24h</small>
+    </div>
+    <div class="stat" [class.alert]="lastDay().errors > 0">
+      <b>{{ errorRatePct(lastDay()) }}</b><small>error rate, 24h</small>
+    </div>
+    <div class="stat" [class.alert]="lastDay().rateLimited > 0">
+      <b>{{ lastDay().rateLimited }}</b><small>429s, last 24h</small>
+    </div>
+    <div class="stat">
+      <b>{{ avgLatency(lastDay()) }}</b><small>avg latency, 24h</small>
+    </div>
+  </div>
+
+  <p class="rate-limit-note">{{ rateLimitNote() }}</p>
+
+  <div class="obs-grid">
+    <section class="card">
+      <h2>Calls per hour</h2>
+      <p class="card-sub">Last 24 hours</p>
+      <div class="bar-chart" role="img" aria-label="API calls per hour, last 24 hours">
+        @for (point of hourly(); track $index) {
+          <div class="bar-col" [title]="barTitle(point.label, point.bucket)">
+            <span
+              class="bar"
+              [class.has-errors]="point.bucket.errors > 0"
+              [style.height]="barHeight(point.bucket.calls, hourlyMax())"
+            ></span>
+            <small>{{ $index % 4 === 0 ? point.label : '' }}</small>
+          </div>
+        }
+      </div>
+      <p class="chart-note">Red-topped bars contain errors. Hover a bar for details.</p>
+    </section>
+
+    <section class="card">
+      <h2>Calls per day</h2>
+      <p class="card-sub">Last 14 days</p>
+      <div class="bar-chart" role="img" aria-label="API calls per day, last 14 days">
+        @for (point of daily(); track $index) {
+          <div class="bar-col" [title]="barTitle(point.label, point.bucket)">
+            <span
+              class="bar"
+              [class.has-errors]="point.bucket.errors > 0"
+              [style.height]="barHeight(point.bucket.calls, dailyMax())"
+            ></span>
+            <small>{{ point.label.slice(3) }}</small>
+          </div>
+        }
+      </div>
+    </section>
+
+    <section class="card endpoint-card">
+      <h2>By endpoint</h2>
+      <p class="card-sub">All-time running totals</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Endpoint</th>
+            <th>Calls</th>
+            <th>Errors</th>
+            <th>429s</th>
+            <th>Avg latency</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of endpoints(); track row.endpoint) {
+            <tr>
+              <td>{{ row.endpoint }}</td>
+              <td>{{ row.calls }}</td>
+              <td [class.alert-text]="row.errors > 0">{{ row.errors }}</td>
+              <td [class.alert-text]="row.rateLimited > 0">{{ row.rateLimited }}</td>
+              <td>{{ avgLatency(row) }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="empty-cell">No API calls recorded yet.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  </div>
+</main>

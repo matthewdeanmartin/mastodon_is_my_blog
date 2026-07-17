@@ -133,6 +133,9 @@ async def test_add_identity_api_key_creates_identity(api_client: TestClient, mon
 @pytest.mark.asyncio
 async def test_auth_callback_consumes_pending_connection_and_persists_identity(monkeypatch: pytest.MonkeyPatch, db_session_factory) -> None:
     monkeypatch.setenv("APP_BASE_URL", "https://app.example.com")
+    # Pin FRONTEND_URL: the developer's real .env may set it (and a delenv
+    # would be undone by load_dotenv calls during app startup).
+    monkeypatch.setenv("FRONTEND_URL", "https://front.example.com")
     _stub_persist(monkeypatch, admin)
     monkeypatch.setattr(admin, "build_unique_account_name", lambda preferred, existing: "ALICE")
     monkeypatch.setattr(main, "client", lambda **kwargs: DummyClient(**kwargs))
@@ -178,7 +181,10 @@ async def test_auth_callback_consumes_pending_connection_and_persists_identity(m
         response = client.get("/auth/callback?code=somecode&state=abc123", follow_redirects=False)
 
     assert response.status_code == 307
-    assert response.headers["location"] == "http://localhost:4201/#/admin"
+    # FRONTEND_URL always wins for the post-OAuth landing; without it the
+    # landing honors APP_BASE_URL, then derives from the request URL when the
+    # SPA is bundled, then falls back to the :4201 dev split.
+    assert response.headers["location"] == "https://front.example.com/#/admin"
 
     from sqlalchemy import select
 
@@ -268,3 +274,33 @@ def test_auth_callback_rejects_unknown_state(monkeypatch: pytest.MonkeyPatch, db
         response = client.get("/auth/callback?code=somecode&state=unknown")
 
     assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_oauth_start_derives_redirect_uri_without_app_base_url(api_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The pipx zero-config case: no APP_BASE_URL anywhere, so the OAuth
+    redirect URI is derived from the URL the request came in on."""
+    monkeypatch.delenv("APP_BASE_URL", raising=False)
+    seen: dict = {}
+
+    def fake_create_app(client_name, scopes, redirect_uris, api_base_url):
+        seen["redirect_uris"] = redirect_uris
+        return "client-id", "client-secret"
+
+    monkeypatch.setattr(admin.Mastodon, "create_app", staticmethod(fake_create_app))
+    monkeypatch.setattr(admin, "ensure_identity_capacity", async_noop)
+    monkeypatch.setattr(admin, "create_oauth_pending_connection", async_noop)
+
+    class AuthUrlClient:
+        def auth_request_url(self, **kwargs) -> str:
+            seen["authorize_redirect"] = kwargs["redirect_uris"]
+            return "https://example.social/oauth/authorize?fake"
+
+    monkeypatch.setattr(admin, "client", lambda **kwargs: AuthUrlClient())
+
+    response = api_client.post("/api/admin/identities/oauth/start", json={"base_url": "https://example.social"})
+
+    assert response.status_code == 200
+    assert response.json() == {"authorize_url": "https://example.social/oauth/authorize?fake"}
+    assert seen["redirect_uris"] == "http://testserver/auth/callback"
+    assert seen["authorize_redirect"] == "http://testserver/auth/callback"

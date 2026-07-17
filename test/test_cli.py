@@ -15,13 +15,13 @@ def test_main_starts_without_forcing_init_when_no_accounts(monkeypatch) -> None:
     monkeypatch.setattr(
         cli,
         "start_server",
-        lambda host, port, reload_, workers: events.append(f"start:{host}:{port}:{reload_}:{workers}"),
+        lambda host, port, reload_, workers, no_open: events.append(f"start:{host}:{port}:{reload_}:{workers}:{no_open}"),
     )
 
-    result = cli.main(["start", "--port", "9000"])
+    result = cli.main(["start", "--port", "9000", "--no-open"])
 
     assert result == 0
-    assert events == ["start:127.0.0.1:9000:False:1"]
+    assert events == ["start:127.0.0.1:9000:False:1:True"]
 
 
 def test_main_init_runs_even_when_accounts_exist(monkeypatch) -> None:

@@ -13,14 +13,15 @@ their blog published from). The Publish button in the admin UI:
 Hosted mode never uses this module: tenant blogs rebuild automatically
 (blog_build.py) and the endpoints 404 there.
 
-Requires Node.js on the user's machine for the real Eleventy build; without
-it the plain-HTML fallback renderer still produces a publishable docs/.
+The build itself goes through blog_providers/: Eleventy when its Node
+node_modules are installed, otherwise the bundled Pelican (pure Python, ships
+in the wheel), otherwise the plain-HTML fallback — publish always produces a
+publishable docs/.
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import shutil
@@ -33,7 +34,6 @@ from mastodon_is_my_blog.blog_build import (
     eleventy_site_dir,
     find_eleventy_binary,
     render_fallback_blog,
-    run_eleventy_build,
 )
 
 logger = logging.getLogger(__name__)
@@ -76,6 +76,8 @@ def run_git(args: list[str], cwd: Path) -> tuple[int, str]:
 
 def get_publish_status() -> dict[str, Any]:
     """Everything the Publish panel needs to decide which buttons to show."""
+    from mastodon_is_my_blog.blog_providers import provider_availability, resolve_provider
+
     root = publish_repo_root()
     site_dir = eleventy_site_dir()
     is_repo = (root / ".git").exists()
@@ -99,6 +101,8 @@ def get_publish_status() -> dict[str, Any]:
         "node_available": shutil.which("node") is not None,
         "eleventy_available": find_eleventy_binary(site_dir) is not None,
         "eleventy_site_dir": str(site_dir),
+        "builder": resolve_provider().name,
+        "builders": provider_availability(),
         "docs_exists": (docs_output_dir() / "index.html").exists(),
         "docs_dirty": docs_dirty,
         "pages_workflow_exists": (root / PAGES_WORKFLOW_RELPATH).exists(),
@@ -128,29 +132,26 @@ def ensure_generated_styles(site_dir: Path) -> None:
 
 
 async def build_docs() -> dict[str, Any]:
-    """Build the local user's blog into <repo>/docs. Eleventy when available,
-    the fallback renderer otherwise — publish must always produce something."""
+    """Build the local user's blog into <repo>/docs with the resolved provider
+    (Eleventy > bundled Pelican > plain fallback) — publish must always
+    produce something."""
+    from mastodon_is_my_blog.blog_providers import resolve_provider
     from mastodon_is_my_blog.storm_export import load_blogroll_export_data, load_storm_export_data
 
     storms = await load_storm_export_data(meta_account_id=None)
     blogroll = await load_blogroll_export_data(meta_account_id=None)
     out_dir = docs_output_dir()
 
+    provider = resolve_provider()
     async with BUILD_LOCK:
-        await asyncio.to_thread(ensure_generated_styles, eleventy_site_dir())
-        built = await asyncio.to_thread(
-            run_eleventy_build,
-            json.dumps(storms, indent=2),
-            json.dumps(blogroll, indent=2),
-            out_dir,
-        )
+        built = await asyncio.to_thread(provider.build, storms, blogroll, out_dir)
         if not built:
             if out_dir.exists():
                 await asyncio.to_thread(shutil.rmtree, out_dir, True)
             render_fallback_blog(out_dir, storms)
 
     page_count = sum(1 for _ in out_dir.rglob("index.html"))
-    builder = "eleventy" if built else "fallback"
+    builder = provider.name if built else "fallback"
     logger.info("local blog built builder=%s pages=%s at %s", builder, page_count, out_dir)
     return {
         "builder": builder,

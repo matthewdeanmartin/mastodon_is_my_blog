@@ -11,7 +11,12 @@ export function filterLiteStatuses(statuses: LiteStatus[], filter: LiteFilter): 
   }
 
   return originalPosts.filter((status) => {
-    if (filter === 'shorts') return textLength(status.content) < 500 && !hasExternalLink(status);
+    if (filter === 'shorts')
+      return (
+        status.in_reply_to_id === null &&
+        textLength(status.content) < 500 &&
+        !hasExternalLink(status)
+      );
     if (filter === 'replies') return status.in_reply_to_id !== null;
     if (filter === 'questions')
       return status.in_reply_to_id === null && /\w+\?/u.test(text(status.content));
@@ -20,6 +25,35 @@ export function filterLiteStatuses(statuses: LiteStatus[], filter: LiteFilter): 
     if (filter === 'news') return hasDomain(status, NEWS_DOMAINS);
     return hasExternalLink(status);
   });
+}
+
+const ALL_LITE_FILTERS: readonly LiteFilter[] = [
+  'posts',
+  'storms',
+  'shorts',
+  'replies',
+  'questions',
+  'media',
+  'links',
+  'software',
+  'news',
+  'boosts',
+];
+
+/**
+ * Count matches for every filter over the loaded window so the View buttons
+ * can show badges and gray out empty filters. Storms counts distinct storms,
+ * not their member statuses.
+ */
+export function countLiteFilters(statuses: LiteStatus[]): Record<LiteFilter, number> {
+  const counts = {} as Record<LiteFilter, number>;
+  for (const filter of ALL_LITE_FILTERS) {
+    counts[filter] =
+      filter === 'storms'
+        ? buildLiteStorms(statuses.filter((status) => status.reblog === null)).length
+        : filterLiteStatuses(statuses, filter).length;
+  }
+  return counts;
 }
 
 export function hasExternalLink(status: LiteStatus): boolean {

@@ -229,6 +229,31 @@ export function matchesPeopleFilter(
 }
 
 /**
+ * Count matches for every blog roll filter so the chips can show badges.
+ * Mirrors the panel's readers special case: anyone who boosted me counts
+ * even when I never followed back.
+ */
+export function countPeopleFilters(
+  following: LiteAccount[],
+  ledger: PeopleLedger,
+  myAccountId: string | null,
+): Record<LitePeopleFilter, number> {
+  const counts = {} as Record<LitePeopleFilter, number>;
+  for (const filter of Object.keys(PEOPLE_FILTER_LABELS) as LitePeopleFilter[]) {
+    counts[filter] = following.filter((person) =>
+      matchesPeopleFilter(filter, person, ledger[person.id]),
+    ).length;
+  }
+  const known = new Set(following.map((person) => person.id));
+  if (myAccountId) known.add(myAccountId);
+  for (const evidence of Object.values(ledger)) {
+    if (known.has(evidence.accountId) || !evidence.snapshot) continue;
+    if (matchesPeopleFilter('readers', evidence.snapshot, evidence)) counts.readers += 1;
+  }
+  return counts;
+}
+
+/**
  * Sort parity with the server blog roll: most filters newest-post-first,
  * graveyard oldest-first with never-seen at the top, parasocials by
  * follower count descending.

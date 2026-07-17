@@ -12,6 +12,7 @@ from mastodon import Mastodon
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from mastodon_is_my_blog import tenancy
 from mastodon_is_my_blog.account_config import (
     ConfiguredAccount,
     build_unique_account_name,
@@ -369,6 +370,7 @@ class OAuthStartRequest(BaseModel):
 @router.post("/identities/oauth/start")
 async def start_identity_oauth(
     payload: OAuthStartRequest,
+    request: Request,
     meta: MetaAccount = Depends(get_current_meta_account),
 ) -> dict:
     """
@@ -380,7 +382,7 @@ async def start_identity_oauth(
     # Fail before the OAuth dance, not after — a full authorize round-trip
     # that ends in 403 is a miserable way to learn about a plan limit.
     await ensure_identity_capacity(meta, base_url=base_url)
-    redirect_uri = f"{os.environ['APP_BASE_URL']}/auth/callback"
+    redirect_uri = f"{tenancy.resolve_app_base_url(request)}/auth/callback"
 
     client_id, client_secret = Mastodon.create_app(
         client_name="mastodon_is_my_blog",

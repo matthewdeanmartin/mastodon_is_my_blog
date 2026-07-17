@@ -238,7 +238,7 @@ async def whoami(request: Request) -> dict:
 
 
 @app.get("/auth/callback")
-async def callback(code: str, state: str):
+async def callback(code: str, state: str, request: Request):
     """
     Completes a dynamically-registered OAuth connection started by
     POST /api/admin/identities/oauth/start. Looks up the pending app
@@ -248,7 +248,7 @@ async def callback(code: str, state: str):
     if pending is None:
         raise HTTPException(400, "Unknown or expired OAuth state")
 
-    redirect_uri = f"{os.environ['APP_BASE_URL']}/auth/callback"
+    redirect_uri = f"{tenancy.resolve_app_base_url(request)}/auth/callback"
     m = client(
         base_url=pending.base_url,
         client_id=pending.client_id,
@@ -272,10 +272,16 @@ async def callback(code: str, state: str):
         raise HTTPException(400, "Tenant for this OAuth flow no longer exists")
     await persist_identity(meta, pending.base_url, pending.client_id, pending.client_secret, access_token, verified_me)
 
-    # In server mode the SPA is served by this very app, so the post-OAuth
-    # landing defaults to APP_BASE_URL (required env there) — the :4201
+    # Post-OAuth landing: FRONTEND_URL wins. Otherwise, whenever this app is
+    # the one serving the SPA (server mode, or a local install with the built
+    # bundle — the pipx case), land back on this same server; the :4201
     # default is the local-dev ng-serve split only.
-    frontend_url = os.environ.get("FRONTEND_URL") or (os.environ["APP_BASE_URL"].rstrip("/") if tenancy.is_server_mode() else "http://localhost:4201")
+    if os.environ.get("FRONTEND_URL"):
+        frontend_url = os.environ["FRONTEND_URL"].rstrip("/")
+    elif tenancy.is_server_mode() or get_static_dir().exists():
+        frontend_url = tenancy.resolve_app_base_url(request)
+    else:
+        frontend_url = "http://localhost:4201"
     if not tenancy.is_server_mode():
         # Single-user mode: kick an inline first sync for instant gratification.
         await sync_accounts_friends_followers()

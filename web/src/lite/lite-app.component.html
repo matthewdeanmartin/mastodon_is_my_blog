@@ -96,11 +96,29 @@
       <button [class.active]="page() === 'write'" type="button" (click)="navigate('write')">
         Write
       </button>
+      <button
+        [class.active]="page() === 'analytics'"
+        type="button"
+        (click)="navigate('analytics')"
+      >
+        Analytics
+      </button>
+      <button
+        [class.active]="page() === 'observability'"
+        type="button"
+        (click)="navigate('observability')"
+      >
+        Observability
+      </button>
     </nav>
   </header>
 
   @if (page() === 'write') {
     <app-lite-write />
+  } @else if (page() === 'analytics') {
+    <app-lite-analytics [sampleMode]="sampleMode()" />
+  } @else if (page() === 'observability') {
+    <app-lite-observability />
   } @else {
     <main class="client-grid" [class.aggregate-view]="page() !== 'people'">
       @if (page() === 'people') {
@@ -117,7 +135,9 @@
                 (ngModelChange)="setPeopleFilter($event)"
               >
                 @for (entry of peopleFilterEntries; track entry[0]) {
-                  <option [value]="entry[0]">{{ entry[1] }}</option>
+                  <option [value]="entry[0]">
+                    {{ entry[1] }} ({{ peopleFilterCounts()[entry[0]] }})
+                  </option>
                 }
               </select>
             } @else {
@@ -125,9 +145,10 @@
                 <button
                   type="button"
                   [class.active]="peopleFilter() === entry[0]"
+                  [class.zero]="peopleFilterCounts()[entry[0]] === 0"
                   (click)="setPeopleFilter(entry[0])"
                 >
-                  {{ entry[1] }}
+                  {{ entry[1] }} <span class="count">{{ peopleFilterCounts()[entry[0]] }}</span>
                 </button>
               }
             }
@@ -172,76 +193,44 @@
 
       <aside class="filter-panel">
         <div class="panel-title"><span>View</span></div>
-        @if (page() === 'people') {
-          <button [class.active]="filter() === 'posts'" type="button" (click)="setFilter('posts')">
-            Posts
-          </button>
-          <button
-            [class.active]="filter() === 'storms'"
-            type="button"
-            (click)="setFilter('storms')"
-          >
-            Storms
-          </button>
-          <button
-            [class.active]="filter() === 'shorts'"
-            type="button"
-            (click)="setFilter('shorts')"
-          >
-            Short text
-          </button>
-          <button
-            [class.active]="filter() === 'replies'"
-            type="button"
-            (click)="setFilter('replies')"
-          >
-            Discussions
-          </button>
-          <button [class.active]="filter() === 'media'" type="button" (click)="setFilter('media')">
-            Pictures
-          </button>
-          <button [class.active]="filter() === 'links'" type="button" (click)="setFilter('links')">
-            Links
-          </button>
-          <button
-            [class.active]="filter() === 'boosts'"
-            type="button"
-            (click)="setFilter('boosts')"
-          >
-            Boosts
-          </button>
-        } @else if (page() === 'content') {
-          <button [class.active]="filter() === 'media'" type="button" (click)="setFilter('media')">
-            Pictures
-          </button>
-          <button [class.active]="filter() === 'links'" type="button" (click)="setFilter('links')">
-            Links
-          </button>
-          <button
-            [class.active]="filter() === 'software'"
-            type="button"
-            (click)="setFilter('software')"
-          >
-            Software
-          </button>
-          <button [class.active]="filter() === 'news'" type="button" (click)="setFilter('news')">
-            News
-          </button>
+        @if (page() === 'forums') {
+          @for (entry of forumFilterEntries; track entry[0]) {
+            <button
+              type="button"
+              [class.active]="forumFilter() === entry[0]"
+              [class.zero]="forumFilterCounts()[entry[0]] === 0"
+              (click)="setForumFilter(entry[0])"
+            >
+              {{ entry[1] }} <span class="count">{{ forumFilterCounts()[entry[0]] }}</span>
+            </button>
+          }
+          @if (forumFacets().length > 0) {
+            <div class="panel-title facet-title"><span>Hashtags</span></div>
+            <div class="facet-chips">
+              @for (facet of forumFacets(); track facet.tag) {
+                <button
+                  type="button"
+                  class="facet-chip"
+                  [class.active]="forumHashtags().has(facet.tag)"
+                  (click)="toggleForumHashtag(facet.tag)"
+                >
+                  #{{ facet.tag }} <span class="count">{{ facet.count }}</span>
+                </button>
+              }
+            </div>
+          }
         } @else {
-          <button
-            [class.active]="filter() === 'questions'"
-            type="button"
-            (click)="setFilter('questions')"
-          >
-            Questions
-          </button>
-          <button
-            [class.active]="filter() === 'replies'"
-            type="button"
-            (click)="setFilter('replies')"
-          >
-            Discussions
-          </button>
+          @for (viewFilter of viewFilters(); track viewFilter) {
+            <button
+              type="button"
+              [class.active]="filter() === viewFilter"
+              [class.zero]="filterCounts()[viewFilter] === 0"
+              (click)="setFilter(viewFilter)"
+            >
+              {{ filterLabels[viewFilter] }}
+              <span class="count">{{ filterCounts()[viewFilter] }}</span>
+            </button>
+          }
         }
         <div class="budget-note">
           <b>{{ callsUsed() }}/10</b> API calls in the last action
@@ -249,94 +238,213 @@
       </aside>
 
       <section class="feed-panel">
-        <div class="feed-heading">
-          <div>
-            <div class="eyebrow">
-              {{
-                page() === 'people'
-                  ? 'MICROBLOG'
-                  : page() === 'forums'
-                    ? 'DISCUSSIONS'
-                    : filterLabel().toUpperCase()
-              }}
-            </div>
-            <h1>
-              {{
-                page() === 'people'
-                  ? selectedAccount()?.display_name || account()?.display_name || account()?.acct
-                  : filterLabel()
-              }}
-            </h1>
-            <p>{{ visibleStatuses().length }} posts in this loaded window</p>
-          </div>
-          <button class="refresh-button" type="button" [disabled]="loading()" (click)="refresh()">
-            Refresh
-          </button>
-        </div>
-
-        @if (error()) {
-          <div class="error-banner" role="alert">{{ error() }}</div>
-        }
-        @if (loading()) {
-          <div class="loading-state"><span></span> Asking your instance…</div>
-        }
-
-        @for (status of visibleStatuses(); track status.id) {
-          @let post = displayStatus(status);
-          <article class="post-card">
-            @if (status.reblog) {
-              <div class="boost-label">
-                {{ status.account.display_name || status.account.acct }} boosted
-              </div>
-            }
-            <div class="post-author">
-              @if (post.account.avatar) {
-                <img [src]="post.account.avatar" alt="" />
-              } @else {
-                <span class="avatar-fallback">{{ initials(post.account) }}</span>
-              }
-              <div>
-                <b>{{ post.account.display_name || post.account.acct }}</b
-                ><small>&#64;{{ post.account.acct }} · {{ relativeDate(post.created_at) }}</small>
-              </div>
-            </div>
-            @if (post.spoiler_text) {
-              <details>
-                <summary>{{ post.spoiler_text }}</summary>
-                <div class="post-content" [innerHTML]="post.content"></div>
-              </details>
+        @if (threadAnchor()) {
+          <div class="thread-view">
+            <button class="thread-back" type="button" (click)="closeThread()">
+              ← Back to {{ page() === 'forums' ? 'discussions' : filterLabel() }}
+            </button>
+            @if (threadLoading()) {
+              <div class="loading-state"><span></span> Fetching the whole thread…</div>
             } @else {
-              <div class="post-content" [innerHTML]="post.content"></div>
-            }
-            @for (media of post.media_attachments; track media.id) {
-              @if (media.type === 'image') {
-                <img
-                  class="post-media"
-                  [src]="media.preview_url || media.url"
-                  [alt]="media.description || ''"
-                  loading="lazy"
+              @for (post of threadContext()?.ancestors ?? []; track post.id) {
+                <ng-container
+                  *ngTemplateOutlet="postCard; context: { post, muted: true, anchor: false }"
                 />
-              } @else if (media.type === 'video' || media.type === 'gifv') {
-                <video class="post-media" [src]="media.url" controls preload="metadata"></video>
+              }
+              <ng-container
+                *ngTemplateOutlet="postCard; context: { post: threadAnchor()!, muted: false, anchor: true }"
+              />
+              @for (post of threadContext()?.descendants ?? []; track post.id) {
+                <ng-container
+                  *ngTemplateOutlet="postCard; context: { post, muted: false, anchor: false }"
+                />
               }
             }
-            <footer>
-              <span>↩ {{ post.replies_count }}</span
-              ><span>⟳ {{ post.reblogs_count }}</span
-              ><span>♡ {{ post.favourites_count }}</span>
-              @if (post.url) {
-                <a [href]="post.url" target="_blank" rel="noopener noreferrer"
-                  >Open on Mastodon ↗</a
-                >
+          </div>
+        } @else if (page() === 'forums') {
+          <div class="feed-heading">
+            <div>
+              <div class="eyebrow">DISCUSSIONS</div>
+              <h1>{{ forumFilterLabels[forumFilter()] }}</h1>
+              <p>{{ visibleThreads().length }} threads in this loaded window</p>
+            </div>
+            <button class="refresh-button" type="button" [disabled]="loading()" (click)="refresh()">
+              Refresh
+            </button>
+          </div>
+
+          @if (error()) {
+            <div class="error-banner" role="alert">{{ error() }}</div>
+          }
+          @if (loading()) {
+            <div class="loading-state"><span></span> Asking your instance…</div>
+          }
+
+          @for (thread of visibleThreads(); track thread.rootId) {
+            <article class="thread-card">
+              <div class="thread-meta">
+                @if (thread.root) {
+                  <b>{{ thread.root.account.display_name || thread.root.account.acct }}</b>
+                  @if (thread.rootInstance) {
+                    <small>{{ thread.rootInstance }}</small>
+                  }
+                } @else {
+                  <span class="partial-badge">earlier post not loaded</span>
+                }
+                @if (thread.hasQuestion) {
+                  <span class="question-badge">asks a question</span>
+                }
+                <small class="thread-time">{{ relativeDate(thread.latestActivity) }}</small>
+              </div>
+              @if (thread.root) {
+                <div class="post-content thread-excerpt" [innerHTML]="thread.root.content"></div>
+              } @else {
+                <div class="post-content thread-excerpt" [innerHTML]="thread.replies[0].content"></div>
               }
-            </footer>
-          </article>
-        } @empty {
-          @if (!loading()) {
-            <div class="empty-state">No matching posts in this loaded window.</div>
+              <footer class="thread-footer">
+                <span class="thread-repliers">
+                  @for (replier of threadRepliers(thread); track replier.id) {
+                    @if (replier.avatar) {
+                      <img
+                        [src]="replier.avatar"
+                        [title]="replier.display_name || replier.acct"
+                        alt=""
+                      />
+                    }
+                  }
+                  {{ thread.replyCount }} repl{{ thread.replyCount === 1 ? 'y' : 'ies' }}
+                </span>
+                <button class="view-thread" type="button" (click)="openThreadRoot(thread)">
+                  View full thread →
+                </button>
+              </footer>
+            </article>
+          } @empty {
+            @if (!loading()) {
+              <div class="empty-state">No discussions match this filter in the loaded window.</div>
+            }
+          }
+        } @else {
+          <div class="feed-heading">
+            <div>
+              <div class="eyebrow">
+                {{ page() === 'people' ? 'MICROBLOG' : filterLabel().toUpperCase() }}
+              </div>
+              <h1>
+                {{
+                  page() === 'people'
+                    ? selectedAccount()?.display_name || account()?.display_name || account()?.acct
+                    : filterLabel()
+                }}
+              </h1>
+              <p>{{ visibleStatuses().length }} posts in this loaded window</p>
+            </div>
+            <button class="refresh-button" type="button" [disabled]="loading()" (click)="refresh()">
+              Refresh
+            </button>
+          </div>
+
+          @if (error()) {
+            <div class="error-banner" role="alert">{{ error() }}</div>
+          }
+          @if (loading()) {
+            <div class="loading-state"><span></span> Asking your instance…</div>
+          }
+
+          @for (status of visibleStatuses(); track status.id) {
+            @let post = displayStatus(status);
+            <article class="post-card">
+              @if (status.reblog) {
+                <div class="boost-label">
+                  {{ status.account.display_name || status.account.acct }} boosted
+                </div>
+              }
+              <div class="post-author">
+                @if (post.account.avatar) {
+                  <img [src]="post.account.avatar" alt="" />
+                } @else {
+                  <span class="avatar-fallback">{{ initials(post.account) }}</span>
+                }
+                <div>
+                  <b>{{ post.account.display_name || post.account.acct }}</b
+                  ><small>&#64;{{ post.account.acct }} · {{ relativeDate(post.created_at) }}</small>
+                </div>
+              </div>
+              @if (post.spoiler_text) {
+                <details>
+                  <summary>{{ post.spoiler_text }}</summary>
+                  <div class="post-content" [innerHTML]="post.content"></div>
+                </details>
+              } @else {
+                <div class="post-content" [innerHTML]="post.content"></div>
+              }
+              @for (media of post.media_attachments; track media.id) {
+                @if (media.type === 'image') {
+                  <img
+                    class="post-media"
+                    [src]="media.preview_url || media.url"
+                    [alt]="media.description || ''"
+                    loading="lazy"
+                  />
+                } @else if (media.type === 'video' || media.type === 'gifv') {
+                  <video class="post-media" [src]="media.url" controls preload="metadata"></video>
+                }
+              }
+              <footer>
+                <span>↩ {{ post.replies_count }}</span
+                ><span>⟳ {{ post.reblogs_count }}</span
+                ><span>♡ {{ post.favourites_count }}</span>
+                @if (hasThread(status)) {
+                  <button class="thread-link" type="button" (click)="openThread(status)">
+                    View thread
+                  </button>
+                }
+                @if (post.url) {
+                  <a [href]="post.url" target="_blank" rel="noopener noreferrer"
+                    >Open on Mastodon ↗</a
+                  >
+                }
+              </footer>
+            </article>
+          } @empty {
+            @if (!loading()) {
+              <div class="empty-state">No matching posts in this loaded window.</div>
+            }
           }
         }
       </section>
     </main>
   }
 }
+
+<ng-template #postCard let-post="post" let-muted="muted" let-anchor="anchor">
+  <article class="post-card" [class.thread-muted]="muted" [class.thread-anchor]="anchor">
+    <div class="post-author">
+      @if (post.account.avatar) {
+        <img [src]="post.account.avatar" alt="" />
+      } @else {
+        <span class="avatar-fallback">{{ initials(post.account) }}</span>
+      }
+      <div>
+        <b>{{ post.account.display_name || post.account.acct }}</b
+        ><small>&#64;{{ post.account.acct }} · {{ relativeDate(post.created_at) }}</small>
+      </div>
+    </div>
+    @if (post.spoiler_text) {
+      <details>
+        <summary>{{ post.spoiler_text }}</summary>
+        <div class="post-content" [innerHTML]="post.content"></div>
+      </details>
+    } @else {
+      <div class="post-content" [innerHTML]="post.content"></div>
+    }
+    <footer>
+      <span>↩ {{ post.replies_count }}</span
+      ><span>⟳ {{ post.reblogs_count }}</span
+      ><span>♡ {{ post.favourites_count }}</span>
+      @if (post.url) {
+        <a [href]="post.url" target="_blank" rel="noopener noreferrer">Open on Mastodon ↗</a>
+      }
+    </footer>
+  </article>
+</ng-template>

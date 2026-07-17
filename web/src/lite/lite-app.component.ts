@@ -18,15 +18,26 @@ import { LiteStorageService } from './lite-storage.service';
 import {
   LiteAccount,
   LiteConnection,
+  LiteContext,
   LiteFilter,
+  LiteForumFilter,
   LitePage,
   LitePeopleFilter,
   LiteStatus,
 } from './lite.models';
-import { filterLiteStatuses } from './lite-filters';
+import { countLiteFilters, filterLiteStatuses } from './lite-filters';
+import {
+  FORUM_FILTER_LABELS,
+  LiteThread,
+  buildLiteThreads,
+  countLiteThreadFilters,
+  filterLiteThreads,
+  threadHashtagFacets,
+} from './lite-forums';
 import {
   PEOPLE_FILTER_LABELS,
   PeopleLedger,
+  countPeopleFilters,
   matchesPeopleFilter,
   noteAccount,
   noteNotifications,
@@ -37,11 +48,43 @@ import {
   sortPeople,
 } from './lite-people';
 import { featureFlag } from '../app/feature-flags';
+import { LiteAnalyticsComponent } from './lite-analytics.component';
+import { LiteObservabilityComponent } from './lite-observability.component';
 import { LiteWriteComponent } from './lite-write.component';
+
+const FILTER_LABELS: Record<LiteFilter, string> = {
+  posts: 'Posts',
+  storms: 'Storms',
+  shorts: 'Short text',
+  replies: 'Discussions',
+  questions: 'Questions',
+  media: 'Pictures',
+  links: 'Links',
+  software: 'Software',
+  news: 'News',
+  boosts: 'Boosts',
+};
+
+const PEOPLE_VIEW_FILTERS: readonly LiteFilter[] = [
+  'posts',
+  'storms',
+  'shorts',
+  'replies',
+  'media',
+  'links',
+  'boosts',
+];
+const CONTENT_VIEW_FILTERS: readonly LiteFilter[] = ['media', 'links', 'software', 'news'];
 
 @Component({
   selector: 'app-lite-root',
-  imports: [CommonModule, FormsModule, LiteWriteComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    LiteAnalyticsComponent,
+    LiteObservabilityComponent,
+    LiteWriteComponent,
+  ],
   templateUrl: './lite-app.component.html',
   styleUrl: './lite-app.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -58,6 +101,8 @@ export class LiteAppComponent implements OnInit {
   readonly page = signal<LitePage>('people');
   readonly filter = signal<LiteFilter>('posts');
   readonly peopleFilter = signal<LitePeopleFilter>('all');
+  readonly forumFilter = signal<LiteForumFilter>('all');
+  readonly forumHashtags = signal<ReadonlySet<string>>(new Set());
   readonly ledger = signal<PeopleLedger>({});
   readonly selectedAccount = signal<LiteAccount | null>(null);
   readonly loading = signal(false);
@@ -66,33 +111,51 @@ export class LiteAppComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly callsUsed = signal(0);
 
+  // Thread view: anchor post plus its fetched context, overlaid on the feed.
+  readonly threadAnchor = signal<LiteStatus | null>(null);
+  readonly threadContext = signal<LiteContext | null>(null);
+  readonly threadLoading = signal(false);
+
   instance = '';
 
+  readonly filterLabels = FILTER_LABELS;
+  readonly forumFilterLabels = FORUM_FILTER_LABELS;
   readonly blogRollDropdown = featureFlag('blogRollDropdown');
   readonly heavyUrl = localHeavyUrl();
   readonly connected = computed(() => this.sampleMode() || this.connection() !== null);
-  readonly filterLabel = computed(() => {
-    const labels: Record<LiteFilter, string> = {
-      posts: 'Posts',
-      storms: 'Storms',
-      shorts: 'Short text',
-      replies: 'Discussions',
-      questions: 'Questions',
-      media: 'Media',
-      links: 'Links',
-      software: 'Software',
-      news: 'News',
-      boosts: 'Boosts',
-    };
-    return labels[this.filter()];
-  });
+  readonly filterLabel = computed(() => FILTER_LABELS[this.filter()]);
+  readonly viewFilters = computed(() =>
+    this.page() === 'content' ? CONTENT_VIEW_FILTERS : PEOPLE_VIEW_FILTERS,
+  );
   readonly visibleStatuses = computed(() => {
     return filterLiteStatuses(this.statuses(), this.filter());
   });
+  readonly filterCounts = computed(() => countLiteFilters(this.statuses()));
   readonly peopleFilterEntries = Object.entries(PEOPLE_FILTER_LABELS) as [
     LitePeopleFilter,
     string,
   ][];
+  readonly forumFilterEntries = Object.entries(FORUM_FILTER_LABELS) as [LiteForumFilter, string][];
+  readonly peopleFilterCounts = computed(() =>
+    countPeopleFilters(this.following(), this.ledger(), this.account()?.id ?? null),
+  );
+  readonly followingIds = computed(
+    () => new Set(this.following().map((person) => person.id)) as ReadonlySet<string>,
+  );
+  readonly threads = computed(() => buildLiteThreads(this.statuses()));
+  readonly visibleThreads = computed(() =>
+    filterLiteThreads(
+      this.threads(),
+      this.forumFilter(),
+      this.followingIds(),
+      this.account()?.id ?? null,
+      this.forumHashtags(),
+    ),
+  );
+  readonly forumFilterCounts = computed(() =>
+    countLiteThreadFilters(this.threads(), this.followingIds(), this.account()?.id ?? null),
+  );
+  readonly forumFacets = computed(() => threadHashtagFacets(this.threads()).slice(0, 12));
   readonly visiblePeople = computed(() => {
     const filter = this.peopleFilter();
     const ledger = this.ledger();
@@ -165,29 +228,84 @@ export class LiteAppComponent implements OnInit {
 
   async navigate(page: LitePage): Promise<void> {
     this.page.set(page);
-    if (page === 'write') return;
+    this.closeThread();
+    if (page === 'write' || page === 'analytics' || page === 'observability') return;
     if (page === 'people') {
       this.filter.set('posts');
       await this.loadAccount(this.selectedAccount() ?? this.account());
       return;
     }
-    this.filter.set(page === 'content' ? 'media' : 'replies');
+    if (page === 'content') this.filter.set('media');
     await this.loadNetwork();
   }
 
   setFilter(filter: LiteFilter): void {
     this.filter.set(filter);
+    this.closeThread();
   }
 
   setPeopleFilter(filter: LitePeopleFilter): void {
     this.peopleFilter.set(filter);
   }
 
+  setForumFilter(filter: LiteForumFilter): void {
+    this.forumFilter.set(filter);
+    this.closeThread();
+  }
+
+  toggleForumHashtag(tag: string): void {
+    const next = new Set(this.forumHashtags());
+    if (next.has(tag)) next.delete(tag);
+    else next.add(tag);
+    this.forumHashtags.set(next);
+    this.closeThread();
+  }
+
   async selectFollowing(account: LiteAccount): Promise<void> {
     this.selectedAccount.set(account);
     this.page.set('people');
     this.filter.set('posts');
+    this.closeThread();
     await this.loadAccount(account);
+  }
+
+  /**
+   * Open the full discussion for a status: one context call returns the
+   * ancestors up to the root and every descendant. In sample mode the
+   * context is assembled from the loaded window instead.
+   */
+  async openThread(status: LiteStatus): Promise<void> {
+    const anchor = status.reblog ?? status;
+    this.threadAnchor.set(anchor);
+    if (this.sampleMode()) {
+      this.threadContext.set(sampleContext(anchor, this.statuses()));
+      return;
+    }
+    const connection = this.connection();
+    if (!connection) return;
+    this.threadLoading.set(true);
+    this.error.set(null);
+    const budget = new LiteRequestBudget();
+    try {
+      this.threadContext.set(await this.mastodon.context(connection, anchor.id, budget));
+    } catch (error: unknown) {
+      this.error.set(errorMessage(error));
+    } finally {
+      this.callsUsed.set(budget.callsUsed);
+      this.threadLoading.set(false);
+    }
+  }
+
+  async openThreadRoot(thread: LiteThread): Promise<void> {
+    // Anchor on the root when we have it; a partial thread anchors on its
+    // earliest known reply, whose ancestors the context call fills in.
+    await this.openThread(thread.root ?? thread.replies[0]);
+  }
+
+  closeThread(): void {
+    this.threadAnchor.set(null);
+    this.threadContext.set(null);
+    this.threadLoading.set(false);
   }
 
   /** Re-run evidence gathering on demand with a fresh request budget. */
@@ -206,6 +324,7 @@ export class LiteAppComponent implements OnInit {
   }
 
   async refresh(): Promise<void> {
+    this.closeThread();
     if (this.page() === 'content' || this.page() === 'forums') {
       await this.loadNetwork();
     } else if (this.selectedAccount()) {
@@ -228,12 +347,18 @@ export class LiteAppComponent implements OnInit {
       this.statuses.set([]);
       this.following.set([]);
       this.selectedAccount.set(null);
+      this.closeThread();
       this.loading.set(false);
     }
   }
 
   displayStatus(status: LiteStatus): LiteStatus {
     return status.reblog ?? status;
+  }
+
+  hasThread(status: LiteStatus): boolean {
+    const post = status.reblog ?? status;
+    return post.in_reply_to_id !== null || post.replies_count > 0;
   }
 
   initials(account: LiteAccount): string {
@@ -247,6 +372,17 @@ export class LiteAppComponent implements OnInit {
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     return `${Math.floor(seconds / 86400)}d ago`;
+  }
+
+  threadRepliers(thread: LiteThread): LiteAccount[] {
+    const seen = new Set<string>();
+    const repliers: LiteAccount[] = [];
+    for (const reply of thread.replies) {
+      if (seen.has(reply.account.id)) continue;
+      seen.add(reply.account.id);
+      repliers.push(reply.account);
+    }
+    return repliers.slice(0, 5);
   }
 
   private async loadInitial(): Promise<void> {
@@ -396,6 +532,31 @@ function mergeAccounts(fresh: LiteAccount[], cached: LiteAccount[]): LiteAccount
     merged.push(account);
   }
   return merged;
+}
+
+/** Assemble a thread context from the loaded window (sample mode only). */
+function sampleContext(anchor: LiteStatus, statuses: LiteStatus[]): LiteContext {
+  const byId = new Map(statuses.map((status) => [status.id, status]));
+  const ancestors: LiteStatus[] = [];
+  let cursor = anchor;
+  while (cursor.in_reply_to_id) {
+    const parent = byId.get(cursor.in_reply_to_id);
+    if (!parent) break;
+    ancestors.unshift(parent);
+    cursor = parent;
+  }
+  const descendants: LiteStatus[] = [];
+  const queue = [anchor.id];
+  while (queue.length > 0) {
+    const parentId = queue.shift();
+    for (const status of statuses) {
+      if (status.in_reply_to_id === parentId) {
+        descendants.push(status);
+        queue.push(status.id);
+      }
+    }
+  }
+  return { ancestors, descendants };
 }
 
 function localHeavyUrl(): string | null {

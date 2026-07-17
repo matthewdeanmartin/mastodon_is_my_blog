@@ -10,6 +10,8 @@ export const LITE_LIMITS = {
   notificationPages: 2,
   relationshipChunk: 80,
   cacheTtlMs: 5 * 60 * 1000,
+  analyticsArchiveCap: 500,
+  analyticsPagesPerFetch: 3,
 } as const;
 
 export class LiteRequestBudget {

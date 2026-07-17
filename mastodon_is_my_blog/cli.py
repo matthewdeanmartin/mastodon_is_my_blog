@@ -53,6 +53,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         help="Number of worker processes.",
     )
+    start_parser.add_argument(
+        "--no-open",
+        action="store_true",
+        help="Don't open the web UI in a browser.",
+    )
 
     subparsers.add_parser("db-info", help="Show the resolved database path.")
     subparsers.add_parser("version", help="Show the installed package version.")
@@ -112,6 +117,15 @@ def build_parser() -> argparse.ArgumentParser:
     publish_parser.add_argument("-m", "--message", default="Publish blog", help="Commit message.")
 
     subparsers.add_parser("doctor", help="Check the environment: database, accounts, node, git, spaCy.")
+
+    uninstall_parser = subparsers.add_parser(
+        "uninstall",
+        help="Wipe mimb data left on this machine: home data/config, keyring entries, and optionally the Postgres database.",
+    )
+    uninstall_parser.add_argument("--dry-run", action="store_true", help="Show exactly what would be removed, change nothing.")
+    uninstall_parser.add_argument("--yes", action="store_true", help="Wipe home data/config without prompting (keyring and Postgres still need their own flags).")
+    uninstall_parser.add_argument("--keyring", action="store_true", help="Also delete mimb's OS keyring entries without prompting.")
+    uninstall_parser.add_argument("--drop-db", action="store_true", help="Also DROP the Postgres database without prompting (Postgres backend only).")
 
     # db: backend-agnostic export / import / port / diff / verify (Phase 3).
     db_parser = subparsers.add_parser("db", help="Export/import/port data between storage backends.")
@@ -325,12 +339,73 @@ def run_init_command() -> None:
     print("Setup complete. Run `mimb start` and open http://127.0.0.1:8100")
 
 
-def start_server(host: str, port: int, reload_: bool, workers: int) -> None:
+def display_url(host: str, port: int) -> str:
+    display_host = "127.0.0.1" if host in {"0.0.0.0", "::", ""} else host
+    return f"http://{display_host}:{port}"
+
+
+def is_mimb_responding(url: str, timeout: float = 1.0) -> bool:
+    """True if a mimb server (specifically) answers at url."""
+    import json
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(f"{url}/api/status", timeout=timeout) as response:
+            return json.load(response).get("status") == "up"
+    except Exception:  # noqa: BLE001 - anything short of "up" means no
+        return False
+
+
+def print_account_status(url: str) -> None:
+    try:
+        summaries = list_account_summaries()
+    except Exception as exc:  # noqa: BLE001 - keyring trouble must not block startup
+        print(f"Could not read configured accounts ({exc}). Run `mimb doctor` for details.")
+        return
+
+    if summaries:
+        print("Configured accounts:")
+        for summary in summaries:
+            status = "ready" if summary.has_access_token else "needs login — run `mimb auth login`"
+            print(f"- {summary.name} ({summary.base_url}, {status})")
+    elif has_configured_identities():
+        print("Accounts configured via environment variables.")
+    else:
+        print(f"No Mastodon account connected yet — click “Connect Account” at {url}, or run `mimb auth login your@handle`.")
+
+
+def open_browser_when_ready(url: str, timeout: float = 30.0) -> None:
+    """Wait for the server to answer, then open the web UI (runs in a thread)."""
+    import time
+    import webbrowser
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if is_mimb_responding(url):
+            webbrowser.open(url)
+            return
+        time.sleep(0.5)
+
+
+def start_server(host: str, port: int, reload_: bool, workers: int, no_open: bool = False) -> None:
+    import threading
+    import webbrowser
+
     import uvicorn
 
-    print(f"Starting mastodon_is_my_blog on http://{host}:{port}")
-    if not has_configured_identities():
-        print(f"No Mastodon account connected yet — open http://{host}:{port} and click Connect Account to get started.")
+    url = display_url(host, port)
+
+    if is_mimb_responding(url):
+        print(f"mimb is already running at {url} — nothing to start.")
+        if not no_open:
+            print("Opening your browser.")
+            webbrowser.open(url)
+        return
+
+    print(f"Starting mastodon_is_my_blog on {url}")
+    print_account_status(url)
+    if not no_open and not reload_:
+        threading.Thread(target=open_browser_when_ready, args=(url,), daemon=True).start()
     uvicorn.run(
         "mastodon_is_my_blog.main:app",
         host=host,
@@ -455,7 +530,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return admin_cli.run_doctor_command()
 
     if command == "start":
-        start_server(args.host, args.port, args.reload_, args.workers)
+        start_server(args.host, args.port, args.reload_, args.workers, args.no_open)
         return 0
 
     if command == "db-info":
@@ -469,6 +544,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if command == "init":
         run_init_command()
         return 0
+
+    if command == "uninstall":
+        from mastodon_is_my_blog.uninstall_cli import run_uninstall
+
+        return run_uninstall(args)
 
     parser.print_help()
     return 0

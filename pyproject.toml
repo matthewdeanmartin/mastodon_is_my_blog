@@ -43,6 +43,7 @@ dependencies = [
     # hosted (server-mode) tenancy: session validation + token encryption at rest
     "pyjwt>=2.8",
     "cryptography>=42.0",
+    "pelican>=4.9",
 ]
 
 [project.optional-dependencies]

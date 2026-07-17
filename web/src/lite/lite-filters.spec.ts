@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { sampleAccount, sampleStatuses } from './lite-fixtures';
-import { filterLiteStatuses, hasExternalLink } from './lite-filters';
+import { countLiteFilters, filterLiteStatuses, hasExternalLink } from './lite-filters';
 import { LiteStatus } from './lite.models';
 
 describe('Lite content filters', () => {
@@ -50,6 +50,32 @@ describe('Lite content filters', () => {
 
     expect(filterLiteStatuses([question, reply], 'questions')).toEqual([question]);
     expect(filterLiteStatuses([question, reply], 'replies')).toEqual([reply]);
+  });
+
+  it('keeps replies out of the short text view', () => {
+    const short = makeStatus('<p>A short thought.</p>');
+    const shortReply = {
+      ...makeStatus('<p>A short reply.</p>'),
+      id: 'reply',
+      in_reply_to_id: 'root',
+    };
+
+    expect(filterLiteStatuses([short, shortReply], 'shorts')).toEqual([short]);
+  });
+
+  it('counts every filter over the loaded window, counting storms once', () => {
+    const root = makeStatus('<p>Storm root.</p>');
+    const selfReply = {
+      ...makeStatus('<p>Storm continuation.</p>'),
+      id: 'continuation',
+      in_reply_to_id: root.id,
+    };
+    const counts = countLiteFilters([root, selfReply]);
+
+    expect(counts.posts).toBe(2);
+    expect(counts.storms).toBe(1);
+    expect(counts.replies).toBe(1);
+    expect(counts.boosts).toBe(0);
   });
 
   it('recognizes common software project links', () => {

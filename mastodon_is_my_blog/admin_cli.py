@@ -218,8 +218,9 @@ async def run_publish(build_only: bool, pages_workflow: bool, message: str) -> i
 
     await init_db()
     status = blog_publish.get_publish_status()
-    if not status["node_available"] or not status["eleventy_available"]:
-        print("Warning: Node.js/Eleventy not found — building the plain fallback page. `make install-blog` gets you the themed blog.")
+    print(f"Blog builder: {status['builder']}")
+    if status["builder"] == "fallback":
+        print("Warning: no real blog builder available — building the plain single-page fallback. Reinstall the package to restore the bundled Pelican builder.")
 
     result = await blog_publish.build_docs()
     print(f"Built {result['pages']} pages from {result['storm_count']} storms with {result['builder']} into {result['docs_path']}")
@@ -246,15 +247,23 @@ def run_publish_command(args) -> int:
 
 
 def run_doctor_command() -> int:
-    """Environment checks; exit 1 if anything critical is broken."""
+    """Environment checks; exit 1 if anything critical is broken. Every
+    non-ok line says what it means and what to do about it."""
     failures = 0
+    warnings = 0
 
-    def check(label: str, ok: bool, detail: str = "", critical: bool = True) -> None:
-        nonlocal failures
+    def check(label: str, ok: bool, detail: str = "", critical: bool = True, fix: str = "") -> None:
+        nonlocal failures, warnings
         mark = "ok " if ok else ("FAIL" if critical else "warn")
-        print(f"[{mark:>4}] {label}{': ' + detail if detail else ''}")
-        if not ok and critical:
-            failures += 1
+        line = f"[{mark:>4}] {label}{': ' + detail if detail else ''}"
+        if not ok and fix:
+            line += f" — fix: {fix}"
+        print(line)
+        if not ok:
+            if critical:
+                failures += 1
+            else:
+                warnings += 1
 
     check("python", True, sys.version.split()[0])
 
@@ -264,39 +273,112 @@ def run_doctor_command() -> int:
         info = asyncio.run(describe_database())
         check("database", True, f"{info['backend']} {info['url']} (schema {info['schema_version']})")
     except Exception as exc:  # noqa: BLE001 - doctor reports, never crashes
-        check("database", False, str(exc))
+        check("database", False, str(exc), fix="run `mimb db-info` to see the configured location; check DB_URL in .env if you set one")
+
+    try:
+        from mastodon_is_my_blog.credentials import delete_credential, get_credential, set_credential
+
+        set_credential("DOCTOR_PROBE", "probe", "ok")
+        stored = get_credential("DOCTOR_PROBE", "probe")
+        delete_credential("DOCTOR_PROBE", "probe")
+        check(
+            "keyring",
+            stored == "ok",
+            "credentials can be stored and read" if stored == "ok" else "probe write/read failed",
+            critical=False,
+            fix="unlock or set up your OS keyring — without it `mimb auth login` cannot save tokens",
+        )
+    except Exception as exc:  # noqa: BLE001
+        check("keyring", False, str(exc), critical=False, fix="unlock or set up your OS keyring — without it `mimb auth login` cannot save tokens")
 
     try:
         from mastodon_is_my_blog.account_config import list_account_summaries
 
         summaries = list_account_summaries()
+        if not summaries:
+            check("accounts", False, "none configured", critical=False, fix="run `mimb auth login your@handle`, or `mimb start` and click Connect Account")
+        else:
+            needs_login = [s.name for s in summaries if not s.has_access_token]
+            detail = ", ".join(f"{s.name} ({'ready' if s.has_access_token else 'no token'})" for s in summaries)
+            check(
+                "accounts",
+                not needs_login,
+                detail,
+                critical=False,
+                fix=f"finish connecting {', '.join(needs_login)} with `mimb auth login`" if needs_login else "",
+            )
+    except Exception as exc:  # noqa: BLE001
+        check("accounts", False, str(exc), critical=False, fix="see the keyring line above")
+
+    from mastodon_is_my_blog.static_files import get_static_dir
+
+    check(
+        "web ui",
+        get_static_dir().exists(),
+        "bundled" if get_static_dir().exists() else "static bundle missing — `mimb start` would serve the API only",
+        fix="reinstall the package: pipx reinstall mastodon-is-my-blog",
+    )
+
+    from mastodon_is_my_blog.cli import is_mimb_responding
+
+    if is_mimb_responding("http://127.0.0.1:8100"):
+        check("server", True, "mimb is running at http://127.0.0.1:8100")
+    else:
+        import socket
+
+        with socket.socket() as sock:
+            sock.settimeout(1)
+            port_taken = sock.connect_ex(("127.0.0.1", 8100)) == 0
         check(
-            "accounts",
-            bool(summaries),
-            ", ".join(f"{s.name} ({'token' if s.has_access_token else 'no token'})" for s in summaries) or "none — run `mimb auth login`",
+            "port 8100",
+            not port_taken,
+            "another application is using it" if port_taken else "free",
             critical=False,
+            fix="start on a different port: `mimb start --port 8200`",
         )
-    except Exception as exc:  # noqa: BLE001
-        check("accounts/keyring", False, str(exc))
 
-    for binary, critical in (("git", False), ("node", False), ("npm", False)):
-        check(binary, shutil.which(binary) is not None, shutil.which(binary) or "not on PATH", critical=critical)
+    for binary, purpose in (
+        ("git", "publishing your blog to a git repo (`mimb publish`)"),
+        ("node", "the themed blog builder (optional)"),
+        ("npm", "the themed blog builder (optional)"),
+    ):
+        found = shutil.which(binary)
+        check(binary, found is not None, found or f"not on PATH — only needed for {purpose}", critical=False, fix=f"install {binary} if you want that feature")
 
-    from mastodon_is_my_blog.blog_build import eleventy_site_dir, find_eleventy_binary
+    from mastodon_is_my_blog.blog_providers import resolve_provider
 
-    site_dir = eleventy_site_dir()
-    check("eleventy", find_eleventy_binary(site_dir) is not None, str(site_dir), critical=False)
+    builder = resolve_provider()
+    check(
+        "blog builder",
+        builder.name != "fallback",
+        f"{builder.name} — {builder.description}",
+        critical=False,
+        fix="reinstall the package to restore the bundled Pelican builder: pipx reinstall mastodon-is-my-blog",
+    )
 
-    try:
-        import spacy
+    if sys.version_info >= (3, 14):
+        py = f"{sys.version_info.major}.{sys.version_info.minor}"
+        check("topic words (spaCy)", True, f"skipped — spaCy does not support Python {py} yet; forum topic words are disabled, nothing to do")
+    else:
+        try:
+            import spacy
 
-        ok = spacy.util.is_package("en_core_web_sm")
-        check("spacy model", ok, "en_core_web_sm" if ok else "not installed (forum topic words disabled)", critical=False)
-    except Exception as exc:  # noqa: BLE001
-        check("spacy", False, str(exc), critical=False)
+            model_ok = spacy.util.is_package("en_core_web_sm")
+            check(
+                "topic words (spaCy)",
+                model_ok,
+                "en_core_web_sm" if model_ok else "language model not downloaded — forum topic words disabled",
+                critical=False,
+                fix="python -m spacy download en_core_web_sm (in the mimb environment)",
+            )
+        except Exception as exc:  # noqa: BLE001
+            check("topic words (spaCy)", False, str(exc), critical=False, fix="reinstall the package: pipx reinstall mastodon-is-my-blog")
 
     if failures:
-        print(f"{failures} critical problem(s).")
+        print(f"{failures} critical problem(s) — see FAIL lines above.")
         return 1
-    print("All critical checks passed.")
+    if warnings:
+        print(f"All critical checks passed; {warnings} optional item(s) need attention — see warn lines above.")
+        return 0
+    print("Everything looks good.")
     return 0

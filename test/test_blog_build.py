@@ -91,10 +91,26 @@ def test_no_eleventy_means_not_built(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_build_tenant_blog_falls_back_without_eleventy(tmp_path, monkeypatch, patch_async_session):
+async def test_build_tenant_blog_uses_pelican_without_eleventy(tmp_path, monkeypatch, patch_async_session):
     from mastodon_is_my_blog import storm_export
 
     patch_async_session(storm_export)
+    monkeypatch.delenv("BLOG_BUILDER", raising=False)
+    monkeypatch.setenv("ELEVENTY_SITE_DIR", str(tmp_path / "nowhere"))
+    monkeypatch.setenv("BLOG_DIR", str(tmp_path / "blogs"))
+
+    result = await blog_build.build_tenant_blog(9, 999)
+
+    assert result["builder"] == "pelican"
+    assert (Path(result["blog_path"]) / "index.html").exists()
+
+
+@pytest.mark.asyncio
+async def test_build_tenant_blog_falls_back_when_pinned(tmp_path, monkeypatch, patch_async_session):
+    from mastodon_is_my_blog import storm_export
+
+    patch_async_session(storm_export)
+    monkeypatch.setenv("BLOG_BUILDER", "fallback")
     monkeypatch.setenv("ELEVENTY_SITE_DIR", str(tmp_path / "nowhere"))
     monkeypatch.setenv("BLOG_DIR", str(tmp_path / "blogs"))
 
