@@ -6,10 +6,10 @@ Factory functions for creating Mastodon API clients.
 import logging
 import os
 
-import dotenv
 from mastodon import Mastodon
 from sqlalchemy import select
 
+from mastodon_is_my_blog.environment import load_environment
 from mastodon_is_my_blog.mastodon_apis.masto_client_timed import TimedMastodonClient
 from mastodon_is_my_blog.store import (
     MastodonIdentity,
@@ -18,7 +18,11 @@ from mastodon_is_my_blog.store import (
 )
 from mastodon_is_my_blog.utils.settings_loader import resolve_identity_config
 
-dotenv.load_dotenv()
+# Bare dotenv.load_dotenv() walks UP from this file's directory (not the
+# CWD), which loaded the repo's developer .env — real credentials — into
+# supposedly-clean processes. load_environment() reads only ./.env and the
+# per-user settings file.
+load_environment()
 
 logger = logging.getLogger(__name__)
 PERF = True

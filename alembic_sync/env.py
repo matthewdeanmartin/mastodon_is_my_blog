@@ -1,11 +1,13 @@
 from logging.config import fileConfig
 
-import dotenv
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
-dotenv.load_dotenv()
+from mastodon_is_my_blog.environment import load_environment
+
+# See alembic/env.py: never bare load_dotenv(), it walks up to the repo .env.
+load_environment()
 
 from mastodon_is_my_blog.store import Base
 

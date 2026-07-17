@@ -5,7 +5,6 @@ import logging
 from datetime import datetime, timedelta, UTC
 from typing import Any, cast
 
-import dotenv
 from fastapi import HTTPException, Request
 from sqlalchemy import Integer, and_, exists, false, func, outerjoin, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +12,7 @@ from sqlalchemy.engine import CursorResult
 
 from mastodon_is_my_blog import tenancy
 from mastodon_is_my_blog.datetime_helpers import utc_now
+from mastodon_is_my_blog.environment import load_environment
 from mastodon_is_my_blog.dialect_upsert import dialect_insert
 from mastodon_is_my_blog.inspect_post import analyze_content_domains
 from mastodon_is_my_blog.mastodon_apis.masto_client import (
@@ -34,7 +34,8 @@ from mastodon_is_my_blog.utils.perf import sync_stage
 
 logger = logging.getLogger(__name__)
 
-dotenv.load_dotenv()
+# See masto_client.py: never bare load_dotenv(), it walks up to the repo .env.
+load_environment()
 
 
 async def get_current_meta_account(request: Request) -> MetaAccount:

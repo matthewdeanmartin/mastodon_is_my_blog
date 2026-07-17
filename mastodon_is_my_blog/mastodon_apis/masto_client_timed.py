@@ -2,14 +2,16 @@ import logging
 import time
 from typing import Any
 
-import dotenv
 from mastodon import Mastodon, MastodonRatelimitError
+
+from mastodon_is_my_blog.environment import load_environment
 
 from mastodon_is_my_blog.mastodon_apis.api_log import log_api_call
 
 logger = logging.getLogger(__name__)
 
-dotenv.load_dotenv()
+# See masto_client.py: never bare load_dotenv(), it walks up to the repo .env.
+load_environment()
 
 
 class TimedMastodonClient:

@@ -1,14 +1,19 @@
 import asyncio
 from logging.config import fileConfig
 
-import dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-dotenv.load_dotenv()
+from mastodon_is_my_blog.environment import load_environment
+
+# Never bare dotenv.load_dotenv() here: it walks up from THIS file to the
+# repo .env and injects the developer's real credentials into any process
+# that stamps a database (day-0 installs included). load_environment reads
+# only the CWD .env and the per-user settings file.
+load_environment()
 
 from mastodon_is_my_blog.store import DB_URL, Base
 

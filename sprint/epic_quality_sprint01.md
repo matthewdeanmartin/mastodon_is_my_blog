@@ -102,8 +102,9 @@ This is why the breakage shipped three times. See Sprint scope, task 1.
 ### D. Dead code / repo clutter
 
 - `Makefile1` is **git-tracked**. Delete or merge into `Makefile`.
-- `dev_database.py` has no importers outside its own test (verify, then
-  delete or wire into `mimb db`).
+- ~~`dev_database.py` has no importers~~ CORRECTED: it is alive — the
+  Makefile invokes it via `python -m mastodon_is_my_blog.dev_database`.
+  Keep it.
 - Repo root is littered with unignored working files: `backup/`,
   `app_6_2026.db`, `app_bakcup7_2_2026.db` (note the typo), `mimb_server.db-shm/-wal`,
   `app.db-shm/-wal`. Extend `.gitignore` (`*.db-shm`, `*.db-wal`, `backup*/`,
@@ -149,7 +150,71 @@ known worst offender. Not this sprint's focus — folded into Sprint 03.
 
 ---
 
-## Sprint 01 scope (do now, in order)
+## Sprint 01 — SHIPPED (2026-07-17)
+
+What actually landed (scope shifted once mid-sprint: the full lazy-engine
+refactor was moved to Sprint 02 at the owner's request; the minimal
+deferred-import fix below was enough to kill the wrong-database bug):
+
+1. **Day-0 smoke suite** — `test/test_day_zero.py`, 12 tests, all passing in
+   ~23s. Every top-level command runs in a real subprocess with a scrubbed
+   environment, temp `MIMB_CONFIG_DIR`/`MIMB_DATA_DIR`, null keyring, and an
+   empty CWD. Includes an isolation tripwire that fails any test whose output
+   mentions the developer's real mimb data/config dirs.
+2. **A1 minimal fix**: `cli.py` and `db_port.py` no longer import `store` at
+   module top — `mimb init`'s DB choice now takes effect in the same process
+   (verified end-to-end by `test_init_custom_sqlite_path_takes_effect_same_process`),
+   and `mimb --version`/`auth list` never construct an engine. The engine is
+   STILL built at `store` import time — that refactor is Sprint 02 task 1.
+3. **A2**: `duck.startup()` guarded in the lifespan; analytics degrade with a
+   warning instead of blocking boot.
+4. **A3**: settings persist to `settings.env` in the per-user config dir
+   (`environment.get_settings_env_path`); precedence shell > CWD `.env` >
+   settings file; `mimb db-info` prints which source DB_URL came from.
+5. **B**: engine-creation and DB-connect failures at the CLI print
+   doctor-style advice; `db-info` exits 1 on an unreachable DB.
+6. Hygiene: credentials docstring fixed, ruff `target-version = "py312"`,
+   `Makefile1` deleted, `.gitignore` covers `*.db/-shm/-wal/backup*/app_*.db`
+   (tracked `docs-src/app.db` explicitly excepted).
+
+### Bugs DISCOVERED during the sprint (all fixed, none in the original audit)
+
+- **`__main__.py` discarded exit codes** — `python -m mastodon_is_my_blog`
+  always exited 0 regardless of command outcome.
+- **Bare `dotenv.load_dotenv()` loaded the developer's repo `.env` into any
+  process** — five call sites (`masto_client.py`, `masto_client_timed.py`,
+  `queries.py`, `alembic/env.py`, `alembic_sync/env.py`). `find_dotenv`
+  walks up from the *calling file's directory*, not the CWD, so the repo
+  `.env` (real credentials!) leaked into supposedly-isolated test
+  subprocesses and would leak into any pip install that has a `.env`
+  anywhere above site-packages. The alembic one was the nastiest: it
+  injected credentials mid-run during `ensure_schema_stamped`, after all
+  well-behaved loading was done. All five now use `load_environment()`.
+- **`get_schema_version` swallowed connection failures** — an unreachable
+  Postgres was reported as healthy-but-unversioned.
+- **platformdirs ignores HOME/LOCALAPPDATA env overrides on Windows** (it
+  asks the OS) — added `MIMB_DATA_DIR`/`MIMB_CONFIG_DIR` as first-class
+  overrides, honored by the app, the uninstaller, and the test suite.
+
+### Known issues found but NOT fixed (queued for Sprint 02)
+
+- **Identity mirror-delete can violate FKs / is dangerous**:
+  `sync_configured_identities` (`store.py:739-741`) deletes any identity
+  whose `config_name` is missing from the current config. Two problems:
+  (a) deleting an identity that still has `cached_accounts` rows raises
+  `ForeignKeyViolationError` on Postgres (observed live with identity id=5,
+  KATHERINE — so `mimb auth remove` is broken there today); (b) an *empty*
+  config (fresh shell, lost accounts.json) against a full DB would attempt
+  to delete every identity. Needs cleanup-or-detach semantics plus a "config
+  empty but DB populated — refusing to mirror-delete" guard.
+- Verify the built wheel actually ships `alembic.ini` + `alembic/`
+  (`db_init._alembic_config` resolves them relative to the package parent);
+  add a wheel-install smoke run to CI.
+
+Verification: `uv run python -m pytest test/` → 479 passed.
+`uv run ruff check` → clean.
+
+## Original Sprint 01 scope (for reference; see SHIPPED above)
 
 1. **Day-0 smoke test suite** — `test/test_day_zero.py`. For each top-level
    command (`start` via TestClient/lifespan, `init` with scripted stdin,
@@ -188,25 +253,50 @@ at a temp dir, run each command.
 
 ## Next sprint (handoff to the next bot — read this first)
 
-**Quality Epic — Sprint 02: Test-gap closure and the store/queries split.**
+**Quality Epic — Sprint 02: Lazy engine, identity-delete safety, test-gap
+closure.**
 
-Prereq: Sprint 01 merged; day-0 smoke suite green in CI.
+Prereq: Sprint 01 merged (it is — see SHIPPED above); day-0 smoke suite
+green (`uv run python -m pytest test/test_day_zero.py`, ~23s — if it
+suddenly takes minutes, credentials are leaking and real API calls are
+happening: STOP and find the leak; see the dotenv findings above).
 
-1. **Tests for the day-0 tooling itself:** `admin_cli.py` doctor (each check
+1. **Lazy engine loading (moved here from Sprint 01 at the owner's
+   request).** `store.py` still runs `resolve_backend()` +
+   `get_default_db_url()` + `create_async_engine()` at import. Replace the
+   module-level `engine`/`async_session`/`DB_URL`/`DB_BACKEND` globals with
+   cached factory functions (`get_engine()`, `get_session_factory()`, …)
+   that re-read the environment on first use, with an explicit
+   `reset_engine()` for tests and the init wizard. Callers to migrate:
+   `schema_version.py`, `db_init.py`, `duck.py` (imports `DB_URL` at module
+   top — goes stale), `admin_cli.py`, `dev_database.py`, and
+   `test/conftest.py` (its "set DB_URL before store import" dance at the top
+   becomes unnecessary — simplify it). Then the deferred imports added to
+   `cli.py` in Sprint 01 can stay or be simplified; the SystemExit wrapper
+   around engine creation in `store.py` moves into the factory.
+2. **Fix identity mirror-delete** (see Known issues in Sprint 01): make
+   `sync_configured_identities`/`mimb auth remove` delete or detach the
+   dependent `cached_accounts`/cached data rows (decide: cascade delete vs
+   orphan cleanup job), and refuse to mass-delete identities when the config
+   is empty but the DB is populated — print advice instead. Add a Postgres
+   integration test for remove-with-cached-data (the FK failure only
+   reproduces on a backend that enforces FKs — live-observed on Postgres).
+3. **Tests for the day-0 tooling itself:** `admin_cli.py` doctor (each check
    forced ok/warn/FAIL via mocks), `cli.py` init wizard (DB selection,
    account prompts, re-entry with existing accounts), `credentials.py`
    keyring-present/absent/raising matrix.
-2. **Split `store.py` (944 lines):** engine/session config → `db_engine.py`
-   (the lazy factories from Sprint 01 give a natural seam); ORM models
+4. **Split `store.py` (944 lines):** engine/session config → `db_engine.py`
+   (the lazy factories from task 1 give a natural seam); ORM models
    reconciled with the existing `models.py`; CRUD stays. No behavior change;
    the whole existing suite is the regression net.
-3. **Split `queries.py` (1027 lines):** sync jobs vs read queries. Add tests
-   for whichever halves land under coverage while touching them.
-4. **Route tests:** `routes/admin.py` first (903 lines, identity/OAuth
-   surface — highest blast radius), then `analytics`/`observability`
-   (read-only, cheap wins).
-5. If time remains, start the underscore-prefix rename (finding E) in the
-   modules you already touched — never as a drive-by in unrelated files.
+5. **Wheel-install smoke:** build the wheel, install into a throwaway venv,
+   run the day-0 suite against that install (swap `PYTHONPATH` for the
+   installed package). This is the only thing that catches
+   packaging-manifest gaps like `alembic/` not shipping.
+6. If time remains: split `queries.py` (1027 lines) into sync jobs vs read
+   queries; route tests for `routes/admin.py`; start the underscore-prefix
+   rename in modules you already touched — never as a drive-by in unrelated
+   files.
 
 Sprint 03 candidates (write up properly at Sprint 02 close): forum-tab
 performance (use `test_perf/` + `make perf-*` baselines, `DB_URL` not

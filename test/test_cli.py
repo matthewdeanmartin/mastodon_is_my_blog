@@ -27,7 +27,7 @@ def test_main_starts_without_forcing_init_when_no_accounts(monkeypatch) -> None:
 def test_main_init_runs_even_when_accounts_exist(monkeypatch) -> None:
     events: list[str] = []
 
-    monkeypatch.setattr(cli, "run_init_command", lambda: events.append("init"))
+    monkeypatch.setattr(cli, "run_init_command", lambda: (events.append("init"), 0)[1])
 
     result = cli.main(["init"])
 

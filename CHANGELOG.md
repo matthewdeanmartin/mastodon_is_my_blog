@@ -11,10 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Onboarding looks for config that doesn't exist.
 - Doctor provides proper advice on problems found
+- `mimb init` now initializes the database you chose in the wizard, not the previous one (store imports are deferred until after the wizard runs)
+- Bare `dotenv.load_dotenv()` calls (masto_client, queries, alembic env.py) walked up the directory tree and loaded the repo/developer `.env` — including credentials — into unrelated processes; all env loading now goes through `environment.load_environment()` (CWD `.env` + per-user settings file only)
+- `python -m mastodon_is_my_blog` discarded command exit codes and always exited 0
+- `mimb db-info` reported an unreachable database as healthy-but-unversioned; connection failures now produce advice and exit 1
+- `mimb start` no longer fails to boot when the DuckDB analytics extension can't be downloaded (offline/firewalled fresh installs); analytics degrade with a warning
+- Database/config errors at the CLI print what-to-do advice (source of DB_URL, `mimb db-info`, `mimb doctor`) instead of tracebacks
 
 ### Added
 
 - Uninstall command to remove corrupt config and data
+- Day-0 smoke test suite (`test/test_day_zero.py`): every top-level command runs in a scrubbed fresh-machine environment; asserts no tracebacks, actionable errors, and no leakage of the developer's real data dirs
+- Settings persist to a per-user config file (`settings.env` under platformdirs) so `mimb init` choices apply regardless of the launch directory; shell env and CWD `.env` still override
+- `MIMB_CONFIG_DIR` / `MIMB_DATA_DIR` overrides for tests and containers (platformdirs ignores HOME/LOCALAPPDATA overrides on Windows)
+- `mimb db-info` shows where DB_URL came from (shell, .env, settings file, or default)
 
 ## [0.5.0] - 2026-07-12
 
