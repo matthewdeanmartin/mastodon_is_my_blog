@@ -108,7 +108,11 @@ export function bucketAvgLatency(bucket: ApiBucket): number {
 }
 
 /** Sum the buckets for the last `hours` epoch hours (missing hours = zero). */
-export function recentHours(stats: LiteApiStats, hours: number, now: number = Date.now()): ApiBucket {
+export function recentHours(
+  stats: LiteApiStats,
+  hours: number,
+  now: number = Date.now(),
+): ApiBucket {
   const newest = Math.floor(now / 3_600_000);
   const total = emptyBucket();
   for (let hour = newest - hours + 1; hour <= newest; hour += 1) {

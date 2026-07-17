@@ -15,7 +15,9 @@
     @if (!sampleMode()) {
       <div class="heading-actions">
         <button type="button" [disabled]="loading() || archiveFull()" (click)="fetchOlder()">
-          {{ archiveFull() ? 'Archive full (500)' : loading() ? 'Fetching…' : 'Fetch 100 older posts' }}
+          {{
+            archiveFull() ? 'Archive full (500)' : loading() ? 'Fetching…' : 'Fetch 100 older posts'
+          }}
         </button>
         <small>{{ callsUsed() }}/10 API calls in the last action</small>
       </div>
@@ -72,9 +74,15 @@
           ></span>
         </div>
         <ul class="legend">
-          <li><i style="background: #2a78d6"></i> Posts <b>{{ mix().posts }}</b></li>
-          <li><i style="background: #1baf7a"></i> Replies <b>{{ mix().replies }}</b></li>
-          <li><i style="background: #4a3aa7"></i> Boosts <b>{{ mix().boosts }}</b></li>
+          <li>
+            <i style="background: #2a78d6"></i> Posts <b>{{ mix().posts }}</b>
+          </li>
+          <li>
+            <i style="background: #1baf7a"></i> Replies <b>{{ mix().replies }}</b>
+          </li>
+          <li>
+            <i style="background: #4a3aa7"></i> Boosts <b>{{ mix().boosts }}</b>
+          </li>
           <li class="legend-note">{{ mix().withMedia }} with media</li>
         </ul>
       } @else {
@@ -86,9 +94,18 @@
       <h2>Engagement</h2>
       <p class="card-sub">Across your {{ engagement().posts }} own posts</p>
       <div class="stat-row">
-        <div class="stat"><b>{{ engagement().totalFavourites }}</b><small>favourites</small></div>
-        <div class="stat"><b>{{ engagement().totalBoosts }}</b><small>boosts</small></div>
-        <div class="stat"><b>{{ engagement().totalReplies }}</b><small>replies</small></div>
+        <div class="stat">
+          <b>{{ engagement().totalFavourites }}</b
+          ><small>favourites</small>
+        </div>
+        <div class="stat">
+          <b>{{ engagement().totalBoosts }}</b
+          ><small>boosts</small>
+        </div>
+        <div class="stat">
+          <b>{{ engagement().totalReplies }}</b
+          ><small>replies</small>
+        </div>
       </div>
       <h3>Top posts</h3>
       @for (post of engagement().top; track post.id) {

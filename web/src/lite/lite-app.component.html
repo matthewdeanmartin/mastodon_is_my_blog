@@ -37,7 +37,9 @@
         Explore with sample data <span aria-hidden="true">→</span>
       </button>
       @if (heavyUrl) {
-        <a class="sample-button" [href]="heavyUrl">Switch to heavy <span aria-hidden="true">→</span></a>
+        <a class="sample-button" [href]="heavyUrl"
+          >Switch to heavy <span aria-hidden="true">→</span></a
+        >
       }
     </section>
 
@@ -96,11 +98,7 @@
       <button [class.active]="page() === 'write'" type="button" (click)="navigate('write')">
         Write
       </button>
-      <button
-        [class.active]="page() === 'analytics'"
-        type="button"
-        (click)="navigate('analytics')"
-      >
+      <button [class.active]="page() === 'analytics'" type="button" (click)="navigate('analytics')">
         Analytics
       </button>
       <button
@@ -252,7 +250,10 @@
                 />
               }
               <ng-container
-                *ngTemplateOutlet="postCard; context: { post: threadAnchor()!, muted: false, anchor: true }"
+                *ngTemplateOutlet="
+                  postCard;
+                  context: { post: threadAnchor()!, muted: false, anchor: true }
+                "
               />
               @for (post of threadContext()?.descendants ?? []; track post.id) {
                 <ng-container
@@ -299,7 +300,10 @@
               @if (thread.root) {
                 <div class="post-content thread-excerpt" [innerHTML]="thread.root.content"></div>
               } @else {
-                <div class="post-content thread-excerpt" [innerHTML]="thread.replies[0].content"></div>
+                <div
+                  class="post-content thread-excerpt"
+                  [innerHTML]="thread.replies[0].content"
+                ></div>
               }
               <footer class="thread-footer">
                 <span class="thread-repliers">

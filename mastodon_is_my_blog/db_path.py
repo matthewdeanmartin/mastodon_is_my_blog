@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from mastodon_is_my_blog.db_backend import DatabaseBackend, resolve_backend
 
@@ -80,11 +79,9 @@ def get_default_db_url() -> str:
         return _postgres_url()
 
     # Default: local SQLite file (unchanged behavior).
-    from platformdirs import user_data_dir
+    from mastodon_is_my_blog.environment import get_data_dir
 
-    data_dir = Path(user_data_dir(appname="mastodon_is_my_blog", appauthor=False))
-    data_dir.mkdir(parents=True, exist_ok=True)
-    db_path = data_dir / "app.db"
+    db_path = get_data_dir(create=True) / "app.db"
     return f"sqlite+aiosqlite:///{db_path}"
 
 

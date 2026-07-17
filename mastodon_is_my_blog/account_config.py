@@ -5,8 +5,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from platformdirs import user_config_dir
-
 from mastodon_is_my_blog.credentials import (
     delete_credential,
     get_credential,
@@ -35,9 +33,9 @@ class ConfiguredAccountSummary:
 
 
 def get_accounts_config_path() -> Path:
-    config_dir = Path(user_config_dir(appname="mastodon_is_my_blog", appauthor=False))
-    config_dir.mkdir(parents=True, exist_ok=True)
-    return config_dir / "accounts.json"
+    from mastodon_is_my_blog.environment import get_config_dir
+
+    return get_config_dir(create=True) / "accounts.json"
 
 
 def normalize_account_name(name: str) -> str:

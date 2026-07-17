@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from test.conftest import (
     make_cached_account,
     make_cached_notification,
@@ -19,7 +19,7 @@ from mastodon_is_my_blog.store import CachedNotification
     [
         (None, None),
         (
-            datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc),
+            datetime(2024, 1, 1, 12, 0, tzinfo=UTC),
             datetime(2024, 1, 1, 12, 0),
         ),
         (datetime(2024, 1, 1, 12, 0), datetime(2024, 1, 1, 12, 0)),
@@ -37,7 +37,7 @@ async def test_sync_notifications_persists_rows_and_syncs_top_mutuals(
 ) -> None:
     patch_async_session(notification_sync)
     identity = make_identity(acct="me@example.social")
-    recent_time = datetime.now(timezone.utc)
+    recent_time = datetime.now(UTC)
     db_session.add_all(
         [
             make_cached_account(
@@ -133,7 +133,7 @@ async def test_sync_notifications_continues_when_timeline_sync_fails(
 ) -> None:
     patch_async_session(notification_sync)
     identity = make_identity(acct="me@example.social")
-    recent_time = datetime.now(timezone.utc)
+    recent_time = datetime.now(UTC)
     db_session.add_all(
         [
             make_cached_account(

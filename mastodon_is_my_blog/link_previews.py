@@ -5,7 +5,7 @@ import ipaddress
 import logging
 import re
 import socket
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from typing import cast
 from urllib.parse import urljoin, urlparse
 
@@ -264,7 +264,7 @@ async def fetch_card_from_network(url: str) -> CardResponse:
 
 
 def _now_utc() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 async def fetch_card(

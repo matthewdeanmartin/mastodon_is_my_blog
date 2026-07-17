@@ -159,11 +159,13 @@ def test_doctor_dispatch(monkeypatch) -> None:
 
 def test_write_db_url_to_env(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("MIMB_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setenv("DB_URL", "placeholder")  # so monkeypatch restores it after
     cli.write_db_url_to_env("postgresql+asyncpg://u@h/db")
-    env_text = (tmp_path / ".env").read_text(encoding="utf-8")
+    env_text = (tmp_path / "config" / "settings.env").read_text(encoding="utf-8")
     assert "DB_URL" in env_text
     assert "postgresql+asyncpg://u@h/db" in env_text
+    assert not (tmp_path / ".env").exists()
     import os
 
     assert os.environ["DB_URL"] == "postgresql+asyncpg://u@h/db"

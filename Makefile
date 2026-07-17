@@ -293,16 +293,10 @@ lint-frontend-strict:
 audit-backend:
 	@echo "=== uv audit ==="
 	@$(UV) audit \
-		--ignore-until-fixed GHSA-p4gq-832x-fm9v \
-		--ignore-until-fixed PYSEC-2026-597 \
-		--ignore-until-fixed PYSEC-2023-154 \
-		--ignore PYSEC-2026-2078
+		--ignore-until-fixed PYSEC-2023-154
 	@echo "=== pip-audit ==="
 	@$(UV) tool run pip-audit \
-		--ignore-vuln GHSA-p4gq-832x-fm9v \
-		--ignore-vuln PYSEC-2026-597 \
-		--ignore-vuln PYSEC-2023-154 \
-		--ignore-vuln PYSEC-2026-2078
+		--ignore-vuln PYSEC-2023-154
 
 security: audit-backend
 	echo "not doing this."

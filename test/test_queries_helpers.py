@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from test.conftest import (
     make_account_data,
     make_cached_account,
@@ -46,7 +46,7 @@ def test_build_account_payload_applies_defaults_and_overrides() -> None:
         make_account_data(
             "account-1",
             acct="friend@example.social",
-            created_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+            created_at=datetime(2024, 1, 2, tzinfo=UTC),
         ),
         is_following=True,
     )
@@ -78,7 +78,7 @@ async def test_bulk_upsert_accounts_merges_duplicates_and_latest_status(
         [
             {
                 "account_data": make_account_data("account-1", acct="friend@example.social"),
-                "last_status_at": datetime(2024, 1, 3, tzinfo=timezone.utc),
+                "last_status_at": datetime(2024, 1, 3, tzinfo=UTC),
             },
             {
                 "account_data": make_account_data(

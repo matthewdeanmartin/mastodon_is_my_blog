@@ -18,11 +18,6 @@ from mastodon_is_my_blog.account_config import (
 )
 from mastodon_is_my_blog.credentials import get_credential
 from mastodon_is_my_blog.db_port import DEFAULT_MODE, IMPORT_MODES
-from mastodon_is_my_blog.store import (
-    get_or_create_default_meta_account,
-    init_db,
-    sync_configured_identities,
-)
 from mastodon_is_my_blog.utils.settings_loader import has_configured_identities
 
 
@@ -255,6 +250,16 @@ def save_account_interactively(existing_name: str | None = None) -> str:
 
 
 async def sync_identity_state() -> None:
+    # Imported here, not at module top: importing store binds DB_URL and
+    # builds the engine, which must happen AFTER the init wizard has had a
+    # chance to write DB_URL — and commands like `mimb auth list` should not
+    # touch the database at all.
+    from mastodon_is_my_blog.store import (
+        get_or_create_default_meta_account,
+        init_db,
+        sync_configured_identities,
+    )
+
     await init_db()
     # Stamp a freshly-created DB at the Alembic head (Phase 2) so future
     # `alembic upgrade` runs behave; no-op if already stamped.
@@ -274,15 +279,19 @@ def normalize_postgres_url(url: str) -> str:
 
 
 def write_db_url_to_env(db_url: str) -> None:
-    """Persist DB_URL to ./.env (main.py load_dotenv()s it) and apply it to
-    this process so the rest of the wizard uses the chosen database."""
+    """Persist DB_URL to the per-user settings file and apply it to this
+    process so the rest of the wizard uses the chosen database."""
     import os
 
     from dotenv import set_key
 
-    set_key(".env", "DB_URL", db_url)
+    from mastodon_is_my_blog.environment import get_settings_env_path
+
+    settings_path = get_settings_env_path(create_dir=True)
+    set_key(str(settings_path), "DB_URL", db_url)
     os.environ["DB_URL"] = db_url
-    print(f"Saved DB_URL to .env (used when you run mimb from this directory: {db_url})")
+    print(f"Saved DB_URL to {settings_path}")
+    print("This applies wherever you run mimb; a DB_URL shell variable or a ./.env file still overrides it.")
 
 
 def prompt_database_setup() -> None:
@@ -317,7 +326,7 @@ def prompt_database_setup() -> None:
             print(exc)
 
 
-def run_init_command() -> None:
+def run_init_command() -> int:
     print("Welcome to mimb setup.")
     prompt_database_setup()
 
@@ -335,8 +344,20 @@ def run_init_command() -> None:
     else:
         print("Skipped. You can connect later with `mimb auth login your@handle`, or from the web UI (Connect Account).")
 
-    asyncio.run(sync_identity_state())
+    try:
+        asyncio.run(sync_identity_state())
+    except Exception as exc:  # noqa: BLE001 - setup must end with advice, not a traceback
+        print(db_failure_advice(exc))
+        return 1
     print("Setup complete. Run `mimb start` and open http://127.0.0.1:8100")
+    return 0
+
+
+def db_failure_advice(exc: Exception) -> str:
+    """One consistent 'what happened / what to do' block for DB failures."""
+    from mastodon_is_my_blog.environment import describe_setting_source
+
+    return f"Could not use the database ({exc}).\nDB_URL came from: {describe_setting_source('DB_URL')}.\nIf you configured Postgres, check that the server is running and the URL is correct.\nRun `mimb db-info` to see the configured location, or `mimb doctor` for a full checkup."
 
 
 def display_url(host: str, port: int) -> str:
@@ -415,15 +436,22 @@ def start_server(host: str, port: int, reload_: bool, workers: int, no_open: boo
     )
 
 
-def show_db_info() -> None:
+def show_db_info() -> int:
+    from mastodon_is_my_blog.environment import describe_setting_source
     from mastodon_is_my_blog.schema_version import describe_database
 
-    info = asyncio.run(describe_database())
+    try:
+        info = asyncio.run(describe_database())
+    except Exception as exc:  # noqa: BLE001 - db-info is a diagnostic, it must not traceback
+        print(db_failure_advice(exc))
+        return 1
     print(f"Database backend: {info['backend']}")
     print(f"Database URL:     {info['url']}")
+    print(f"DB_URL source:    {describe_setting_source('DB_URL')}")
     print(f"Schema version:   {info['schema_version']}")
     if info["remote_sync"] != "n/a":
         print(f"Remote sync:      {info['remote_sync']}")
+    return 0
 
 
 def run_db_command(args: argparse.Namespace) -> int:
@@ -492,7 +520,12 @@ def run_auth_command(args: argparse.Namespace) -> int:
             account_name = auth_cli.run_login(args.account, name=args.name, no_browser=args.no_browser)
         if account_name is None:
             return 1
-        asyncio.run(sync_identity_state())
+        try:
+            asyncio.run(sync_identity_state())
+        except Exception as exc:  # noqa: BLE001 - the token is saved; report the DB problem with advice
+            print("Your account is connected and the token is saved, but syncing it into the database failed.")
+            print(db_failure_advice(exc))
+            return 1
         return 0
 
     if command == "list":
@@ -534,16 +567,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if command == "db-info":
-        show_db_info()
-        return 0
+        return show_db_info()
 
     if command == "version":
         print(pkg_version("mastodon_is_my_blog"))
         return 0
 
     if command == "init":
-        run_init_command()
-        return 0
+        return run_init_command()
 
     if command == "uninstall":
         from mastodon_is_my_blog.uninstall_cli import run_uninstall

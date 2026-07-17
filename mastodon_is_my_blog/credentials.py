@@ -33,7 +33,7 @@ def get_credential(name: str, field: str) -> str | None:
 def set_credential(name: str, field: str, value: str) -> bool:
     """
     Store a credential in the system keyring.
-    Returns True on success, False if keyring is unavailable.
+    Returns True on success; raises KeyringError if keyring is unavailable.
     """
     username = f"{name}:{field}"
     try:

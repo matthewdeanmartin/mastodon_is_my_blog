@@ -2,7 +2,7 @@
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from typing import Any, cast
 
 import dotenv
@@ -99,7 +99,7 @@ def to_naive_utc(dt: datetime | None) -> datetime | None:
         return None
     # If it has timezone info, convert to UTC and strip it
     if dt.tzinfo is not None:
-        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt.astimezone(UTC).replace(tzinfo=None)
     # If it's already naive, assume it's what we want
     return dt
 

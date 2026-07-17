@@ -236,3 +236,12 @@ backups/
 # Performance baselines (local + CI smoke)
 perf/
 .benchmarks/
+
+# mimb local databases and ad-hoc backups (never commit; never delete)
+*.db
+*.db-shm
+*.db-wal
+backup/
+backups/
+app_*.db
+!docs-src/app.db

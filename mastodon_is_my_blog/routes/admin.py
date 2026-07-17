@@ -64,6 +64,7 @@ from mastodon_is_my_blog.utils.perf import (
     stage_timings,
     time_async_function,
 )
+from datetime import UTC
 
 logger = logging.getLogger(__name__)
 
@@ -849,7 +850,7 @@ async def cancel_catchup(
 @router.get("/error-log")
 async def get_error_log(limit: int = 200) -> list[dict]:
     """Return recent WARNING/ERROR/CRITICAL log records from the error_log table."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from mastodon_is_my_blog import telemetry
     from mastodon_is_my_blog.store import ErrorLog
@@ -865,7 +866,7 @@ async def get_error_log(limit: int = 200) -> list[dict]:
         {
             "id": row.id,
             "ts": row.ts,
-            "iso": datetime.fromtimestamp(row.ts, tz=timezone.utc).isoformat().replace("+00:00", "Z"),
+            "iso": datetime.fromtimestamp(row.ts, tz=UTC).isoformat().replace("+00:00", "Z"),
             "level": row.level,
             "logger": row.logger_name,
             "message": row.message,

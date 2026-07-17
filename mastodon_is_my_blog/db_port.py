@@ -31,7 +31,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from mastodon_is_my_blog.db_path import get_default_db_url
 from mastodon_is_my_blog.dialect_upsert import dialect_insert
-from mastodon_is_my_blog.store import Base
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +47,16 @@ def _engine_for(url: str | None) -> AsyncEngine:
 
 
 def _sorted_tables() -> list[Table]:
+    # Imported here, not at module top: importing store builds the global
+    # engine, and the CLI imports this module for its constants alone.
+    from mastodon_is_my_blog.store import Base
+
     return list(Base.metadata.sorted_tables)
 
 
 def _table_by_name(name: str) -> Table | None:
+    from mastodon_is_my_blog.store import Base
+
     return Base.metadata.tables.get(name)
 
 

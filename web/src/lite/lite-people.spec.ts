@@ -202,9 +202,9 @@ describe('blog roll evidence ledger', () => {
       makeNotification('n1', 'mention', { ...person, last_status_at: null }),
     ]);
     // account.last_status_at is stale, but the ledger knows better now
-    expect(matchesPeopleFilter('lively', { ...person, last_status_at: null }, ledger['person'])).toBe(
-      true,
-    );
+    expect(
+      matchesPeopleFilter('lively', { ...person, last_status_at: null }, ledger['person']),
+    ).toBe(true);
   });
 
   it('sorts newest-first by default, oldest-first for graveyard, by followers for parasocials', () => {

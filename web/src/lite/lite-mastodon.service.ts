@@ -79,7 +79,10 @@ export class LiteMastodonService {
     return { accounts, next };
   }
 
-  notifications(connection: LiteConnection, budget: LiteRequestBudget): Promise<LiteNotification[]> {
+  notifications(
+    connection: LiteConnection,
+    budget: LiteRequestBudget,
+  ): Promise<LiteNotification[]> {
     const types = ['mention', 'favourite', 'reblog', 'status', 'follow']
       .map((type) => `types[]=${type}`)
       .join('&');

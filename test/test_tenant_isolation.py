@@ -5,7 +5,7 @@ Seeds two MetaAccounts whose cached data uses IDENTICAL Mastodon-side IDs
 upstream account/post ids) and asserts the API layer keeps them apart.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 import pytest
 import pytest_asyncio
@@ -19,7 +19,7 @@ from test.conftest import (
     make_meta_account,
 )
 
-RECENT = datetime(2026, 6, 1, tzinfo=timezone.utc)
+RECENT = datetime(2026, 6, 1, tzinfo=UTC)
 
 
 @pytest.fixture

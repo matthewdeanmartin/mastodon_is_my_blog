@@ -30,12 +30,12 @@ expression where ``now`` was built with ``datetime.now(UTC)`` (aware) and
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 
 def utc_now() -> datetime:
     """Return a naive UTC timestamp suitable for DB writes and comparisons."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def to_naive_utc(dt: datetime | None) -> datetime | None:
@@ -51,4 +51,4 @@ def to_naive_utc(dt: datetime | None) -> datetime | None:
         return None
     if dt.tzinfo is None:
         return dt
-    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt.astimezone(UTC).replace(tzinfo=None)

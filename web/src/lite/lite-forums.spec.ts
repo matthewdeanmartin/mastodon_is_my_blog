@@ -89,7 +89,13 @@ describe('Lite forum thread grouping', () => {
     const mine = filterLiteThreads(threads, 'mine', followingIds, me.id, new Set());
     expect(mine.map((thread) => thread.rootId)).toEqual(['my-root']);
 
-    const participating = filterLiteThreads(threads, 'participating', followingIds, me.id, new Set());
+    const participating = filterLiteThreads(
+      threads,
+      'participating',
+      followingIds,
+      me.id,
+      new Set(),
+    );
     expect(participating.map((thread) => thread.rootId).sort()).toEqual(['friend-root', 'my-root']);
   });
 

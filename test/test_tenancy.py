@@ -1,6 +1,6 @@
 """Deployment modes and the mimb_session contract (tenancy.py)."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 
 import jwt
 import pytest
@@ -26,7 +26,7 @@ def make_session_token(
         "tenant_id": tenant_id,
         "email": "peep@example.com",
         "iss": issuer,
-        "exp": datetime.now(timezone.utc) + expires_in,
+        "exp": datetime.now(UTC) + expires_in,
     }
     return jwt.encode(payload, key, algorithm="HS256")
 

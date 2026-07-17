@@ -5,7 +5,7 @@ import logging
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request
 

@@ -41,14 +41,17 @@ def _redact(url: str) -> str:
 async def get_schema_version(db_engine: AsyncEngine | None = None) -> str | None:
     """Return the current Alembic revision, or None if unversioned/absent."""
     db_engine = db_engine or engine
-    try:
-        async with db_engine.connect() as conn:
+    # Connection failures propagate — an unreachable database must not be
+    # reported as a healthy-but-unversioned one (db-info turns the error
+    # into advice). Only the query is allowed to fail quietly.
+    async with db_engine.connect() as conn:
+        try:
             result = await conn.execute(text("SELECT version_num FROM alembic_version"))
             row = result.first()
             return row[0] if row else None
-    except Exception:
-        # No alembic_version table (e.g. a create_all-only local DB) — not an error.
-        return None
+        except Exception:
+            # No alembic_version table (e.g. a create_all-only local DB) — not an error.
+            return None
 
 
 async def describe_database(db_engine: AsyncEngine | None = None) -> dict[str, str]:

@@ -55,6 +55,7 @@ _root.setLevel(logging.INFO)
 _db_handler = DbLogHandler(level=logging.WARNING)
 _root.addHandler(_db_handler)
 
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # Startup: Initialize database
@@ -95,8 +96,15 @@ async def lifespan(_: FastAPI):
 
     telemetry.start_flusher()
 
-    # Open DuckDB analytics connection, attached read-only to the SQLite file
-    duck.startup()
+    # Open DuckDB analytics connection, attached read-only to the SQLite file.
+    # First run downloads the DuckDB sqlite/postgres extension, so this can
+    # fail offline or behind a firewall — the app must still start.
+    try:
+        duck.startup()
+        app.state.duck_ready = True
+    except Exception as exc:  # noqa: BLE001 - analytics are optional, never block startup
+        app.state.duck_ready = False
+        logger.warning("DuckDB analytics disabled (%s). The app works without them; analytics tabs will be empty. If this is a fresh install, the DuckDB extension download may need network access — it will be retried on next start.", exc)
 
     # Load spaCy model off the event loop — it's a slow blocking import
     try:

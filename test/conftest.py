@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 import pytest
 import pytest_asyncio
@@ -160,7 +160,7 @@ def make_status(
         "id": status_id,
         "reblog": reblog,
         "content": content,
-        "created_at": created_at or datetime(2024, 1, 1, tzinfo=timezone.utc),
+        "created_at": created_at or datetime(2024, 1, 1, tzinfo=UTC),
         "visibility": visibility,
         "account": {"id": account_id, "acct": acct},
         "in_reply_to_id": in_reply_to_id,
@@ -263,7 +263,7 @@ def make_notification_payload(
         "id": notification_id,
         "type": notification_type,
         "account": make_account_data(account_id, acct=account_acct),
-        "created_at": created_at or datetime(2024, 1, 1, tzinfo=timezone.utc),
+        "created_at": created_at or datetime(2024, 1, 1, tzinfo=UTC),
     }
     if status_id is not None:
         payload["status"] = {"id": status_id}

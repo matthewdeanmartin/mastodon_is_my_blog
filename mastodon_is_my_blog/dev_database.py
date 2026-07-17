@@ -11,16 +11,10 @@ from mastodon_is_my_blog.environment import load_environment
 
 def require_postgres_url(db_url: str | None) -> str:
     if not db_url:
-        raise SystemExit(
-            "make dev requires DB_URL in .env. "
-            "Set it to postgresql+asyncpg://USER:PASSWORD@HOST:PORT/DATABASE."
-        )
+        raise SystemExit("make dev requires DB_URL in .env. Set it to postgresql+asyncpg://USER:PASSWORD@HOST:PORT/DATABASE.")
     url = make_url(db_url)
     if not url.drivername.startswith("postgresql"):
-        raise SystemExit(
-            f"make dev requires Postgres, but DB_URL selects {url.drivername!r}. "
-            "Use make dev-sqlite for SQLite."
-        )
+        raise SystemExit(f"make dev requires Postgres, but DB_URL selects {url.drivername!r}. Use make dev-sqlite for SQLite.")
     if url.drivername != "postgresql+asyncpg":
         url = url.set(drivername="postgresql+asyncpg")
     return url.render_as_string(hide_password=False)

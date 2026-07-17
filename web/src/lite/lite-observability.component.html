@@ -12,19 +12,24 @@
 
   <div class="stat-row">
     <div class="stat">
-      <b>{{ lastHour().calls }}</b><small>calls, last hour</small>
+      <b>{{ lastHour().calls }}</b
+      ><small>calls, last hour</small>
     </div>
     <div class="stat">
-      <b>{{ lastDay().calls }}</b><small>calls, last 24h</small>
+      <b>{{ lastDay().calls }}</b
+      ><small>calls, last 24h</small>
     </div>
     <div class="stat" [class.alert]="lastDay().errors > 0">
-      <b>{{ errorRatePct(lastDay()) }}</b><small>error rate, 24h</small>
+      <b>{{ errorRatePct(lastDay()) }}</b
+      ><small>error rate, 24h</small>
     </div>
     <div class="stat" [class.alert]="lastDay().rateLimited > 0">
-      <b>{{ lastDay().rateLimited }}</b><small>429s, last 24h</small>
+      <b>{{ lastDay().rateLimited }}</b
+      ><small>429s, last 24h</small>
     </div>
     <div class="stat">
-      <b>{{ avgLatency(lastDay()) }}</b><small>avg latency, 24h</small>
+      <b>{{ avgLatency(lastDay()) }}</b
+      ><small>avg latency, 24h</small>
     </div>
   </div>
 

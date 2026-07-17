@@ -100,10 +100,7 @@ export function noteAccount(ledger: PeopleLedger, account: LiteAccount): void {
   evidence.updatedAt = Date.now();
 }
 
-export function noteRelationships(
-  ledger: PeopleLedger,
-  relationships: LiteRelationship[],
-): void {
+export function noteRelationships(ledger: PeopleLedger, relationships: LiteRelationship[]): void {
   for (const relationship of relationships) {
     const evidence = ledger[relationship.id];
     if (!evidence) continue;

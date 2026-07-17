@@ -53,11 +53,16 @@ DB_BACKEND = resolve_backend()
 DB_URL = get_default_db_url()
 # Database setup — same models/session code for every backend; only the URL,
 # pool kwargs, and sqlite-only PRAGMAs differ (spec/turso_support_phases.md).
-engine = create_async_engine(
-    DB_URL,
-    echo=False,
-    **build_engine_kwargs(DB_BACKEND),
-)
+try:
+    engine = create_async_engine(
+        DB_URL,
+        echo=False,
+        **build_engine_kwargs(DB_BACKEND),
+    )
+except Exception as exc:
+    from mastodon_is_my_blog.environment import describe_setting_source
+
+    raise SystemExit(f"mimb can't use the configured database URL ({exc}).\nDB_URL came from: {describe_setting_source('DB_URL')}.\nFix or remove that setting, then run `mimb db-info` to confirm, or `mimb doctor` for a full checkup.") from exc
 
 
 def set_sqlite_pragmas(dbapi_conn, _):

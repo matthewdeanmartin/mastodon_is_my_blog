@@ -126,6 +126,9 @@ dev = [
     "bandit; python_version >= '3.8'",
     "pip-audit; python_version >= '3.8'",
     "pre-commit; python_version >= '3.8'",
+    # pin to make pip audit happy
+    "setuptools>=83.0.0",
+    "pygments>=2.20.0",
     # testing tools
     "pytest_asyncio",
     "pytest; python_version >= '3.8'",
@@ -182,8 +185,7 @@ profile = "black"
 
 [tool.ruff]
 line-length = 320
-# Assume Python 3.10.
-target-version = "py39"
+target-version = "py312"
 
 # Enable Pyflakes `E` and `F` codes by default.
 [tool.ruff.lint]

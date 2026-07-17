@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from test.conftest import (
     make_account_data,
     make_cached_post,
@@ -278,7 +278,7 @@ async def test_sync_blog_roll_for_identity_updates_account_activity_stats(
 
     home_status = {
         "account": make_account_data("author-1", acct="author@example.social"),
-        "created_at": datetime(2024, 2, 1, tzinfo=timezone.utc),
+        "created_at": datetime(2024, 2, 1, tzinfo=UTC),
     }
     client = MagicMock()
     client.timeline_home.return_value = [home_status]

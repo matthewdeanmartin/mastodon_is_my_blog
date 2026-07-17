@@ -118,7 +118,9 @@ describe('LiteMastodonService publishing', () => {
     const second = http.expectOne((request) =>
       request.url.startsWith('https://example.social/api/v1/accounts/relationships'),
     );
-    second.flush([{ id: `id${LITE_LIMITS.relationshipChunk}`, following: true, followed_by: false }]);
+    second.flush([
+      { id: `id${LITE_LIMITS.relationshipChunk}`, following: true, followed_by: false },
+    ]);
 
     await expect(result).resolves.toHaveLength(2);
     expect(budget.callsUsed).toBe(2);

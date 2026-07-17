@@ -9,7 +9,7 @@ production on the profile or peeps page.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 
 import pytest
 
@@ -35,13 +35,13 @@ def test_utc_now_minus_aware_value_raises_so_we_catch_drift_locally() -> None:
     to return an aware value, this test should fail and force them to
     update everything that subtracts a naive DB value from it.
     """
-    aware = datetime.now(timezone.utc)
+    aware = datetime.now(UTC)
     with pytest.raises(TypeError):
         _ = utc_now() - aware  # type: ignore[operator]
 
 
 def test_to_naive_utc_strips_tz_from_aware() -> None:
-    aware = datetime(2024, 3, 1, 12, 0, tzinfo=timezone.utc)
+    aware = datetime(2024, 3, 1, 12, 0, tzinfo=UTC)
     naive = to_naive_utc(aware)
     assert naive == datetime(2024, 3, 1, 12, 0)
     assert naive is not None and naive.tzinfo is None
@@ -69,7 +69,7 @@ def test_to_naive_utc_handles_none() -> None:
 
 def test_to_naive_utc_makes_subtraction_safe() -> None:
     """The whole point: after to_naive_utc, you can subtract from utc_now()."""
-    aware_from_api = datetime(2024, 3, 1, tzinfo=timezone.utc)
+    aware_from_api = datetime(2024, 3, 1, tzinfo=UTC)
     naive_from_db = datetime(2024, 3, 1)
     now = utc_now()
 

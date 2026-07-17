@@ -45,11 +45,13 @@ class UninstallPlan:
 
 
 def home_directories() -> list[Path]:
-    """Data + config dirs (identical on Windows; deduped)."""
-    from platformdirs import user_config_dir, user_data_dir
+    """Data + config dirs (identical on Windows; deduped). Uses the same
+    resolution as the app itself, so MIMB_DATA_DIR/MIMB_CONFIG_DIR overrides
+    wipe the directories mimb actually used."""
+    from mastodon_is_my_blog.environment import get_config_dir, get_data_dir
 
     dirs: list[Path] = []
-    for raw in (user_data_dir(appname=APP_NAME, appauthor=False), user_config_dir(appname=APP_NAME, appauthor=False)):
+    for raw in (get_data_dir(), get_config_dir()):
         path = Path(raw).resolve()
         if path.exists() and path not in dirs:
             dirs.append(path)

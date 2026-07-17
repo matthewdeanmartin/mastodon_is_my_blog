@@ -10,7 +10,7 @@ stale data silently.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
 import pytest
@@ -106,7 +106,7 @@ async def test_commit_visible_to_duckdb(seeded_engine, duck_connection) -> None:
                 meta_account_id=1,
                 fetched_by_identity_id=1,
                 content="<p>hello world</p>",
-                created_at=datetime(2026, 4, 10, 14, 30, tzinfo=timezone.utc),
+                created_at=datetime(2026, 4, 10, 14, 30, tzinfo=UTC),
                 visibility="public",
                 author_acct="me@example.social",
                 author_id="99",
@@ -146,7 +146,7 @@ async def test_hashtag_trends_aggregates_json_tags(seeded_engine, duck_connectio
                     meta_account_id=1,
                     fetched_by_identity_id=1,
                     content="x",
-                    created_at=datetime(2026, 4, 10, tzinfo=timezone.utc),
+                    created_at=datetime(2026, 4, 10, tzinfo=UTC),
                     visibility="public",
                     author_acct="me@example.social",
                     author_id="99",
@@ -159,7 +159,7 @@ async def test_hashtag_trends_aggregates_json_tags(seeded_engine, duck_connectio
                 meta_account_id=1,
                 fetched_by_identity_id=1,
                 content="x",
-                created_at=datetime(2026, 4, 10, tzinfo=timezone.utc),
+                created_at=datetime(2026, 4, 10, tzinfo=UTC),
                 visibility="public",
                 author_acct="me@example.social",
                 author_id="99",
@@ -199,7 +199,7 @@ async def test_posting_heatmap_groups_by_hour_and_dow(seeded_engine, duck_connec
                     meta_account_id=1,
                     fetched_by_identity_id=1,
                     content="x",
-                    created_at=datetime(2026, 4, 13, hour, 0, tzinfo=timezone.utc),
+                    created_at=datetime(2026, 4, 13, hour, 0, tzinfo=UTC),
                     visibility="public",
                     author_acct="me@example.social",
                     author_id="99",
@@ -237,7 +237,7 @@ async def test_content_regex_search_case_insensitive(seeded_engine, duck_connect
                 meta_account_id=1,
                 fetched_by_identity_id=1,
                 content="<p>DuckDB is fast</p>",
-                created_at=datetime(2026, 4, 10, tzinfo=timezone.utc),
+                created_at=datetime(2026, 4, 10, tzinfo=UTC),
                 visibility="public",
                 author_acct="me@example.social",
                 author_id="99",
@@ -250,7 +250,7 @@ async def test_content_regex_search_case_insensitive(seeded_engine, duck_connect
                 meta_account_id=1,
                 fetched_by_identity_id=1,
                 content="<p>nothing here</p>",
-                created_at=datetime(2026, 4, 10, tzinfo=timezone.utc),
+                created_at=datetime(2026, 4, 10, tzinfo=UTC),
                 visibility="public",
                 author_acct="me@example.social",
                 author_id="99",
@@ -265,7 +265,7 @@ async def test_content_regex_search_case_insensitive(seeded_engine, duck_connect
 
 @pytest.mark.asyncio
 async def test_top_reposters_splits_current_and_prior(seeded_engine, duck_connection) -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     factory = async_sessionmaker(seeded_engine, expire_on_commit=False)
     async with factory() as session:
         session.add(MetaAccount(id=1, username="default"))
