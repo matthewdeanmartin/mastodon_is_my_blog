@@ -1,0 +1,55 @@
+<section class="bulk-widget">
+  <header>
+    <div>
+      <b>{{ selectedAccounts().length }} selected</b>
+      <small>Choose accounts, then apply the action once.</small>
+    </div>
+    <div class="selection-actions">
+      <button type="button" (click)="selectAll()">All</button>
+      <button type="button" (click)="clear()">None</button>
+    </div>
+  </header>
+
+  @if (showDirectoryLinks()) {
+    <nav aria-label="Mastodon directories">
+      <span>Browse:</span>
+      <button type="button" (click)="directoryRequested.emit(true)">people on this server</button>
+      <button type="button" (click)="directoryRequested.emit(false)">known fediverse accounts</button>
+    </nav>
+  }
+
+  <div class="candidate-grid">
+    @for (candidate of accounts(); track candidate.acct) {
+      <label [class.selected]="selected().has(candidate.acct)">
+        <input
+          type="checkbox"
+          [checked]="selected().has(candidate.acct)"
+          (change)="toggle(candidate.acct)"
+        />
+        @if (candidate.account?.avatar) {
+          <img [src]="candidate.account!.avatar" alt="" loading="lazy" />
+        }
+        <span>
+          <b>{{ candidate.displayName || candidate.acct }}</b>
+          <small>&#64;{{ candidate.acct }}</small>
+        </span>
+      </label>
+    } @empty {
+      <p>No accounts to show yet.</p>
+    }
+  </div>
+
+  <footer>
+    <button
+      class="primary"
+      type="button"
+      [disabled]="busy() || selectedAccounts().length === 0"
+      (click)="submitted.emit(selectedAccounts())"
+    >
+      {{ busy() ? 'Working…' : actionLabel() + ' ' + selectedAccounts().length }}
+    </button>
+    @if (result()) {
+      <span>{{ result() }}</span>
+    }
+  </footer>
+</section>
