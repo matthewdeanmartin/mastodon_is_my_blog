@@ -12,8 +12,8 @@
     "serve": "npm run export:data && npm run build:styles && eleventy --serve"
   },
   "devDependencies": {
-    "@11ty/eleventy": "^3.1.5",
-    "sass": "^1.94.0"
+    "@11ty/eleventy": "^3.1.6",
+    "sass": "^1.104.0"
   },
   "dependencies": {
     "modern-css-reset": "^1.4.0"
