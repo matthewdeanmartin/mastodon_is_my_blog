@@ -245,3 +245,9 @@ backup/
 backups/
 app_*.db
 !docs-src/app.db
+
+# Trial virtualenvs (e.g. .venv315rc2) — the bare `.venv` entry does not
+# match them, and hatchling's default license-file glob will sweep every
+# dependency LICENSE into the sdist if they are visible to the build.
+.venv*/
+.build/

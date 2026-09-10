@@ -80,7 +80,13 @@ def entities(doc_text: str, nlp: Any) -> list[str]:
 def thread_topics(texts: list[str], nlp: Any, top_k: int = 5) -> list[str]:
     """TF-IDF over thread posts vs background corpus, return top_k terms."""
     # pylint: disable=unused-argument
-    from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore[import-untyped]
+    try:
+        from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore[import-untyped]
+    except ImportError:
+        # scikit-learn is not installed on Python 3.15 (no cp315 wheel). Topic
+        # extraction is an optional facet, so degrade to "no topics" rather
+        # than breaking the caller — same contract as the empty-input case.
+        return []
 
     if not texts:
         return []

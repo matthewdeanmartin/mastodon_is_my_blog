@@ -38,7 +38,11 @@ dependencies = [
     # forum topic extraction
     "wordfreq>=3.0",
     "spacy>=3.7; python_version < '3.14'",
-    "scikit-learn>=1.4",
+    # scikit-learn has no cp315 wheel and its scipy build needs a Fortran
+    # compiler, so it is gated like spacy above. Both are imported lazily
+    # inside the functions that use them; without them the forum topic
+    # facets degrade to empty, which the app already handles.
+    "scikit-learn>=1.4; python_version < '3.15'",
     "pytz>=2025.2",
     # hosted (server-mode) tenancy: session validation + token encryption at rest
     "pyjwt>=2.8",
