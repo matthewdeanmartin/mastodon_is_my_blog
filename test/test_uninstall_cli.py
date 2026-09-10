@@ -1,4 +1,5 @@
 import argparse
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -89,6 +90,11 @@ def test_custom_sqlite_file_outside_home_is_in_the_plan(tmp_path: Path, monkeypa
     assert uninstall_cli.custom_sqlite_file([home.resolve()]) is None
 
 
+@pytest.mark.skipif(
+    importlib.util.find_spec("asyncpg") is None,
+    reason="needs the `postgres` extra; without asyncpg this fails on ImportError "
+    "rather than the connection failure it means to test",
+)
 def test_unreachable_postgres_is_reported_and_not_offered(fake_home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture) -> None:
     monkeypatch.setenv("DB_URL", "postgresql+asyncpg://user:secret@127.0.0.1:1/mimb_gone")
 

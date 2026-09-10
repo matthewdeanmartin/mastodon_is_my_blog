@@ -12,10 +12,13 @@ class of bug (sprint/epic_quality_sprint01.md).
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TIMEOUT_SECONDS = 240
@@ -205,6 +208,11 @@ def test_malformed_db_url_gives_advice_not_traceback(tmp_path: Path) -> None:
     assert "shell environment" in output
 
 
+@pytest.mark.skipif(
+    importlib.util.find_spec("asyncpg") is None,
+    reason="needs the `postgres` extra; without asyncpg this fails on ImportError "
+    "rather than the connection failure it means to test",
+)
 def test_unreachable_postgres_gives_advice_not_traceback(tmp_path: Path) -> None:
     result = run_day_zero(
         ["db-info"],

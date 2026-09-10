@@ -77,7 +77,7 @@ Repository = "https://github.com/matthewmartin/mastodon_is_my_blog"
 Issues = "https://github.com/matthewmartin/mastodon_is_my_blog/issues"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build]
@@ -152,7 +152,6 @@ dev = [
     "pydoctest==0.2.1; python_version >= '3.8'",
     "pdoc3>=0.5.0; python_version >= '3.8'",
     "mdformat>=0.5.0; python_version >= '3.8'",
-    "linkcheckmd>=1.4.0; python_version >= '3.8'",
     "codespell>=2.2.6; python_version >= '3.8'",
     "pyenchant>=3.2.2; python_version >= '3.8'",
     "build>=1.4.3",
@@ -239,6 +238,11 @@ exclude = [
 ]
 
 [tool.uv]
+# Wheels or nothing. A missing wheel must fail in seconds with the package
+# named, not silently start a source build -- duckdb compiled for 50+ minutes
+# on Windows with no output before this was added. Editable installs of this
+# project are still allowed, so the normal dev workflow is unaffected.
+no-build = true
 
 [tool.uv.pip]
 universal = true
