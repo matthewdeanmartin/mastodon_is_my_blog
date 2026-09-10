@@ -158,7 +158,8 @@ dev = [
     # Requires Python >=3.13 (matches the mock's requires-python); on older
     # interpreters the integration suite skips itself.
     "mastodon_mock[test]; python_version >= '3.13'",
-    "keepachangelog-manager-fork[all]>=6.6.0",
+    "keepachangelog-manager-fork[fast]>=6.8.0; python_version < '3.15'",
+    "keepachangelog-manager-fork[stdlib]>=6.8.0; python_version >= '3.15'",
 ]
 
 # changelogmanager (keepachangelog-manager-fork) drives the release workflows.
