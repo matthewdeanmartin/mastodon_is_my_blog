@@ -12,5 +12,8 @@ concurrency:
 
 jobs:
   upgrade-dependencies:
-    uses: nhoizey/upgrade-dependencies/.github/workflows/upgrade-dependencies.yml@main
-    secrets: inherit
+    uses: nhoizey/upgrade-dependencies/.github/workflows/upgrade-dependencies.yml@dc4e57d9bc739655aa6c295ce86863a74e4a0dd8 # main as of 2026-09-19
+    permissions:
+      contents: read
+    secrets:
+      PAT: ${{ secrets.PAT }}
