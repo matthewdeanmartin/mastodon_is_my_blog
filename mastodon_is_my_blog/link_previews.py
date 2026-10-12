@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, UTC
 from typing import cast
 from urllib.parse import urljoin, urlparse
 
-import httpx
+import httpx2
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import AnyHttpUrl, BaseModel, field_validator
@@ -37,12 +37,12 @@ TTL_OK_STALE = timedelta(days=30)
 TTL_ERROR = timedelta(minutes=30)
 TTL_BLOCKED = timedelta(hours=24)
 
-# Shared httpx client — created once at lifespan, closed on shutdown.
+# Shared httpx2 client — created once at lifespan, closed on shutdown.
 # Callers must call init_http_client() / close_http_client() from the FastAPI lifespan.
-_shared_client: httpx.AsyncClient | None = None
+_shared_client: httpx2.AsyncClient | None = None
 
 
-def get_http_client() -> httpx.AsyncClient:
+def get_http_client() -> httpx2.AsyncClient:
     if _shared_client is None:
         raise RuntimeError("HTTP client not initialized. Call init_http_client() first.")
     return _shared_client
@@ -50,9 +50,9 @@ def get_http_client() -> httpx.AsyncClient:
 
 def init_http_client() -> None:
     global _shared_client
-    _shared_client = httpx.AsyncClient(
+    _shared_client = httpx2.AsyncClient(
         follow_redirects=True,
-        timeout=httpx.Timeout(
+        timeout=httpx2.Timeout(
             connect=CONNECT_TIMEOUT,
             read=READ_TIMEOUT,
             write=READ_TIMEOUT,
@@ -227,9 +227,9 @@ async def fetch_card_from_network(url: str) -> CardResponse:
     client = get_http_client()
     try:
         r = await client.get(url)
-    except httpx.TooManyRedirects as exc:
+    except httpx2.TooManyRedirects as exc:
         raise HTTPException(400, "Too many redirects.") from exc
-    except httpx.RequestError as exc:
+    except httpx2.RequestError as exc:
         raise HTTPException(502, "Upstream fetch failed.") from exc
 
     ctype = (r.headers.get("content-type") or "").lower()

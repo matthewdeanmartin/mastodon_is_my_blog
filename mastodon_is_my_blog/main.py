@@ -88,7 +88,7 @@ async def lifespan(_: FastAPI):
     # Verify all identities (updates acct/account_id from API)
     await verify_all_identities()
 
-    # Initialize shared httpx client for link previews
+    # Initialize shared httpx2 client for link previews
     init_http_client()
 
     # Drain buffered error/API-call telemetry to the DB (any backend).

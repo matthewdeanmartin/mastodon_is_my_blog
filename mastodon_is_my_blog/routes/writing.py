@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 
-import httpx
+import httpx2
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, select
 
@@ -326,16 +326,16 @@ async def spellcheck(
 ):
     # pylint: disable=unused-argument
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx2.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 LANGUAGETOOL_URL,
                 data={"text": payload.text, "language": payload.language},
             )
             resp.raise_for_status()
             data = resp.json()
-    except httpx.ConnectError as exc:
+    except httpx2.ConnectError as exc:
         raise HTTPException(503, "LanguageTool not available") from exc
-    except httpx.HTTPStatusError as exc:
+    except httpx2.HTTPStatusError as exc:
         raise HTTPException(502, f"LanguageTool error: {exc.response.status_code}") from exc
 
     matches = [

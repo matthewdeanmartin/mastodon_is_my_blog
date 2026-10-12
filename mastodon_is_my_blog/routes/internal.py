@@ -287,7 +287,7 @@ async def connect_mock_identity(tenant_id: int, body: ConnectMockIdentity) -> di
     the exchange below fails against any real instance. Localhost-only as a
     second guard — this must never become a way to skip real consent.
     """
-    import httpx
+    import httpx2
 
     from mastodon_is_my_blog.blog_build import build_tenant_blog
     from mastodon_is_my_blog.routes.admin import persist_identity
@@ -299,7 +299,7 @@ async def connect_mock_identity(tenant_id: int, body: ConnectMockIdentity) -> di
     username = tenancy.tenant_username(tenant_id)
     meta, _ = await tenant_export.get_or_create_meta_account(username)
 
-    async with httpx.AsyncClient(timeout=30) as http:
+    async with httpx2.AsyncClient(timeout=30) as http:
         app_resp = await http.post(
             f"{base_url}/api/v1/apps",
             data={"client_name": "mimb-demo", "redirect_uris": "urn:ietf:wg:oauth:2.0:oob", "scopes": "read write"},

@@ -4,7 +4,7 @@ Covers: bearer auth, local-mode absence, provision/purge idempotency,
 two-tenant isolation of export and purge, usage, and the "export is
 self-host bootable" acceptance test.
 
-Uses httpx.AsyncClient over ASGITransport (not TestClient) so the routes and
+Uses httpx2.AsyncClient over ASGITransport (not TestClient) so the routes and
 the aiosqlite test database share one event loop.
 """
 
@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 

@@ -21,14 +21,15 @@ dependencies = [
     "uvicorn[standard]>=0.34",
     # database
     "alembic>=1.18.0",
-    "sqlalchemy>=2.0",
+    "sqlalchemy[asyncio]>=2.0",
+    "pydantic>=2,<3",
     "aiosqlite>=0.20",
     # 3rd party apis
     "mastodon-py>=2.2.1",
     "pip-system-certs>=5.3",
     # Web cards
     "beautifulsoup4>=4.12",
-    "httpx>=0.28.1",
+    "httpx2>=2.0,<3",
     # secure config
     "platformdirs>=4.0",
     "keyring>=25.0",
@@ -71,10 +72,10 @@ mastodon_is_my_blog = "mastodon_is_my_blog.cli:main"
 mimb = "mastodon_is_my_blog.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/matthewmartin/mastodon_is_my_blog"
+Homepage = "https://github.com/matthewdeanmartin/mastodon_is_my_blog"
 Documentation  = "https://mastodon-is-my-blog.readthedocs.io/en/latest/"
-Repository = "https://github.com/matthewmartin/mastodon_is_my_blog"
-Issues = "https://github.com/matthewmartin/mastodon_is_my_blog/issues"
+Repository = "https://github.com/matthewdeanmartin/mastodon_is_my_blog"
+Issues = "https://github.com/matthewdeanmartin/mastodon_is_my_blog/issues"
 
 [build-system]
 requires = ["hatchling>=1.27.0"]

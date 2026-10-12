@@ -102,3 +102,10 @@ MIT
 - [Documentation](https://mastodon-is-my-blog.readthedocs.io/en/latest/)
 - [Bug Tracker](https://github.com/matthewdeanmartin/mastodon_is_my_blog/issues)
 - [Change Log](https://github.com/matthewdeanmartin/mastodon_is_my_blog/blob/main/CHANGELOG.md)
+
+
+## Python 3.15 verification — 2026-10-04
+
+Owned HTTP clients now use HTTPX2. Complete Python 3.14.7 tests: 479 passed, 2 skipped. Eight installed-wheel preview checks, including two real localhost redirect/content-type/lifecycle cases, pass on RC3 with Pydantic prerelease wheels and on 3.14. Full RC3 runtime remains blocked by DuckDB wheels, even when prereleases are allowed; isolated transport tests do not certify the complete app. The SQLAlchemy asyncio extra is now declared for the required greenlet wheel; Pydantic 2 is explicitly required for field_validator. Repository links now use the correct owner. No new native-free database fallback was introduced.
+
+Dependencies were installed only from published wheels; the project's own pure-Python wheel was built locally without build isolation. `uv lock --upgrade` refreshed the lock. No GitHub builds, releases or upstream reports were sent. Upstream bug filing is the human operator's job.

@@ -28,7 +28,7 @@ jobs:
           persist-credentials: false
 
 
-      - uses: hynek/setup-cached-uv@75e1cf6b4f163bab8f7edbf3d4de55e0f02b5e4c # v2.6.0
+      - uses: hynek/setup-cached-uv@34e35d30f1ebc7421a5cc733bca38dcc62603960 # v2.6.0
 
       - name: Run zizmor 🌈
         run: uvx zizmor --format sarif . > results.sarif
@@ -36,7 +36,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@c23de5a82f64bb08c6d9f28844551440ca298e76 # v4.38.1
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           # Path to SARIF file relative to the root of the repository
           sarif_file: results.sarif

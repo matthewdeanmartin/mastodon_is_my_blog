@@ -1,4 +1,4 @@
-import httpx
+import httpx2
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
@@ -130,7 +130,7 @@ async def test_fetch_card_from_network_wraps_request_errors(
 ) -> None:
     class DummySharedClient:
         async def get(self, url: str):
-            raise httpx.ConnectError("boom")
+            raise httpx2.ConnectError("boom")
 
     async def allow_public_destination(raw_url: str) -> None:
         assert raw_url == "https://example.com"

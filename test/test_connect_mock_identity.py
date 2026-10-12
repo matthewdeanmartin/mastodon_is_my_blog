@@ -7,11 +7,11 @@ gets a working demo blog in one job. Localhost-only by design.
 
 from unittest.mock import AsyncMock
 
-import httpx
+import httpx2
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
+from httpx2 import ASGITransport, AsyncClient
 
 from mastodon_is_my_blog import tenant_export
 from mastodon_is_my_blog.routes import admin, internal
@@ -46,27 +46,27 @@ async def client(monkeypatch, patch_async_session, tmp_path):
 
 
 def mock_mastodon_mock(monkeypatch):
-    """Route the endpoint's outbound httpx client at a fake mastodon_mock."""
+    """Route the endpoint's outbound httpx2 client at a fake mastodon_mock."""
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         if request.url.path == "/api/v1/apps":
-            return httpx.Response(200, json={"client_id": "cid", "client_secret": "csecret"})
+            return httpx2.Response(200, json={"client_id": "cid", "client_secret": "csecret"})
         if request.url.path == "/oauth/token":
             body = request.content.decode()
             if "mockcode_ada" not in body:
-                return httpx.Response(400, json={"detail": "invalid_grant"})
-            return httpx.Response(200, json={"access_token": "tok"})
+                return httpx2.Response(400, json={"detail": "invalid_grant"})
+            return httpx2.Response(200, json={"access_token": "tok"})
         if request.url.path == "/api/v1/accounts/verify_credentials":
             assert request.headers["Authorization"] == "Bearer tok"
-            return httpx.Response(200, json={"acct": "ada", "id": "1"})
-        return httpx.Response(404)
+            return httpx2.Response(200, json={"acct": "ada", "id": "1"})
+        return httpx2.Response(404)
 
-    real_async_client = httpx.AsyncClient
+    real_async_client = httpx2.AsyncClient
 
     def fake_async_client(**kwargs):
-        return real_async_client(transport=httpx.MockTransport(handler))
+        return real_async_client(transport=httpx2.MockTransport(handler))
 
-    monkeypatch.setattr(httpx, "AsyncClient", fake_async_client)
+    monkeypatch.setattr(httpx2, "AsyncClient", fake_async_client)
 
 
 @pytest.mark.asyncio
