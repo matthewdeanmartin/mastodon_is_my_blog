@@ -16,9 +16,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "cached_posts", sa.Column("thread_uncommon_words", sa.Text(), nullable=True)
-    )
+    op.add_column("cached_posts", sa.Column("thread_uncommon_words", sa.Text(), nullable=True))
 
 
 def downgrade() -> None:

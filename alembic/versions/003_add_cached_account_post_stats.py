@@ -19,15 +19,11 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "cached_accounts",
-        sa.Column(
-            "cached_post_count", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("cached_post_count", sa.Integer(), nullable=False, server_default="0"),
     )
     op.add_column(
         "cached_accounts",
-        sa.Column(
-            "cached_reply_count", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("cached_reply_count", sa.Integer(), nullable=False, server_default="0"),
     )
 
 

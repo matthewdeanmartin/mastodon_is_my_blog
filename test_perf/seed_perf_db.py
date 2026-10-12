@@ -38,7 +38,7 @@ import json
 import random
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 
 from sqlalchemy import func, insert, select
 
@@ -174,7 +174,7 @@ async def seed(args: argparse.Namespace) -> None:
 
     rng = random.Random(42)
     # Naive UTC to match the app's DateTime columns.
-    now = datetime.now(timezone.utc).replace(microsecond=0, tzinfo=None)
+    now = datetime.now(UTC).replace(microsecond=0, tzinfo=None)
 
     n_posts = args.posts or max(10_000, (args.target_mb * 1_048_576) // (MEAN_CONTENT_CHARS + APPROX_BYTES_PER_POST_OVERHEAD))
     n_accounts = args.accounts

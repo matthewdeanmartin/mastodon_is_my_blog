@@ -40,20 +40,11 @@ def upgrade() -> None:
         if "actor_id" not in posts_cols:
             batch.add_column(sa.Column("actor_id", sa.String(), nullable=True))
         if "has_book" not in posts_cols:
-            batch.add_column(
-                sa.Column(
-                    "has_book", sa.Boolean(), nullable=False, server_default=sa.false()
-                )
-            )
+            batch.add_column(sa.Column("has_book", sa.Boolean(), nullable=False, server_default=sa.false()))
 
     # Backfill actor_* from author_* for rows predating those columns (the old
     # shim did the same UPDATE).
-    op.execute(
-        "UPDATE cached_posts "
-        "SET actor_acct = COALESCE(actor_acct, author_acct), "
-        "    actor_id = COALESCE(actor_id, author_id) "
-        "WHERE actor_acct IS NULL OR actor_id IS NULL"
-    )
+    op.execute("UPDATE cached_posts SET actor_acct = COALESCE(actor_acct, author_acct),     actor_id = COALESCE(actor_id, author_id) WHERE actor_acct IS NULL OR actor_id IS NULL")
     op.create_index(
         "ix_posts_meta_actor",
         "cached_posts",
@@ -70,17 +61,11 @@ def upgrade() -> None:
     meta_cols = _columns("meta_accounts")
     with op.batch_alter_table("meta_accounts") as batch:
         if "enabled" not in meta_cols:
-            batch.add_column(
-                sa.Column(
-                    "enabled", sa.Boolean(), nullable=False, server_default=sa.true()
-                )
-            )
+            batch.add_column(sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.true()))
         if "max_identities" not in meta_cols:
             batch.add_column(sa.Column("max_identities", sa.Integer(), nullable=True))
         if "max_storage_bytes" not in meta_cols:
-            batch.add_column(
-                sa.Column("max_storage_bytes", sa.Integer(), nullable=True)
-            )
+            batch.add_column(sa.Column("max_storage_bytes", sa.Integer(), nullable=True))
 
 
 def downgrade() -> None:

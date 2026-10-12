@@ -20,7 +20,7 @@ import sys
 import time
 import uuid
 from collections.abc import Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 
 import pytest
 
@@ -89,7 +89,7 @@ def memory_db(loop):
 
 
 def make_statuses(n: int) -> list[dict]:
-    base = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    base = datetime(2024, 1, 1, tzinfo=UTC)
     return [
         {
             "id": uuid.uuid4().hex,

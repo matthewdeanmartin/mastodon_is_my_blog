@@ -75,9 +75,7 @@ async def test_deep_fetch_honours_stop_at_id(raw_client: Mastodon) -> None:
 
     later = raw_client.status_post("stop-at-id newer post")
 
-    pages = await _collect_pages(
-        raw_client, me.id, stop_at_id=stop_at, inter_page_delay=0
-    )
+    pages = await _collect_pages(raw_client, me.id, stop_at_id=stop_at, inter_page_delay=0)
     fetched_ids = {str(s["id"]) for page in pages for s in page}
 
     # The newer post is past the stop marker and must be fetched...

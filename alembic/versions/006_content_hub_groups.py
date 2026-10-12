@@ -62,9 +62,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String, nullable=False),
         sa.Column("slug", sa.String, nullable=False),
         sa.Column("source_type", sa.String(20), nullable=False),
-        sa.Column(
-            "is_read_only", sa.Boolean, nullable=False, server_default=sa.false()
-        ),
+        sa.Column("is_read_only", sa.Boolean, nullable=False, server_default=sa.false()),
         sa.Column("last_fetched_at", sa.DateTime, nullable=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
@@ -96,9 +94,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime, nullable=False),
     )
     op.create_index("ix_hub_terms_group", "content_hub_group_terms", ["group_id"])
-    op.create_index(
-        "ix_hub_terms_normalized", "content_hub_group_terms", ["normalized_term"]
-    )
+    op.create_index("ix_hub_terms_normalized", "content_hub_group_terms", ["normalized_term"])
 
     # --- content_hub_post_matches ---
     op.create_table(

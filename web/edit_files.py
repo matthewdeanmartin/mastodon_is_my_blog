@@ -49,9 +49,7 @@ def fix_store(content):
 
 
 def fix_main(content):
-    content = content.replace(
-        "async def lifespan(app: FastAPI):", "async def lifespan(_: FastAPI):"
-    )
+    content = content.replace("async def lifespan(app: FastAPI):", "async def lifespan(_: FastAPI):")
     return generic_cleanup(content)
 
 
@@ -71,43 +69,29 @@ def fix_masto_client_timed(content):
         "def account_following(self, id: str",
         "def account_following(self, account_id: str",
     )
-    content = content.replace(
-        'account_following", id,', 'account_following", account_id,'
-    )
+    content = content.replace('account_following", id,', 'account_following", account_id,')
     content = content.replace(
         "def account_followers(self, id: str",
         "def account_followers(self, account_id: str",
     )
-    content = content.replace(
-        'account_followers", id,', 'account_followers", account_id,'
-    )
+    content = content.replace('account_followers", id,', 'account_followers", account_id,')
     content = content.replace(
         "def account_statuses(self, id: str",
         "def account_statuses(self, account_id: str",
     )
-    content = content.replace(
-        'account_statuses", id,', 'account_statuses", account_id,'
-    )
-    content = content.replace(
-        "def account(self, id: str):", "def account(self, account_id: str):"
-    )
+    content = content.replace('account_statuses", id,', 'account_statuses", account_id,')
+    content = content.replace("def account(self, id: str):", "def account(self, account_id: str):")
     content = content.replace('account", id)', 'account", account_id)')
-    content = content.replace(
-        "def status(self, id: str):", "def status(self, status_id: str):"
-    )
+    content = content.replace("def status(self, id: str):", "def status(self, status_id: str):")
     content = content.replace('status", id)', 'status", status_id)')
     content = content.replace(
         "def status_context(self, id: str):",
         "def status_context(self, status_id: str):",
     )
     content = content.replace('status_context", id)', 'status_context", status_id)')
-    content = content.replace(
-        "def status_source(self, id: str):", "def status_source(self, status_id: str):"
-    )
+    content = content.replace("def status_source(self, id: str):", "def status_source(self, status_id: str):")
     content = content.replace('status_source", id)', 'status_source", status_id)')
-    content = content.replace(
-        "def status_update(self, id: str", "def status_update(self, status_id: str"
-    )
+    content = content.replace("def status_update(self, id: str", "def status_update(self, status_id: str")
     content = content.replace('status_update", id,', 'status_update", status_id,')
     return generic_cleanup(content)
 
@@ -128,9 +112,7 @@ def fix_inspect_post(content):
     if "import logging" not in content:
         content = "import logging\n" + content
     if "logger =" not in content:
-        content = content.replace(
-            "DOMAIN_CONFIG", "DOMAIN_CONFIG\n\nlogger = logging.getLogger(__name__)"
-        )
+        content = content.replace("DOMAIN_CONFIG", "DOMAIN_CONFIG\n\nlogger = logging.getLogger(__name__)")
     content = re.sub(
         r"except Exception:\s*logger\.error\(e\)\s*continue",
         r'except Exception as e:\n            logger.error("Error analyzing content: %s", e)\n            continue',
@@ -142,9 +124,7 @@ def fix_inspect_post(content):
 
 def fix_identity_verifier(content):
     content = content.replace("except Exception:", "except Exception as e:")
-    content = content.replace(
-        "logger.error(e)", 'logger.error("Identity verification failed: %s", e)'
-    )
+    content = content.replace("logger.error(e)", 'logger.error("Identity verification failed: %s", e)')
     return generic_cleanup(content)
 
 

@@ -37,15 +37,11 @@ class TimedMastodonClient:
             method = getattr(self.client, method_name)
             result = method(*args, **kwargs)
             elapsed: float = time.perf_counter() - start
-            self.logger.info(
-                "Mastodon API completed: %s in %.3fs", method_name, elapsed
-            )
+            self.logger.info("Mastodon API completed: %s in %.3fs", method_name, elapsed)
             return result
         except Exception as e:
             elapsed = time.perf_counter() - start
-            self.logger.error(
-                "Mastodon API failed: %s after %.3fs - %s", method_name, elapsed, e
-            )
+            self.logger.error("Mastodon API failed: %s after %.3fs - %s", method_name, elapsed, e)
             raise
 
     # Wrap common methods

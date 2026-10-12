@@ -10,7 +10,7 @@ per-author page), the counts panel, the unread badge, and the write path
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 
 import pytest
 from sqlalchemy import and_, func, select
@@ -71,7 +71,7 @@ def test_feed_first_page(abench, perf_ids):
 def test_feed_deep_page(abench, perf_ids):
     """Cursor pagination six months back — exercises the created_at index mid-history."""
     meta_id, identity_id = perf_ids
-    before = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=180)
+    before = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=180)
     rows = abench(run_stmt, feed_page_stmt(meta_id, identity_id, before=before))
     assert rows
 

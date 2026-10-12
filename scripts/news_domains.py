@@ -203,9 +203,7 @@ def normalized_tranco_score(rank: float | None) -> float:
     return 1.0 - (math.log10(clipped) / math.log10(max_rank))
 
 
-def get_json_with_backoff(
-    url: str, params: dict, timeout: int = 30, max_retries: int = 5
-) -> dict:
+def get_json_with_backoff(url: str, params: dict, timeout: int = 30, max_retries: int = 5) -> dict:
     for attempt in range(max_retries):
         resp = requests.get(url, params=params, timeout=timeout)
 
@@ -217,9 +215,7 @@ def get_json_with_backoff(
         if resp.ok:
             return payload
 
-        error_code = (
-            payload.get("error", {}).get("code") if isinstance(payload, dict) else None
-        )
+        error_code = payload.get("error", {}).get("code") if isinstance(payload, dict) else None
 
         if resp.status_code == 429 or error_code == "rate_limit_reached":
             sleep_s = min(60, (2**attempt) + random.uniform(0.0, 1.0))
@@ -229,25 +225,17 @@ def get_json_with_backoff(
 
         raise RuntimeError(f"Mediastack request failed: {resp.status_code} {payload}")
 
-    raise RuntimeError(
-        "Mediastack request failed after retries due to repeated rate limiting."
-    )
+    raise RuntimeError("Mediastack request failed after retries due to repeated rate limiting.")
 
 
-def cached_get_json_with_backoff(
-    url: str, params: dict, timeout: int = 30, max_retries: int = 5
-) -> dict:
-    key = hashlib.sha256(
-        json.dumps({"url": url, "params": params}, sort_keys=True).encode("utf-8")
-    ).hexdigest()
+def cached_get_json_with_backoff(url: str, params: dict, timeout: int = 30, max_retries: int = 5) -> dict:
+    key = hashlib.sha256(json.dumps({"url": url, "params": params}, sort_keys=True).encode("utf-8")).hexdigest()
     cache_file = CACHE_DIR / f"{key}.json"
 
     if cache_file.exists():
         return json.loads(cache_file.read_text(encoding="utf-8"))
 
-    payload = get_json_with_backoff(
-        url, params=params, timeout=timeout, max_retries=max_retries
-    )
+    payload = get_json_with_backoff(url, params=params, timeout=timeout, max_retries=max_retries)
     cache_file.write_text(json.dumps(payload), encoding="utf-8")
     return payload
 
@@ -291,9 +279,7 @@ def fetch_mediastack_sources(api_key: str) -> pd.DataFrame:
             except RuntimeError as e:
                 message = str(e)
                 if "rate_limit_reached" in message or "429" in message:
-                    print(
-                        "Warning: Mediastack rate limit reached. Stopping Mediastack fetch early."
-                    )
+                    print("Warning: Mediastack rate limit reached. Stopping Mediastack fetch early.")
                     df = pd.DataFrame.from_records(records)
                     if df.empty:
                         return pd.DataFrame(
@@ -315,9 +301,7 @@ def fetch_mediastack_sources(api_key: str) -> pd.DataFrame:
                 break
 
             for item in data:
-                domain = canonicalize_domain(
-                    item.get("url") or item.get("domain") or ""
-                )
+                domain = canonicalize_domain(item.get("url") or item.get("domain") or "")
                 if not domain or not is_probably_news_domain(domain):
                     continue
 
@@ -339,10 +323,7 @@ def fetch_mediastack_sources(api_key: str) -> pd.DataFrame:
             offset += MEDIASTACK_PAGE_SIZE
             page += 1
 
-            if (
-                MEDIASTACK_MAX_PAGES_PER_SEARCH is not None
-                and page >= MEDIASTACK_MAX_PAGES_PER_SEARCH
-            ):
+            if MEDIASTACK_MAX_PAGES_PER_SEARCH is not None and page >= MEDIASTACK_MAX_PAGES_PER_SEARCH:
                 break
 
             time.sleep(MEDIASTACK_SLEEP_SECONDS)
@@ -405,9 +386,7 @@ def load_seed_csv(path: str, source_origin: str = "seed") -> pd.DataFrame:
 
 def load_tranco_csv(path: str) -> pd.DataFrame:
     if not os.path.exists(path):
-        raise FileNotFoundError(
-            f"Missing {path}. Download a Tranco CSV and save it as {path}."
-        )
+        raise FileNotFoundError(f"Missing {path}. Download a Tranco CSV and save it as {path}.")
 
     df = pd.read_csv(path, header=None, names=["tranco_rank", "domain"])
     df["domain"] = df["domain"].map(canonicalize_domain)
@@ -416,9 +395,7 @@ def load_tranco_csv(path: str) -> pd.DataFrame:
     return df.drop_duplicates(subset=["domain"])
 
 
-def build_tranco_heuristic_candidates(
-    tranco: pd.DataFrame, max_rank: int = 250_000
-) -> pd.DataFrame:
+def build_tranco_heuristic_candidates(tranco: pd.DataFrame, max_rank: int = 250_000) -> pd.DataFrame:
     """
     Build a fallback candidate universe from Tranco alone.
     This is intentionally heuristic: it catches likely news domains by domain name.
@@ -458,9 +435,7 @@ def load_optional_gdelt(path: str) -> pd.DataFrame:
 
     df["domain"] = df["domain"].map(canonicalize_domain)
     df = df[df["domain"].notna()].copy()
-    df["gdelt_article_count_30d"] = pd.to_numeric(
-        df["gdelt_article_count_30d"], errors="coerce"
-    )
+    df["gdelt_article_count_30d"] = pd.to_numeric(df["gdelt_article_count_30d"], errors="coerce")
     return df.drop_duplicates(subset=["domain"])
 
 
@@ -470,14 +445,10 @@ def country_balance(df: pd.DataFrame, per_country_cap: int = 40) -> pd.DataFrame
 
     pieces = []
     for _, part in df.groupby(df["country"].fillna("__UNKNOWN__"), dropna=False):
-        pieces.append(
-            part.sort_values("final_score", ascending=False).head(per_country_cap)
-        )
+        pieces.append(part.sort_values("final_score", ascending=False).head(per_country_cap))
 
     capped = pd.concat(pieces, ignore_index=True)
-    return capped.sort_values("final_score", ascending=False).drop_duplicates(
-        subset=["domain"]
-    )
+    return capped.sort_values("final_score", ascending=False).drop_duplicates(subset=["domain"])
 
 
 def build_candidates(tranco: pd.DataFrame) -> pd.DataFrame:
@@ -488,9 +459,7 @@ def build_candidates(tranco: pd.DataFrame) -> pd.DataFrame:
     if not seed_df.empty:
         frames.append(seed_df)
     else:
-        print(
-            "Warning: seed_news_domains.csv not found. Recall will be weaker without it."
-        )
+        print("Warning: seed_news_domains.csv not found. Recall will be weaker without it.")
 
     # Optional: Mediastack enrichment. Never required.
     if MEDIASTACK_ENABLED:
@@ -520,18 +489,9 @@ def build_candidates(tranco: pd.DataFrame) -> pd.DataFrame:
 
     # Prefer seed rows over other sources where duplicates exist.
     priority = {"seed": 0, "mediastack": 1, "tranco_heuristic": 2}
-    candidates["_priority"] = candidates["source_origin"].map(
-        lambda x: priority.get(str(x).lower(), 99)
-    )
+    candidates["_priority"] = candidates["source_origin"].map(lambda x: priority.get(str(x).lower(), 99))
 
-    candidates = (
-        candidates.sort_values(
-            by=["_priority", "outlet_name", "country"], na_position="last"
-        )
-        .drop_duplicates(subset=["domain"], keep="first")
-        .drop(columns=["_priority"])
-        .reset_index(drop=True)
-    )
+    candidates = candidates.sort_values(by=["_priority", "outlet_name", "country"], na_position="last").drop_duplicates(subset=["domain"], keep="first").drop(columns=["_priority"]).reset_index(drop=True)
 
     return candidates
 
@@ -547,39 +507,21 @@ def main() -> None:
     df["source_quality_score"] = df.apply(source_quality_score, axis=1)
     df["tranco_score"] = df["tranco_rank"].map(normalized_tranco_score)
 
-    if (
-        "gdelt_article_count_30d" in df.columns
-        and df["gdelt_article_count_30d"].notna().any()
-    ):
+    if "gdelt_article_count_30d" in df.columns and df["gdelt_article_count_30d"].notna().any():
         max_count = df["gdelt_article_count_30d"].max()
         if pd.isna(max_count) or max_count <= 0:
             df["gdelt_score"] = 0.0
         else:
-            df["gdelt_score"] = df["gdelt_article_count_30d"].fillna(0).map(
-                lambda x: math.log1p(x)
-            ) / math.log1p(max_count)
-        df["final_score"] = (
-            0.60 * df["tranco_score"]
-            + 0.25 * df["gdelt_score"]
-            + 0.15 * df["source_quality_score"]
-        )
+            df["gdelt_score"] = df["gdelt_article_count_30d"].fillna(0).map(lambda x: math.log1p(x)) / math.log1p(max_count)
+        df["final_score"] = 0.60 * df["tranco_score"] + 0.25 * df["gdelt_score"] + 0.15 * df["source_quality_score"]
     else:
         df["gdelt_score"] = 0.0
-        df["final_score"] = (
-            0.75 * df["tranco_score"] + 0.25 * df["source_quality_score"]
-        )
+        df["final_score"] = 0.75 * df["tranco_score"] + 0.25 * df["source_quality_score"]
 
     review_queue = df[df["tranco_rank"].isna()].copy()
     balanced = country_balance(df, per_country_cap=40)
 
-    top_1000 = (
-        balanced.sort_values(
-            ["final_score", "tranco_rank"], ascending=[False, True], na_position="last"
-        )
-        .drop_duplicates(subset=["domain"])
-        .head(1000)
-        .reset_index(drop=True)
-    )
+    top_1000 = balanced.sort_values(["final_score", "tranco_rank"], ascending=[False, True], na_position="last").drop_duplicates(subset=["domain"]).head(1000).reset_index(drop=True)
 
     candidate_cols = [
         "domain",
@@ -598,13 +540,9 @@ def main() -> None:
     ]
     candidate_cols = [c for c in candidate_cols if c in df.columns]
 
-    df.sort_values("final_score", ascending=False).to_csv(
-        "candidate_news_domains.csv", index=False, columns=candidate_cols
-    )
+    df.sort_values("final_score", ascending=False).to_csv("candidate_news_domains.csv", index=False, columns=candidate_cols)
     top_1000.to_csv("top_1000_news_domains.csv", index=False, columns=candidate_cols)
-    review_queue.sort_values(["country", "outlet_name"], na_position="last").to_csv(
-        "review_queue.csv", index=False, columns=candidate_cols
-    )
+    review_queue.sort_values(["country", "outlet_name"], na_position="last").to_csv("review_queue.csv", index=False, columns=candidate_cols)
 
     print("Wrote:")
     print("  candidate_news_domains.csv")

@@ -199,7 +199,7 @@ select = ["E", "F",
     "UP", # pyupgrade
     "B", # bugbear
 ]
-ignore = [
+ignore = ["RUF100", 
     "B008",
     "E402",
     "D402",

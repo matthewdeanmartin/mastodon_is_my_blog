@@ -18,9 +18,7 @@ depends_on = None
 
 def upgrade() -> None:
     with op.batch_alter_table("cached_posts") as batch_op:
-        batch_op.add_column(
-            sa.Column("has_job", sa.Boolean(), nullable=False, server_default="0")
-        )
+        batch_op.add_column(sa.Column("has_job", sa.Boolean(), nullable=False, server_default="0"))
 
 
 def downgrade() -> None:
